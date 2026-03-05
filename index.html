@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -134,16 +134,22 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   </div>
 </header>
 
-<nav>
-  <button class="active" onclick="goTab('suggest',this)">Suggest</button>
-  <button onclick="goTab('vote',this)">Vote</button>
-  <button onclick="goTab('results',this)">Results</button>
-  <button onclick="goTab('surveys',this)">Surveys</button>
-  <button onclick="goTab('analysis',this)">Analysis</button>
-  <button onclick="goTab('admin',this)">Admin</button>
+<div id="loading-screen" style="text-align:center;padding:4rem 1rem;position:relative;z-index:2;">
+  <div style="font-size:2.5rem;margin-bottom:1rem;">📚</div>
+  <div style="font-family:'Playfair Display',serif;font-size:1.2rem;color:#1a1a1a;margin-bottom:.5rem;">Loading Book Club…</div>
+  <div style="font-size:.85rem;color:#7a7668;">Connecting to database</div>
+</div>
+
+<nav id="app-nav" style="display:none;">
+  <button class="active" data-tab="suggest" onclick="goTab('suggest',this)">Suggest</button>
+  <button data-tab="vote" onclick="goTab('vote',this)">Vote</button>
+  <button data-tab="results" onclick="goTab('results',this)">Results</button>
+  <button data-tab="surveys" onclick="goTab('surveys',this)">Surveys</button>
+  <button data-tab="analysis" onclick="goTab('analysis',this)">Analysis</button>
+  <button data-tab="admin" onclick="goTab('admin',this)">Admin</button>
 </nav>
 
-<main>
+<main id="app-main" style="display:none;">
 
 <!-- ══════════════ SUGGEST ══════════════ -->
 <div id="tab-suggest" class="section active">
@@ -330,77 +336,166 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 
 </main>
 
-<script>
+<script type="module">
 // ════════════════════════════════════════════════════════
-// STORAGE
+// FIREBASE SETUP
 // ════════════════════════════════════════════════════════
-const SK = {
-  books:'bc_books', votes:'bc_votes', settings:'bc_settings',
-  archives:'bc_archives', surveys:'bc_surveys', surveyResponses:'bc_surveyResp',
-  draftSurvey:'bc_draftSurvey'
-};
-const get = k => { try { return JSON.parse(localStorage.getItem(k)||'null'); } catch { return null; } };
-const set = (k,v) => localStorage.setItem(k, JSON.stringify(v));
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+  getFirestore, doc, getDoc, setDoc, onSnapshot
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-function getBooks(){ return get(SK.books)||[]; }
-function getVotes(){ return get(SK.votes)||{}; }
-function getSettings(){
-  return Object.assign({votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,password:'bookclub123'}, get(SK.settings)||{});
+const firebaseConfig = {
+  apiKey: "AIzaSyARdDVksDZ1R7NthYEPfYQs0ugDCsAMvug",
+  authDomain: "discordecke-bookclub.firebaseapp.com",
+  projectId: "discordecke-bookclub",
+  storageBucket: "discordecke-bookclub.firebasestorage.app",
+  messagingSenderId: "1053473422189",
+  appId: "1:1053473422189:web:a096bd9f7b106aa41f3864"
+};
+
+const fbApp  = initializeApp(firebaseConfig);
+const db     = getFirestore(fbApp);
+
+const SETTINGS_REF = doc(db, 'club', 'settings');
+const BOOKS_REF    = doc(db, 'club', 'books');
+const VOTES_REF    = doc(db, 'club', 'votes');
+const ARCHIVES_REF = doc(db, 'club', 'archives');
+const SURVEYS_REF  = doc(db, 'club', 'surveys');
+const SRESP_REF    = doc(db, 'club', 'surveyResponses');
+const DRAFT_REF    = doc(db, 'club', 'draftSurvey');
+
+// ── In-memory cache kept fresh by real-time listeners ──
+let CACHE = {
+  settings: {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,password:'bookclub123'},
+  books: [], votes: {}, archives: [], surveys: [], surveyResponses: {}
+};
+
+// ── Loading overlay ────────────────────────────────────
+function showLoading(msg) {
+  let el = document.getElementById('fb-loading');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'fb-loading';
+    el.style.cssText = 'position:fixed;inset:0;background:rgba(17,17,17,.8);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    document.body.appendChild(el);
+  }
+  el.innerHTML = `<div style="background:#1f1f1f;color:#f0b429;padding:1.5rem 2.5rem;border-radius:8px;border:1px solid #f0b429;font-family:'DM Sans',sans-serif;font-size:.95rem;">${msg || 'Loading…'}</div>`;
+  el.style.display = 'flex';
 }
-function getArchives(){ return get(SK.archives)||[]; }
-function getSurveys(){ return get(SK.surveys)||[]; }
-function getSurveyResponses(){ return get(SK.surveyResponses)||{}; }
+function hideLoading() {
+  const el = document.getElementById('fb-loading');
+  if (el) el.style.display = 'none';
+}
+
+// ── Firestore helpers ──────────────────────────────────
+async function fbSet(ref, data) { await setDoc(ref, data, { merge: true }); }
+
+// ── Real-time listeners ────────────────────────────────
+let _listenersStarted = false;
+function startListeners() {
+  if (_listenersStarted) return;
+  _listenersStarted = true;
+
+  onSnapshot(SETTINGS_REF, snap => {
+    CACHE.settings = Object.assign(
+      {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,password:'bookclub123'},
+      snap.exists() ? snap.data() : {}
+    );
+    refreshActiveTab();
+  });
+  onSnapshot(BOOKS_REF, snap => {
+    CACHE.books = snap.exists() ? (snap.data().list || []) : [];
+    refreshActiveTab();
+  });
+  onSnapshot(VOTES_REF, snap => {
+    CACHE.votes = snap.exists() ? (snap.data().map || {}) : {};
+    refreshActiveTab();
+  });
+  onSnapshot(ARCHIVES_REF, snap => {
+    CACHE.archives = snap.exists() ? (snap.data().list || []) : [];
+    refreshActiveTab();
+  });
+  onSnapshot(SURVEYS_REF, snap => {
+    CACHE.surveys = snap.exists() ? (snap.data().list || []) : [];
+    refreshActiveTab();
+  });
+  onSnapshot(SRESP_REF, snap => {
+    CACHE.surveyResponses = snap.exists() ? (snap.data().map || {}) : {};
+    refreshActiveTab();
+  });
+}
+
+function refreshActiveTab() {
+  const active = document.querySelector('.section.active');
+  if (!active) return;
+  const id = active.id.replace('tab-', '');
+  if (id === 'suggest') renderSuggest();
+  else if (id === 'vote') renderVote();
+  else if (id === 'results') renderResults();
+  else if (id === 'surveys') renderMemberSurveys();
+  else if (id === 'analysis') renderAnalysis();
+  else if (id === 'admin' && document.getElementById('admin-panel').style.display !== 'none') renderAdmin();
+}
+
+// ── Cache accessors ────────────────────────────────────
+function getBooks()          { return CACHE.books || []; }
+function getVotes()          { return CACHE.votes || {}; }
+function getSettings()       { return CACHE.settings; }
+function getArchives()       { return CACHE.archives || []; }
+function getSurveys()        { return CACHE.surveys || []; }
+function getSurveyResponses(){ return CACHE.surveyResponses || {}; }
 
 // ════════════════════════════════════════════════════════
 // NAV
 // ════════════════════════════════════════════════════════
-function goTab(id, btn){
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
-  document.getElementById('tab-'+id).classList.add('active');
+function goTab(id, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
   btn.classList.add('active');
-  if(id==='suggest') renderSuggest();
-  if(id==='vote') renderVote();
-  if(id==='results') renderResults();
-  if(id==='surveys') renderMemberSurveys();
-  if(id==='analysis') renderAnalysis();
-  if(id==='admin' && document.getElementById('admin-panel').style.display!=='none') renderAdmin();
+  if (id === 'suggest')  renderSuggest();
+  if (id === 'vote')     renderVote();
+  if (id === 'results')  renderResults();
+  if (id === 'surveys')  renderMemberSurveys();
+  if (id === 'analysis') renderAnalysis();
+  if (id === 'admin' && document.getElementById('admin-panel').style.display !== 'none') renderAdmin();
 }
+window.goTab = goTab;
 
 // ════════════════════════════════════════════════════════
 // SUGGEST
 // ════════════════════════════════════════════════════════
-function suggestBook(){
-  const title=v('s-title'), author=v('s-author'), name=v('s-name'), email=v('s-email'), discord=v('s-discord');
-  const msg = document.getElementById('suggest-msg');
-  if(!getSettings().suggestionsOpen){ showMsg('suggest-msg','Suggestions are currently closed.','err'); return; }
-  if(!title||!author||!name||!email||!discord){ showMsg('suggest-msg','Please fill in all fields.','err'); return; }
-  if(!email.includes('@')){ showMsg('suggest-msg','Please enter a valid email.','err'); return; }
+async function suggestBook() {
+  const title = v('s-title'), author = v('s-author'), name = v('s-name'),
+        email = v('s-email'), discord = v('s-discord');
+  if (!getSettings().suggestionsOpen) { showMsg('suggest-msg', 'Suggestions are currently closed.', 'err'); return; }
+  if (!title || !author || !name || !email || !discord) { showMsg('suggest-msg', 'Please fill in all fields.', 'err'); return; }
+  if (!email.includes('@')) { showMsg('suggest-msg', 'Please enter a valid email.', 'err'); return; }
   const books = getBooks();
-  if(books.length>=30){ showMsg('suggest-msg','Maximum 30 books reached.','err'); return; }
-  books.push({id:Date.now(), title, author, suggester:name, email, discord});
-  set(SK.books, books);
-  ['s-title','s-author','s-name','s-email','s-discord'].forEach(id=>document.getElementById(id).value='');
-  showMsg('suggest-msg','✓ Book added!','ok');
-  renderSuggest();
+  if (books.length >= 30) { showMsg('suggest-msg', 'Maximum 30 books reached.', 'err'); return; }
+  showLoading('Adding book…');
+  books.push({ id: Date.now(), title, author, suggester: name, email, discord });
+  await fbSet(BOOKS_REF, { list: books });
+  hideLoading();
+  ['s-title','s-author','s-name','s-email','s-discord'].forEach(id => document.getElementById(id).value = '');
+  showMsg('suggest-msg', '✓ Book added!', 'ok');
 }
+window.suggestBook = suggestBook;
 
-function renderSuggest(){
-  const s=getSettings(), books=getBooks();
-  const closed=document.getElementById('suggest-closed-banner');
-  const formContent=document.getElementById('suggest-form-content');
-  if(!s.suggestionsOpen){
-    closed.style.display='block'; formContent.style.display='none'; return;
-  }
-  closed.style.display='none'; formContent.style.display='block';
-  // book list: only show if admin has made suggestions visible
-  const listSection=document.getElementById('book-list-section');
-  if(!s.suggestionsVisible){ listSection.style.display='none'; return; }
-  listSection.style.display='block';
-  document.getElementById('suggest-count').textContent = books.length+' book'+(books.length!==1?'s':'')+' suggested';
+function renderSuggest() {
+  const s = getSettings(), books = getBooks();
+  const closed = document.getElementById('suggest-closed-banner');
+  const formContent = document.getElementById('suggest-form-content');
+  if (!s.suggestionsOpen) { closed.style.display = 'block'; formContent.style.display = 'none'; return; }
+  closed.style.display = 'none'; formContent.style.display = 'block';
+  const listSection = document.getElementById('book-list-section');
+  if (!s.suggestionsVisible) { listSection.style.display = 'none'; return; }
+  listSection.style.display = 'block';
+  document.getElementById('suggest-count').textContent = books.length + ' book' + (books.length !== 1 ? 's' : '') + ' suggested';
   const list = document.getElementById('book-list');
-  if(!books.length){ list.innerHTML='<div class="empty"><div class="icon">📚</div><p>No books yet — be the first!</p></div>'; return; }
-  list.innerHTML = books.map((b,i)=>`
+  if (!books.length) { list.innerHTML = '<div class="empty"><div class="icon">📚</div><p>No books yet — be the first!</p></div>'; return; }
+  list.innerHTML = books.map((b, i) => `
     <div class="book-item">
       <div class="book-num">${i+1}</div>
       <div class="book-info">
@@ -413,66 +508,69 @@ function renderSuggest(){
 // ════════════════════════════════════════════════════════
 // VOTE
 // ════════════════════════════════════════════════════════
-let dragSrc=null;
-function renderVote(){
-  const s=getSettings(), books=getBooks();
-  document.getElementById('vote-closed-banner').style.display = s.votingOpen?'none':'block';
-  document.getElementById('vote-content').style.display = s.votingOpen?'block':'none';
-  if(!s.votingOpen) return;
-  if(!books.length){ document.getElementById('sortable-list').innerHTML='<div class="empty"><div class="icon">📖</div><p>No books yet.</p></div>'; return; }
+let dragSrc = null;
+function renderVote() {
+  const s = getSettings(), books = getBooks();
+  document.getElementById('vote-closed-banner').style.display = s.votingOpen ? 'none' : 'block';
+  document.getElementById('vote-content').style.display = s.votingOpen ? 'block' : 'none';
+  if (!s.votingOpen) return;
+  if (!books.length) { document.getElementById('sortable-list').innerHTML = '<div class="empty"><div class="icon">📖</div><p>No books yet.</p></div>'; return; }
   buildSortable(books);
 }
-function buildSortable(books){
-  const c=document.getElementById('sortable-list'); c.innerHTML='';
-  books.forEach((b,i)=>{
-    const d=document.createElement('div'); d.className='sort-item'; d.draggable=true; d.dataset.id=b.id;
-    d.innerHTML=`<div class="drag-handle">⠿</div><div class="rank-badge">${i+1}</div><div class="book-info"><div class="book-title">${esc(b.title)}</div><div class="book-sub">${esc(b.author)}</div></div>`;
-    d.addEventListener('dragstart',function(e){dragSrc=this;this.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
-    d.addEventListener('dragover',function(e){e.preventDefault();document.querySelectorAll('.sort-item').forEach(el=>el.classList.remove('drag-over'));this.classList.add('drag-over');});
-    d.addEventListener('drop',function(e){e.preventDefault();if(dragSrc!==this){const c=document.getElementById('sortable-list');const items=[...c.querySelectorAll('.sort-item')];const si=items.indexOf(dragSrc),di=items.indexOf(this);if(si<di)c.insertBefore(dragSrc,this.nextSibling);else c.insertBefore(dragSrc,this);updateRanks();}});
-    d.addEventListener('dragend',function(){this.classList.remove('dragging');document.querySelectorAll('.sort-item').forEach(el=>el.classList.remove('drag-over'));});
+function buildSortable(books) {
+  const c = document.getElementById('sortable-list'); c.innerHTML = '';
+  books.forEach((b, i) => {
+    const d = document.createElement('div');
+    d.className = 'sort-item'; d.draggable = true; d.dataset.id = b.id;
+    d.innerHTML = `<div class="drag-handle">⠿</div><div class="rank-badge">${i+1}</div><div class="book-info"><div class="book-title">${esc(b.title)}</div><div class="book-sub">${esc(b.author)}</div></div>`;
+    d.addEventListener('dragstart', function(e) { dragSrc = this; this.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
+    d.addEventListener('dragover',  function(e) { e.preventDefault(); document.querySelectorAll('.sort-item').forEach(el => el.classList.remove('drag-over')); this.classList.add('drag-over'); });
+    d.addEventListener('drop',      function(e) { e.preventDefault(); if (dragSrc !== this) { const c = document.getElementById('sortable-list'); const items = [...c.querySelectorAll('.sort-item')]; const si = items.indexOf(dragSrc), di = items.indexOf(this); if (si < di) c.insertBefore(dragSrc, this.nextSibling); else c.insertBefore(dragSrc, this); updateRanks(); }});
+    d.addEventListener('dragend',   function()  { this.classList.remove('dragging'); document.querySelectorAll('.sort-item').forEach(el => el.classList.remove('drag-over')); });
     c.appendChild(d);
   });
 }
-function updateRanks(){ document.querySelectorAll('.sort-item').forEach((el,i)=>el.querySelector('.rank-badge').textContent=i+1); }
-function submitVote(){
-  const name=v('v-name'), email=v('v-email'), discord=v('v-discord');
-  if(!name||!email||!discord){ showMsg('vote-msg','Please fill in all fields.','err'); return; }
-  if(!email.includes('@')){ showMsg('vote-msg','Valid email required.','err'); return; }
-  const items=[...document.querySelectorAll('.sort-item')];
-  if(!items.length){ showMsg('vote-msg','No books to rank.','err'); return; }
-  const votes=getVotes();
-  if(votes[name] && !confirm(`"${name}" already voted. Overwrite?`)) return;
-  votes[name]={ranking:items.map(el=>el.dataset.id), email, discord, ts:Date.now()};
-  set(SK.votes,votes);
-  showMsg('vote-msg','✓ Vote recorded — thank you!','ok');
+function updateRanks() { document.querySelectorAll('.sort-item').forEach((el, i) => el.querySelector('.rank-badge').textContent = i + 1); }
+
+async function submitVote() {
+  const name = v('v-name'), email = v('v-email'), discord = v('v-discord');
+  if (!name || !email || !discord) { showMsg('vote-msg', 'Please fill in all fields.', 'err'); return; }
+  if (!email.includes('@')) { showMsg('vote-msg', 'Valid email required.', 'err'); return; }
+  const items = [...document.querySelectorAll('.sort-item')];
+  if (!items.length) { showMsg('vote-msg', 'No books to rank.', 'err'); return; }
+  const votes = getVotes();
+  if (votes[name] && !confirm(`"${name}" already voted. Overwrite?`)) return;
+  showLoading('Submitting vote…');
+  votes[name] = { ranking: items.map(el => el.dataset.id), email, discord, ts: Date.now() };
+  await fbSet(VOTES_REF, { map: votes });
+  hideLoading();
+  showMsg('vote-msg', '✓ Vote recorded — thank you!', 'ok');
 }
+window.submitVote = submitVote;
 
 // ════════════════════════════════════════════════════════
 // RESULTS
 // ════════════════════════════════════════════════════════
-function renderResults(){
-  const s=getSettings(), books=getBooks(), votes=getVotes();
-  const n=Object.keys(votes).length;
-  document.getElementById('res-subtitle').textContent=`Borda count · ${n} voter${n!==1?'s':''} · ${books.length} book${books.length!==1?'s':''}`;
-  const area=document.getElementById('results-area');
-  if(!s.resultsVisible){
-    area.innerHTML=`<div class="pending-box"><div class="icon">🔒</div><h3>Results Pending</h3><p>The admin hasn't released results yet.<br>Check back after voting closes!</p></div>`;
+function renderResults() {
+  const s = getSettings(), books = getBooks(), votes = getVotes();
+  const n = Object.keys(votes).length;
+  document.getElementById('res-subtitle').textContent = `Borda count · ${n} voter${n !== 1 ? 's' : ''} · ${books.length} book${books.length !== 1 ? 's' : ''}`;
+  const area = document.getElementById('results-area');
+  if (!s.resultsVisible) {
+    area.innerHTML = `<div class="pending-box"><div class="icon">🔒</div><h3>Results Pending</h3><p>The admin hasn't released results yet.<br>Check back after voting closes!</p></div>`;
     return;
   }
-  if(!books.length){ area.innerHTML='<div class="empty"><div class="icon">📚</div><p>No books yet.</p></div>'; return; }
-  if(!n){ area.innerHTML='<div class="empty"><div class="icon">🗳️</div><p>No votes cast yet.</p></div>'; return; }
-  const nb=books.length, scores={};
-  books.forEach(b=>scores[b.id]=0);
-  Object.values(votes).forEach(vd=>{
-    (vd.ranking||vd).forEach((id,idx)=>{ if(scores[id]!==undefined) scores[id]+=(nb-idx); });
-  });
-  const sorted=[...books].sort((a,b)=>scores[b.id]-scores[a.id]);
-  const max=scores[sorted[0]?.id]||1;
-  area.innerHTML=sorted.map((b,i)=>{
-    const pts=scores[b.id], pct=max>0?pts/max*100:0, win=i===0;
-    return `<div class="result-item ${win?'winner':''}">
-      <div class="result-rank">${win?'👑':i+1}</div>
+  if (!books.length) { area.innerHTML = '<div class="empty"><div class="icon">📚</div><p>No books yet.</p></div>'; return; }
+  if (!n) { area.innerHTML = '<div class="empty"><div class="icon">🗳️</div><p>No votes cast yet.</p></div>'; return; }
+  const nb = books.length, scores = {};
+  books.forEach(b => scores[b.id] = 0);
+  Object.values(votes).forEach(vd => { (vd.ranking || vd).forEach((id, idx) => { if (scores[id] !== undefined) scores[id] += (nb - idx); }); });
+  const sorted = [...books].sort((a, b) => scores[b.id] - scores[a.id]);
+  const max = scores[sorted[0]?.id] || 1;
+  area.innerHTML = sorted.map((b, i) => {
+    const pts = scores[b.id], pct = max > 0 ? pts / max * 100 : 0, win = i === 0;
+    return `<div class="result-item ${win ? 'winner' : ''}">
+      <div class="result-rank">${win ? '👑' : i+1}</div>
       <div class="book-info" style="flex:1">
         <div class="book-title">${esc(b.title)}</div>
         <div class="book-sub">${esc(b.author)}</div>
@@ -486,11 +584,11 @@ function renderResults(){
 // ════════════════════════════════════════════════════════
 // SURVEYS — MEMBER VIEW
 // ════════════════════════════════════════════════════════
-function renderMemberSurveys(){
-  const surveys=getSurveys().filter(s=>s.active);
-  const area=document.getElementById('surveys-member-area');
-  if(!surveys.length){area.innerHTML='<div class="empty"><div class="icon">📋</div><p>No active surveys right now.</p></div>';return;}
-  area.innerHTML=surveys.map(s=>`
+function renderMemberSurveys() {
+  const surveys = getSurveys().filter(s => s.active);
+  const area = document.getElementById('surveys-member-area');
+  if (!surveys.length) { area.innerHTML = '<div class="empty"><div class="icon">📋</div><p>No active surveys right now.</p></div>'; return; }
+  area.innerHTML = surveys.map(s => `
     <div class="card" id="scard-${s.id}">
       <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:1rem;">${esc(s.title)}</h3>
       <div class="f-group" style="max-width:280px;">
@@ -500,411 +598,337 @@ function renderMemberSurveys(){
       <div style="margin-top:1rem;"><button class="btn btn-primary" onclick="submitSurveyResponse('${s.id}')">Submit Response</button></div>
       <div id="sr-msg-${s.id}"></div>
     </div>`).join('');
-  initStars();
 }
-
-function renderSurveyQuestions(s){
-  return s.questions.map((q,i)=>`
+function renderSurveyQuestions(s) {
+  return s.questions.map((q, i) => `
     <div class="survey-q">
       <div class="q-label">${i+1}. ${esc(q.prompt)}</div>
       ${renderQInput(q, s.id)}
     </div>`).join('');
 }
-
-function renderQInput(q, sid){
-  const uid=`${sid}_${q.id}`;
-  if(q.type==='text') return `<textarea id="qi-${uid}" placeholder="Your answer…" rows="3" style="width:100%;"></textarea>`;
-  if(q.type==='yesno') return `<div class="radio-group">
-    <label class="radio-opt"><input type="radio" name="qi-${uid}" value="Yes"> Yes</label>
-    <label class="radio-opt"><input type="radio" name="qi-${uid}" value="No"> No</label>
-  </div>`;
-  if(q.type==='mc') return `<div class="radio-group">${(q.options||[]).map(opt=>`
-    <label class="radio-opt"><input type="radio" name="qi-${uid}" value="${esc(opt)}"> ${esc(opt)}</label>`).join('')}
-  </div>`;
-  if(q.type==='rating') return `<div class="star-row" id="stars-${uid}" data-max="${q.max||5}" data-val="0">
-    ${Array.from({length:q.max||5},(_,i)=>`<span class="star" data-v="${i+1}" onclick="setStar('${uid}',${i+1})">★</span>`).join('')}
-    <span style="font-size:.8rem;color:var(--soft);margin-left:.5rem;" id="star-lbl-${uid}">0 / ${q.max||5}</span>
-  </div>`;
+function renderQInput(q, sid) {
+  const uid = `${sid}_${q.id}`;
+  if (q.type === 'text')   return `<textarea id="qi-${uid}" placeholder="Your answer…" rows="3" style="width:100%;"></textarea>`;
+  if (q.type === 'yesno')  return `<div class="radio-group"><label class="radio-opt"><input type="radio" name="qi-${uid}" value="Yes"> Yes</label><label class="radio-opt"><input type="radio" name="qi-${uid}" value="No"> No</label></div>`;
+  if (q.type === 'mc')     return `<div class="radio-group">${(q.options||[]).map(opt=>`<label class="radio-opt"><input type="radio" name="qi-${uid}" value="${esc(opt)}"> ${esc(opt)}</label>`).join('')}</div>`;
+  if (q.type === 'rating') return `<div class="star-row" id="stars-${uid}" data-max="${q.max||5}" data-val="0">${Array.from({length:q.max||5},(_,i)=>`<span class="star" data-v="${i+1}" onclick="setStar('${uid}',${i+1})">★</span>`).join('')}<span style="font-size:.8rem;color:var(--soft);margin-left:.5rem;" id="star-lbl-${uid}">0 / ${q.max||5}</span></div>`;
   return '';
 }
+function setStar(uid, val) {
+  const row = document.getElementById('stars-' + uid); if (!row) return;
+  row.dataset.val = val;
+  row.querySelectorAll('.star').forEach(s => s.classList.toggle('on', +s.dataset.v <= val));
+  const lbl = document.getElementById('star-lbl-' + uid);
+  if (lbl) lbl.textContent = `${val} / ${row.dataset.max}`;
+}
+window.setStar = setStar;
 
-function initStars(){
-  // stars already wired via onclick
-}
-function setStar(uid, val){
-  const row=document.getElementById('stars-'+uid); if(!row)return;
-  row.dataset.val=val;
-  row.querySelectorAll('.star').forEach(s=> s.classList.toggle('on', +s.dataset.v<=val));
-  const lbl=document.getElementById('star-lbl-'+uid);
-  if(lbl) lbl.textContent=`${val} / ${row.dataset.max}`;
-}
-
-function submitSurveyResponse(sid){
-  const surveys=getSurveys(); const survey=surveys.find(s=>s.id===sid); if(!survey)return;
-  const name=v(`sr-name-${sid}`); if(!name){showMsg(`sr-msg-${sid}`,'Please enter your name.','err');return;}
-  const answers={};
-  survey.questions.forEach(q=>{
-    const uid=`${sid}_${q.id}`;
-    if(q.type==='text'){ const el=document.getElementById(`qi-${uid}`); answers[q.id]=el?el.value.trim():''; }
-    else if(q.type==='rating'){ const row=document.getElementById(`stars-${uid}`); answers[q.id]=row?+row.dataset.val:0; }
-    else { const sel=document.querySelector(`input[name="qi-${uid}"]:checked`); answers[q.id]=sel?sel.value:''; }
+async function submitSurveyResponse(sid) {
+  const surveys = getSurveys(), survey = surveys.find(s => s.id === sid); if (!survey) return;
+  const name = v(`sr-name-${sid}`); if (!name) { showMsg(`sr-msg-${sid}`, 'Please enter your name.', 'err'); return; }
+  const answers = {};
+  survey.questions.forEach(q => {
+    const uid = `${sid}_${q.id}`;
+    if (q.type === 'text')   { const el = document.getElementById(`qi-${uid}`); answers[q.id] = el ? el.value.trim() : ''; }
+    else if (q.type === 'rating') { const row = document.getElementById(`stars-${uid}`); answers[q.id] = row ? +row.dataset.val : 0; }
+    else { const sel = document.querySelector(`input[name="qi-${uid}"]:checked`); answers[q.id] = sel ? sel.value : ''; }
   });
-  const responses=getSurveyResponses();
-  if(!responses[sid]) responses[sid]=[];
-  responses[sid].push({name, answers, ts:Date.now()});
-  set(SK.surveyResponses, responses);
-  showMsg(`sr-msg-${sid}`,'✓ Response submitted!','ok');
-  document.getElementById(`scard-${sid}`).querySelectorAll('input,textarea').forEach(el=>{
-    if(el.type==='radio'||el.type==='checkbox') el.checked=false; else el.value='';
-  });
-  document.querySelectorAll('[id^="star-"]').forEach(el=>el.classList.remove('on'));
+  const responses = getSurveyResponses();
+  if (!responses[sid]) responses[sid] = [];
+  showLoading('Submitting response…');
+  responses[sid].push({ name, answers, ts: Date.now() });
+  await fbSet(SRESP_REF, { map: responses });
+  hideLoading();
+  showMsg(`sr-msg-${sid}`, '✓ Response submitted!', 'ok');
+  document.getElementById(`scard-${sid}`).querySelectorAll('input,textarea').forEach(el => { if (el.type === 'radio' || el.type === 'checkbox') el.checked = false; else el.value = ''; });
+  document.querySelectorAll('[id^="star-"]').forEach(el => el.classList.remove('on'));
 }
+window.submitSurveyResponse = submitSurveyResponse;
 
 // ════════════════════════════════════════════════════════
-// SURVEY BUILDER (admin)
+// SURVEY BUILDER
 // ════════════════════════════════════════════════════════
-let questions=[]; // draft questions
-function addQ(type){
-  const id='q'+Date.now();
-  questions.push({id, type, prompt:'', options: type==='mc'?['','']:[],max:5});
+let questions = [];
+function addQ(type) {
+  questions.push({ id: 'q' + Date.now(), type, prompt: '', options: type === 'mc' ? ['',''] : [], max: 5 });
   renderBuilder();
 }
-function renderBuilder(){
-  const c=document.getElementById('question-builder'); c.innerHTML='';
-  questions.forEach((q,i)=>{
-    const div=document.createElement('div'); div.className='q-block';
-    let extra='';
-    if(q.type==='mc'){
-      extra=`<div id="opts-${q.id}">${(q.options||[]).map((o,oi)=>`
-        <div class="option-row">
-          <input type="text" value="${esc(o)}" placeholder="Option ${oi+1}" oninput="questions[${i}].options[${oi}]=this.value">
-          <button class="btn btn-sm btn-danger" onclick="rmOpt(${i},${oi})">✕</button>
-        </div>`).join('')}
-      </div><button class="btn btn-sm btn-secondary" style="margin-top:.4rem;" onclick="addOpt(${i})">+ Option</button>`;
+function renderBuilder() {
+  const c = document.getElementById('question-builder'); c.innerHTML = '';
+  questions.forEach((q, i) => {
+    const div = document.createElement('div'); div.className = 'q-block';
+    let extra = '';
+    if (q.type === 'mc') {
+      extra = `<div id="opts-${q.id}">${(q.options||[]).map((o,oi) => `<div class="option-row"><input type="text" value="${esc(o)}" placeholder="Option ${oi+1}" oninput="questions[${i}].options[${oi}]=this.value"><button class="btn btn-sm btn-danger" onclick="rmOpt(${i},${oi})">✕</button></div>`).join('')}</div><button class="btn btn-sm btn-secondary" style="margin-top:.4rem;" onclick="addOpt(${i})">+ Option</button>`;
     }
-    if(q.type==='rating'){
-      extra=`<div style="margin-top:.5rem;display:flex;align-items:center;gap:.75rem;">
-        <label style="margin:0;white-space:nowrap;">Max rating:</label>
-        <select onchange="questions[${i}].max=+this.value" style="width:90px;padding:.4rem;">
-          <option value="5" ${q.max===5?'selected':''}>1–5</option>
-          <option value="10" ${q.max===10?'selected':''}>1–10</option>
-        </select>
-      </div>`;
+    if (q.type === 'rating') {
+      extra = `<div style="margin-top:.5rem;display:flex;align-items:center;gap:.75rem;"><label style="margin:0;white-space:nowrap;">Max rating:</label><select onchange="questions[${i}].max=+this.value" style="width:90px;padding:.4rem;"><option value="5" ${q.max===5?'selected':''}>1–5</option><option value="10" ${q.max===10?'selected':''}>1–10</option></select></div>`;
     }
-    div.innerHTML=`
-      <div class="q-block-header">
-        <div class="q-num">${i+1}</div>
-        <div style="flex:1;"><input type="text" value="${esc(q.prompt)}" placeholder="Question prompt…" oninput="questions[${i}].prompt=this.value"></div>
-        <div class="q-type-badge">${q.type}</div>
-        <button class="btn btn-sm btn-danger" onclick="rmQ(${i})">✕</button>
-      </div>${extra}`;
+    div.innerHTML = `<div class="q-block-header"><div class="q-num">${i+1}</div><div style="flex:1;"><input type="text" value="${esc(q.prompt)}" placeholder="Question prompt…" oninput="questions[${i}].prompt=this.value"></div><div class="q-type-badge">${q.type}</div><button class="btn btn-sm btn-danger" onclick="rmQ(${i})">✕</button></div>${extra}`;
     c.appendChild(div);
   });
-  set(SK.draftSurvey, {title:v('survey-title'), questions});
+  fbSet(DRAFT_REF, { title: v('survey-title'), questions });
 }
-function rmQ(i){ questions.splice(i,1); renderBuilder(); }
-function addOpt(qi){ questions[qi].options.push(''); renderBuilder(); }
-function rmOpt(qi,oi){ questions[qi].options.splice(oi,1); renderBuilder(); }
-function loadDraftSurvey(){
-  const d=get(SK.draftSurvey); if(!d){showMsg('survey-builder-msg','No draft found.','err');return;}
-  document.getElementById('survey-title').value=d.title||'';
-  questions=d.questions||[];
+function rmQ(i)        { questions.splice(i, 1); renderBuilder(); }
+function addOpt(qi)    { questions[qi].options.push(''); renderBuilder(); }
+function rmOpt(qi, oi) { questions[qi].options.splice(oi, 1); renderBuilder(); }
+window.addQ = addQ; window.rmQ = rmQ; window.addOpt = addOpt; window.rmOpt = rmOpt;
+
+async function loadDraftSurvey() {
+  const snap = await getDoc(DRAFT_REF);
+  if (!snap.exists()) { showMsg('survey-builder-msg', 'No draft found.', 'err'); return; }
+  const d = snap.data();
+  document.getElementById('survey-title').value = d.title || '';
+  questions = d.questions || [];
   renderBuilder();
 }
-function publishSurvey(){
-  const title=v('survey-title');
-  if(!title){showMsg('survey-builder-msg','Please add a survey title.','err');return;}
-  if(!questions.length){showMsg('survey-builder-msg','Add at least one question.','err');return;}
-  const surveys=getSurveys();
-  surveys.push({id:'s'+Date.now(), title, questions:[...questions.map(q=>({...q,options:[...q.options||[]]}))], active:true, created:Date.now()});
-  set(SK.surveys,surveys);
-  questions=[];
-  document.getElementById('survey-title').value='';
-  document.getElementById('question-builder').innerHTML='';
-  showMsg('survey-builder-msg','✓ Survey published!','ok');
+window.loadDraftSurvey = loadDraftSurvey;
+
+async function publishSurvey() {
+  const title = v('survey-title');
+  if (!title) { showMsg('survey-builder-msg', 'Please add a survey title.', 'err'); return; }
+  if (!questions.length) { showMsg('survey-builder-msg', 'Add at least one question.', 'err'); return; }
+  showLoading('Publishing survey…');
+  const surveys = getSurveys();
+  surveys.push({ id: 's' + Date.now(), title, questions: questions.map(q => ({...q, options: [...(q.options||[])]})), active: true, created: Date.now() });
+  await fbSet(SURVEYS_REF, { list: surveys });
+  hideLoading();
+  questions = [];
+  document.getElementById('survey-title').value = '';
+  document.getElementById('question-builder').innerHTML = '';
+  showMsg('survey-builder-msg', '✓ Survey published!', 'ok');
   renderAdmin();
 }
+window.publishSurvey = publishSurvey;
 
 // ════════════════════════════════════════════════════════
 // ANALYSIS
 // ════════════════════════════════════════════════════════
-function renderAnalysis(){
-  const archives=getArchives();
-  const area=document.getElementById('analysis-area');
-  if(!archives.length){
-    area.innerHTML='<div class="empty"><div class="icon">📈</div><p>No archived months yet. Archive a month from the Admin tab to see analysis here.</p></div>';
-    return;
-  }
-
-  // participation over time
-  const labels=archives.map(a=>a.label);
-  const participationData=archives.map(a=>Object.keys(a.votes||{}).length);
-  const booksData=archives.map(a=>(a.books||[]).length);
-
-  // top books across all time
-  const allScores={};
-  archives.forEach(a=>{
-    const nb=(a.books||[]).length;
-    const votes=a.votes||{};
-    (a.books||[]).forEach(b=>{ if(!allScores[b.title]) allScores[b.title]={pts:0,appears:0}; allScores[b.title].appears++; });
-    Object.values(votes).forEach(vd=>{
-      (vd.ranking||vd).forEach((id,idx)=>{
-        const book=(a.books||[]).find(b=>String(b.id)===String(id));
-        if(book){ if(!allScores[book.title]) allScores[book.title]={pts:0,appears:0}; allScores[book.title].pts+=(nb-idx); }
+function renderAnalysis() {
+  const archives = getArchives(), area = document.getElementById('analysis-area');
+  if (!archives.length) { area.innerHTML = '<div class="empty"><div class="icon">📈</div><p>No archived months yet. Archive a month from the Admin tab to see analysis here.</p></div>'; return; }
+  const participationData = archives.map(a => Object.keys(a.votes || {}).length);
+  const allScores = {};
+  archives.forEach(a => {
+    const nb = (a.books||[]).length;
+    (a.books||[]).forEach(b => { if (!allScores[b.title]) allScores[b.title] = {pts:0,appears:0}; allScores[b.title].appears++; });
+    Object.values(a.votes||{}).forEach(vd => {
+      (vd.ranking||vd).forEach((id, idx) => {
+        const book = (a.books||[]).find(b => String(b.id) === String(id));
+        if (book) { if (!allScores[book.title]) allScores[book.title] = {pts:0,appears:0}; allScores[book.title].pts += (nb - idx); }
       });
     });
   });
-  const topBooks=Object.entries(allScores).sort((a,b)=>b[1].pts-a[1].pts).slice(0,10);
-  const maxPts=topBooks[0]?topBooks[0][1].pts:1;
-
-  // who votes most
-  const voterFreq={};
-  archives.forEach(a=>{ Object.keys(a.votes||{}).forEach(n=>{ voterFreq[n]=(voterFreq[n]||0)+1; }); });
-  const topVoters=Object.entries(voterFreq).sort((a,b)=>b[1]-a[1]).slice(0,10);
-
-  let html=`
-  <!-- Participation over time -->
-  <div class="chart-wrap">
-    <h3>Participation Over Time</h3>
-    <div class="bar-chart">
-      ${archives.map((a,i)=>`
-        <div class="bar-row">
-          <div style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(a.label)}</div>
-          <div class="bar-track"><div class="bar-val" style="width:${Math.max(3,participationData[i]/Math.max(...participationData)*100)}%"></div></div>
-          <div class="bar-lbl">${participationData[i]} voter${participationData[i]!==1?'s':''}</div>
-        </div>`).join('')}
-    </div>
+  const topBooks = Object.entries(allScores).sort((a,b) => b[1].pts - a[1].pts).slice(0,10);
+  const maxPts = topBooks[0] ? topBooks[0][1].pts : 1;
+  const voterFreq = {};
+  archives.forEach(a => { Object.keys(a.votes||{}).forEach(n => { voterFreq[n] = (voterFreq[n]||0) + 1; }); });
+  const topVoters = Object.entries(voterFreq).sort((a,b) => b[1]-a[1]).slice(0,10);
+  area.innerHTML = `
+  <div class="chart-wrap"><h3>Participation Over Time</h3><div class="bar-chart">
+    ${archives.map((a,i) => `<div class="bar-row"><div style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(a.label)}</div><div class="bar-track"><div class="bar-val" style="width:${Math.max(3,participationData[i]/Math.max(...participationData)*100)}%"></div></div><div class="bar-lbl">${participationData[i]} voter${participationData[i]!==1?'s':''}</div></div>`).join('')}
+  </div></div>
+  <div class="chart-wrap"><h3>Top Books (All Time Points)</h3>
+    ${topBooks.length ? `<div class="bar-chart">${topBooks.map(([title,d]) => `<div class="bar-row"><div style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(title)}">${esc(title)}</div><div class="bar-track"><div class="bar-val" style="width:${Math.max(3,d.pts/maxPts*100)}%"></div></div><div class="bar-lbl">${d.pts} pts</div></div>`).join('')}</div>` : '<p style="color:var(--soft);font-size:.875rem;">Not enough data yet.</p>'}
   </div>
-
-  <!-- Top books all time -->
-  <div class="chart-wrap">
-    <h3>Top Books (All Time Points)</h3>
-    ${topBooks.length?`<div class="bar-chart">
-      ${topBooks.map(([title,d])=>`
-        <div class="bar-row">
-          <div style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(title)}">${esc(title)}</div>
-          <div class="bar-track"><div class="bar-val" style="width:${Math.max(3,d.pts/maxPts*100)}%"></div></div>
-          <div class="bar-lbl">${d.pts} pts</div>
-        </div>`).join('')}
-    </div>`:'<p style="color:var(--soft);font-size:.875rem;">Not enough data yet.</p>'}
+  <div class="chart-wrap"><h3>Most Consistent Voters</h3>
+    ${topVoters.length ? `<div class="bar-chart">${topVoters.map(([name,count]) => `<div class="bar-row"><div style="font-size:.78rem;">${esc(name)}</div><div class="bar-track"><div class="bar-val" style="width:${Math.max(3,count/archives.length*100)}%"></div></div><div class="bar-lbl">${count}/${archives.length}</div></div>`).join('')}</div>` : '<p style="color:var(--soft);font-size:.875rem;">Not enough data.</p>'}
   </div>
-
-  <!-- Top voters -->
-  <div class="chart-wrap">
-    <h3>Most Consistent Voters</h3>
-    ${topVoters.length?`<div class="bar-chart">
-      ${topVoters.map(([name,count])=>`
-        <div class="bar-row">
-          <div style="font-size:.78rem;">${esc(name)}</div>
-          <div class="bar-track"><div class="bar-val" style="width:${Math.max(3,count/archives.length*100)}%"></div></div>
-          <div class="bar-lbl">${count}/${archives.length}</div>
-        </div>`).join('')}
-    </div>`:'<p style="color:var(--soft);font-size:.875rem;">Not enough data.</p>'}
-  </div>
-
-  <!-- Monthly breakdown tabs -->
-  <div class="chart-wrap">
-    <h3>Monthly Results</h3>
-    <div class="month-tabs">${archives.map((a,i)=>`<div class="month-tab ${i===archives.length-1?'active':''}" onclick="showMonthDetail(${i},this)">${esc(a.label)}</div>`).join('')}</div>
+  <div class="chart-wrap"><h3>Monthly Results</h3>
+    <div class="month-tabs">${archives.map((a,i) => `<div class="month-tab ${i===archives.length-1?'active':''}" onclick="showMonthDetail(${i},this)">${esc(a.label)}</div>`).join('')}</div>
     <div id="month-detail"></div>
   </div>`;
-
-  area.innerHTML=html;
-  showMonthDetail(archives.length-1, area.querySelector('.month-tab.active'));
+  showMonthDetail(archives.length - 1, area.querySelector('.month-tab.active'));
 }
 
-function showMonthDetail(idx, el){
-  document.querySelectorAll('.month-tab').forEach(t=>t.classList.remove('active'));
-  if(el) el.classList.add('active');
-  const a=getArchives()[idx]; if(!a)return;
-  const nb=(a.books||[]).length, scores={};
-  (a.books||[]).forEach(b=>scores[b.id]=0);
-  Object.values(a.votes||{}).forEach(vd=>{
-    (vd.ranking||vd).forEach((id,idx2)=>{ if(scores[id]!==undefined) scores[id]+=(nb-idx2); });
-  });
-  const sorted=[...(a.books||[])].sort((x,y)=>scores[y.id]-scores[x.id]);
-  const maxPts=sorted[0]?scores[sorted[0].id]:1;
-  const vcount=Object.keys(a.votes||{}).length;
-  document.getElementById('month-detail').innerHTML=`
+function showMonthDetail(idx, el) {
+  document.querySelectorAll('.month-tab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  const a = getArchives()[idx]; if (!a) return;
+  const nb = (a.books||[]).length, scores = {};
+  (a.books||[]).forEach(b => scores[b.id] = 0);
+  Object.values(a.votes||{}).forEach(vd => { (vd.ranking||vd).forEach((id, idx2) => { if (scores[id] !== undefined) scores[id] += (nb - idx2); }); });
+  const sorted = [...(a.books||[])].sort((x,y) => scores[y.id] - scores[x.id]);
+  const maxPts = sorted[0] ? scores[sorted[0].id] : 1;
+  const vcount = Object.keys(a.votes||{}).length;
+  document.getElementById('month-detail').innerHTML = `
     <p style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">${vcount} voter${vcount!==1?'s':''} · ${nb} book${nb!==1?'s':''}</p>
-    <div class="bar-chart">
-      ${sorted.map((b,i)=>`<div class="bar-row">
-        <div style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${i===0?'👑 ':''}${esc(b.title)}</div>
-        <div class="bar-track"><div class="bar-val" style="width:${Math.max(3,scores[b.id]/maxPts*100)}%;${i===0?'background:var(--gold)':''}"></div></div>
-        <div class="bar-lbl">${scores[b.id]} pts</div>
-      </div>`).join('')}
-    </div>`;
+    <div class="bar-chart">${sorted.map((b,i) => `<div class="bar-row"><div style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${i===0?'👑 ':''}${esc(b.title)}</div><div class="bar-track"><div class="bar-val" style="width:${Math.max(3,scores[b.id]/maxPts*100)}%;${i===0?'background:var(--gold)':''}"></div></div><div class="bar-lbl">${scores[b.id]} pts</div></div>`).join('')}</div>`;
 }
+window.showMonthDetail = showMonthDetail;
 
 // ════════════════════════════════════════════════════════
 // ADMIN
 // ════════════════════════════════════════════════════════
-function adminLogin(){
-  const pass=document.getElementById('admin-pass').value;
-  if(pass===getSettings().password){
-    document.getElementById('admin-login-area').style.display='none';
-    document.getElementById('admin-panel').style.display='block';
+function adminLogin() {
+  const pass = document.getElementById('admin-pass').value;
+  if (pass === getSettings().password) {
+    document.getElementById('admin-login-area').style.display = 'none';
+    document.getElementById('admin-panel').style.display = 'block';
     renderAdmin();
-  } else { showMsg('admin-login-msg','Incorrect password.','err'); }
+  } else { showMsg('admin-login-msg', 'Incorrect password.', 'err'); }
 }
-function renderAdmin(){
-  const s=getSettings(), votes=getVotes(), books=getBooks(), surveys=getSurveys();
-  // pills
-  setPill('a-suggest-pill', s.suggestionsOpen, 'Open','Closed','pill-open','pill-closed');
-  setPill('a-suggestvis-pill', s.suggestionsVisible, 'Visible','Hidden','pill-open','pill-closed');
-  setPill('a-voting-pill', s.votingOpen, 'Open','Closed','pill-open','pill-closed');
-  setPill('a-results-pill', s.resultsVisible, 'Visible','Hidden','pill-open','pill-closed');
-  // voters
-  const vnames=Object.keys(votes);
-  document.getElementById('voter-count').textContent=`(${vnames.length})`;
-  document.getElementById('voter-list').innerHTML=vnames.length?vnames.map(n=>{
-    const vd=votes[n];
-    return `<div class="voter-row">
-      <div><div>${esc(n)}</div><div class="voter-meta">${esc(vd.email||'')}${vd.discord?' · '+esc(vd.discord):''}</div></div>
-      <button class="btn btn-danger btn-sm" onclick="deleteVote('${esc(n)}')">Remove</button>
-    </div>`;
-  }).join(''):'<p style="font-size:.85rem;color:var(--soft);">No votes yet.</p>';
-  // books
-  document.getElementById('admin-book-list').innerHTML=books.length?books.map(b=>`
+window.adminLogin = adminLogin;
+
+function renderAdmin() {
+  const s = getSettings(), votes = getVotes(), books = getBooks(), surveys = getSurveys();
+  setPill('a-suggest-pill',    s.suggestionsOpen,    'Open',    'Closed',  'pill-open', 'pill-closed');
+  setPill('a-suggestvis-pill', s.suggestionsVisible, 'Visible', 'Hidden',  'pill-open', 'pill-closed');
+  setPill('a-voting-pill',     s.votingOpen,         'Open',    'Closed',  'pill-open', 'pill-closed');
+  setPill('a-results-pill',    s.resultsVisible,     'Visible', 'Hidden',  'pill-open', 'pill-closed');
+  const vnames = Object.keys(votes);
+  document.getElementById('voter-count').textContent = `(${vnames.length})`;
+  document.getElementById('voter-list').innerHTML = vnames.length ? vnames.map(n => {
+    const vd = votes[n];
+    return `<div class="voter-row"><div><div>${esc(n)}</div><div class="voter-meta">${esc(vd.email||'')}${vd.discord?' · '+esc(vd.discord):''}</div></div><button class="btn btn-danger btn-sm" onclick="deleteVote('${esc(n)}')">Remove</button></div>`;
+  }).join('') : '<p style="font-size:.85rem;color:var(--soft);">No votes yet.</p>';
+  document.getElementById('admin-book-list').innerHTML = books.length ? books.map(b => `
     <div class="book-item" style="margin-bottom:.35rem;">
-      <div class="book-info">
-        <div class="book-title">${esc(b.title)}</div>
-        <div class="book-sub">${esc(b.author)} · ${esc(b.suggester)} · ${esc(b.email||'')} · ${esc(b.discord||'')}</div>
-      </div>
+      <div class="book-info"><div class="book-title">${esc(b.title)}</div><div class="book-sub">${esc(b.author)} · ${esc(b.suggester)} · ${esc(b.email||'')} · ${esc(b.discord||'')}</div></div>
       <button class="btn btn-danger btn-sm" onclick="deleteBook(${b.id})">Remove</button>
-    </div>`).join(''):'<p style="font-size:.85rem;color:var(--soft);">No books.</p>';
-  // surveys
-  document.getElementById('admin-surveys-list').innerHTML=surveys.length?surveys.map((s,i)=>`
+    </div>`).join('') : '<p style="font-size:.85rem;color:var(--soft);">No books.</p>';
+  document.getElementById('admin-surveys-list').innerHTML = surveys.length ? surveys.map((s, i) => `
     <div style="display:flex;align-items:center;justify-content:space-between;padding:.6rem 0;border-bottom:1px solid var(--border);">
-      <div>
-        <div style="font-size:.9rem;">${esc(s.title)}</div>
-        <div style="font-size:.75rem;color:var(--soft);">${s.questions.length} question${s.questions.length!==1?'s':''} · ${(getSurveyResponses()[s.id]||[]).length} response${(getSurveyResponses()[s.id]||[]).length!==1?'s':''}</div>
-      </div>
+      <div><div style="font-size:.9rem;">${esc(s.title)}</div><div style="font-size:.75rem;color:var(--soft);">${s.questions.length} question${s.questions.length!==1?'s':''} · ${(getSurveyResponses()[s.id]||[]).length} response${(getSurveyResponses()[s.id]||[]).length!==1?'s':''}</div></div>
       <div style="display:flex;gap:.4rem;align-items:center;">
         <span class="pill ${s.active?'pill-open':'pill-closed'}">${s.active?'Active':'Closed'}</span>
         <button class="btn btn-secondary btn-sm" onclick="toggleSurvey(${i})">${s.active?'Close':'Open'}</button>
         <button class="btn btn-danger btn-sm" onclick="deleteSurvey(${i})">Delete</button>
       </div>
-    </div>`).join(''):'<p style="font-size:.85rem;color:var(--soft);">No surveys yet.</p>';
+    </div>`).join('') : '<p style="font-size:.85rem;color:var(--soft);">No surveys yet.</p>';
 }
 
-function toggleSetting(key){
-  const s=getSettings(); s[key]=!s[key]; set(SK.settings,s); renderAdmin();
+async function toggleSetting(key) {
+  const s = getSettings(); s[key] = !s[key];
+  showLoading('Saving…');
+  await fbSet(SETTINGS_REF, s);
+  hideLoading();
 }
-function toggleSurvey(i){ const sv=getSurveys(); sv[i].active=!sv[i].active; set(SK.surveys,sv); renderAdmin(); }
-function deleteSurvey(i){ if(!confirm('Delete this survey?')) return; const sv=getSurveys(); sv.splice(i,1); set(SK.surveys,sv); renderAdmin(); }
-function deleteVote(name){ if(!confirm(`Remove vote for "${name}"?`))return; const v=getVotes(); delete v[name]; set(SK.votes,v); renderAdmin(); }
-function deleteBook(id){ if(!confirm('Remove this book?'))return; set(SK.books,getBooks().filter(b=>b.id!==id)); renderAdmin(); }
-function clearVotes(){ if(!confirm('Clear ALL votes?'))return; set(SK.votes,{}); renderAdmin(); }
-function clearBooks(){ if(!confirm('Clear all books & votes?'))return; set(SK.books,[]); set(SK.votes,{}); renderAdmin(); }
-function clearArchives(){ if(!confirm('Delete ALL archived months? This cannot be undone.'))return; set(SK.archives,[]); renderAdmin(); }
+window.toggleSetting = toggleSetting;
 
-function changePass(){
-  const p1=document.getElementById('np1').value, p2=document.getElementById('np2').value;
-  if(!p1){ showMsg('pass-msg','Password cannot be empty.','err'); return; }
-  if(p1!==p2){ showMsg('pass-msg','Passwords do not match.','err'); return; }
-  const s=getSettings(); s.password=p1; set(SK.settings,s);
-  document.getElementById('np1').value=''; document.getElementById('np2').value='';
-  showMsg('pass-msg','✓ Password changed.','ok');
+async function toggleSurvey(i) { const sv = getSurveys(); sv[i].active = !sv[i].active; await fbSet(SURVEYS_REF, {list:sv}); renderAdmin(); }
+async function deleteSurvey(i) { if (!confirm('Delete this survey?')) return; const sv = getSurveys(); sv.splice(i,1); await fbSet(SURVEYS_REF, {list:sv}); renderAdmin(); }
+async function deleteVote(name) { if (!confirm(`Remove vote for "${name}"?`)) return; showLoading('Removing…'); const v = getVotes(); delete v[name]; await fbSet(VOTES_REF, {map:v}); hideLoading(); }
+async function deleteBook(id)   { if (!confirm('Remove this book?')) return; showLoading('Removing…'); await fbSet(BOOKS_REF, {list:getBooks().filter(b=>b.id!==id)}); hideLoading(); }
+async function clearVotes()     { if (!confirm('Clear ALL votes?')) return; showLoading('Clearing…'); await fbSet(VOTES_REF, {map:{}}); hideLoading(); renderAdmin(); }
+async function clearBooks()     { if (!confirm('Clear all books & votes?')) return; showLoading('Clearing…'); await fbSet(BOOKS_REF, {list:[]}); await fbSet(VOTES_REF, {map:{}}); hideLoading(); renderAdmin(); }
+async function clearArchives()  { if (!confirm('Delete ALL archived months? This cannot be undone.')) return; showLoading('Clearing…'); await fbSet(ARCHIVES_REF, {list:[]}); hideLoading(); renderAdmin(); }
+window.toggleSurvey=toggleSurvey; window.deleteSurvey=deleteSurvey; window.deleteVote=deleteVote;
+window.deleteBook=deleteBook; window.clearVotes=clearVotes; window.clearBooks=clearBooks; window.clearArchives=clearArchives;
+
+async function changePass() {
+  const p1 = document.getElementById('np1').value, p2 = document.getElementById('np2').value;
+  if (!p1) { showMsg('pass-msg', 'Password cannot be empty.', 'err'); return; }
+  if (p1 !== p2) { showMsg('pass-msg', 'Passwords do not match.', 'err'); return; }
+  const s = getSettings(); s.password = p1;
+  showLoading('Saving…'); await fbSet(SETTINGS_REF, s); hideLoading();
+  document.getElementById('np1').value = ''; document.getElementById('np2').value = '';
+  showMsg('pass-msg', '✓ Password changed.', 'ok');
 }
+window.changePass = changePass;
 
-function archiveMonth(){
-  const label=v('archive-label').trim();
-  if(!label){ showMsg('archive-msg','Please enter a label (e.g. June 2025).','err'); return; }
-  const books=getBooks(), votes=getVotes(), archives=getArchives();
-  archives.push({label, books:JSON.parse(JSON.stringify(books)), votes:JSON.parse(JSON.stringify(votes)), archivedAt:Date.now()});
-  set(SK.archives, archives);
-  set(SK.books, []); set(SK.votes, {});
-  const s=getSettings(); s.resultsVisible=false; set(SK.settings,s);
-  document.getElementById('archive-label').value='';
-  showMsg('archive-msg','✓ Archived! Books & votes reset for new month.','ok');
+async function archiveMonth() {
+  const label = v('archive-label').trim();
+  if (!label) { showMsg('archive-msg', 'Please enter a label (e.g. June 2025).', 'err'); return; }
+  const books = getBooks(), votes = getVotes(), archives = getArchives();
+  archives.push({ label, books: JSON.parse(JSON.stringify(books)), votes: JSON.parse(JSON.stringify(votes)), archivedAt: Date.now() });
+  showLoading('Archiving…');
+  await fbSet(ARCHIVES_REF, {list: archives});
+  await fbSet(BOOKS_REF,    {list: []});
+  await fbSet(VOTES_REF,    {map:  {}});
+  const s = getSettings(); s.resultsVisible = false;
+  await fbSet(SETTINGS_REF, s);
+  hideLoading();
+  document.getElementById('archive-label').value = '';
+  showMsg('archive-msg', '✓ Archived! Books & votes reset for new month.', 'ok');
   renderAdmin();
 }
+window.archiveMonth = archiveMonth;
 
 // ════════════════════════════════════════════════════════
 // CSV DOWNLOADS
 // ════════════════════════════════════════════════════════
-function downloadCSV(type){
-  let rows=[], filename='';
-  if(type==='current'){
-    filename='bookclub_current.csv';
-    const books=getBooks(), votes=getVotes(), nb=books.length, scores={};
-    books.forEach(b=>scores[b.id]=0);
-    Object.values(votes).forEach(vd=>{
-      (vd.ranking||vd).forEach((id,idx)=>{ if(scores[id]!==undefined) scores[id]+=(nb-idx); });
-    });
-    const sorted=[...books].sort((a,b)=>scores[b.id]-scores[a.id]);
-    rows=[['Rank','Title','Author','Suggested By','Borda Points']];
-    sorted.forEach((b,i)=>rows.push([i+1,b.title,b.author,b.suggester,scores[b.id]]));
-    rows.push([]);
-    rows.push(['Voter','Email','Discord','Ranking (1st to last)']);
-    Object.entries(votes).forEach(([name,vd])=>{
-      const ranked=(vd.ranking||vd).map(id=>{ const b=books.find(b=>String(b.id)===String(id)); return b?b.title:'?'; });
+function downloadCSV(type) {
+  let rows = [], filename = '';
+  if (type === 'current') {
+    filename = 'bookclub_current.csv';
+    const books = getBooks(), votes = getVotes(), nb = books.length, scores = {};
+    books.forEach(b => scores[b.id] = 0);
+    Object.values(votes).forEach(vd => { (vd.ranking||vd).forEach((id,idx) => { if (scores[id] !== undefined) scores[id] += (nb-idx); }); });
+    const sorted = [...books].sort((a,b) => scores[b.id]-scores[a.id]);
+    rows = [['Rank','Title','Author','Suggested By','Borda Points']];
+    sorted.forEach((b,i) => rows.push([i+1, b.title, b.author, b.suggester, scores[b.id]]));
+    rows.push([]); rows.push(['Voter','Email','Discord','Ranking (1st to last)']);
+    Object.entries(votes).forEach(([name,vd]) => {
+      const ranked = (vd.ranking||vd).map(id => { const b = books.find(b => String(b.id)===String(id)); return b?b.title:'?'; });
       rows.push([name, vd.email||'', vd.discord||'', ranked.join(' > ')]);
     });
-  } else if(type==='all'){
-    filename='bookclub_archives.csv';
-    rows=[['Month','Rank','Title','Author','Borda Points','Voter Count']];
-    getArchives().forEach(a=>{
-      const nb=(a.books||[]).length, scores={};
-      (a.books||[]).forEach(b=>scores[b.id]=0);
-      Object.values(a.votes||{}).forEach(vd=>{
-        (vd.ranking||vd).forEach((id,idx)=>{ if(scores[id]!==undefined) scores[id]+=(nb-idx); });
-      });
-      const sorted=[...(a.books||[])].sort((x,y)=>scores[y.id]-scores[x.id]);
-      const vc=Object.keys(a.votes||{}).length;
-      sorted.forEach((b,i)=>rows.push([a.label,i+1,b.title,b.author,scores[b.id],vc]));
+  } else if (type === 'all') {
+    filename = 'bookclub_archives.csv';
+    rows = [['Month','Rank','Title','Author','Borda Points','Voter Count']];
+    getArchives().forEach(a => {
+      const nb = (a.books||[]).length, scores = {};
+      (a.books||[]).forEach(b => scores[b.id] = 0);
+      Object.values(a.votes||{}).forEach(vd => { (vd.ranking||vd).forEach((id,idx) => { if (scores[id] !== undefined) scores[id] += (nb-idx); }); });
+      const sorted = [...(a.books||[])].sort((x,y) => scores[y.id]-scores[x.id]);
+      const vc = Object.keys(a.votes||{}).length;
+      sorted.forEach((b,i) => rows.push([a.label, i+1, b.title, b.author, scores[b.id], vc]));
     });
-  } else if(type==='members'){
-    filename='bookclub_members.csv';
-    rows=[['Name','Email','Discord','Source','Date']];
-    const seen=new Set();
-    const addMember=(name,email,discord,source,ts)=>{
-      const key=email||name;
-      if(!seen.has(key)){ seen.add(key); rows.push([name,email||'',discord||'',source,ts?new Date(ts).toLocaleDateString():'']); }
+  } else if (type === 'members') {
+    filename = 'bookclub_members.csv';
+    rows = [['Name','Email','Discord','Source','Date']];
+    const seen = new Set();
+    const addMember = (name,email,discord,source,ts) => {
+      const key = email||name;
+      if (!seen.has(key)) { seen.add(key); rows.push([name, email||'', discord||'', source, ts?new Date(ts).toLocaleDateString():'']); }
     };
-    getBooks().forEach(b=>addMember(b.suggester,b.email,b.discord,'suggestion',b.id));
-    Object.entries(getVotes()).forEach(([name,vd])=>addMember(name,vd.email,vd.discord,'vote',vd.ts));
-    getArchives().forEach(a=>{
-      (a.books||[]).forEach(b=>addMember(b.suggester,b.email,b.discord,'suggestion (archived)',null));
-      Object.entries(a.votes||{}).forEach(([name,vd])=>addMember(name,vd.email||'',vd.discord||'','vote (archived)',vd.ts));
+    getBooks().forEach(b => addMember(b.suggester,b.email,b.discord,'suggestion',b.id));
+    Object.entries(getVotes()).forEach(([name,vd]) => addMember(name,vd.email,vd.discord,'vote',vd.ts));
+    getArchives().forEach(a => {
+      (a.books||[]).forEach(b => addMember(b.suggester,b.email,b.discord,'suggestion (archived)',null));
+      Object.entries(a.votes||{}).forEach(([name,vd]) => addMember(name,vd.email||'',vd.discord||'','vote (archived)',vd.ts));
     });
-  } else if(type==='surveys'){
-    filename='bookclub_survey_responses.csv';
-    const surveys=getSurveys(), responses=getSurveyResponses();
-    surveys.forEach(s=>{
+  } else if (type === 'surveys') {
+    filename = 'bookclub_survey_responses.csv';
+    const surveys = getSurveys(), responses = getSurveyResponses();
+    surveys.forEach(s => {
       rows.push([`Survey: ${s.title}`]);
-      rows.push(['Respondent', ...s.questions.map(q=>q.prompt),'Date']);
-      (responses[s.id]||[]).forEach(r=>{
-        rows.push([r.name, ...s.questions.map(q=>r.answers[q.id]??''), new Date(r.ts).toLocaleDateString()]);
-      });
+      rows.push(['Respondent', ...s.questions.map(q => q.prompt), 'Date']);
+      (responses[s.id]||[]).forEach(r => { rows.push([r.name, ...s.questions.map(q => r.answers[q.id]??''), new Date(r.ts).toLocaleDateString()]); });
       rows.push([]);
     });
   }
-  if(!rows.length){ alert('No data to export.'); return; }
-  const csv=rows.map(r=>r.map(c=>`"${String(c??'').replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob=new Blob([csv],{type:'text/csv'}), url=URL.createObjectURL(blob), a=document.createElement('a');
-  a.href=url; a.download=filename; a.click(); URL.revokeObjectURL(url);
+  if (!rows.length) { alert('No data to export.'); return; }
+  const csv = rows.map(r => r.map(c => `"${String(c??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'}), url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url);
 }
+window.downloadCSV = downloadCSV;
 
 // ════════════════════════════════════════════════════════
 // UTILS
 // ════════════════════════════════════════════════════════
-function v(id){ const el=document.getElementById(id); return el?el.value.trim():''; }
-function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function showMsg(id, text, type){
-  const el=document.getElementById(id); if(!el)return;
-  el.innerHTML=`<div class="msg msg-${type==='ok'?'ok':'err'}">${text}</div>`;
-  if(type==='ok') setTimeout(()=>el.innerHTML='',4000);
+function v(id)   { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+function esc(s)  { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function showMsg(id, text, type) {
+  const el = document.getElementById(id); if (!el) return;
+  el.innerHTML = `<div class="msg msg-${type==='ok'?'ok':'err'}">${text}</div>`;
+  if (type === 'ok') setTimeout(() => el.innerHTML = '', 4000);
 }
-function setPill(id, cond, tLabel, fLabel, tCls, fCls){
-  const el=document.getElementById(id); if(!el)return;
-  el.textContent=cond?tLabel:fLabel;
-  el.className='pill '+(cond?tCls:fCls);
+function setPill(id, cond, tLabel, fLabel, tCls, fCls) {
+  const el = document.getElementById(id); if (!el) return;
+  el.textContent = cond ? tLabel : fLabel;
+  el.className = 'pill ' + (cond ? tCls : fCls);
 }
 
-// init
-renderSuggest();
+// ════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════
+showLoading('Connecting to database…');
+startListeners();
+// Hide loader once first Firebase response arrives
+const _initUnsub = onSnapshot(SETTINGS_REF, () => { hideLoading(); _initUnsub(); });
+
 </script>
 </body>
 </html>
