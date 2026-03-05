@@ -771,33 +771,100 @@ window.publishSurvey = publishSurvey;
 function renderAnalysis() {
   const archives = getArchives(), area = document.getElementById('analysis-area');
   if (!archives.length) { area.innerHTML = '<div class="empty"><div class="icon">📈</div><p>No archived months yet. Archive a month from the Admin tab to see analysis here.</p></div>'; return; }
+
+  // ── Participation over time ───────────────────────────────────────────────
   const participationData = archives.map(a => Object.keys(a.votes || {}).length);
+  const maxParticipation = Math.max(...participationData, 1);
+
+  // ── Top books: normalised score = pts / max_possible_pts_in_that_month ───
+  // Max possible = every voter ranks it #1 = voters × nb points
+  // We store: { pts, maxPossible, pct (avg %), appears }
   const allScores = {};
   archives.forEach(a => {
     const nb = (a.books||[]).length;
-    (a.books||[]).forEach(b => { if (!allScores[b.title]) allScores[b.title] = {pts:0,appears:0}; allScores[b.title].appears++; });
+    const voterCount = Object.keys(a.votes||{}).length;
+    if (!nb || !voterCount) return;
+    const maxPossibleInMonth = voterCount * nb; // score if everyone ranked it #1
+    // Calculate actual scores for this month
+    const monthScores = {};
+    (a.books||[]).forEach(b => { monthScores[b.id] = 0; });
     Object.values(a.votes||{}).forEach(vd => {
       (vd.ranking||vd).forEach((id, idx) => {
-        const book = (a.books||[]).find(b => String(b.id) === String(id));
-        if (book) { if (!allScores[book.title]) allScores[book.title] = {pts:0,appears:0}; allScores[book.title].pts += (nb - idx); }
+        if (monthScores[id] !== undefined) monthScores[id] += (nb - idx);
       });
     });
+    (a.books||[]).forEach(b => {
+      const pts = monthScores[b.id] || 0;
+      const pct = maxPossibleInMonth > 0 ? (pts / maxPossibleInMonth) * 100 : 0;
+      if (!allScores[b.title]) allScores[b.title] = { totalPct: 0, appears: 0, totalPts: 0 };
+      allScores[b.title].totalPct += pct;
+      allScores[b.title].totalPts += pts;
+      allScores[b.title].appears++;
+    });
   });
-  const topBooks = Object.entries(allScores).sort((a,b) => b[1].pts - a[1].pts).slice(0,10);
-  const maxPts = topBooks[0] ? topBooks[0][1].pts : 1;
-  const voterFreq = {};
-  archives.forEach(a => { Object.keys(a.votes||{}).forEach(n => { voterFreq[n] = (voterFreq[n]||0) + 1; }); });
-  const topVoters = Object.entries(voterFreq).sort((a,b) => b[1]-a[1]).slice(0,10);
+  // Average normalised % across months the book appeared in
+  const topBooks = Object.entries(allScores)
+    .map(([title, d]) => [title, { ...d, avgPct: d.totalPct / d.appears }])
+    .sort((a, b) => b[1].avgPct - a[1].avgPct)
+    .slice(0, 10);
+  const maxAvgPct = topBooks[0] ? topBooks[0][1].avgPct : 1;
+
+  // ── Most consistent voters — keyed by discord username ───────────────────
+  const voterFreq = {}; // discord → count
+  archives.forEach(a => {
+    Object.values(a.votes||{}).forEach(vd => {
+      const key = vd.discord || 'Unknown';
+      voterFreq[key] = (voterFreq[key] || 0) + 1;
+    });
+  });
+  const topVoters = Object.entries(voterFreq).sort((a,b) => b[1]-a[1]).slice(0, 10);
+
+  // ── Top suggesters — keyed by discord username ────────────────────────────
+  const suggesterFreq = {};
+  archives.forEach(a => {
+    (a.books||[]).forEach(b => {
+      const key = b.discord || b.suggester || 'Unknown';
+      suggesterFreq[key] = (suggesterFreq[key] || 0) + 1;
+    });
+  });
+  const topSuggesters = Object.entries(suggesterFreq).sort((a,b) => b[1]-a[1]).slice(0, 10);
+  const maxSuggestions = topSuggesters[0] ? topSuggesters[0][1] : 1;
+
   area.innerHTML = `
   <div class="chart-wrap"><h3>Participation Over Time</h3><div class="bar-chart">
-    ${archives.map((a,i) => `<div class="bar-row"><div style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(a.label)}</div><div class="bar-track"><div class="bar-val" style="width:${Math.max(3,participationData[i]/Math.max(...participationData)*100)}%"></div></div><div class="bar-lbl">${participationData[i]} voter${participationData[i]!==1?'s':''}</div></div>`).join('')}
+    ${archives.map((a,i) => `<div class="bar-row">
+      <div style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(a.label)}</div>
+      <div class="bar-track"><div class="bar-val" style="width:${Math.max(3, participationData[i]/maxParticipation*100)}%"></div></div>
+      <div class="bar-lbl">${participationData[i]} voter${participationData[i]!==1?'s':''}</div>
+    </div>`).join('')}
   </div></div>
-  <div class="chart-wrap"><h3>Top Books (All Time Points)</h3>
-    ${topBooks.length ? `<div class="bar-chart">${topBooks.map(([title,d]) => `<div class="bar-row"><div style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(title)}">${esc(title)}</div><div class="bar-track"><div class="bar-val" style="width:${Math.max(3,d.pts/maxPts*100)}%"></div></div><div class="bar-lbl">${d.pts} pts</div></div>`).join('')}</div>` : '<p style="color:var(--soft);font-size:.875rem;">Not enough data yet.</p>'}
+
+  <div class="chart-wrap">
+    <h3>Top Books (Normalised Score)</h3>
+    <p style="font-size:.78rem;color:var(--soft);margin-bottom:1rem;">Score = average % of maximum possible points earned in the month the book was voted on. This lets books from months with different voter counts be compared fairly.</p>
+    ${topBooks.length ? `<div class="bar-chart">${topBooks.map(([title, d]) => `<div class="bar-row">
+      <div style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(title)}">${esc(title)}</div>
+      <div class="bar-track"><div class="bar-val" style="width:${Math.max(3, d.avgPct/maxAvgPct*100)}%"></div></div>
+      <div class="bar-lbl">${d.avgPct.toFixed(1)}%</div>
+    </div>`).join('')}</div>` : '<p style="color:var(--soft);font-size:.875rem;">Not enough data yet.</p>'}
   </div>
+
   <div class="chart-wrap"><h3>Most Consistent Voters</h3>
-    ${topVoters.length ? `<div class="bar-chart">${topVoters.map(([name,count]) => `<div class="bar-row"><div style="font-size:.78rem;">${esc(name)}</div><div class="bar-track"><div class="bar-val" style="width:${Math.max(3,count/archives.length*100)}%"></div></div><div class="bar-lbl">${count}/${archives.length}</div></div>`).join('')}</div>` : '<p style="color:var(--soft);font-size:.875rem;">Not enough data.</p>'}
+    ${topVoters.length ? `<div class="bar-chart">${topVoters.map(([discord, count]) => `<div class="bar-row">
+      <div style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(discord)}</div>
+      <div class="bar-track"><div class="bar-val" style="width:${Math.max(3, count/archives.length*100)}%"></div></div>
+      <div class="bar-lbl">${count}/${archives.length}</div>
+    </div>`).join('')}</div>` : '<p style="color:var(--soft);font-size:.875rem;">Not enough data.</p>'}
   </div>
+
+  <div class="chart-wrap"><h3>Top Book Suggesters</h3>
+    ${topSuggesters.length ? `<div class="bar-chart">${topSuggesters.map(([discord, count]) => `<div class="bar-row">
+      <div style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(discord)}</div>
+      <div class="bar-track"><div class="bar-val" style="width:${Math.max(3, count/maxSuggestions*100)}%"></div></div>
+      <div class="bar-lbl">${count} book${count!==1?'s':''}</div>
+    </div>`).join('')}</div>` : '<p style="color:var(--soft);font-size:.875rem;">Not enough data.</p>'}
+  </div>
+
   <div class="chart-wrap"><h3>Monthly Results</h3>
     <div class="month-tabs">${archives.map((a,i) => `<div class="month-tab ${i===archives.length-1?'active':''}" onclick="showMonthDetail(${i},this)">${esc(a.label)}</div>`).join('')}</div>
     <div id="month-detail"></div>
