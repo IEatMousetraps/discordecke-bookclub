@@ -615,14 +615,14 @@ function initDragSort(container) {
   document.addEventListener('pointerup', onUp);
   document.addEventListener('pointercancel', onUp);
 }
-function updateRanks() { document.querySelectorAll('.sort-item').forEach((el, i) => el.querySelector('.rank-badge').textContent = i + 1); }
+function updateRanks() { const c = document.getElementById('sortable-list'); if(c) c.querySelectorAll('.sort-item').forEach((el, i) => el.querySelector('.rank-badge').textContent = i + 1); }
 
 async function submitVote() {
   const fname = v('v-fname'), lname = v('v-lname'), email = v('v-email'), discord = v('v-discord');
   const name = (fname + ' ' + lname).trim();
   if (!fname || !lname || !email || !discord) { showMsg('vote-msg', 'Please fill in all fields.', 'err'); return; }
   if (!email.includes('@')) { showMsg('vote-msg', 'Valid email required.', 'err'); return; }
-  const items = [...document.querySelectorAll('.sort-item')];
+  const items = [...document.getElementById('sortable-list').querySelectorAll('.sort-item')];
   if (!items.length) { showMsg('vote-msg', 'No books to rank.', 'err'); return; }
   const votes = getVotes();
   if (votes[name] && !confirm(`"${name}" already voted. Overwrite?`)) return;
