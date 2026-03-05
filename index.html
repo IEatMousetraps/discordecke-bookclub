@@ -65,12 +65,13 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 .book-sub{font-size:.78rem;color:var(--soft);}
 /* sortable */
 .drag-hint{background:#fffbef;border-left:3px solid var(--gold);padding:.65rem 1rem;font-size:.82rem;color:var(--soft);margin-bottom:1.25rem;border-radius:0 4px 4px 0;}
-.sort-item{display:flex;align-items:center;gap:1rem;padding:.8rem 1rem;background:var(--card);border:1px solid var(--border);border-radius:6px;margin-bottom:.45rem;cursor:grab;user-select:none;touch-action:none;transition:box-shadow .15s,transform .15s;}
-.sort-item:active{cursor:grabbing;}
-.sort-item.dragging{opacity:.45;transform:scale(.97);}
-.sort-item.drag-over{border-color:var(--accent);box-shadow:0 0 0 2px rgba(212,160,23,.2);}
-.drag-handle{color:var(--border);font-size:1.1rem;}
+.sort-item{display:flex;align-items:center;gap:1rem;padding:.8rem 1rem;background:var(--card);border:1px solid var(--border);border-radius:6px;margin-bottom:.45rem;transition:box-shadow .15s;}
 .rank-badge{font-family:'Playfair Display',serif;font-size:.95rem;font-weight:700;color:var(--accent);min-width:1.8rem;text-align:center;}
+.move-btns{display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
+.move-btn{background:var(--cream);border:1px solid var(--border);border-radius:3px;width:28px;height:24px;font-size:.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s;line-height:1;}
+.move-btn:hover{background:var(--gold);color:#fff;border-color:var(--gold);}
+.move-btn:disabled{opacity:.25;cursor:default;}
+.move-btn:disabled:hover{background:var(--cream);color:inherit;border-color:var(--border);}
 /* results */
 .result-item{display:flex;align-items:center;gap:1rem;padding:1rem;background:var(--card);border:1px solid var(--border);border-radius:6px;margin-bottom:.5rem;}
 .result-item.winner{border-color:var(--gold);background:linear-gradient(135deg,#fffdf5,#fff8e0);}
@@ -189,7 +190,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
         <div class="f-group"><label>Discord Username *</label><input type="text" id="v-discord" placeholder="user#0000"></div>
       </div>
     </div>
-    <div class="drag-hint">☰ Drag to reorder — your #1 pick earns the most points (Borda count)</div>
+    <div class="drag-hint">↑ ↓ Use the arrow buttons to rank your books — #1 is your top choice</div>
     <div id="sortable-list"></div>
     <div id="vote-msg"></div>
     <div style="margin-top:1.25rem;"><button class="btn btn-primary" onclick="submitVote()">Submit Rankings</button></div>
@@ -520,102 +521,58 @@ function renderVote() {
 }
 
 function buildSortable(books) {
-  let c = document.getElementById('sortable-list'); c.innerHTML = '';
+  const c = document.getElementById('sortable-list');
+  c.innerHTML = '';
   books.forEach((b, i) => {
     const d = document.createElement('div');
     d.className = 'sort-item'; d.dataset.id = b.id;
-    d.innerHTML = `<div class="drag-handle">⠿</div><div class="rank-badge">${i+1}</div><div class="book-info"><div class="book-title">${esc(b.title)}</div><div class="book-sub">${esc(b.author)}</div></div>`;
+    d.innerHTML = `
+      <div class="rank-badge">${i+1}</div>
+      <div class="book-info" style="flex:1">
+        <div class="book-title">${esc(b.title)}</div>
+        <div class="book-sub">${esc(b.author)}</div>
+      </div>
+      <div class="move-btns">
+        <button class="move-btn" onclick="moveItem(this,-1)" title="Move up">▲</button>
+        <button class="move-btn" onclick="moveItem(this,1)" title="Move down">▼</button>
+      </div>`;
     c.appendChild(d);
   });
-  initDragSort(c);
+  updateMoveButtons();
 }
 
-function initDragSort(container) {
-  // Clean up any previous listeners by replacing container clone
-  const fresh = container.cloneNode(true);
-  container.parentNode.replaceChild(fresh, container);
-  container = fresh;
-
-  let dragging = null, ghost = null, offsetY = 0, pointerId = null;
-
-  function clientY(e) { return e.touches ? e.touches[0].clientY : e.clientY; }
-
-  function onDown(e) {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
-    // Prevent double-firing on touch devices (pointerdown fires for both mouse and touch)
-    if (e.pointerType === 'touch' && e.type !== 'pointerdown') return;
-    const item = e.target.closest('.sort-item');
-    if (!item || dragging) return;
-    e.preventDefault();
-
-    // Only one pointer at a time
-    pointerId = e.pointerId ?? null;
-
-    dragging = item;
-    const rect = item.getBoundingClientRect();
-    offsetY = clientY(e) - rect.top;
-
-    ghost = item.cloneNode(true);
-    ghost.style.cssText = [
-      'position:fixed',
-      `left:${rect.left}px`,
-      `top:${rect.top}px`,
-      `width:${rect.width}px`,
-      'opacity:0.88',
-      'pointer-events:none',
-      'z-index:9999',
-      'box-shadow:0 8px 24px rgba(0,0,0,.25)',
-      'border:1.5px solid var(--gold)',
-      'border-radius:6px',
-      'background:var(--card)',
-      'transition:none'
-    ].join(';');
-    document.body.appendChild(ghost);
-    item.style.opacity = '0.25';
-  }
-
-  function onMove(e) {
-    if (!dragging || !ghost) return;
-    // Ignore if different pointer
-    if (e.pointerId !== undefined && e.pointerId !== pointerId) return;
-    e.preventDefault();
-
-    const cy = clientY(e);
-    ghost.style.top = (cy - offsetY) + 'px';
-
-    // Hide dragging item temporarily to find element underneath
-    dragging.style.display = 'none';
-    const elBelow = document.elementFromPoint(ghost.getBoundingClientRect().left + 10, cy);
-    dragging.style.display = '';
-
-    const target = elBelow && elBelow.closest('.sort-item');
-    if (target && target !== dragging && container.contains(target)) {
-      const targetRect = target.getBoundingClientRect();
-      if (cy < targetRect.top + targetRect.height / 2) {
-        container.insertBefore(dragging, target);
-      } else {
-        container.insertBefore(dragging, target.nextSibling);
-      }
-      updateRanks();
-    }
-  }
-
-  function onUp(e) {
-    if (!dragging) return;
-    if (ghost) { ghost.remove(); ghost = null; }
-    dragging.style.opacity = '';
-    dragging = null;
-    pointerId = null;
-    container.querySelectorAll('.sort-item').forEach(el => el.classList.remove('drag-over'));
-  }
-
-  // Use only pointer events — they handle both mouse and touch uniformly
-  container.addEventListener('pointerdown', onDown);
-  document.addEventListener('pointermove', onMove, { passive: false });
-  document.addEventListener('pointerup', onUp);
-  document.addEventListener('pointercancel', onUp);
+function moveItem(btn, dir) {
+  const item = btn.closest('.sort-item');
+  const c = document.getElementById('sortable-list');
+  const items = [...c.querySelectorAll('.sort-item')];
+  const idx = items.indexOf(item);
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= items.length) return;
+  if (dir === -1) c.insertBefore(item, items[newIdx]);
+  else c.insertBefore(items[newIdx], item);
+  updateRanks();
+  updateMoveButtons();
+  // briefly highlight moved item
+  item.style.background = '#fffbef';
+  setTimeout(() => item.style.background = '', 300);
 }
-function updateRanks() { const c = document.getElementById('sortable-list'); if(c) c.querySelectorAll('.sort-item').forEach((el, i) => el.querySelector('.rank-badge').textContent = i + 1); }
+window.moveItem = moveItem;
+
+function updateRanks() {
+  const c = document.getElementById('sortable-list');
+  if (c) c.querySelectorAll('.sort-item').forEach((el, i) => el.querySelector('.rank-badge').textContent = i + 1);
+}
+
+function updateMoveButtons() {
+  const c = document.getElementById('sortable-list');
+  if (!c) return;
+  const items = [...c.querySelectorAll('.sort-item')];
+  items.forEach((el, i) => {
+    const btns = el.querySelectorAll('.move-btn');
+    btns[0].disabled = (i === 0);               // up button
+    btns[1].disabled = (i === items.length - 1); // down button
+  });
+}
 
 async function submitVote() {
   const fname = v('v-fname'), lname = v('v-lname'), email = v('v-email'), discord = v('v-discord');
@@ -625,7 +582,8 @@ async function submitVote() {
   const items = [...document.getElementById('sortable-list').querySelectorAll('.sort-item')];
   if (!items.length) { showMsg('vote-msg', 'No books to rank.', 'err'); return; }
   const votes = getVotes();
-  if (votes[name] && !confirm(`"${name}" already voted. Overwrite?`)) return;
+  // Only ask to overwrite if they haven't touched the form yet — always allow resubmit after reordering
+  if (votes[name] && !confirm(`"${name}" has already voted. Submit new ranking?`)) return;
   showLoading('Submitting vote…');
   votes[name] = { ranking: items.map(el => el.dataset.id), email, discord, ts: Date.now() };
   await fbSet(VOTES_REF, { map: votes });
