@@ -134,13 +134,8 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   </div>
 </header>
 
-<div id="loading-screen" style="text-align:center;padding:4rem 1rem;position:relative;z-index:2;">
-  <div style="font-size:2.5rem;margin-bottom:1rem;">📚</div>
-  <div style="font-family:'Playfair Display',serif;font-size:1.2rem;color:#1a1a1a;margin-bottom:.5rem;">Loading Book Club…</div>
-  <div style="font-size:.85rem;color:#7a7668;">Connecting to database</div>
-</div>
 
-<nav id="app-nav" style="display:none;">
+<nav id="app-nav">
   <button class="active" data-tab="suggest" onclick="goTab('suggest',this)">Suggest</button>
   <button data-tab="vote" onclick="goTab('vote',this)">Vote</button>
   <button data-tab="results" onclick="goTab('results',this)">Results</button>
@@ -149,7 +144,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   <button data-tab="admin" onclick="goTab('admin',this)">Admin</button>
 </nav>
 
-<main id="app-main" style="display:none;">
+<main id="app-main">
 
 <!-- ══════════════ SUGGEST ══════════════ -->
 <div id="tab-suggest" class="section active">
@@ -924,18 +919,10 @@ function setPill(id, cond, tLabel, fLabel, tCls, fCls) {
 // ════════════════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════════════════
-showLoading('Connecting to database…');
+// Show the app immediately — Firebase listeners will update data as they arrive
+hideLoading();
+renderSuggest();
 startListeners();
-// Hide loader once first Firebase response arrives, OR after 4 seconds max
-let _initDone = false;
-function _initReady() {
-  if (_initDone) return;
-  _initDone = true;
-  hideLoading();
-  renderSuggest();
-}
-const _initUnsub = onSnapshot(SETTINGS_REF, () => { _initReady(); try { _initUnsub(); } catch(e){} });
-setTimeout(_initReady, 4000);
 
 </script>
 </body>
