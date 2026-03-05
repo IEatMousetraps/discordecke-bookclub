@@ -889,13 +889,54 @@ function updateReviewForm() {
   const show = id => { const el = document.getElementById(id); if (el) el.style.display = 'block'; };
   const hide = id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; };
 
-  // Q2: only if they read it
-  read === 'Yes' ? show('rv-q2') : hide('rv-q2');
-  // Q3 (DNF reason): only if read but not finished
-  (read === 'Yes' && finished === 'No / DNF') ? show('rv-q3') : hide('rv-q3');
-  // Q4/5/6: only if they finished
-  if (read === 'Yes' && finished === 'Yes') { show('rv-q4'); show('rv-q5'); show('rv-q6'); }
-  else { hide('rv-q4'); hide('rv-q5'); hide('rv-q6'); }
+  if (!read) {
+    // Nothing selected yet — hide everything below Q1
+    hide('rv-q2'); hide('rv-q3'); hide('rv-q4'); hide('rv-q5'); hide('rv-q6');
+    return;
+  }
+
+  if (read === 'No') {
+    // Didn't read — skip Q2, show Q3 (why not), skip Q4, show Q5 (thoughts) and Q6 (rating)
+    hide('rv-q2');
+    show('rv-q3');
+    hide('rv-q4');
+    show('rv-q5');
+    show('rv-q6');
+    // Update Q3 label to make sense for non-readers
+    const q3label = document.querySelector('#rv-q3 label');
+    if (q3label) q3label.textContent = '3. Why didn\'t you read it?';
+    const q5label = document.querySelector('#rv-q5 label');
+    if (q5label) q5label.textContent = '4. Any other thoughts on the book?';
+    return;
+  }
+
+  // read === 'Yes'
+  // Reset labels in case they were changed
+  const q3label = document.querySelector('#rv-q3 label');
+  if (q3label) q3label.textContent = '3. Why didn\'t you finish it?';
+  const q5label = document.querySelector('#rv-q5 label');
+  if (q5label) q5label.textContent = '5. Why did you like or dislike it?';
+
+  show('rv-q2');
+
+  if (!finished) {
+    // Read yes but haven't answered Q2 yet
+    hide('rv-q3'); hide('rv-q4'); hide('rv-q5'); hide('rv-q6');
+    return;
+  }
+
+  if (finished === 'No / DNF') {
+    show('rv-q3');
+    hide('rv-q4');
+    show('rv-q5');
+    show('rv-q6');
+  } else {
+    // Finished
+    hide('rv-q3');
+    show('rv-q4');
+    show('rv-q5');
+    show('rv-q6');
+  }
 }
 window.updateReviewForm = updateReviewForm;
 
