@@ -146,6 +146,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   <button class="active" data-tab="suggest" onclick="goTab('suggest',this)">Suggest</button>
   <button data-tab="vote" onclick="goTab('vote',this)">Vote</button>
   <button data-tab="results" onclick="goTab('results',this)">Results</button>
+  <button data-tab="review" onclick="goTab('review',this)">Review</button>
   <button data-tab="surveys" onclick="goTab('surveys',this)">Surveys</button>
   <button data-tab="analysis" onclick="goTab('analysis',this)">Analysis</button>
   <button data-tab="admin" onclick="goTab('admin',this)">Admin</button>
@@ -215,6 +216,81 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   <div id="surveys-member-area"></div>
 </div>
 
+<!-- ══════════════ REVIEW ══════════════ -->
+<div id="tab-review" class="section">
+  <div class="sec-head"><h2>Book Review</h2><p>Share your thoughts on this month's selected book.</p></div>
+  <div id="review-closed-banner" style="display:none;">
+    <div class="pending-box"><div class="icon">📖</div><h3>Reviews Closed</h3><p>The admin has closed reviews for now.<br>Check back soon!</p></div>
+  </div>
+  <div id="review-form-content">
+    <div class="card">
+      <div class="grid2">
+        <div class="f-group"><label>First Name *</label><input type="text" id="rv-fname" placeholder="First name"></div>
+        <div class="f-group"><label>Last Name *</label><input type="text" id="rv-lname" placeholder="Last name"></div>
+      </div>
+      <div class="grid2">
+        <div class="f-group"><label>Email *</label><input type="email" id="rv-email" placeholder="you@email.com"></div>
+        <div class="f-group"><label>Discord Username *</label><input type="text" id="rv-discord" placeholder="user#0000"></div>
+      </div>
+      <div class="f-group">
+        <label>Which month's book are you reviewing? *</label>
+        <select id="rv-month"><option value="">— Select a month —</option></select>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="f-group">
+        <label>1. Did you read this book?</label>
+        <div class="radio-group" style="margin-top:.4rem;">
+          <label class="radio-opt"><input type="radio" name="rv-read" value="Yes" onchange="updateReviewForm()"> Yes</label>
+          <label class="radio-opt"><input type="radio" name="rv-read" value="No"  onchange="updateReviewForm()"> No</label>
+        </div>
+      </div>
+
+      <div id="rv-q2" style="display:none;" class="f-group">
+        <label>2. Did you finish it?</label>
+        <div class="radio-group" style="margin-top:.4rem;">
+          <label class="radio-opt"><input type="radio" name="rv-finished" value="Yes" onchange="updateReviewForm()"> Yes</label>
+          <label class="radio-opt"><input type="radio" name="rv-finished" value="No / DNF" onchange="updateReviewForm()"> No / DNF</label>
+        </div>
+      </div>
+
+      <div id="rv-q3" style="display:none;" class="f-group">
+        <label>3. Why didn't you finish it?</label>
+        <textarea id="rv-dnf-reason" placeholder="Tell us what happened…" rows="3"></textarea>
+      </div>
+
+      <div id="rv-q4" style="display:none;" class="f-group">
+        <label>4. Did you like it?</label>
+        <div class="radio-group" style="margin-top:.4rem;">
+          <label class="radio-opt"><input type="radio" name="rv-liked" value="Yes"> Yes</label>
+          <label class="radio-opt"><input type="radio" name="rv-liked" value="No"> No</label>
+        </div>
+      </div>
+
+      <div id="rv-q5" style="display:none;" class="f-group">
+        <label>5. Why did you like or dislike it?</label>
+        <textarea id="rv-why" placeholder="Your thoughts…" rows="4"></textarea>
+      </div>
+
+      <div id="rv-q6" style="display:none;" class="f-group">
+        <label>6. Star rating</label>
+        <div class="radio-group" style="flex-direction:row;flex-wrap:wrap;gap:.6rem;margin-top:.4rem;">
+          <label class="radio-opt"><input type="radio" name="rv-rating" value="1"> ⭐ 1</label>
+          <label class="radio-opt"><input type="radio" name="rv-rating" value="2"> ⭐⭐ 2</label>
+          <label class="radio-opt"><input type="radio" name="rv-rating" value="3"> ⭐⭐⭐ 3</label>
+          <label class="radio-opt"><input type="radio" name="rv-rating" value="4"> ⭐⭐⭐⭐ 4</label>
+          <label class="radio-opt"><input type="radio" name="rv-rating" value="5"> ⭐⭐⭐⭐⭐ 5</label>
+          <label class="radio-opt"><input type="radio" name="rv-rating" value="opt-out"> Opt out</label>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" onclick="submitReview()">Submit Review</button>
+    <div id="review-msg"></div>
+  </div>
+</div>
+
 <!-- ══════════════ ANALYSIS ══════════════ -->
 <div id="tab-analysis" class="section">
   <div class="sec-head"><h2>Analysis</h2><p>Month-by-month and year-end trends.</p></div>
@@ -256,6 +332,11 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
           <span id="a-results-pill" class="pill pill-closed">Hidden</span>
           <button class="btn btn-secondary btn-sm" style="margin-left:.5rem;" onclick="toggleSetting('resultsVisible')">Toggle</button>
         </div>
+        <div>
+          <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.3rem;">Reviews</div>
+          <span id="a-review-pill" class="pill pill-closed">Closed</span>
+          <button class="btn btn-secondary btn-sm" style="margin-left:.5rem;" onclick="toggleSetting('reviewsOpen')">Toggle</button>
+        </div>
       </div>
     </div>
 
@@ -279,6 +360,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
         <button class="btn btn-secondary" onclick="downloadCSV('all')">⬇ All Archives CSV</button>
         <button class="btn btn-secondary" onclick="downloadCSV('members')">⬇ Members List CSV</button>
         <button class="btn btn-secondary" onclick="downloadCSV('surveys')">⬇ Survey Responses CSV</button>
+        <button class="btn btn-secondary" onclick="downloadCSV('reviews')">⬇ Book Reviews CSV</button>
       </div>
     </div>
 
@@ -372,11 +454,12 @@ const ARCHIVES_REF = doc(db, 'club', 'archives');
 const SURVEYS_REF  = doc(db, 'club', 'surveys');
 const SRESP_REF    = doc(db, 'club', 'surveyResponses');
 const DRAFT_REF    = doc(db, 'club', 'draftSurvey');
+const REVIEWS_REF  = doc(db, 'club', 'reviews');
 
 // ── In-memory cache kept fresh by real-time listeners ──
 let CACHE = {
-  settings: {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,password:'bookclub123'},
-  books: [], votes: {}, archives: [], surveys: [], surveyResponses: {}
+  settings: {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,reviewsOpen:false,password:'bookclub123'},
+  books: [], votes: {}, archives: [], surveys: [], surveyResponses: {}, reviews: {}
 };
 
 // ── Loading overlay ────────────────────────────────────
@@ -407,7 +490,7 @@ function startListeners() {
 
   onSnapshot(SETTINGS_REF, snap => {
     CACHE.settings = Object.assign(
-      {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,password:'bookclub123'},
+      {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,reviewsOpen:false,password:'bookclub123'},
       snap.exists() ? snap.data() : {}
     );
     refreshActiveTab();
@@ -432,6 +515,10 @@ function startListeners() {
     CACHE.surveyResponses = snap.exists() ? (snap.data().map || {}) : {};
     refreshActiveTab();
   });
+  onSnapshot(REVIEWS_REF, snap => {
+    CACHE.reviews = snap.exists() ? (snap.data().map || {}) : {};
+    refreshActiveTab();
+  });
 }
 
 function refreshActiveTab() {
@@ -441,6 +528,7 @@ function refreshActiveTab() {
   if (id === 'suggest') renderSuggest();
   else if (id === 'vote') renderVote();
   else if (id === 'results') renderResults();
+  else if (id === 'review')  renderReview();
   else if (id === 'surveys') renderMemberSurveys();
   else if (id === 'analysis') renderAnalysis();
   else if (id === 'admin' && document.getElementById('admin-panel').style.display !== 'none') renderAdmin();
@@ -453,6 +541,7 @@ function getSettings()       { return CACHE.settings; }
 function getArchives()       { return CACHE.archives || []; }
 function getSurveys()        { return CACHE.surveys || []; }
 function getSurveyResponses(){ return CACHE.surveyResponses || {}; }
+function getReviews()        { return CACHE.reviews || {}; }
 
 // ════════════════════════════════════════════════════════
 // NAV
@@ -465,6 +554,7 @@ function goTab(id, btn) {
   if (id === 'suggest')  renderSuggest();
   if (id === 'vote')     renderVote();
   if (id === 'results')  renderResults();
+  if (id === 'review')   renderReview();
   if (id === 'surveys')  renderMemberSurveys();
   if (id === 'analysis') renderAnalysis();
   if (id === 'admin' && document.getElementById('admin-panel').style.display !== 'none') renderAdmin();
@@ -766,6 +856,97 @@ async function publishSurvey() {
 window.publishSurvey = publishSurvey;
 
 // ════════════════════════════════════════════════════════
+// REVIEW
+// ════════════════════════════════════════════════════════
+function renderReview() {
+  const s = getSettings();
+  const closed = document.getElementById('review-closed-banner');
+  const formContent = document.getElementById('review-form-content');
+  if (!s.reviewsOpen) { closed.style.display = 'block'; formContent.style.display = 'none'; return; }
+  closed.style.display = 'none'; formContent.style.display = 'block';
+  // Populate month dropdown from archives
+  const archives = getArchives();
+  const sel = document.getElementById('rv-month');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">— Select a month —</option>';
+  archives.forEach(a => {
+    const opt = document.createElement('option');
+    opt.value = a.label; opt.textContent = a.label;
+    if (a.label === current) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  if (!archives.length) {
+    const opt = document.createElement('option');
+    opt.value = '' ; opt.textContent = 'No archived months yet'; opt.disabled = true;
+    sel.appendChild(opt);
+  }
+  updateReviewForm();
+}
+
+function updateReviewForm() {
+  const read     = document.querySelector('input[name="rv-read"]:checked')?.value;
+  const finished = document.querySelector('input[name="rv-finished"]:checked')?.value;
+  const show = id => { const el = document.getElementById(id); if (el) el.style.display = 'block'; };
+  const hide = id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; };
+
+  // Q2: only if they read it
+  read === 'Yes' ? show('rv-q2') : hide('rv-q2');
+  // Q3 (DNF reason): only if read but not finished
+  (read === 'Yes' && finished === 'No / DNF') ? show('rv-q3') : hide('rv-q3');
+  // Q4/5/6: only if they finished
+  if (read === 'Yes' && finished === 'Yes') { show('rv-q4'); show('rv-q5'); show('rv-q6'); }
+  else { hide('rv-q4'); hide('rv-q5'); hide('rv-q6'); }
+}
+window.updateReviewForm = updateReviewForm;
+
+async function submitReview() {
+  const fname   = v('rv-fname'), lname = v('rv-lname');
+  const email   = v('rv-email'), discord = v('rv-discord');
+  const month   = document.getElementById('rv-month').value;
+  const read    = document.querySelector('input[name="rv-read"]:checked')?.value || '';
+  const finished= document.querySelector('input[name="rv-finished"]:checked')?.value || '';
+  const dnfWhy  = v('rv-dnf-reason');
+  const liked   = document.querySelector('input[name="rv-liked"]:checked')?.value || '';
+  const why     = v('rv-why');
+  const rating  = document.querySelector('input[name="rv-rating"]:checked')?.value || '';
+
+  if (!fname || !lname || !email || !discord) { showMsg('review-msg', 'Please fill in all your details.', 'err'); return; }
+  if (!email.includes('@')) { showMsg('review-msg', 'Please enter a valid email.', 'err'); return; }
+  if (!month) { showMsg('review-msg', 'Please select a month.', 'err'); return; }
+  if (!read)  { showMsg('review-msg', 'Please answer question 1.', 'err'); return; }
+  if (read === 'Yes' && !finished) { showMsg('review-msg', 'Please answer question 2.', 'err'); return; }
+
+  const entry = {
+    fname, lname, name: fname + ' ' + lname, email, discord,
+    month, read, finished, dnfWhy, liked, why,
+    rating: rating || 'opt-out',
+    ts: Date.now()
+  };
+
+  const reviews = getReviews();
+  if (!reviews[month]) reviews[month] = [];
+  // Allow one review per discord per month; overwrite if exists
+  const existingIdx = reviews[month].findIndex(r => r.discord === discord);
+  if (existingIdx >= 0) {
+    if (!confirm('You have already reviewed this month\'s book. Overwrite?')) return;
+    reviews[month][existingIdx] = entry;
+  } else {
+    reviews[month].push(entry);
+  }
+
+  showLoading('Submitting review…');
+  await fbSet(REVIEWS_REF, { map: reviews });
+  hideLoading();
+  showMsg('review-msg', '✓ Review submitted — thank you!', 'ok');
+  // Reset form
+  ['rv-fname','rv-lname','rv-email','rv-discord','rv-dnf-reason','rv-why'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('rv-month').value = '';
+  document.querySelectorAll('input[name^="rv-"]').forEach(el => el.checked = false);
+  updateReviewForm();
+}
+window.submitReview = submitReview;
+
+// ════════════════════════════════════════════════════════
 // ANALYSIS
 // ════════════════════════════════════════════════════════
 function renderAnalysis() {
@@ -907,6 +1088,7 @@ function renderAdmin() {
   setPill('a-suggestvis-pill', s.suggestionsVisible, 'Visible', 'Hidden',  'pill-open', 'pill-closed');
   setPill('a-voting-pill',     s.votingOpen,         'Open',    'Closed',  'pill-open', 'pill-closed');
   setPill('a-results-pill',    s.resultsVisible,     'Visible', 'Hidden',  'pill-open', 'pill-closed');
+  setPill('a-review-pill',     s.reviewsOpen,        'Open',    'Closed',  'pill-open', 'pill-closed');
   const vnames = Object.keys(votes);
   document.getElementById('voter-count').textContent = `(${vnames.length})`;
   document.getElementById('voter-list').innerHTML = vnames.length ? vnames.map(n => {
@@ -1027,6 +1209,15 @@ function downloadCSV(type) {
       rows.push(['Respondent', ...s.questions.map(q => q.prompt), 'Date']);
       (responses[s.id]||[]).forEach(r => { rows.push([r.name, ...s.questions.map(q => r.answers[q.id]??''), new Date(r.ts).toLocaleDateString()]); });
       rows.push([]);
+    });
+  } else if (type === 'reviews') {
+    filename = 'bookclub_reviews.csv';
+    const reviews = getReviews();
+    rows.push(['Month','Name','Discord','Email','Read?','Finished?','DNF Reason','Liked?','Why','Rating','Date']);
+    Object.entries(reviews).forEach(([month, entries]) => {
+      (entries||[]).forEach(r => {
+        rows.push([month, r.name||'', r.discord||'', r.email||'', r.read||'', r.finished||'', r.dnfWhy||'', r.liked||'', r.why||'', r.rating||'', r.ts ? new Date(r.ts).toLocaleDateString() : '']);
+      });
     });
   }
   if (!rows.length) { alert('No data to export.'); return; }
