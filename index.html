@@ -241,7 +241,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 
     <div class="card">
       <div class="f-group">
-        <label>1. Did you read this book?</label>
+        <label>1. Did you start this book?</label>
         <div class="radio-group" style="margin-top:.4rem;">
           <label class="radio-opt"><input type="radio" name="rv-read" value="Yes" onchange="updateReviewForm()"> Yes</label>
           <label class="radio-opt"><input type="radio" name="rv-read" value="No"  onchange="updateReviewForm()"> No</label>
@@ -920,7 +920,7 @@ function updateReviewForm() {
     show('rv-q6');
     // Update Q3 label to make sense for non-readers
     const q3label = document.querySelector('#rv-q3 label');
-    if (q3label) q3label.textContent = '3. Why didn\'t you read it?';
+    if (q3label) q3label.textContent = '3. Why didn\'t you start it?';
     const q5label = document.querySelector('#rv-q5 label');
     if (q5label) q5label.textContent = '4. Any other thoughts on the book?';
     return;
