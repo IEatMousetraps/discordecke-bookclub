@@ -926,8 +926,16 @@ function setPill(id, cond, tLabel, fLabel, tCls, fCls) {
 // ════════════════════════════════════════════════════════
 showLoading('Connecting to database…');
 startListeners();
-// Hide loader once first Firebase response arrives
-const _initUnsub = onSnapshot(SETTINGS_REF, () => { hideLoading(); _initUnsub(); });
+// Hide loader once first Firebase response arrives, OR after 4 seconds max
+let _initDone = false;
+function _initReady() {
+  if (_initDone) return;
+  _initDone = true;
+  hideLoading();
+  renderSuggest();
+}
+const _initUnsub = onSnapshot(SETTINGS_REF, () => { _initReady(); try { _initUnsub(); } catch(e){} });
+setTimeout(_initReady, 4000);
 
 </script>
 </body>
