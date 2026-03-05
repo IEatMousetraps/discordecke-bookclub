@@ -741,7 +741,7 @@ function renderResults() {
       <div class="book-info" style="flex:1">
         <div class="book-title">${esc(b.title)}</div>
         <div class="book-sub">${esc(b.author)}</div>
-        <div class="rank-pills">${rankPills}</div>
+        <div class="rank-pills"><span style="font-weight:500;color:var(--ink);">Ballot Breakdown:</span> ${rankPills}</div>
         <div class="res-bar"><div class="res-fill" style="width:${pct}%"></div></div>
       </div>
       <div class="res-pts">${pts} pts</div>
