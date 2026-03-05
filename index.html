@@ -81,6 +81,12 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 .res-fill{height:100%;background:var(--accent);border-radius:3px;transition:width .8s ease;}
 .result-item.winner .res-fill{background:var(--gold);}
 .res-pts{font-size:.78rem;color:var(--soft);white-space:nowrap;min-width:55px;text-align:right;}
+.rank-pills{display:flex;flex-wrap:wrap;gap:.3rem;margin:.45rem 0 .35rem;}
+.rank-pill{font-size:.68rem;font-weight:500;padding:.15rem .45rem;border-radius:20px;background:var(--cream);border:1px solid var(--border);color:var(--soft);}
+.result-item.winner .rank-pill{background:#fff8e0;border-color:var(--gold);color:var(--gold);}
+.rank-pills{display:flex;flex-wrap:wrap;gap:.3rem;margin:.4rem 0 .3rem;}
+.rank-pill{font-size:.68rem;padding:.1rem .45rem;border-radius:20px;background:var(--cream);border:1px solid var(--border);color:var(--soft);white-space:nowrap;}
+.result-item.winner .rank-pill{background:#fff8e0;border-color:var(--gold);color:#96700a;}
 /* pending */
 .pending-box{text-align:center;padding:3.5rem 2rem;background:var(--card);border:1px solid var(--border);border-radius:12px;}
 .pending-box .icon{font-size:3rem;margin-bottom:.75rem;}
@@ -606,18 +612,32 @@ function renderResults() {
   }
   if (!books.length) { area.innerHTML = '<div class="empty"><div class="icon">📚</div><p>No books yet.</p></div>'; return; }
   if (!n) { area.innerHTML = '<div class="empty"><div class="icon">🗳️</div><p>No votes cast yet.</p></div>'; return; }
-  const nb = books.length, scores = {};
-  books.forEach(b => scores[b.id] = 0);
-  Object.values(votes).forEach(vd => { (vd.ranking || vd).forEach((id, idx) => { if (scores[id] !== undefined) scores[id] += (nb - idx); }); });
+  const nb = books.length, scores = {}, rankCounts = {};
+  books.forEach(b => { scores[b.id] = 0; rankCounts[b.id] = {}; });
+  Object.values(votes).forEach(vd => {
+    (vd.ranking || vd).forEach((id, idx) => {
+      if (scores[id] !== undefined) {
+        scores[id] += (nb - idx);
+        rankCounts[id][idx + 1] = (rankCounts[id][idx + 1] || 0) + 1;
+      }
+    });
+  });
   const sorted = [...books].sort((a, b) => scores[b.id] - scores[a.id]);
   const max = scores[sorted[0]?.id] || 1;
   area.innerHTML = sorted.map((b, i) => {
     const pts = scores[b.id], pct = max > 0 ? pts / max * 100 : 0, win = i === 0;
+    // Build rank breakdown pills: show each rank that got at least 1 vote
+    const counts = rankCounts[b.id];
+    const rankPills = Array.from({length: nb}, (_, r) => r + 1)
+      .filter(r => counts[r])
+      .map(r => `<span class="rank-pill">#${r}: ${counts[r]}×</span>`)
+      .join('');
     return `<div class="result-item ${win ? 'winner' : ''}">
       <div class="result-rank">${win ? '👑' : i+1}</div>
       <div class="book-info" style="flex:1">
         <div class="book-title">${esc(b.title)}</div>
         <div class="book-sub">${esc(b.author)}</div>
+        <div class="rank-pills">${rankPills}</div>
         <div class="res-bar"><div class="res-fill" style="width:${pct}%"></div></div>
       </div>
       <div class="res-pts">${pts} pts</div>
