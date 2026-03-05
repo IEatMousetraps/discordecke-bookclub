@@ -157,8 +157,11 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
         <div class="f-group"><label>Author *</label><input type="text" id="s-author" placeholder="e.g. Toni Morrison"></div>
       </div>
       <div class="grid3">
-        <div class="f-group"><label>Your Name *</label><input type="text" id="s-name" placeholder="Full name"></div>
+        <div class="f-group"><label>First Name *</label><input type="text" id="s-fname" placeholder="First name"></div>
+        <div class="f-group"><label>Last Name *</label><input type="text" id="s-lname" placeholder="Last name"></div>
         <div class="f-group"><label>Email *</label><input type="email" id="s-email" placeholder="you@email.com"></div>
+      </div>
+      <div class="grid2">
         <div class="f-group"><label>Discord Username *</label><input type="text" id="s-discord" placeholder="user#0000"></div>
       </div>
       <button class="btn btn-primary" onclick="suggestBook()">Submit Suggestion</button>
@@ -178,8 +181,11 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   <div id="vote-content">
     <div class="card" style="padding:1.25rem;">
       <div class="grid3">
-        <div class="f-group"><label>Your Name *</label><input type="text" id="v-name" placeholder="Full name"></div>
+        <div class="f-group"><label>First Name *</label><input type="text" id="v-fname" placeholder="First name"></div>
+        <div class="f-group"><label>Last Name *</label><input type="text" id="v-lname" placeholder="Last name"></div>
         <div class="f-group"><label>Email *</label><input type="email" id="v-email" placeholder="you@email.com"></div>
+      </div>
+      <div class="grid2">
         <div class="f-group"><label>Discord Username *</label><input type="text" id="v-discord" placeholder="user#0000"></div>
       </div>
     </div>
@@ -462,18 +468,19 @@ window.goTab = goTab;
 // SUGGEST
 // ════════════════════════════════════════════════════════
 async function suggestBook() {
-  const title = v('s-title'), author = v('s-author'), name = v('s-name'),
+  const title = v('s-title'), author = v('s-author'),
+        fname = v('s-fname'), lname = v('s-lname'),
         email = v('s-email'), discord = v('s-discord');
   if (!getSettings().suggestionsOpen) { showMsg('suggest-msg', 'Suggestions are currently closed.', 'err'); return; }
-  if (!title || !author || !name || !email || !discord) { showMsg('suggest-msg', 'Please fill in all fields.', 'err'); return; }
+  if (!title || !author || !fname || !lname || !email || !discord) { showMsg('suggest-msg', 'Please fill in all fields.', 'err'); return; }
   if (!email.includes('@')) { showMsg('suggest-msg', 'Please enter a valid email.', 'err'); return; }
   const books = getBooks();
   if (books.length >= 30) { showMsg('suggest-msg', 'Maximum 30 books reached.', 'err'); return; }
   showLoading('Adding book…');
-  books.push({ id: Date.now(), title, author, suggester: name, email, discord });
+  books.push({ id: Date.now(), title, author, suggester: fname + ' ' + lname, email, discord });
   await fbSet(BOOKS_REF, { list: books });
   hideLoading();
-  ['s-title','s-author','s-name','s-email','s-discord'].forEach(id => document.getElementById(id).value = '');
+  ['s-title','s-author','s-fname','s-lname','s-email','s-discord'].forEach(id => document.getElementById(id).value = '');
   showMsg('suggest-msg', '✓ Book added!', 'ok');
 }
 window.suggestBook = suggestBook;
@@ -495,7 +502,7 @@ function renderSuggest() {
       <div class="book-num">${i+1}</div>
       <div class="book-info">
         <div class="book-title">${esc(b.title)}</div>
-        <div class="book-sub">${esc(b.author)} · suggested by ${esc(b.suggester)}</div>
+        <div class="book-sub">${esc(b.author)}</div>
       </div>
     </div>`).join('');
 }
@@ -503,7 +510,6 @@ function renderSuggest() {
 // ════════════════════════════════════════════════════════
 // VOTE
 // ════════════════════════════════════════════════════════
-let dragSrc = null;
 function renderVote() {
   const s = getSettings(), books = getBooks();
   document.getElementById('vote-closed-banner').style.display = s.votingOpen ? 'none' : 'block';
@@ -512,24 +518,99 @@ function renderVote() {
   if (!books.length) { document.getElementById('sortable-list').innerHTML = '<div class="empty"><div class="icon">📖</div><p>No books yet.</p></div>'; return; }
   buildSortable(books);
 }
+
 function buildSortable(books) {
   const c = document.getElementById('sortable-list'); c.innerHTML = '';
   books.forEach((b, i) => {
     const d = document.createElement('div');
-    d.className = 'sort-item'; d.draggable = true; d.dataset.id = b.id;
+    d.className = 'sort-item'; d.dataset.id = b.id;
     d.innerHTML = `<div class="drag-handle">⠿</div><div class="rank-badge">${i+1}</div><div class="book-info"><div class="book-title">${esc(b.title)}</div><div class="book-sub">${esc(b.author)}</div></div>`;
-    d.addEventListener('dragstart', function(e) { dragSrc = this; this.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
-    d.addEventListener('dragover',  function(e) { e.preventDefault(); document.querySelectorAll('.sort-item').forEach(el => el.classList.remove('drag-over')); this.classList.add('drag-over'); });
-    d.addEventListener('drop',      function(e) { e.preventDefault(); if (dragSrc !== this) { const c = document.getElementById('sortable-list'); const items = [...c.querySelectorAll('.sort-item')]; const si = items.indexOf(dragSrc), di = items.indexOf(this); if (si < di) c.insertBefore(dragSrc, this.nextSibling); else c.insertBefore(dragSrc, this); updateRanks(); }});
-    d.addEventListener('dragend',   function()  { this.classList.remove('dragging'); document.querySelectorAll('.sort-item').forEach(el => el.classList.remove('drag-over')); });
     c.appendChild(d);
   });
+  initDragSort(c);
+}
+
+function initDragSort(container) {
+  let dragging = null, ghost = null, startY = 0, startScrollY = 0;
+
+  function getItems() { return [...container.querySelectorAll('.sort-item')]; }
+
+  function pointerDown(e) {
+    // only trigger from handle or the item itself, ignore inputs
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+    const item = e.target.closest('.sort-item');
+    if (!item) return;
+    e.preventDefault();
+
+    dragging = item;
+    const rect = item.getBoundingClientRect();
+    startY = (e.touches ? e.touches[0].clientY : e.clientY);
+    startScrollY = window.scrollY;
+
+    // Create ghost
+    ghost = item.cloneNode(true);
+    ghost.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;
+      opacity:0.85;pointer-events:none;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,.2);
+      background:var(--card);border:1px solid var(--gold);border-radius:6px;transition:none;`;
+    document.body.appendChild(ghost);
+    item.style.opacity = '0.3';
+
+    document.addEventListener('pointermove', pointerMove, {passive:false});
+    document.addEventListener('pointerup', pointerUp);
+    document.addEventListener('touchmove', touchMove, {passive:false});
+    document.addEventListener('touchend', pointerUp);
+  }
+
+  function touchMove(e) { e.preventDefault(); }
+
+  function pointerMove(e) {
+    if (!ghost) return;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const dy = clientY - startY + (window.scrollY - startScrollY);
+    const origRect = dragging.getBoundingClientRect();
+    ghost.style.top = (origRect.top + dy + window.scrollY - startScrollY) + 'px';
+
+    // Find which item we're hovering over
+    const items = getItems().filter(el => el !== dragging);
+    const ghostCenter = ghost.getBoundingClientRect().top + ghost.getBoundingClientRect().height / 2;
+    let target = null;
+    items.forEach(el => {
+      const r = el.getBoundingClientRect();
+      if (ghostCenter > r.top && ghostCenter < r.bottom) target = el;
+    });
+    if (target) {
+      items.forEach(el => el.classList.remove('drag-over'));
+      target.classList.add('drag-over');
+      const targetRect = target.getBoundingClientRect();
+      const draggingRect = dragging.getBoundingClientRect();
+      if (ghostCenter < targetRect.top + targetRect.height / 2) {
+        container.insertBefore(dragging, target);
+      } else {
+        container.insertBefore(dragging, target.nextSibling);
+      }
+      updateRanks();
+    }
+  }
+
+  function pointerUp() {
+    if (ghost) { ghost.remove(); ghost = null; }
+    if (dragging) { dragging.style.opacity = ''; dragging.classList.remove('drag-over'); dragging = null; }
+    container.querySelectorAll('.sort-item').forEach(el => el.classList.remove('drag-over'));
+    document.removeEventListener('pointermove', pointerMove);
+    document.removeEventListener('pointerup', pointerUp);
+    document.removeEventListener('touchmove', touchMove);
+    document.removeEventListener('touchend', pointerUp);
+  }
+
+  container.addEventListener('pointerdown', pointerDown);
+  container.addEventListener('touchstart', pointerDown, {passive:false});
 }
 function updateRanks() { document.querySelectorAll('.sort-item').forEach((el, i) => el.querySelector('.rank-badge').textContent = i + 1); }
 
 async function submitVote() {
-  const name = v('v-name'), email = v('v-email'), discord = v('v-discord');
-  if (!name || !email || !discord) { showMsg('vote-msg', 'Please fill in all fields.', 'err'); return; }
+  const fname = v('v-fname'), lname = v('v-lname'), email = v('v-email'), discord = v('v-discord');
+  const name = (fname + ' ' + lname).trim();
+  if (!fname || !lname || !email || !discord) { showMsg('vote-msg', 'Please fill in all fields.', 'err'); return; }
   if (!email.includes('@')) { showMsg('vote-msg', 'Valid email required.', 'err'); return; }
   const items = [...document.querySelectorAll('.sort-item')];
   if (!items.length) { showMsg('vote-msg', 'No books to rank.', 'err'); return; }
