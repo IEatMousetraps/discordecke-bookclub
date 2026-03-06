@@ -567,6 +567,7 @@ function getReviews()        { return CACHE.reviews || {}; }
 // NAV
 // ════════════════════════════════════════════════════════
 function goTab(id, btn) {
+  location.hash = id;
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
   // Also clear active state on admin header button
@@ -1504,7 +1505,14 @@ function setPill(id, cond, tLabel, fLabel, tCls, fCls) {
 // ════════════════════════════════════════════════════════
 // Show the app immediately — Firebase listeners will update data as they arrive
 hideLoading();
-renderSuggest();
+const _initTab = location.hash.replace('#', '');
+const _validTabs = ['suggest','vote','results','review','surveys','rankings','analysis','admin'];
+if (_initTab && _validTabs.includes(_initTab)) {
+  const _btn = document.querySelector(`nav button[data-tab="${_initTab}"]`) || document.getElementById('admin-nav-btn');
+  goTab(_initTab, _btn);
+} else {
+  renderSuggest();
+}
 startListeners();
 
 </script>
