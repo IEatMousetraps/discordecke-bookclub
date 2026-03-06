@@ -1868,45 +1868,86 @@ function renderAnalysisReviews() {
   const allEntries = Object.values(reviews).flat();
   if (!allEntries.length) { area.innerHTML = '<div class="empty"><div class="icon">📖</div><p>No reviews submitted yet.</p></div>'; return; }
 
-  // Per-month summaries
-  const months = Object.keys(reviews).sort();
-  const monthBlocks = months.map(month => {
+  // Build title/author/genre lookup from archives
+  const archiveLookup = {};
+  getArchiveWinners().forEach(({archive:a, winnerBooks}) => {
+    const wb = winnerBooks[0];
+    if (!wb) return;
+    archiveLookup[a.label] = {
+      title:  wb.title  || a.label,
+      author: wb.author || '',
+      genre:  (winnerBooks.find(b=>b.genre)||wb).genre || '',
+      dual:   (a.dualWinners||[]).length > 0,
+      coTitles: winnerBooks.map(b=>b.title),
+    };
+  });
+
+  const starDisplay = avg => {
+    if (!avg) return '<span style="color:var(--soft);font-size:.85rem;">No ratings yet</span>';
+    const full = Math.floor(avg), half = (avg - full) >= 0.5;
+    return '⭐'.repeat(full) + (half ? '½' : '') + `<span style="font-size:.78rem;color:var(--soft);margin-left:.3rem;">${avg.toFixed(1)}/5</span>`;
+  };
+
+  const statBox = (value, label) => `
+    <div style="background:var(--cream);border-radius:6px;padding:.65rem .5rem;text-align:center;min-width:0;">
+      <div style="font-family:'Playfair Display',serif;font-size:1.35rem;font-weight:700;color:var(--gold);line-height:1.1;">${value}</div>
+      <div style="font-size:.65rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;margin-top:.2rem;">${label}</div>
+    </div>`;
+
+  // Sort months newest-first (assumes labels like "Jan 2026")
+  const months = Object.keys(reviews).sort((a,b) => {
+    const toDate = s => new Date(s); return toDate(b) - toDate(a);
+  });
+
+  const blocks = months.map((month, i) => {
     const entries = reviews[month] || [];
-    const total     = entries.length;
-    const started   = entries.filter(r => r.read === 'Yes').length;
-    const finished  = entries.filter(r => r.finished === 'Yes').length;
-    const liked     = entries.filter(r => r.liked === 'Yes').length;
-    const ratings   = entries.map(r => +r.rating).filter(r => r > 0 && r <= 5);
-    const avgRating = ratings.length ? (ratings.reduce((a,b)=>a+b,0)/ratings.length).toFixed(1) : '—';
-    const stars     = avgRating !== '—' ? '⭐'.repeat(Math.round(+avgRating)) : '';
-    return `<div class="chart-wrap">
-      <h3>${esc(month)}</h3>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.75rem;margin-bottom:1rem;">
-        <div style="background:var(--cream);border-radius:6px;padding:.75rem;text-align:center;">
-          <div style="font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:700;color:var(--gold);">${total}</div>
-          <div style="font-size:.72rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Reviews</div>
+    const total    = entries.length;
+    const started  = entries.filter(r => r.read === 'Yes').length;
+    const finished = entries.filter(r => r.finished === 'Yes').length;
+    const liked    = entries.filter(r => r.liked === 'Yes').length;
+    const ratings  = entries.map(r => +r.rating).filter(r => r >= 1 && r <= 5);
+    const avgRating = ratings.length ? ratings.reduce((a,b)=>a+b,0)/ratings.length : 0;
+    const startedPct  = total > 0 ? Math.round(started/total*100)   : 0;
+    const finishedPct = total > 0 ? Math.round(finished/total*100)  : 0;
+    const likedPct    = started > 0 ? Math.round(liked/started*100) : 0;
+
+    const meta = archiveLookup[month] || {};
+    const title  = meta.title  || month;
+    const author = meta.author || '';
+    const genre  = meta.genre  || '';
+    const isDual = meta.dual;
+    const coTitles = meta.coTitles || [];
+
+    const titleHtml = isDual
+      ? coTitles.map(t=>`<span style="font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:600;">${esc(t)}</span>`).join('<span style="color:var(--soft);padding:0 .4rem;">&</span>')
+      : `<span style="font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:600;">${esc(title)}</span>`;
+
+    return `<div class="chart-wrap" style="margin-bottom:1rem;">
+      <div style="display:flex;align-items:flex-start;gap:.75rem;margin-bottom:.75rem;flex-wrap:wrap;">
+        <span style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--gold);flex-shrink:0;">${i+1}.</span>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:baseline;gap:.5rem;flex-wrap:wrap;">${titleHtml}</div>
+          ${author ? `<div style="font-size:.8rem;color:var(--soft);margin-top:.15rem;">by ${esc(author)}</div>` : ''}
+          <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-top:.25rem;">
+            <span style="font-size:.72rem;color:var(--soft);background:var(--cream);border:1px solid var(--border);padding:.1rem .5rem;border-radius:20px;">${esc(month)}</span>
+            ${genre ? genrePillsHtml(genre) : ''}
+          </div>
         </div>
-        <div style="background:var(--cream);border-radius:6px;padding:.75rem;text-align:center;">
-          <div style="font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:700;color:var(--gold);">${started}</div>
-          <div style="font-size:.72rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Started</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:.5rem;margin-bottom:.6rem;">
+        <div style="background:var(--cream);border-radius:6px;padding:.65rem .5rem;text-align:center;grid-column:span 2;">
+          <div style="margin-bottom:.15rem;">${starDisplay(avgRating)}</div>
+          <div style="font-size:.65rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Avg Rating</div>
         </div>
-        <div style="background:var(--cream);border-radius:6px;padding:.75rem;text-align:center;">
-          <div style="font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:700;color:var(--gold);">${finished}</div>
-          <div style="font-size:.72rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Finished</div>
-        </div>
-        <div style="background:var(--cream);border-radius:6px;padding:.75rem;text-align:center;">
-          <div style="font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:700;color:var(--gold);">${liked}</div>
-          <div style="font-size:.72rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Liked It</div>
-        </div>
-        <div style="background:var(--cream);border-radius:6px;padding:.75rem;text-align:center;">
-          <div style="font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--gold);">${avgRating} ${stars}</div>
-          <div style="font-size:.72rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Avg Rating</div>
-        </div>
+        ${statBox(startedPct+'%','Started')}
+        ${statBox(finishedPct+'%','Finished')}
+        ${statBox(likedPct+'%','Liked It')}
+        ${statBox(total,'Reviews')}
       </div>
     </div>`;
   }).join('');
 
-  area.innerHTML = monthBlocks;
+  area.innerHTML = `<p style="font-size:.78rem;color:var(--soft);margin-bottom:1.25rem;">Sorted by most recent month. Percentages show member engagement with each book.</p>${blocks}`;
 }
 
 // ════════════════════════════════════════════════════════
