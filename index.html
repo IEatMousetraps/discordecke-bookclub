@@ -377,6 +377,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
         <button class="btn btn-secondary" onclick="downloadCSV('members')">⬇ Members List CSV</button>
         <button class="btn btn-secondary" onclick="downloadCSV('surveys')">⬇ Survey Responses CSV</button>
         <button class="btn btn-secondary" onclick="downloadCSV('reviews')">⬇ Book Reviews CSV</button>
+        <button class="btn btn-secondary" onclick="downloadCSV('rankings')">⬇ Book Rankings CSV</button>
       </div>
     </div>
 
@@ -434,6 +435,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
         <button class="btn btn-danger" onclick="clearVotes()">Clear All Votes</button>
         <button class="btn btn-danger" onclick="clearBooks()">Clear Books &amp; Votes</button>
         <button class="btn btn-danger" onclick="clearArchives()">Clear All Archives</button>
+        <button class="btn btn-danger" onclick="clearRankings()">Clear Book Rankings</button>
       </div>
     </div>
 
@@ -1363,8 +1365,9 @@ async function deleteBook(id)   { if (!confirm('Remove this book?')) return; sho
 async function clearVotes()     { if (!confirm('Clear ALL votes?')) return; showLoading('Clearing…'); await fbSet(VOTES_REF, {map:{}}); hideLoading(); renderAdmin(); }
 async function clearBooks()     { if (!confirm('Clear all books & votes?')) return; showLoading('Clearing…'); await fbSet(BOOKS_REF, {list:[]}); await fbSet(VOTES_REF, {map:{}}); hideLoading(); renderAdmin(); }
 async function clearArchives()  { if (!confirm('Delete ALL archived months? This cannot be undone.')) return; showLoading('Clearing…'); await fbSet(ARCHIVES_REF, {list:[]}); hideLoading(); renderAdmin(); }
+async function clearRankings()  { if (!confirm('Delete ALL book ranking reviews? This cannot be undone.')) return; showLoading('Clearing…'); await fbSet(REVIEWS_REF, {map:{}}); hideLoading(); renderAdmin(); }
 window.toggleSurvey=toggleSurvey; window.deleteSurvey=deleteSurvey; window.deleteVote=deleteVote;
-window.deleteBook=deleteBook; window.clearVotes=clearVotes; window.clearBooks=clearBooks; window.clearArchives=clearArchives;
+window.deleteBook=deleteBook; window.clearVotes=clearVotes; window.clearBooks=clearBooks; window.clearArchives=clearArchives; window.clearRankings=clearRankings;
 
 async function changePass() {
   const p1 = document.getElementById('np1').value, p2 = document.getElementById('np2').value;
@@ -1455,6 +1458,20 @@ function downloadCSV(type) {
       (entries||[]).forEach(r => {
         rows.push([month, r.name||'', r.discord||'', r.email||'', r.read||'', r.finished||'', r.dnfWhy||'', r.liked||'', r.why||'', r.rating||'', r.ts ? new Date(r.ts).toLocaleDateString() : '']);
       });
+    });
+  } else if (type === 'rankings') {
+    filename = 'bookclub_book_rankings.csv';
+    const reviews = getReviews();
+    rows.push(['Month','Total Reviews','Started','Finished','Liked','Ratings Submitted','Average Rating','Date Exported']);
+    const today = new Date().toLocaleDateString();
+    Object.entries(reviews).sort().forEach(([month, entries]) => {
+      const total    = entries.length;
+      const started  = entries.filter(r => r.read === 'Yes').length;
+      const finished = entries.filter(r => r.finished === 'Yes').length;
+      const liked    = entries.filter(r => r.liked === 'Yes').length;
+      const ratings  = entries.map(r => +r.rating).filter(r => r >= 1 && r <= 5);
+      const avgRating = ratings.length ? (ratings.reduce((a,b) => a+b, 0) / ratings.length).toFixed(2) : '';
+      rows.push([month, total, started, finished, liked, ratings.length, avgRating, today]);
     });
   }
   if (!rows.length) { alert('No data to export.'); return; }
