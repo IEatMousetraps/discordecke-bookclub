@@ -639,9 +639,10 @@ function renderSuggest() {
   const list = document.getElementById('book-list');
   if (!books.length) { list.innerHTML = '<div class="empty"><div class="icon">📚</div><p>No books yet — be the first!</p></div>'; return; }
   list.innerHTML = books.map(normBook).map((b, i) => {
-    const blurbs = b.suggesters.filter(s => s.reason).map(s =>
-      `<div class="book-sub" style="margin-top:.25rem;">&#x1f4ac; <strong>${esc(s.discord)}</strong>: <em>"${esc(s.reason)}"</em></div>`
-    ).join('');
+    const reasons = b.suggesters.filter(s => s.reason);
+    const blurbs = reasons.length === 0 ? '' : (reasons.length === 1
+      ? `<div class="book-sub" style="margin-top:.25rem;font-style:italic;">"${esc(reasons[0].reason)}"</div>`
+      : `<div class="book-sub" style="margin-top:.25rem;font-weight:500;color:var(--ink);">Why are we recommending this book?</div>` + reasons.map(s => `<div class="book-sub" style="margin-left:.75rem;font-style:italic;">"${esc(s.reason)}"</div>`).join(''));
     const recommenders = b.suggesters.map(s => esc(s.discord)).join(', ');
     return `<div class="book-item">
       <div class="book-num">${i+1}</div>
@@ -672,9 +673,10 @@ function buildSortable(books) {
   books.map(normBook).forEach((b, i) => {
     const d = document.createElement('div');
     d.className = 'sort-item'; d.dataset.id = b.id;
-    const blurbs = b.suggesters.filter(s => s.reason).map(s =>
-      `<div class="book-sub" style="margin-top:.3rem;">&#x1f4ac; <strong>${esc(s.discord)}</strong>: <em>"${esc(s.reason)}"</em></div>`
-    ).join('');
+    const reasons = b.suggesters.filter(s => s.reason);
+    const blurbs = reasons.length === 0 ? '' : (reasons.length === 1
+      ? `<div class="book-sub" style="margin-top:.3rem;font-style:italic;">"${esc(reasons[0].reason)}"</div>`
+      : `<div class="book-sub" style="margin-top:.3rem;font-weight:500;color:var(--ink);">Why are we recommending this book?</div>` + reasons.map(s => `<div class="book-sub" style="margin-left:.75rem;font-style:italic;">"${esc(s.reason)}"</div>`).join(''));
     const recommenders = b.suggesters.map(s => esc(s.discord)).join(', ');
     d.innerHTML = `
       <div class="rank-badge">${i+1}</div>
