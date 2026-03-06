@@ -219,18 +219,16 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
         <div class="f-group"><label>Book Title *</label><input type="text" id="s-title" placeholder="e.g. Beloved"></div>
         <div class="f-group"><label>Author *</label><input type="text" id="s-author" placeholder="e.g. Toni Morrison"></div>
       </div>
-      <div class="grid3">
-        <div class="f-group"><label>Email *</label><input type="email" id="s-email" placeholder="you@email.com"></div>
-        <div class="f-group">
-          <label>Genre <span style="font-size:.7rem;color:var(--soft);text-transform:none;letter-spacing:0;">(optional — pick up to 2)</span></label>
-          <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
-            <select id="s-genre" style="flex:1;min-width:130px;"></select>
-            <select id="s-genre2" style="flex:1;min-width:130px;"></select>
-          </div>
-        </div>
-      </div>
       <div class="grid2">
+        <div class="f-group"><label>Email *</label><input type="email" id="s-email" placeholder="you@email.com"></div>
         <div class="f-group"><label>Discord Username *</label><input type="text" id="s-discord" placeholder="user#0000"></div>
+      </div>
+      <div class="f-group">
+        <label>Genre <span style="font-size:.7rem;color:var(--soft);text-transform:none;letter-spacing:0;">(optional — pick up to 2)</span></label>
+        <div class="grid2">
+          <select id="s-genre"></select>
+          <select id="s-genre2"></select>
+        </div>
       </div>
       <div class="f-group"><label>Why are you recommending this book? <span style="font-size:.7rem;color:var(--soft);text-transform:none;letter-spacing:0;">(optional)</span></label><textarea id="s-reason" placeholder="Tell the club why they should read this…" rows="3"></textarea></div>
       <label class="receipt-check"><input type="checkbox" id="s-receipt"> Download a copy of my submission (PDF)</label>
@@ -2844,7 +2842,7 @@ const BADGE_DEFS = [
   { id:'adventurous-reader',name:'Adventurous Reader',  emoji:'🧭',  tier:null,     category:'genre', desc:'Rate books across 6+ different genres',                     check:p=>p.genresRated>=6 },
 
   // ── Admin-only ────────────────────────────────────────────────────────────
-  { id:'founding-reader',   name:'Founding Reader',     emoji:'🏛️',  tier:null,     desc:'Member during the inaugural year — admin awarded only',     check:()=>false, adminOnly:true },
+  { id:'founding-reader',   name:'1st Edition',         emoji:'🏛️',  tier:null,     desc:'Member during the inaugural year — admin awarded only',     check:()=>false, adminOnly:true },
 ];
 
 // Returns all BADGE_DEFS + custom badges, respecting disabled/hidden for members
@@ -3204,6 +3202,39 @@ function renderBadgesTab() {
   const tierLabel = { bronze:'🥉 Bronze', silver:'🥈 Silver', gold:'🥇 Gold' };
   const totalEarned = visibleBadges.filter(b => hasBadge(b.id, profile, myKey)).length;
 
+  // Find most recently earned badge by replaying profile month-by-month
+  const earnedBadges = visibleBadges.filter(b => hasBadge(b.id, profile, myKey));
+  let mostRecentBadge = null;
+  if (earnedBadges.length) {
+    const _allAW = getArchiveWinners(); // cache once
+    // Replay profile up to each month and find the latest month a new badge appeared
+    for (let i = _allAW.length - 1; i >= 0 && !mostRecentBadge; i--) {
+      const partialProfile = computeMemberProfile(
+        _bgIdentity.discord, _bgIdentity.email,
+        { archiveWinners: _allAW.slice(0, i + 1) }
+      );
+      const prevProfile = i > 0
+        ? computeMemberProfile(_bgIdentity.discord, _bgIdentity.email,
+            { archiveWinners: _allAW.slice(0, i) })
+        : null;
+      for (const b of earnedBadges) {
+        const earnedNow = b.check ? b.check(partialProfile) : false;
+        const earnedBefore = prevProfile && b.check ? b.check(prevProfile) : false;
+        if (earnedNow && !earnedBefore) { mostRecentBadge = b; break; }
+      }
+    }
+    // Fallback: if no month-crossing found (e.g. admin badges), use last in earned list
+    if (!mostRecentBadge) mostRecentBadge = earnedBadges[earnedBadges.length - 1];
+  }
+
+  const recentBadgeHtml = mostRecentBadge
+    ? `<div style="display:flex;align-items:center;gap:.5rem;margin-top:.5rem;padding:.4rem .65rem;background:var(--cream);border-radius:4px;border-left:2px solid var(--gold);font-size:.8rem;">
+        <span style="font-size:1rem;">${mostRecentBadge.iconDataUrl ? '🖼️' : mostRecentBadge.emoji}</span>
+        <span><strong>Latest:</strong> ${esc(mostRecentBadge.name)}</span>
+        <span style="color:var(--soft);font-size:.75rem;">— ${esc(mostRecentBadge.desc)}</span>
+       </div>`
+    : '';
+
   document.getElementById('badges-summary').innerHTML = `
     <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
       <div style="text-align:center;">
@@ -3211,9 +3242,10 @@ function renderBadgesTab() {
         <div style="font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);">Badges Earned</div>
       </div>
       <div style="flex:1;min-width:180px;">
-        <div style="font-weight:500;margin-bottom:.3rem;">${visibleBadges.filter(b=>hasBadge(b.id,profile,myKey)).map(b=>b.iconDataUrl?'🖼️':b.emoji).join(' ')||'—'}</div>
+        <div style="font-weight:500;margin-bottom:.3rem;">${earnedBadges.map(b=>b.iconDataUrl?'🖼️':b.emoji).join(' ')||'—'}</div>
         <div style="font-size:.82rem;color:var(--soft);">${profile.voted} months voted · ${profile.suggested} suggested · ${profile.reviewed} reviews · ${profile.surveysCompleted} surveys · ${profile.pickedWinner} winning pick${profile.pickedWinner!==1?'s':''}</div>
         <div style="font-size:.78rem;color:var(--soft);margin-top:.2rem;">Longest vote streak: ${profile.longestVoteStreak} · Longest read streak: ${profile.longestReadStreak}</div>
+        ${recentBadgeHtml}
       </div>
     </div>`;
 
