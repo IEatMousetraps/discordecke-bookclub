@@ -331,6 +331,13 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   </div>
   <div id="admin-panel" style="display:none;">
 
+    <div class="sub-tabs" style="margin-bottom:1.5rem;">
+      <button class="sub-tab active" onclick="goAdminTab('manage',this)">Manage</button>
+      <button class="sub-tab" onclick="goAdminTab('compare',this)">Member Comparison</button>
+    </div>
+
+    <div id="admin-sub-manage">
+
     <div class="card">
       <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:1rem;">Status & Controls</h3>
       <div style="display:flex;flex-wrap:wrap;gap:1.5rem;align-items:center;">
@@ -460,6 +467,12 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
         <button class="btn btn-danger" onclick="clearArchives()">Clear All Archives</button>
         <button class="btn btn-danger" onclick="clearRankings()">Clear Book Rankings</button>
       </div>
+    </div>
+
+    </div><!-- /admin-sub-manage -->
+
+    <div id="admin-sub-compare" style="display:none;">
+      <div id="member-compare-area"><p style="font-size:.85rem;color:var(--soft);">Loading…</p></div>
     </div>
 
   </div>
@@ -1445,6 +1458,263 @@ function renderAdmin() {
       </div>
     </div>`).join('') : '<p style="font-size:.85rem;color:var(--soft);">No surveys yet.</p>';
 }
+
+function goAdminTab(id, btn) {
+  ['manage','compare'].forEach(s => {
+    document.getElementById('admin-sub-'+s).style.display = s === id ? '' : 'none';
+  });
+  document.querySelectorAll('#admin-panel .sub-tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  if (id === 'compare') renderMemberCompare();
+}
+window.goAdminTab = goAdminTab;
+
+function renderMemberCompare() {
+  const archives   = getArchives();
+  const allReviews = getReviews();
+  const area       = document.getElementById('member-compare-area');
+
+  if (!archives.length) {
+    area.innerHTML = '<p style="font-size:.85rem;color:var(--soft);">No archived months yet — nothing to compare.</p>';
+    return;
+  }
+
+  // ── Build per-member profile across all archives ──────────────────────────
+  // voters:    { discord: [monthLabel, ...] }
+  // suggesters:{ discord: [monthLabel, ...] }
+  // reviewers: { discord: [monthLabel, ...] }
+  // rankings:  { discord: { monthLabel: { bookId: rank, ... } } }  (Borda rank given to each book)
+
+  const voterMonths     = {};  // discord → Set of months voted
+  const suggesterMonths = {};  // discord → Set of months suggested
+  const reviewerMonths  = {};  // discord → Set of months reviewed
+  const memberMeta      = {};  // discord → { email, discord }
+
+  const track = (map, discord, month) => {
+    if (!map[discord]) map[discord] = new Set();
+    map[discord].add(month);
+  };
+  const meta = (discord, email) => {
+    if (!memberMeta[discord]) memberMeta[discord] = { discord, email: email || '' };
+  };
+
+  archives.forEach(a => {
+    // Voters
+    Object.values(a.votes || {}).forEach(vd => {
+      const d = vd.discord || 'unknown';
+      track(voterMonths, d, a.label);
+      meta(d, vd.email);
+    });
+    // Suggesters
+    (a.books || []).map(normBook).forEach(b => {
+      b.suggesters.forEach(s => {
+        track(suggesterMonths, s.discord || 'unknown', a.label);
+        meta(s.discord || 'unknown', s.email);
+      });
+    });
+  });
+
+  // Also include current month suggesters
+  getBooks().map(normBook).forEach(b => {
+    b.suggesters.forEach(s => {
+      if (s.discord) meta(s.discord, s.email);
+    });
+  });
+
+  // Reviewers from reviews map
+  Object.entries(allReviews).forEach(([month, entries]) => {
+    (entries || []).forEach(r => {
+      track(reviewerMonths, r.discord || 'unknown', month);
+      meta(r.discord || 'unknown', r.email);
+    });
+  });
+
+  const totalMonths = archives.length;
+  const allDiscords = [...new Set([
+    ...Object.keys(voterMonths),
+    ...Object.keys(suggesterMonths),
+    ...Object.keys(reviewerMonths)
+  ])].sort();
+
+  // ── Build voting rank vectors per member (for similarity) ────────────────
+  // For each archive, compute each voter's rank order as a vector (book positions)
+  // We'll use Kendall-tau-like correlation: count concordant vs discordant pairs
+
+  // rankVectors[discord] = array of { month, rankMap: {bookTitle: rank} }
+  const rankVectors = {};
+  archives.forEach(a => {
+    const nb = (a.books || []).length;
+    if (!nb) return;
+    Object.values(a.votes || {}).forEach(vd => {
+      const d = vd.discord || 'unknown';
+      if (!rankVectors[d]) rankVectors[d] = [];
+      const rankMap = {};
+      (vd.ranking || vd).forEach((id, idx) => {
+        const book = (a.books || []).find(b => String(b.id) === String(id));
+        if (book) rankMap[book.title] = idx + 1;
+      });
+      rankVectors[d].push({ month: a.label, rankMap, nb });
+    });
+  });
+
+  // ── Compute pairwise similarity ───────────────────────────────────────────
+  // For two members, find all months both voted, compute average rank correlation
+  // Returns { score: -1..1, sharedMonths }
+  function similarity(d1, d2) {
+    const v1 = rankVectors[d1] || [];
+    const v2 = rankVectors[d2] || [];
+    let concordant = 0, discordant = 0, sharedMonths = 0;
+    v1.forEach(rv1 => {
+      const rv2 = v2.find(r => r.month === rv1.month);
+      if (!rv2) return;
+      sharedMonths++;
+      const books = Object.keys(rv1.rankMap);
+      for (let i = 0; i < books.length; i++) {
+        for (let j = i + 1; j < books.length; j++) {
+          const b1 = books[i], b2 = books[j];
+          if (rv2.rankMap[b1] === undefined || rv2.rankMap[b2] === undefined) continue;
+          const diff1 = rv1.rankMap[b1] - rv1.rankMap[b2];
+          const diff2 = rv2.rankMap[b1] - rv2.rankMap[b2];
+          if (diff1 * diff2 > 0) concordant++;
+          else if (diff1 * diff2 < 0) discordant++;
+        }
+      }
+    });
+    const total = concordant + discordant;
+    return { score: total > 0 ? (concordant - discordant) / total : null, sharedMonths };
+  }
+
+  // ── Categorise each member ────────────────────────────────────────────────
+  const profiles = allDiscords.map(d => {
+    const voted     = (voterMonths[d]     || new Set()).size;
+    const suggested = (suggesterMonths[d] || new Set()).size;
+    const reviewed  = (reviewerMonths[d]  || new Set()).size;
+    return { d, voted, suggested, reviewed };
+  });
+
+  const votersOnly    = profiles.filter(p => p.voted > 0 && p.suggested === 0);
+  const suggestsOnly  = profiles.filter(p => p.suggested > 0 && p.voted === 0);
+  const noReviews     = profiles.filter(p => (p.voted > 0 || p.suggested > 0) && p.reviewed === 0);
+  const allThree      = profiles.filter(p => p.voted > 0 && p.suggested > 0 && p.reviewed > 0);
+
+  // ── Build similarity pairs (only members who share ≥2 months) ────────────
+  const voters = allDiscords.filter(d => rankVectors[d] && rankVectors[d].length >= 1);
+  const pairs = [];
+  for (let i = 0; i < voters.length; i++) {
+    for (let j = i + 1; j < voters.length; j++) {
+      const { score, sharedMonths } = similarity(voters[i], voters[j]);
+      if (score !== null && sharedMonths >= 1) {
+        pairs.push({ d1: voters[i], d2: voters[j], score, sharedMonths });
+      }
+    }
+  }
+  pairs.sort((a, b) => b.score - a.score);
+  const mostSimilar  = pairs.slice(0, 5);
+  const mostOpposing = [...pairs].sort((a, b) => a.score - b.score).slice(0, 5);
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  const scoreBar = score => {
+    const pct = Math.round(((score + 1) / 2) * 100);
+    const hue = Math.round(score * 60 + 60); // -1→0° red, 0→60° yellow, 1→120° green
+    return `<div style="display:flex;align-items:center;gap:.5rem;">
+      <div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden;">
+        <div style="width:${pct}%;height:100%;background:hsl(${hue},60%,45%);border-radius:3px;"></div>
+      </div>
+      <span style="font-size:.72rem;color:var(--soft);min-width:2.5rem;">${(score*100).toFixed(0)}%</span>
+    </div>`;
+  };
+
+  const pairRow = ({d1, d2, score, sharedMonths}) => `
+    <div style="display:flex;align-items:center;gap:1rem;padding:.6rem 0;border-bottom:1px solid var(--border);">
+      <div style="flex:1;font-size:.85rem;"><strong>${esc(d1)}</strong> &amp; <strong>${esc(d2)}</strong>
+        <span style="font-size:.72rem;color:var(--soft);margin-left:.4rem;">(${sharedMonths} shared month${sharedMonths!==1?'s':''})</span>
+      </div>
+      <div style="width:140px;">${scoreBar(score)}</div>
+    </div>`;
+
+  const memberChip = p => `<div style="display:inline-flex;align-items:center;gap:.4rem;background:var(--cream);border:1px solid var(--border);border-radius:20px;padding:.25rem .75rem;margin:.2rem;font-size:.8rem;">
+    <span>${esc(p.d)}</span>
+    <span style="font-size:.7rem;color:var(--soft);">v:${p.voted} s:${p.suggested} r:${p.reviewed}</span>
+  </div>`;
+
+  area.innerHTML = `
+    <!-- Voting Similarity -->
+    <div class="card">
+      <h3 style="font-family:'Playfair Display',serif;font-size:1.05rem;margin-bottom:.25rem;">Most Similar Voters</h3>
+      <p style="font-size:.78rem;color:var(--soft);margin-bottom:1rem;">Pairs who consistently rank books in the same order (Kendall-tau correlation across shared months).</p>
+      ${mostSimilar.length ? mostSimilar.map(pairRow).join('') : '<p style="font-size:.85rem;color:var(--soft);">Not enough shared voting data yet.</p>'}
+    </div>
+
+    <!-- Voting Opposition -->
+    <div class="card">
+      <h3 style="font-family:'Playfair Display',serif;font-size:1.05rem;margin-bottom:.25rem;">Most Opposing Voters</h3>
+      <p style="font-size:.78rem;color:var(--soft);margin-bottom:1rem;">Pairs who consistently rank books in opposite order.</p>
+      ${mostOpposing.length ? mostOpposing.map(pairRow).join('') : '<p style="font-size:.85rem;color:var(--soft);">Not enough shared voting data yet.</p>'}
+    </div>
+
+    <!-- Voters who don't suggest -->
+    <div class="card">
+      <h3 style="font-family:'Playfair Display',serif;font-size:1.05rem;margin-bottom:.25rem;">Vote But Never Suggest <span style="font-weight:400;font-size:.85rem;color:var(--soft);">(${votersOnly.length})</span></h3>
+      <p style="font-size:.78rem;color:var(--soft);margin-bottom:.75rem;">These members vote every month but have never recommended a book.</p>
+      <div>${votersOnly.length ? votersOnly.map(memberChip).join('') : '<span style="font-size:.85rem;color:var(--soft);">None — everyone suggests!</span>'}</div>
+    </div>
+
+    <!-- Suggesters who don't vote -->
+    <div class="card">
+      <h3 style="font-family:'Playfair Display',serif;font-size:1.05rem;margin-bottom:.25rem;">Suggest But Never Vote <span style="font-weight:400;font-size:.85rem;color:var(--soft);">(${suggestsOnly.length})</span></h3>
+      <p style="font-size:.78rem;color:var(--soft);margin-bottom:.75rem;">These members have recommended books but never cast a vote.</p>
+      <div>${suggestsOnly.length ? suggestsOnly.map(memberChip).join('') : '<span style="font-size:.85rem;color:var(--soft);">None — everyone votes!</span>'}</div>
+    </div>
+
+    <!-- Members who don't review -->
+    <div class="card">
+      <h3 style="font-family:'Playfair Display',serif;font-size:1.05rem;margin-bottom:.25rem;">Never Submitted a Book Review <span style="font-weight:400;font-size:.85rem;color:var(--soft);">(${noReviews.length})</span></h3>
+      <p style="font-size:.78rem;color:var(--soft);margin-bottom:.75rem;">These members participate in voting or suggesting but haven't submitted any Rank A Book reviews.</p>
+      <div>${noReviews.length ? noReviews.map(memberChip).join('') : '<span style="font-size:.85rem;color:var(--soft);">Everyone has reviewed — nice!</span>'}</div>
+    </div>
+
+    <!-- All-rounders -->
+    <div class="card">
+      <h3 style="font-family:'Playfair Display',serif;font-size:1.05rem;margin-bottom:.25rem;">All-Rounders <span style="font-weight:400;font-size:.85rem;color:var(--soft);">(${allThree.length})</span></h3>
+      <p style="font-size:.78rem;color:var(--soft);margin-bottom:.75rem;">Members who have voted, suggested, and reviewed.</p>
+      <div>${allThree.length ? allThree.map(memberChip).join('') : '<span style="font-size:.85rem;color:var(--soft);">No members yet qualify.</span>'}</div>
+    </div>
+
+    <!-- Full participation table -->
+    <div class="card">
+      <h3 style="font-family:'Playfair Display',serif;font-size:1.05rem;margin-bottom:.75rem;">All Members</h3>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:.82rem;">
+          <thead>
+            <tr style="border-bottom:2px solid var(--border);">
+              <th style="text-align:left;padding:.4rem .6rem;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);">Member</th>
+              <th style="text-align:center;padding:.4rem .6rem;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);">Months Voted</th>
+              <th style="text-align:center;padding:.4rem .6rem;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);">Months Suggested</th>
+              <th style="text-align:center;padding:.4rem .6rem;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);">Books Reviewed</th>
+              <th style="text-align:center;padding:.4rem .6rem;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);">of ${totalMonths} months</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${profiles.sort((a,b) => (b.voted+b.suggested+b.reviewed)-(a.voted+a.suggested+a.reviewed)).map(p => `
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:.45rem .6rem;font-weight:500;">${esc(p.d)}</td>
+              <td style="text-align:center;padding:.45rem .6rem;">${p.voted}</td>
+              <td style="text-align:center;padding:.45rem .6rem;">${p.suggested}</td>
+              <td style="text-align:center;padding:.45rem .6rem;">${p.reviewed}</td>
+              <td style="text-align:center;padding:.45rem .6rem;">
+                <div style="display:flex;align-items:center;gap:.4rem;justify-content:center;">
+                  <div style="width:60px;height:5px;background:var(--border);border-radius:3px;overflow:hidden;">
+                    <div style="width:${Math.round(Math.max(p.voted,p.suggested)/totalMonths*100)}%;height:100%;background:var(--gold);border-radius:3px;"></div>
+                  </div>
+                </div>
+              </td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+window.renderMemberCompare = renderMemberCompare;
 
 async function toggleSetting(key) {
   const s = getSettings(); s[key] = !s[key];
