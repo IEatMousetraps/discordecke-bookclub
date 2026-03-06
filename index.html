@@ -2276,12 +2276,13 @@ window.loadProgress = loadProgress;
 function renderProgressTab() {
   const area = document.getElementById('progress-books-area');
   if (!area) return;
-  const books = getBooks();
-  if (!books.length) {
-    area.innerHTML = '<div class="empty"><div class="icon">📚</div><p>No books are up for consideration this month yet.</p></div>';
+  if (!_pgIdentity) return; // wait for identity
+
+  const archives = getArchives();
+  if (!archives.length) {
+    area.innerHTML = '<div class="empty"><div class="icon">📚</div><p>No archived months yet. Winner books will appear here once the admin archives a month.</p></div>';
     return;
   }
-  if (!_pgIdentity) return; // wait for identity
 
   const progress = getReadingProgress();
   const myProgress = progress[_pgIdentity.key] || {};
@@ -2293,26 +2294,38 @@ function renderProgressTab() {
     { key: 'dnf',         label: 'DNF',          emoji: '❌' },
   ];
 
+  // Build list of winner books from each archived month
+  const winnerEntries = archives.map(a => {
+    const dualIds = a.dualWinners || [];
+    const winners = dualIds.length
+      ? (a.books || []).filter(b => dualIds.includes(String(b.id)))
+      : (a.books || []).slice(0, 1);
+    return { month: a.label, winners };
+  }).filter(e => e.winners.length);
+
   area.innerHTML = `
-    <p style="font-size:.82rem;color:var(--soft);margin-bottom:1.25rem;">Tap a status for each book to let the club know where you're at.</p>
-    ${books.map(b => {
-      const cur = myProgress[b.id] || 'not-started';
-      return `<div class="card" style="padding:1rem 1.25rem;">
-        <div style="display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap;">
-          <div style="flex:1;min-width:150px;">
-            <div style="font-weight:500;font-size:.95rem;">${esc(b.title)}</div>
-            <div style="font-size:.78rem;color:var(--soft);">${esc(b.author)}</div>
+    <p style="font-size:.82rem;color:var(--soft);margin-bottom:1.25rem;">Track your reading progress on each month's winning pick.</p>
+    ${winnerEntries.slice().reverse().map(({ month, winners }) =>
+      winners.map(b => {
+        const cur = myProgress[b.id] || 'not-started';
+        return `<div class="card" style="padding:1rem 1.25rem;">
+          <div style="display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap;">
+            <div style="flex:1;min-width:150px;">
+              <div style="font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:.2rem;">👑 ${esc(month)}</div>
+              <div style="font-weight:500;font-size:.95rem;">${esc(b.title)}</div>
+              <div style="font-size:.78rem;color:var(--soft);">${esc(b.author)}</div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:.45rem;">
+              ${statuses.map(st => `
+                <button class="progress-btn ${cur===st.key ? 'active-'+st.key : ''}"
+                  onclick="setProgress('${b.id}','${st.key}',this)">
+                  ${st.emoji} ${st.label}
+                </button>`).join('')}
+            </div>
           </div>
-          <div style="display:flex;flex-wrap:wrap;gap:.45rem;">
-            ${statuses.map(st => `
-              <button class="progress-btn ${cur===st.key ? 'active-'+st.key : ''}"
-                onclick="setProgress('${b.id}','${st.key}',this)">
-                ${st.emoji} ${st.label}
-              </button>`).join('')}
-          </div>
-        </div>
-      </div>`;
-    }).join('')}`;
+        </div>`;
+      }).join('')
+    ).join('')}`;
 }
 
 async function setProgress(bookId, status, btn) {
@@ -2510,7 +2523,7 @@ function renderGenreDiversity() {
       </div>
       <div class="card" style="margin-top:1.5rem;">
         <h3 style="font-family:'Playfair Display',serif;font-size:1.05rem;margin-bottom:.75rem;">All Archived Books</h3>
-        <p style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">Here's your reading history — add genres to unlock the diversity chart.</p>
+        <p style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">Discordecke Book Club suggestion history — add genres to unlock the diversity chart.</p>
         ${archives.map(a => `
           <div style="margin-bottom:.75rem;">
             <div style="font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);margin-bottom:.3rem;">${esc(a.label)}</div>
