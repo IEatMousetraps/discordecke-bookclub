@@ -2825,6 +2825,7 @@ const BADGE_DEFS = [
   { id:'first-suggest',     name:'Bookworm',            emoji:'📚',  tier:null,     desc:'Submit your first book suggestion',                         check:p=>p.suggested>=1 },
   { id:'first-review',      name:'Critic',              emoji:'✍️',  tier:null,     desc:'Submit your first book review',                             check:p=>p.reviewed>=1 },
   { id:'all-rounder',       name:'All-Rounder',         emoji:'🌟',  tier:null,     desc:'Vote, suggest, and review in any month',                    check:p=>p.voted>=1&&p.suggested>=1&&p.reviewed>=1 },
+  { id:'why-not-both',      name:'Why Not Both?',        emoji:'📚🤝📖', tier:null,  desc:'Read both books in a month that had two winners',            check:p=>p.whyNotBoth>=1 },
   { id:'three-votes',       name:'Regular',             emoji:'📆',  tier:null,     desc:'Vote in 3 or more months',                                  check:p=>p.voted>=3 },
   { id:'six-votes',         name:'Civic Duty',          emoji:'🗽',  tier:null,     desc:'Vote in 6 or more months',                                  check:p=>p.voted>=6 },
   { id:'twelve-votes',      name:'Lifer',               emoji:'🎖️',  tier:null,     desc:'Vote in 12 or more months',                                 check:p=>p.voted>=12 },
@@ -3050,15 +3051,25 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
   });
 
   // ── Reviews ──
-  Object.values(allReviews).forEach(entries => {
-    (entries||[]).forEach(r => {
-      if (resolveId(r.discord,r.email,idMap)!==myName) return;
-      reviewed++;
+  // Count reviewed per-month (not per-entry) so dual-winner months don't inflate counts.
+  // A member who reviews one or both books in a dual month counts as 1 reviewed month.
+  let whyNotBoth = 0;
+  Object.entries(allReviews).forEach(([monthLabel, entries]) => {
+    const myEntries = (entries||[]).filter(r => resolveId(r.discord,r.email,idMap)===myName);
+    if (!myEntries.length) return;
+    // Count this month as 1 review regardless of how many entries
+    reviewed++;
+    // For rated-all: month counts as rated if at least one entry has a rating
+    const hasRatingThisMonth = myEntries.some(r => { const rat = +r.rating; return rat>=1 && rat<=5; });
+    if (hasRatingThisMonth) reviewsWithRating++;
+    // Check if this was a dual-winner month and they reviewed both books
+    const aw = archiveWinners.find(w=>w.archive.label===monthLabel);
+    const isDual = aw && aw.winnerBooks && aw.winnerBooks.length > 1;
+    if (isDual && myEntries.length >= aw.winnerBooks.length) whyNotBoth++;
+    myEntries.forEach(r => {
       const rat = +r.rating;
       if (rat>=1 && rat<=5) {
-        reviewsWithRating++;
         if (rat===1) oneStarCount++;
-
       }
       if (r.finished==='No / DNF') dnfCount++;
       if (r.ts && r.ts>=BADGE_CUTOFF) {
@@ -3182,6 +3193,7 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
     genresSuggested: genresSuggestedSet.size,
     genreChampion, genreSpecialist, genreDevotee, comfortZone, againstType,
     genresRated: genresRatedSet.size,
+    whyNotBoth,
     totalMonths,
     longestVoteStreak:       longestStreak(monthVoted),
     longestReadStreak:       longestStreak(monthReadFinished),
@@ -3217,7 +3229,7 @@ const BADGE_CATEGORIES = [
 // Map badge ids to categories
 const BADGE_CATEGORY_MAP = {
   'first-vote':'participation','first-suggest':'participation','first-review':'participation',
-  'all-rounder':'participation','three-votes':'participation','six-votes':'participation',
+  'all-rounder':'participation','why-not-both':'participation','three-votes':'participation','six-votes':'participation',
   'twelve-votes':'participation','three-suggests':'participation','three-reviews':'participation',
   'consistent':'participation',
   'streak-3':'streaks','streak-6':'streaks','streak-12':'streaks',
