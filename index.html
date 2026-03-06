@@ -229,14 +229,14 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
               <option>Literary Fiction</option><option>Historical Fiction</option><option>Science Fiction</option>
               <option>Fantasy</option><option>Mystery / Thriller</option><option>Romance</option>
               <option>Horror</option><option>Non-Fiction</option><option>Biography / Memoir</option>
-              <option>Essays</option><option>Poetry</option><option>Graphic Novel</option><option>Other</option>
+              <option>Essays</option><option>Poetry</option><option>Graphic Novel</option><option>Self-Help / Personal Growth</option><option>Other</option>
             </select>
             <select id="s-genre2" style="flex:1;min-width:130px;">
               <option value="">— Secondary —</option>
               <option>Literary Fiction</option><option>Historical Fiction</option><option>Science Fiction</option>
               <option>Fantasy</option><option>Mystery / Thriller</option><option>Romance</option>
               <option>Horror</option><option>Non-Fiction</option><option>Biography / Memoir</option>
-              <option>Essays</option><option>Poetry</option><option>Graphic Novel</option><option>Other</option>
+              <option>Essays</option><option>Poetry</option><option>Graphic Novel</option><option>Self-Help / Personal Growth</option><option>Other</option>
             </select>
           </div>
         </div>
@@ -1205,6 +1205,7 @@ const GENRE_PILL_COLORS = {
   'Essays':             { bg:'#fafafa', text:'#424242', border:'#bdbdbd' },
   'Poetry':             { bg:'#fce4ec', text:'#880e4f', border:'#f48fb1' },
   'Graphic Novel':      { bg:'#fff3e0', text:'#bf360c', border:'#ffcc80' },
+  'Self-Help / Personal Growth': { bg:'#e8f5e9', text:'#2e7d32', border:'#81c784' },
   'Other':              { bg:'#f5f5f5', text:'#616161', border:'#e0e0e0' },
 };
 
@@ -3280,7 +3281,7 @@ window.adminDeleteCustomBadge = adminDeleteCustomBadge;
 // ════════════════════════════════════════════════════════
 // EDIT BOOKS (ADMIN)
 // ════════════════════════════════════════════════════════
-const EDIT_GENRES = ['','Literary Fiction','Historical Fiction','Science Fiction','Fantasy','Mystery / Thriller','Romance','Horror','Non-Fiction','Biography / Memoir','Essays','Poetry','Graphic Novel','Other'];
+const EDIT_GENRES = ['','Literary Fiction','Historical Fiction','Science Fiction','Fantasy','Mystery / Thriller','Romance','Horror','Non-Fiction','Biography / Memoir','Essays','Poetry','Graphic Novel','Self-Help / Personal Growth','Other'];
 
 function genreSelect(id, val) {
   // val may be 'Romance / Fantasy' — split on ' / '
