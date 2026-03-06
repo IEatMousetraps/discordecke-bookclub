@@ -2124,7 +2124,7 @@ function renderAdmin() {
     const rCount = (_surveyResps[s.id]||[]).length;
     return `
     <div style="display:flex;align-items:center;justify-content:space-between;padding:.6rem 0;border-bottom:1px solid var(--border);">
-      <div><div style="font-size:.9rem;">${esc(s.title)}</div><div style="font-size:.75rem;color:var(--soft);">${s.questions.length} question${s.questions.length!==1?'s':''} · ${rCount} response${rCount!==1?'s':''}</div></div>`
+      <div><div style="font-size:.9rem;">${esc(s.title)}</div><div style="font-size:.75rem;color:var(--soft);">${s.questions.length} question${s.questions.length!==1?'s':''} · ${rCount} response${rCount!==1?'s':''}</div></div>
       <div style="display:flex;gap:.4rem;align-items:center;">
         <span class="pill ${s.active?'pill-open':'pill-closed'}">${s.active?'Active':'Closed'}</span>
         <button class="btn btn-secondary btn-sm" onclick="toggleSurvey(${i})">${s.active?'Close':'Open'}</button>
