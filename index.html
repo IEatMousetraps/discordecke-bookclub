@@ -1694,7 +1694,24 @@ async function submitReview() {
     (isDualMonth ? String(r.bookId) === String(bookId) : !r.bookId)
   );
   if (existingIdx >= 0) {
-    // Silent overwrite — same book, same person
+    const prev = reviews[month][existingIdx];
+    // Build a readable summary of their previous review
+    const prevLines = [];
+    if (prev.read)     prevLines.push(`Started: ${prev.read}`);
+    if (prev.finished) prevLines.push(`Finished: ${prev.finished}`);
+    if (prev.liked)    prevLines.push(`Liked it: ${prev.liked}`);
+    if (prev.rating && prev.rating !== 'opt-out') prevLines.push(`Rating: ${'⭐'.repeat(+prev.rating)} (${prev.rating}/5)`);
+    else if (prev.rating === 'opt-out') prevLines.push('Rating: opted out');
+    if (prev.why)      prevLines.push(`Thoughts: "${prev.why}"`);
+    if (prev.dnfWhy)   prevLines.push(`DNF reason: "${prev.dnfWhy}"`);
+    const prevSummary = prevLines.length ? prevLines.join('\n') : '(no details recorded)';
+    if (!confirm(`You've already submitted a review for this book.
+
+Your previous review:
+
+${prevSummary}
+
+Submitting will replace it. Continue?`)) return;
     reviews[month][existingIdx] = entry;
   } else {
     reviews[month].push(entry);
@@ -1739,6 +1756,17 @@ function renderAnalysis() {
   const activeId  = activeBtn ? activeBtn.getAttribute('onclick').match(/'([^']+)'/)?.[1] : 'voting';
   goSubTab(activeId || 'voting', activeBtn);
 }
+
+function toggleThoughts(id, btn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const isHidden = el.style.display === 'none' || el.style.display === '';
+  el.style.display = isHidden ? 'block' : 'none';
+  const arrow = btn.querySelector('span');
+  if (arrow) arrow.textContent = isHidden ? '▼' : '▶';
+  btn.childNodes[btn.childNodes.length - 1].textContent = isHidden ? ' Hide thoughts' : ' Show thoughts';
+}
+window.toggleThoughts = toggleThoughts;
 
 // ── Voting sub-tab ────────────────────────────────────────────────────────────
 function renderAnalysisVoting() {
@@ -1972,7 +2000,10 @@ function renderAnalysisReviews() {
     const avgStars  = avg ? '⭐'.repeat(Math.round(avg)) + ` <span style="font-size:.72rem;color:var(--soft);">${avg.toFixed(1)}</span>` : '<span style="font-size:.75rem;color:var(--soft);">No ratings</span>';
 
     // Individual review cards
-    const reviewCards = entries.map(r => {
+    // Unique id prefix for this month's toggle buttons
+    const monthId = month.replace(/[^a-z0-9]/gi, '_');
+
+    const reviewCards = entries.map((r, ri) => {
       const name     = resolveId(r.discord||'', r.email||'', idMap) || r.discord || 'Anonymous';
       const bookLine = isDual && r.bookTitle ? `<span style="font-size:.72rem;color:var(--soft);font-style:italic;">${esc(r.bookTitle)}</span>` : '';
       const statusPills = [
@@ -1981,8 +2012,22 @@ function renderAnalysisReviews() {
         r.liked    === 'Yes' ? '<span style="background:#fce4ec;color:#c2185b;border:1px solid #f48fb1;font-size:.65rem;padding:.1rem .45rem;border-radius:20px;">❤️ Liked it</span>' : '',
       ].filter(Boolean).join(' ');
 
-      const quoteHtml = r.why ? `<div style="font-size:.82rem;color:var(--ink);font-style:italic;margin-top:.5rem;padding:.5rem .75rem;background:var(--paper);border-left:2px solid var(--gold);border-radius:0 4px 4px 0;line-height:1.55;">"${esc(r.why)}"</div>` : '';
-      const dnfHtml   = r.dnfWhy && r.finished !== 'Yes' ? `<div style="font-size:.78rem;color:var(--soft);margin-top:.35rem;font-style:italic;">Why DNF: ${esc(r.dnfWhy)}</div>` : '';
+      const hasThoughts = !!(r.why || (r.dnfWhy && r.finished !== 'Yes'));
+      const toggleId = `thoughts_${monthId}_${ri}`;
+
+      const quoteHtml = r.why ? `<div style="font-size:.82rem;color:var(--ink);font-style:italic;padding:.5rem .75rem;background:var(--paper);border-left:2px solid var(--gold);border-radius:0 4px 4px 0;line-height:1.55;">"${esc(r.why)}"</div>` : '';
+      const dnfHtml   = r.dnfWhy && r.finished !== 'Yes' ? `<div style="font-size:.78rem;color:var(--soft);font-style:italic;">Why DNF: ${esc(r.dnfWhy)}</div>` : '';
+
+      const thoughtsBlock = hasThoughts ? `
+        <div id="${toggleId}" style="display:none;margin-top:.45rem;display:none;">
+          ${quoteHtml}${dnfHtml}
+        </div>` : '';
+
+      const toggleBtn = hasThoughts ? `
+        <button onclick="toggleThoughts('${toggleId}',this)"
+          style="background:none;border:none;cursor:pointer;font-size:.72rem;color:var(--soft);padding:.1rem 0;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:.25rem;margin-top:.3rem;">
+          <span style="font-size:.65rem;">▶</span> Show thoughts
+        </button>` : '';
 
       return `<div style="padding:.75rem 0;border-bottom:1px solid var(--border);">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.4rem;margin-bottom:.3rem;">
@@ -1993,7 +2038,7 @@ function renderAnalysisReviews() {
           <div>${starHtml(r.rating)}</div>
         </div>
         <div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.1rem;">${statusPills}</div>
-        ${quoteHtml}${dnfHtml}
+        ${toggleBtn}${thoughtsBlock}
       </div>`;
     }).join('');
 
