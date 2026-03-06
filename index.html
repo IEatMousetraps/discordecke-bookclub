@@ -705,7 +705,6 @@ const VOTES_REF    = doc(db, 'club', 'votes');
 const ARCHIVES_REF = doc(db, 'club', 'archives');
 const SURVEYS_REF  = doc(db, 'club', 'surveys');
 const SRESP_REF    = doc(db, 'club', 'surveyResponses');
-const DRAFT_REF    = doc(db, 'club', 'draftSurvey');
 const REVIEWS_REF  = doc(db, 'club', 'reviews');
 const PROGRESS_REF = doc(db, 'club', 'readingProgress');
 const MEETING_REF      = doc(db, 'club', 'meetingInfo');
@@ -793,7 +792,12 @@ function startListeners() {
   });
 }
 
+let _refreshDebounce = null;
 function refreshActiveTab() {
+  clearTimeout(_refreshDebounce);
+  _refreshDebounce = setTimeout(_doRefreshActiveTab, 80);
+}
+function _doRefreshActiveTab() {
   const active = document.querySelector('.section.active');
   if (!active) return;
   const id = active.id.replace('tab-', '');
@@ -1213,6 +1217,11 @@ function renderVote() {
       bannerEl.style.display = 'none';
     }
   }
+  // Remove old listeners before re-adding to prevent stacking on re-renders
+  emailEl?.removeEventListener('blur', emailEl._voteCheck);
+  discordEl?.removeEventListener('blur', discordEl._voteCheck);
+  emailEl._voteCheck = checkExistingVote;
+  discordEl._voteCheck = checkExistingVote;
   emailEl?.addEventListener('blur', checkExistingVote);
   discordEl?.addEventListener('blur', checkExistingVote);
 }
@@ -1290,7 +1299,7 @@ function updateMoveButtons() {
 
 async function submitVote() {
   const email = v('v-email'), discord = v('v-discord');
-  const name = discord.trim();
+  const name = discord;
   if (!email || !discord) { showMsg('vote-msg', 'Please fill in all fields.', 'err'); return; }
   if (!email.includes('@')) { showMsg('vote-msg', 'Valid email required.', 'err'); return; }
   const items = [...document.getElementById('sortable-list').querySelectorAll('.sort-item')];
@@ -1366,6 +1375,7 @@ function renderResults() {
       <div class="book-info" style="flex:1">
         <div class="book-title">${esc(b.title)}</div>
         <div class="book-sub">${esc(b.author)}</div>
+        ${genrePillsHtml(b.genre)}
         <div class="rank-pills"><span style="font-weight:500;color:var(--ink);">Ballot Breakdown:</span> ${rankPills}</div>
         <div class="res-bar"><div class="res-fill" style="width:${pct}%"></div></div>
       </div>
@@ -1673,8 +1683,9 @@ function goSubTab(id, btn) {
   });
   document.querySelectorAll('.sub-tab').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
+  const _sharedIdMap = buildIdentityMap();
   if      (id === 'voting')          renderAnalysisVoting();
-  else if (id === 'members')         renderAnalysisMembers();
+  else if (id === 'members')         renderAnalysisMembers(_sharedIdMap);
   else if (id === 'reviews-data')    renderAnalysisReviews();
   else if (id === 'rank-dist')       renderAnalysisRankDist();
   else if (id === 'genre-diversity') renderGenreDiversity();
@@ -1828,13 +1839,13 @@ function setRankDistMonth(month) {
 window.setRankDistMonth = setRankDistMonth;
 
 // ── Members sub-tab ───────────────────────────────────────────────────────────
-function renderAnalysisMembers() {
+function renderAnalysisMembers(_idMapM) {
   const archives = getArchives();
   const area = document.getElementById('analysis-members-area');
   if (!archives.length) { area.innerHTML = '<div class="empty"><div class="icon">👥</div><p>No archived months yet.</p></div>'; return; }
 
   const voterFreq = {};
-  const _idMapM = buildIdentityMap();
+  if (!_idMapM) _idMapM = buildIdentityMap();
   archives.forEach(a => { Object.values(a.votes||{}).forEach(vd => { const k=resolveId(vd.discord,vd.email,_idMapM)||'Unknown'; voterFreq[k]=(voterFreq[k]||0)+1; }); });
   const topVoters = Object.entries(voterFreq).sort((a,b)=>b[1]-a[1]).slice(0,10);
 
@@ -1875,11 +1886,12 @@ function renderAnalysisReviews() {
     const wb = winnerBooks[0];
     if (!wb) return;
     archiveLookup[a.label] = {
-      title:    wb.title  || a.label,
-      author:   wb.author || '',
-      genre:    (winnerBooks.find(b=>b.genre)||wb).genre || '',
-      dual:     (a.dualWinners||[]).length > 0,
-      coTitles: winnerBooks.map(b=>b.title),
+      title:      wb.title  || a.label,
+      author:     wb.author || '',
+      genre:      (winnerBooks.find(b=>b.genre)||wb).genre || '',
+      dual:       (a.dualWinners||[]).length > 0,
+      coTitles:   winnerBooks.map(b=>b.title),
+      archivedAt: a.archivedAt || 0,
     };
   });
 
@@ -1891,8 +1903,12 @@ function renderAnalysisReviews() {
            `<span style="font-size:.72rem;color:var(--soft);margin-left:.25rem;">${n}/5</span>`;
   };
 
-  // Sort months newest-first
-  const months = Object.keys(reviews).sort((a,b) => new Date(b) - new Date(a));
+  // Sort months newest-first by archivedAt timestamp (reliable, avoids date-string parsing)
+  const months = Object.keys(reviews).sort((a,b) => {
+    const tsA = archiveLookup[a]?.archivedAt || 0;
+    const tsB = archiveLookup[b]?.archivedAt || 0;
+    return tsB - tsA;
+  });
 
   const blocks = months.map(month => {
     const entries  = reviews[month] || [];
@@ -2103,15 +2119,19 @@ function renderAdmin() {
       <div class="book-info"><div class="book-title">${esc(b.title)}</div><div class="book-sub">${esc(b.author)} &middot; ${normBook(b).suggesters.map(s=>esc(s.discord)).join(', ')}</div></div>
       <button class="btn btn-danger btn-sm" onclick="deleteBook(${b.id})">Remove</button>
     </div>`).join('') : '<p style="font-size:.85rem;color:var(--soft);">No books.</p>';
-  document.getElementById('admin-surveys-list').innerHTML = surveys.length ? surveys.map((s, i) => `
+  const _surveyResps = getSurveyResponses();
+  document.getElementById('admin-surveys-list').innerHTML = surveys.length ? surveys.map((s, i) => {
+    const rCount = (_surveyResps[s.id]||[]).length;
+    return `
     <div style="display:flex;align-items:center;justify-content:space-between;padding:.6rem 0;border-bottom:1px solid var(--border);">
-      <div><div style="font-size:.9rem;">${esc(s.title)}</div><div style="font-size:.75rem;color:var(--soft);">${s.questions.length} question${s.questions.length!==1?'s':''} · ${(getSurveyResponses()[s.id]||[]).length} response${(getSurveyResponses()[s.id]||[]).length!==1?'s':''}</div></div>
+      <div><div style="font-size:.9rem;">${esc(s.title)}</div><div style="font-size:.75rem;color:var(--soft);">${s.questions.length} question${s.questions.length!==1?'s':''} · ${rCount} response${rCount!==1?'s':''}</div></div>`
       <div style="display:flex;gap:.4rem;align-items:center;">
         <span class="pill ${s.active?'pill-open':'pill-closed'}">${s.active?'Active':'Closed'}</span>
         <button class="btn btn-secondary btn-sm" onclick="toggleSurvey(${i})">${s.active?'Close':'Open'}</button>
         <button class="btn btn-danger btn-sm" onclick="deleteSurvey(${i})">Delete</button>
       </div>
-    </div>`).join('') : '<p style="font-size:.85rem;color:var(--soft);">No surveys yet.</p>';
+    </div>`;
+  }).join('') : '<p style="font-size:.85rem;color:var(--soft);">No surveys yet.</p>';
 }
 
 function goAdminTab(id, btn) {
@@ -2120,9 +2140,9 @@ function goAdminTab(id, btn) {
   });
   document.querySelectorAll('#admin-panel .sub-tab').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
-  if (id === 'compare') renderMemberCompare();
-  if (id === 'badges-admin') renderAdminBadgeManager();
-  if (id === 'edit-books') renderEditBooksTab();
+  if      (id === 'compare')      renderMemberCompare();
+  else if (id === 'badges-admin') renderAdminBadgeManager();
+  else if (id === 'edit-books')   renderEditBooksTab();
 }
 window.goAdminTab = goAdminTab;
 
@@ -2442,7 +2462,7 @@ async function archiveMonth() {
   await fbSet(ARCHIVES_REF, {list: archives});
   await fbSet(BOOKS_REF,    {list: []});
   await fbSet(VOTES_REF,    {map:  {}});
-  const s = getSettings(); s.resultsVisible = false;
+  const s = { ...getSettings(), resultsVisible: false };
   await fbSet(SETTINGS_REF, s);
   hideLoading();
   document.getElementById('archive-label').value = '';
@@ -2813,7 +2833,7 @@ const BADGE_DEFS = [
   // ── Genre — suggestions ─────────────────────────────────────────────────
   { id:'genre-champion',    name:'Genre Champion',      emoji:'🏷️',  tier:null,     category:'genre', desc:'Suggest 3+ books in the same genre',                        check:p=>p.genreChampion },
   { id:'genre-specialist',  name:'The Specialist',      emoji:'🔍',  tier:null,     category:'genre', desc:'Suggest 5+ books in the same genre',                        check:p=>p.genreSpecialist },
-  { id:'variety-pack',      name:'The Librarian',       emoji:'📚',  tier:null,     category:'genre', desc:'Suggest books across 5+ different genres',                  check:p=>p.genresSuggested>=5 },
+  { id:'librarian',          name:'The Librarian',       emoji:'📚',  tier:null,     category:'genre', desc:'Suggest books across 5+ different genres',                  check:p=>p.genresSuggested>=5 },
 
   // ── Genre — voting / reading ──────────────────────────────────────────────
   { id:'genre-devotee',     name:'Genre Devotee',       emoji:'💝',  tier:null,     category:'genre', desc:'Rank a genre in the top half of your ballot 5+ times',      check:p=>p.genreDevotee },
@@ -3162,10 +3182,10 @@ const BADGE_CATEGORY_MAP = {
   'read-streak-2':'reading','read-streak-3':'reading','read-streak-6':'reading',
   'page-turner-speed':'reading','just-in-time':'reading',
   'first-survey':'surveys','three-surveys':'surveys','all-surveys':'surveys',
-  'winner-picker':'books','top3-suggest':'books','librarian':'books',
+  'winner-picker':'books','top3-suggest':'books',
   'tough-crowd':'books','genre-loyalist':'books','dnf-1':'books','dnf-3':'books',
   'rated-all':'books',
-  'genre-champion':'genre','genre-specialist':'genre','variety-pack':'genre',
+  'genre-champion':'genre','genre-specialist':'genre','librarian':'genre',
   'genre-devotee':'genre','comfort-zone':'genre','against-type':'genre',
   'adventurous-reader':'genre',
   'contrarian':'fun','completionist-3':'fun','early-bird':'fun',
