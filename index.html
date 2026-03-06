@@ -168,8 +168,6 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
         <div class="f-group"><label>Author *</label><input type="text" id="s-author" placeholder="e.g. Toni Morrison"></div>
       </div>
       <div class="grid3">
-        <div class="f-group"><label>First Name *</label><input type="text" id="s-fname" placeholder="First name"></div>
-        <div class="f-group"><label>Last Name *</label><input type="text" id="s-lname" placeholder="Last name"></div>
         <div class="f-group"><label>Email *</label><input type="email" id="s-email" placeholder="you@email.com"></div>
       </div>
       <div class="grid2">
@@ -193,8 +191,6 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   <div id="vote-content">
     <div class="card" style="padding:1.25rem;">
       <div class="grid3">
-        <div class="f-group"><label>First Name *</label><input type="text" id="v-fname" placeholder="First name"></div>
-        <div class="f-group"><label>Last Name *</label><input type="text" id="v-lname" placeholder="Last name"></div>
         <div class="f-group"><label>Email *</label><input type="email" id="v-email" placeholder="you@email.com"></div>
       </div>
       <div class="grid2">
@@ -229,8 +225,6 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   <div id="review-form-content">
     <div class="card">
       <div class="grid2">
-        <div class="f-group"><label>First Name *</label><input type="text" id="rv-fname" placeholder="First name"></div>
-        <div class="f-group"><label>Last Name *</label><input type="text" id="rv-lname" placeholder="Last name"></div>
       </div>
       <div class="grid2">
         <div class="f-group"><label>Email *</label><input type="email" id="rv-email" placeholder="you@email.com"></div>
@@ -595,18 +589,17 @@ window.goTab = goTab;
 // ════════════════════════════════════════════════════════
 async function suggestBook() {
   const title = v('s-title'), author = v('s-author'),
-        fname = v('s-fname'), lname = v('s-lname'),
         email = v('s-email'), discord = v('s-discord'), reason = v('s-reason');
   if (!getSettings().suggestionsOpen) { showMsg('suggest-msg', 'Suggestions are currently closed.', 'err'); return; }
-  if (!title || !author || !fname || !lname || !email || !discord) { showMsg('suggest-msg', 'Please fill in all fields.', 'err'); return; }
+  if (!title || !author || !email || !discord) { showMsg('suggest-msg', 'Please fill in all fields.', 'err'); return; }
   if (!email.includes('@')) { showMsg('suggest-msg', 'Please enter a valid email.', 'err'); return; }
   const books = getBooks();
   if (books.length >= 30) { showMsg('suggest-msg', 'Maximum 30 books reached.', 'err'); return; }
   showLoading('Adding book…');
-  books.push({ id: Date.now(), title, author, suggester: fname + ' ' + lname, email, discord, reason });
+  books.push({ id: Date.now(), title, author, suggester: discord, email, discord, reason });
   await fbSet(BOOKS_REF, { list: books });
   hideLoading();
-  ['s-title','s-author','s-fname','s-lname','s-email','s-discord','s-reason'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['s-title','s-author','s-email','s-discord','s-reason'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   showMsg('suggest-msg', '✓ Book added!', 'ok');
 }
 window.suggestBook = suggestBook;
@@ -701,9 +694,9 @@ function updateMoveButtons() {
 }
 
 async function submitVote() {
-  const fname = v('v-fname'), lname = v('v-lname'), email = v('v-email'), discord = v('v-discord');
-  const name = (fname + ' ' + lname).trim();
-  if (!fname || !lname || !email || !discord) { showMsg('vote-msg', 'Please fill in all fields.', 'err'); return; }
+  const email = v('v-email'), discord = v('v-discord');
+  const name = discord.trim();
+  if (!email || !discord) { showMsg('vote-msg', 'Please fill in all fields.', 'err'); return; }
   if (!email.includes('@')) { showMsg('vote-msg', 'Valid email required.', 'err'); return; }
   const items = [...document.getElementById('sortable-list').querySelectorAll('.sort-item')];
   if (!items.length) { showMsg('vote-msg', 'No books to rank.', 'err'); return; }
@@ -776,9 +769,6 @@ function renderMemberSurveys() {
   area.innerHTML = surveys.map(s => `
     <div class="card" id="scard-${s.id}">
       <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:1rem;">${esc(s.title)}</h3>
-      <div class="f-group" style="max-width:280px;">
-        <label>Your Name *</label><input type="text" id="sr-name-${s.id}" placeholder="Your name">
-      </div>
       ${renderSurveyQuestions(s)}
       <div style="margin-top:1rem;"><button class="btn btn-primary" onclick="submitSurveyResponse('${s.id}')">Submit Response</button></div>
       <div id="sr-msg-${s.id}"></div>
@@ -810,7 +800,6 @@ window.setStar = setStar;
 
 async function submitSurveyResponse(sid) {
   const surveys = getSurveys(), survey = surveys.find(s => s.id === sid); if (!survey) return;
-  const name = v(`sr-name-${sid}`); if (!name) { showMsg(`sr-msg-${sid}`, 'Please enter your name.', 'err'); return; }
   const answers = {};
   survey.questions.forEach(q => {
     const uid = `${sid}_${q.id}`;
@@ -821,7 +810,7 @@ async function submitSurveyResponse(sid) {
   const responses = getSurveyResponses();
   if (!responses[sid]) responses[sid] = [];
   showLoading('Submitting response…');
-  responses[sid].push({ name, answers, ts: Date.now() });
+  responses[sid].push({ answers, ts: Date.now() });
   await fbSet(SRESP_REF, { map: responses });
   hideLoading();
   showMsg(`sr-msg-${sid}`, '✓ Response submitted!', 'ok');
@@ -972,7 +961,6 @@ function updateReviewForm() {
 window.updateReviewForm = updateReviewForm;
 
 async function submitReview() {
-  const fname   = v('rv-fname'), lname = v('rv-lname');
   const email   = v('rv-email'), discord = v('rv-discord');
   const month   = document.getElementById('rv-month').value;
   const read    = document.querySelector('input[name="rv-read"]:checked')?.value || '';
@@ -982,14 +970,14 @@ async function submitReview() {
   const why     = v('rv-why');
   const rating  = document.querySelector('input[name="rv-rating"]:checked')?.value || '';
 
-  if (!fname || !lname || !email || !discord) { showMsg('review-msg', 'Please fill in all your details.', 'err'); return; }
+  if (!email || !discord) { showMsg('review-msg', 'Please fill in all your details.', 'err'); return; }
   if (!email.includes('@')) { showMsg('review-msg', 'Please enter a valid email.', 'err'); return; }
   if (!month) { showMsg('review-msg', 'Please select a month.', 'err'); return; }
   if (!read)  { showMsg('review-msg', 'Please answer question 1.', 'err'); return; }
   if (read === 'Yes' && !finished) { showMsg('review-msg', 'Please answer question 2.', 'err'); return; }
 
   const entry = {
-    fname, lname, name: fname + ' ' + lname, email, discord,
+    name: discord, email, discord,
     month, read, finished, dnfWhy, liked, why,
     rating: rating || 'opt-out',
     ts: Date.now()
@@ -1011,7 +999,7 @@ async function submitReview() {
   hideLoading();
   showMsg('review-msg', '✓ Review submitted — thank you!', 'ok');
   // Reset form
-  ['rv-fname','rv-lname','rv-email','rv-discord','rv-dnf-reason','rv-why'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['rv-email','rv-discord','rv-dnf-reason','rv-why'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   document.getElementById('rv-month').value = '';
   document.querySelectorAll('input[name^="rv-"]').forEach(el => el.checked = false);
   updateReviewForm();
