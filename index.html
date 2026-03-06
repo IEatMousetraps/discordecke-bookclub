@@ -158,6 +158,11 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 .badge-name{font-family:'Playfair Display',serif;font-size:.85rem;font-weight:600;margin-bottom:.2rem;}
 .badge-desc{font-size:.7rem;color:var(--soft);line-height:1.3;}
 .badge-earned-label{font-size:.65rem;color:var(--gold);font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-top:.35rem;}
+.tier-bronze{border-color:#cd7f32!important;background:linear-gradient(135deg,#fff8f0,#fdebd0)!important;}
+.tier-silver{border-color:#aaa!important;background:linear-gradient(135deg,#f8f8f8,#ececec)!important;}
+.tier-gold{border-color:var(--gold)!important;background:linear-gradient(135deg,#fffdf5,#fff8e0)!important;}
+.badge-card.earned.tier-bronze .badge-earned-label{color:#cd7f32;}
+.badge-card.earned.tier-silver .badge-earned-label{color:#888;}
 
 .receipt-check input{accent-color:var(--accent);width:1rem;height:1rem;cursor:pointer;}
 </style>
@@ -433,6 +438,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
     <div class="sub-tabs" style="margin-bottom:1.5rem;">
       <button class="sub-tab active" onclick="goAdminTab('manage',this)">Manage</button>
       <button class="sub-tab" onclick="goAdminTab('compare',this)">Member Comparison</button>
+      <button class="sub-tab" onclick="goAdminTab('badges-admin',this)">🏅 Badge Manager</button>
     </div>
 
     <div id="admin-sub-manage">
@@ -592,6 +598,59 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       <div id="member-compare-area"><p style="font-size:.85rem;color:var(--soft);">Loading…</p></div>
     </div>
 
+    <div id="admin-sub-badges-admin" style="display:none;">
+      <!-- Member Badge Overview -->
+      <div class="card">
+        <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Member Badge Overview</h3>
+        <p style="font-size:.85rem;color:var(--soft);margin-bottom:.75rem;">View all members, their earned badges, and manually grant or revoke any badge.</p>
+        <div id="admin-badge-members-area"></div>
+      </div>
+
+      <!-- Badge Enable/Disable/Hide Controls -->
+      <div class="card">
+        <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Badge Visibility &amp; Controls</h3>
+        <p style="font-size:.85rem;color:var(--soft);margin-bottom:.75rem;">Toggle badges on/off (disabled = no one earns it), or hide from members (still tracked, but invisible to users — useful for upcoming badges).</p>
+        <div id="admin-badge-controls-area"></div>
+      </div>
+
+      <!-- Custom Badge Creator -->
+      <div class="card">
+        <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Create Custom Achievement</h3>
+        <div class="grid2">
+          <div class="f-group"><label>Badge Name</label><input type="text" id="cb-name" placeholder="e.g. Founding Reader"></div>
+          <div class="f-group"><label>Description</label><input type="text" id="cb-desc" placeholder="e.g. Member during inaugural year"></div>
+        </div>
+        <div class="f-group">
+          <label>Icon — choose an emoji or upload an image</label>
+          <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;margin-top:.3rem;">
+            <input type="text" id="cb-emoji" placeholder="Paste emoji e.g. 🎖️" style="max-width:140px;">
+            <span style="color:var(--soft);font-size:.82rem;">or</span>
+            <label style="cursor:pointer;display:inline-flex;align-items:center;gap:.4rem;font-size:.82rem;text-transform:none;letter-spacing:0;color:var(--ink);border:1px solid var(--border);padding:.45rem .9rem;border-radius:4px;background:var(--cream);">
+              📁 Upload PNG/JPG <input type="file" id="cb-icon-upload" accept="image/png,image/jpeg" style="display:none;" onchange="previewCustomIcon(this)">
+            </label>
+            <div id="cb-icon-preview" style="width:40px;height:40px;display:none;border-radius:6px;overflow:hidden;border:1px solid var(--border);"></div>
+          </div>
+        </div>
+        <div class="f-group" style="margin-top:.25rem;">
+          <label>Admin-only? (only you can grant this badge)</label>
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.85rem;text-transform:none;letter-spacing:0;margin-top:.3rem;">
+            <input type="checkbox" id="cb-admin-only" style="width:auto;margin:0;"> Yes — this badge cannot be earned automatically
+          </label>
+        </div>
+        <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-top:.5rem;">
+          <button class="btn btn-primary" onclick="saveCustomBadge()">Create Badge</button>
+          <button class="btn btn-secondary" onclick="clearCustomBadgeForm()">Clear</button>
+        </div>
+        <div id="cb-msg"></div>
+      </div>
+
+      <!-- Custom Badges List -->
+      <div class="card">
+        <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Custom Badges</h3>
+        <div id="admin-custom-badges-list"></div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -627,13 +686,15 @@ const SRESP_REF    = doc(db, 'club', 'surveyResponses');
 const DRAFT_REF    = doc(db, 'club', 'draftSurvey');
 const REVIEWS_REF  = doc(db, 'club', 'reviews');
 const PROGRESS_REF = doc(db, 'club', 'readingProgress');
-const MEETING_REF  = doc(db, 'club', 'meetingInfo');
+const MEETING_REF      = doc(db, 'club', 'meetingInfo');
+const BADGE_CONFIG_REF = doc(db, 'club', 'badgeConfig');
 
 // ── In-memory cache kept fresh by real-time listeners ──
 let CACHE = {
   settings: {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,reviewsOpen:false,password:'bookclub123'},
   books: [], votes: {}, archives: [], surveys: [], surveyResponses: {}, reviews: {},
-  readingProgress: {}, meetingInfo: {}
+  readingProgress: {}, meetingInfo: {},
+  badgeConfig: { disabled:{}, hidden:{}, customBadges:[], overrides:{} }
 };
 
 // ── Loading overlay ────────────────────────────────────
@@ -701,6 +762,13 @@ function startListeners() {
     CACHE.meetingInfo = snap.exists() ? snap.data() : {};
     renderMeetingBanner();
   });
+  onSnapshot(BADGE_CONFIG_REF, snap => {
+    CACHE.badgeConfig = Object.assign(
+      { disabled:{}, hidden:{}, customBadges:[], overrides:{} },
+      snap.exists() ? snap.data() : {}
+    );
+    refreshActiveTab();
+  });
 }
 
 function refreshActiveTab() {
@@ -729,6 +797,7 @@ function getSurveyResponses(){ return CACHE.surveyResponses || {}; }
 function getReviews()        { return CACHE.reviews || {}; }
 function getReadingProgress(){ return CACHE.readingProgress || {}; }
 function getMeetingInfo()    { return CACHE.meetingInfo || {}; }
+function getBadgeConfig()    { return CACHE.badgeConfig || { disabled:{}, hidden:{}, customBadges:[], overrides:{} }; }
 
 // ════════════════════════════════════════════════════════
 // NAV
@@ -1860,12 +1929,13 @@ function renderAdmin() {
 }
 
 function goAdminTab(id, btn) {
-  ['manage','compare'].forEach(s => {
+  ['manage','compare','badges-admin'].forEach(s => {
     document.getElementById('admin-sub-'+s).style.display = s === id ? '' : 'none';
   });
   document.querySelectorAll('#admin-panel .sub-tab').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   if (id === 'compare') renderMemberCompare();
+  if (id === 'badges-admin') renderAdminBadgeManager();
 }
 window.goAdminTab = goAdminTab;
 
@@ -2453,53 +2523,300 @@ function renderProgressLeaderboard(winnerEntries) {
 // ════════════════════════════════════════════════════════
 let _bgIdentity = null;
 
+// ── Badge cutoff: time-sensitive badges only count from this date forward ──
+const BADGE_CUTOFF = new Date('2026-03-18T00:00:00').getTime();
+
 const BADGE_DEFS = [
-  { id: 'first-vote',       name: 'First Vote',        emoji: '🗳️',  desc: 'Cast your first vote',              check: (p) => p.voted >= 1 },
-  { id: 'first-suggest',    name: 'Bookworm',           emoji: '📚',  desc: 'Submit your first book suggestion',   check: (p) => p.suggested >= 1 },
-  { id: 'first-review',     name: 'Critic',             emoji: '✍️',  desc: 'Submit your first book review',       check: (p) => p.reviewed >= 1 },
-  { id: 'all-rounder',      name: 'All-Rounder',        emoji: '🌟',  desc: 'Vote, suggest, and review in any month', check: (p) => p.voted >= 1 && p.suggested >= 1 && p.reviewed >= 1 },
-  { id: 'three-votes',      name: 'Regular',            emoji: '📆',  desc: 'Vote in 3 or more months',            check: (p) => p.voted >= 3 },
-  { id: 'six-votes',        name: 'Devoted Reader',     emoji: '🏆',  desc: 'Vote in 6 or more months',            check: (p) => p.voted >= 6 },
-  { id: 'three-suggests',   name: 'Curator',            emoji: '🔖',  desc: 'Suggest books in 3 or more months',   check: (p) => p.suggested >= 3 },
-  { id: 'three-reviews',    name: 'Reviewer',           emoji: '📝',  desc: 'Submit reviews in 3 or more months',  check: (p) => p.reviewed >= 3 },
-  { id: 'winner-picker',    name: 'Taste-Maker',        emoji: '👑',  desc: 'Suggest a book that wins',            check: (p) => p.pickedWinner >= 1 },
-  { id: 'consistent',       name: 'The Backbone',       emoji: '💎',  desc: 'Vote in every archived month (min 3)', check: (p) => p.totalMonths >= 3 && p.voted >= p.totalMonths },
+  // ── Participation basics ──────────────────────────────────────────────────
+  { id:'first-vote',        name:'First Vote',          emoji:'🗳️',  tier:null,     desc:'Cast your first vote',                                      check:p=>p.voted>=1 },
+  { id:'first-suggest',     name:'Bookworm',            emoji:'📚',  tier:null,     desc:'Submit your first book suggestion',                         check:p=>p.suggested>=1 },
+  { id:'first-review',      name:'Critic',              emoji:'✍️',  tier:null,     desc:'Submit your first book review',                             check:p=>p.reviewed>=1 },
+  { id:'all-rounder',       name:'All-Rounder',         emoji:'🌟',  tier:null,     desc:'Vote, suggest, and review in any month',                    check:p=>p.voted>=1&&p.suggested>=1&&p.reviewed>=1 },
+  { id:'three-votes',       name:'Regular',             emoji:'📆',  tier:null,     desc:'Vote in 3 or more months',                                  check:p=>p.voted>=3 },
+  { id:'six-votes',         name:'Devoted Reader',      emoji:'🏆',  tier:null,     desc:'Vote in 6 or more months',                                  check:p=>p.voted>=6 },
+  { id:'twelve-votes',      name:'Lifer',               emoji:'🎖️',  tier:null,     desc:'Vote in 12 or more months',                                 check:p=>p.voted>=12 },
+  { id:'three-suggests',    name:'Curator',             emoji:'🔖',  tier:null,     desc:'Suggest books in 3 or more months',                         check:p=>p.suggested>=3 },
+  { id:'three-reviews',     name:'Reviewer',            emoji:'📝',  tier:null,     desc:'Submit reviews in 3 or more months',                        check:p=>p.reviewed>=3 },
+  { id:'consistent',        name:'The Backbone',        emoji:'💎',  tier:null,     desc:'Vote in every archived month (min 3)',                      check:p=>p.totalMonths>=3&&p.voted>=p.totalMonths },
+
+  // ── Voting streaks (tiered) ───────────────────────────────────────────────
+  { id:'streak-3',          name:'Hat Trick',           emoji:'🔥',  tier:'bronze', desc:'Vote 3 months in a row',                                    check:p=>p.longestVoteStreak>=3 },
+  { id:'streak-6',          name:'On a Roll',           emoji:'🌊',  tier:'silver', desc:'Vote 6 months in a row',                                    check:p=>p.longestVoteStreak>=6 },
+  { id:'streak-12',         name:'Unstoppable',         emoji:'⚡',  tier:'gold',   desc:'Vote 12 months in a row',                                   check:p=>p.longestVoteStreak>=12 },
+
+  // ── Night Owl (tiered, cutoff-gated) ─────────────────────────────────────
+  { id:'night-owl-1',       name:'Night Owl',           emoji:'🦉',  tier:'bronze', desc:'Submit a vote, suggestion, or review after midnight (from Mar 18, 2026)', check:p=>p.nightOwlCount>=1,  cutoffGated:true },
+  { id:'night-owl-5',       name:'Night Owl ×5',        emoji:'🦉',  tier:'silver', desc:'Submit after midnight 5 times (from Mar 18, 2026)',          check:p=>p.nightOwlCount>=5,  cutoffGated:true },
+
+  // ── Reading streaks ───────────────────────────────────────────────────────
+  { id:'read-streak-2',     name:'Back to Back',        emoji:'📖',  tier:'bronze', desc:'Finish 2 winning books in a row',                           check:p=>p.longestReadStreak>=2 },
+  { id:'read-streak-3',     name:'Page Turner',         emoji:'🎯',  tier:'silver', desc:'Finish 3 winning books in a row',                           check:p=>p.longestReadStreak>=3 },
+  { id:'read-streak-6',     name:'Insatiable',          emoji:'🦁',  tier:'gold',   desc:'Finish 6 winning books in a row',                           check:p=>p.longestReadStreak>=6 },
+
+  // ── Survey participation ──────────────────────────────────────────────────
+  { id:'first-survey',      name:'Heard',               emoji:'📋',  tier:null,     desc:'Complete your first club survey',                           check:p=>p.surveysCompleted>=1 },
+  { id:'three-surveys',     name:'Voice of the Club',   emoji:'🎤',  tier:null,     desc:'Complete 3 or more surveys',                                check:p=>p.surveysCompleted>=3 },
+  { id:'all-surveys',       name:'Census Taker',        emoji:'📊',  tier:null,     desc:'Complete every published survey (min 3)',                   check:p=>p.totalSurveys>=3&&p.surveysCompleted>=p.totalSurveys },
+
+  // ── Book-specific ─────────────────────────────────────────────────────────
+  { id:'winner-picker',     name:'Taste-Maker',         emoji:'👑',  tier:null,     desc:'Suggest a book that wins',                                  check:p=>p.pickedWinner>=1 },
+  { id:'top3-suggest',      name:'Almost There',        emoji:'🎰',  tier:null,     desc:'Suggest a book that finishes in the top 3',                 check:p=>p.suggestedTop3>=1 },
+  { id:'librarian',         name:'The Librarian',       emoji:'📗',  tier:null,     desc:'Suggest books across 5 different genres',                   check:p=>p.genresSuggested>=5 },
+  { id:'tough-crowd',       name:'Tough Crowd',         emoji:'😬',  tier:null,     desc:'Give a book a 1-star rating',                               check:p=>p.oneStarCount>=1 },
+  { id:'genre-loyalist',    name:'Genre Loyalist',      emoji:'🎭',  tier:null,     desc:'Give high ratings (4–5★) to 3+ books in the same genre',    check:p=>p.genreLoyalist },
+
+  // ── DNF (tiered) ─────────────────────────────────────────────────────────
+  { id:'dnf-1',             name:'Honest Reader',       emoji:'🏳️',  tier:'bronze', desc:'Mark a book as DNF — honesty is a virtue',                  check:p=>p.dnfCount>=1 },
+  { id:'dnf-3',             name:'Life\'s Too Short',   emoji:'🏳️',  tier:'silver', desc:'DNF 3 books — you know what you like',                      check:p=>p.dnfCount>=3 },
+
+  // ── Ratings ───────────────────────────────────────────────────────────────
+  { id:'rated-all',         name:'Full Score',          emoji:'⭐',  tier:null,     desc:'Leave a star rating on every review you submit',            check:p=>p.reviewed>=1&&p.reviewsWithRating>=p.reviewed },
+
+  // ── Speed reading (time-gated) ────────────────────────────────────────────
+  { id:'page-turner-speed', name:'Speed Reader',        emoji:'💨',  tier:null,     desc:'Finish the winner book within 10 days of the new month',    check:p=>p.speedFinishCount>=1, cutoffGated:true },
+  { id:'just-in-time',      name:'Just In Time',        emoji:'⏰',  tier:null,     desc:'Finish the winner book in the final 24hrs of the month',    check:p=>p.lastMinuteCount>=1,  cutoffGated:true },
+
+  // ── Fun / personality ─────────────────────────────────────────────────────
+  { id:'contrarian',        name:'The Contrarian',      emoji:'🙃',  tier:null,     desc:'Vote 3+ times but your #1 pick has never won',              check:p=>p.voted>=3&&p.top1WinCount===0 },
+  { id:'completionist-3',   name:'The Completionist',   emoji:'🧩',  tier:null,     desc:'Vote, suggest, and review for 3+ months in a row',          check:p=>p.longestAllRounderStreak>=3 },
+  { id:'early-bird',        name:'Early Bird',          emoji:'🐦',  tier:null,     desc:'Be the first member to vote in a month (from Mar 18, 2026)', check:p=>p.earlyBird>=1, cutoffGated:true },
+
+  // ── Admin-only ────────────────────────────────────────────────────────────
+  { id:'founding-reader',   name:'Founding Reader',     emoji:'🏛️',  tier:null,     desc:'Member during the inaugural year — admin awarded only',     check:()=>false, adminOnly:true },
 ];
 
+// Returns all BADGE_DEFS + custom badges, respecting disabled/hidden for members
+function getAllBadges({ includeHidden = false, includeDisabled = false } = {}) {
+  const cfg = getBadgeConfig();
+  const custom = (cfg.customBadges || []).map(cb => ({
+    id: cb.id, name: cb.name, emoji: cb.emoji || '🏅', tier: null,
+    desc: cb.desc, check: () => false, adminOnly: true, custom: true,
+    iconDataUrl: cb.iconDataUrl || null,
+  }));
+  const all = [...BADGE_DEFS, ...custom];
+  return all.filter(b => {
+    if (!includeDisabled && cfg.disabled && cfg.disabled[b.id]) return false;
+    if (!includeHidden   && cfg.hidden   && cfg.hidden[b.id])   return false;
+    return true;
+  });
+}
+
+// Resolve whether a member has earned a given badge, considering overrides
+function hasBadge(badgeId, profile, memberKey) {
+  const cfg = getBadgeConfig();
+  // Manual override takes precedence
+  if (cfg.overrides && cfg.overrides[memberKey]) {
+    const ov = cfg.overrides[memberKey];
+    if (typeof ov[badgeId] === 'boolean') return ov[badgeId];
+  }
+  const badge = [...BADGE_DEFS, ...(cfg.customBadges||[]).map(cb=>({id:cb.id,check:()=>false,adminOnly:true}))].find(b=>b.id===badgeId);
+  if (!badge) return false;
+  if (badge.adminOnly) return false;
+  return badge.check(profile);
+}
+
 function computeMemberProfile(discord, email) {
-  const archives   = getArchives();
-  const allReviews = getReviews();
-  const idMap      = buildIdentityMap();
-  const myName     = resolveId(discord, email, idMap);
+  const archives        = getArchives();
+  const allReviews      = getReviews();
+  const allSurveys      = getSurveys();
+  const allSurveyResps  = getSurveyResponses();
+  const allProgress     = getReadingProgress();
+  const idMap           = buildIdentityMap();
+  const myName          = resolveId(discord, email, idMap);
+  const myKey           = normEmail(email) || normId(discord);
 
-  let voted = 0, suggested = 0, reviewed = 0, pickedWinner = 0;
-  const totalMonths = archives.length;
+  let voted=0, suggested=0, reviewed=0, pickedWinner=0, suggestedTop3=0;
+  let dnfCount=0, reviewsWithRating=0, surveysCompleted=0;
+  let nightOwlCount=0, earlyBird=0, top1WinCount=0;
+  let oneStarCount=0, genreLoyalist=false, speedFinishCount=0, lastMinuteCount=0;
+  const totalMonths  = archives.length;
+  const totalSurveys = allSurveys.length;
 
-  archives.forEach(a => {
-    // voted?
-    const voterNames = Object.values(a.votes||{}).map(vd => resolveId(vd.discord, vd.email, idMap));
-    if (voterNames.includes(myName)) voted++;
-    // suggested?
-    const suggesterNames = (a.books||[]).flatMap(b => normBook(b).suggesters.map(s => resolveId(s.discord, s.email, idMap)));
-    if (suggesterNames.includes(myName)) suggested++;
-    // winner?
-    const dualIds = a.dualWinners || [];
+  // Track genres suggested by this member
+  const genresSuggestedSet = new Set();
+  // Track genres and their high ratings for Genre Loyalist
+  const genreHighRatings = {}; // genre -> count
+
+  // Per-month booleans for streak calculations
+  const monthVoted      = [];
+  const monthAllRounder = [];
+  const monthReadFinished = [];
+
+  archives.forEach((a, aIdx) => {
+    const nb = (a.books||[]).length;
+
+    // ── Borda scores ──
+    const scores = {};
+    (a.books||[]).forEach(b => scores[b.id] = 0);
+    Object.values(a.votes||{}).forEach(vd => {
+      (vd.ranking||vd).forEach((id,idx)=>{ if(scores[id]!==undefined) scores[id]+=(nb-idx); });
+    });
+    const sortedBooks = [...(a.books||[])].sort((x,y)=>scores[y.id]-scores[x.id]);
+
+    // ── Winners ──
+    const dualIds = a.dualWinners||[];
     const winnerBooks = dualIds.length
-      ? (a.books||[]).filter(b => dualIds.includes(String(b.id)))
-      : (a.books||[]).slice(0,1);
-    const winnerSuggesters = winnerBooks.flatMap(b => normBook(b).suggesters.map(s => resolveId(s.discord, s.email, idMap)));
+      ? (a.books||[]).filter(b=>dualIds.includes(String(b.id)))
+      : sortedBooks.slice(0,1);
+
+    // ── Did I vote? ──
+    const myVoteEntry = Object.values(a.votes||{}).find(vd=>resolveId(vd.discord,vd.email,idMap)===myName);
+    const didVote = !!myVoteEntry;
+    if (didVote) voted++;
+    monthVoted.push(didVote);
+
+    // ── Suggest? ──
+    let didSuggest = false;
+    (a.books||[]).forEach(b => {
+      normBook(b).suggesters.forEach(s => {
+        if (resolveId(s.discord,s.email,idMap)===myName) {
+          didSuggest = true;
+          if (b.genre) genresSuggestedSet.add(b.genre.trim().toLowerCase());
+        }
+      });
+    });
+    if (didSuggest) suggested++;
+
+    // ── Winner / top-3 ──
+    const winnerSuggesters = winnerBooks.flatMap(b=>normBook(b).suggesters.map(s=>resolveId(s.discord,s.email,idMap)));
     if (winnerSuggesters.includes(myName)) pickedWinner++;
+    const top3Suggesters = sortedBooks.slice(0,3).flatMap(b=>normBook(b).suggesters.map(s=>resolveId(s.discord,s.email,idMap)));
+    if (top3Suggesters.includes(myName)) suggestedTop3++;
+
+    // ── Contrarian: did my #1 win? ──
+    if (myVoteEntry) {
+      const myR = myVoteEntry.ranking||myVoteEntry;
+      if (winnerBooks.map(b=>String(b.id)).includes(String(myR[0]))) top1WinCount++;
+    }
+
+    // ── Early Bird (cutoff-gated) ──
+    const voteEntries = Object.values(a.votes||{}).filter(vd=>vd.ts && vd.ts >= BADGE_CUTOFF);
+    if (voteEntries.length) {
+      const earliest = voteEntries.reduce((m,vd)=>vd.ts<m.ts?vd:m, voteEntries[0]);
+      if (resolveId(earliest.discord,earliest.email,idMap)===myName) earlyBird++;
+    }
+
+    // ── Night Owl (cutoff-gated) ──
+    if (myVoteEntry && myVoteEntry.ts && myVoteEntry.ts >= BADGE_CUTOFF) {
+      const h = new Date(myVoteEntry.ts).getHours();
+      if (h>=0 && h<5) nightOwlCount++;
+    }
+
+    // ── Reading progress on this month's winner ──
+    const myProgressMap = allProgress[myKey]||{};
+
+    // For Page Turner / Just In Time: track finish timestamps
+    // We use the archivedAt date as a proxy for when the "following calendar month" begins
+    if (a.archivedAt) {
+      const archiveDate = new Date(a.archivedAt);
+      // Following calendar month = month after archivedAt
+      const followMonthStart = new Date(archiveDate.getFullYear(), archiveDate.getMonth()+1, 1);
+      const followMonthEnd   = new Date(archiveDate.getFullYear(), archiveDate.getMonth()+2, 0, 23, 59, 59);
+      const day10End         = new Date(followMonthStart.getTime() + 10*24*60*60*1000 - 1);
+      const last24Start      = new Date(followMonthEnd.getTime() - 24*60*60*1000);
+
+      winnerBooks.forEach(b => {
+        const status = myProgressMap[b.id];
+        const finishTs = myProgressMap[b.id + '_ts'];
+        if (status==='finished' && finishTs && finishTs >= BADGE_CUTOFF) {
+          const ft = new Date(finishTs);
+          if (ft >= followMonthStart && ft <= day10End)  speedFinishCount++;
+          if (ft >= last24Start      && ft <= followMonthEnd) lastMinuteCount++;
+        }
+        // count DNF from progress tracker too
+        if (status==='dnf') dnfCount++;
+      });
+    }
+
+    // ── Reading streak ──
+    const finishedWinner = winnerBooks.some(b=>(allProgress[myKey]||{})[b.id]==='finished');
+    monthReadFinished.push(finishedWinner);
+
+    // ── All-rounder streak ──
+    monthAllRounder.push(didVote && didSuggest);
   });
 
-  // reviewed
+  // ── Reviews ──
   Object.values(allReviews).forEach(entries => {
     (entries||[]).forEach(r => {
-      if (resolveId(r.discord, r.email, idMap) === myName) reviewed++;
+      if (resolveId(r.discord,r.email,idMap)!==myName) return;
+      reviewed++;
+      const rat = +r.rating;
+      if (rat>=1 && rat<=5) {
+        reviewsWithRating++;
+        if (rat===1) oneStarCount++;
+        // Genre Loyalist: need to match review month to archive to get genre
+        // Find archive for this review month and get winner book genre
+        const arc = getArchives().find(a=>a.label===r.month || Object.values(a.votes||{}).length>0);
+        // simpler: check reviews map key
+      }
+      if (r.finished==='No / DNF') dnfCount++;
+      if (r.ts && r.ts>=BADGE_CUTOFF) {
+        const h = new Date(r.ts).getHours();
+        if (h>=0 && h<5) nightOwlCount++;
+      }
     });
   });
 
-  return { voted, suggested, reviewed, pickedWinner, totalMonths };
+  // ── Genre Loyalist: cross-reference reviews with archive winner genres ──
+  Object.entries(allReviews).forEach(([monthLabel, entries]) => {
+    const arc = getArchives().find(a=>a.label===monthLabel);
+    if (!arc) return;
+    const nb = (arc.books||[]).length;
+    const scores2 = {};
+    (arc.books||[]).forEach(b=>scores2[b.id]=0);
+    Object.values(arc.votes||{}).forEach(vd=>{
+      (vd.ranking||vd).forEach((id,idx)=>{ if(scores2[id]!==undefined) scores2[id]+=(nb-idx); });
+    });
+    const dualIds2 = arc.dualWinners||[];
+    const sortedB2 = [...(arc.books||[])].sort((x,y)=>scores2[y.id]-scores2[x.id]);
+    const winnerBooksArc = dualIds2.length ? (arc.books||[]).filter(b=>dualIds2.includes(String(b.id))) : sortedB2.slice(0,1);
+
+    (entries||[]).forEach(r => {
+      if (resolveId(r.discord,r.email,idMap)!==myName) return;
+      const rat = +r.rating;
+      if (rat>=4 && rat<=5) {
+        winnerBooksArc.forEach(b => {
+          if (b.genre) {
+            const g = b.genre.trim().toLowerCase();
+            genreHighRatings[g] = (genreHighRatings[g]||0)+1;
+          }
+        });
+      }
+    });
+  });
+  genreLoyalist = Object.values(genreHighRatings).some(c=>c>=3);
+
+  // ── Survey completions ──
+  allSurveys.forEach(s => {
+    const responses = allSurveyResps[s.id]||[];
+    if (responses.some(r => resolveId(r.name,'',idMap)===myName || normEmail(r.email)===normEmail(email))) {
+      surveysCompleted++;
+    }
+  });
+
+  // ── Streaks ──
+  function longestStreak(arr) {
+    let longest=0,cur=0;
+    arr.forEach(b=>{ cur=b?cur+1:0; longest=Math.max(longest,cur); });
+    return longest;
+  }
+
+  return {
+    voted, suggested, reviewed, pickedWinner, suggestedTop3,
+    dnfCount, reviewsWithRating, surveysCompleted, totalSurveys,
+    nightOwlCount, earlyBird, top1WinCount,
+    oneStarCount, genreLoyalist, speedFinishCount, lastMinuteCount,
+    genresSuggested: genresSuggestedSet.size,
+    totalMonths,
+    longestVoteStreak:       longestStreak(monthVoted),
+    longestReadStreak:       longestStreak(monthReadFinished),
+    longestAllRounderStreak: longestStreak(monthAllRounder),
+    // legacy compat
+    get nightOwl() { return this.nightOwlCount >= 1; },
+  };
 }
+
 
 async function loadBadges() {
   const email   = document.getElementById('bg-email').value.trim();
@@ -2516,9 +2833,15 @@ function renderBadgesTab() {
   if (!mainEl || mainEl.style.display === 'none') return;
   if (!_bgIdentity) return;
 
-  const profile = computeMemberProfile(_bgIdentity.discord, _bgIdentity.email);
-  const earned  = BADGE_DEFS.filter(b => b.check(profile));
-  const locked  = BADGE_DEFS.filter(b => !b.check(profile));
+  const cfg      = getBadgeConfig();
+  const profile  = computeMemberProfile(_bgIdentity.discord, _bgIdentity.email);
+  const myKey    = normEmail(_bgIdentity.email) || normId(_bgIdentity.discord);
+  const visibleBadges = getAllBadges(); // respects hidden/disabled for members
+
+  const tierLabel = { bronze:'🥉 Bronze', silver:'🥈 Silver', gold:'🥇 Gold' };
+
+  const earned = visibleBadges.filter(b => hasBadge(b.id, profile, myKey));
+  const locked = visibleBadges.filter(b => !hasBadge(b.id, profile, myKey));
 
   document.getElementById('badges-summary').innerHTML = `
     <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
@@ -2527,26 +2850,38 @@ function renderBadgesTab() {
         <div style="font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);">Badges Earned</div>
       </div>
       <div style="flex:1;min-width:180px;">
-        <div style="font-weight:500;margin-bottom:.3rem;">${earned.map(b=>b.emoji).join(' ') || '—'}</div>
-        <div style="font-size:.82rem;color:var(--soft);">${profile.voted} months voted · ${profile.suggested} books suggested · ${profile.reviewed} reviews · ${profile.pickedWinner} winning pick${profile.pickedWinner!==1?'s':''}</div>
+        <div style="font-weight:500;margin-bottom:.3rem;">${earned.map(b=>b.iconDataUrl?'🖼️':b.emoji).join(' ') || '—'}</div>
+        <div style="font-size:.82rem;color:var(--soft);">${profile.voted} months voted · ${profile.suggested} suggested · ${profile.reviewed} reviews · ${profile.surveysCompleted} surveys · ${profile.pickedWinner} winning pick${profile.pickedWinner!==1?'s':''}</div>
+        <div style="font-size:.78rem;color:var(--soft);margin-top:.2rem;">Longest vote streak: ${profile.longestVoteStreak} · Longest read streak: ${profile.longestReadStreak}</div>
       </div>
     </div>`;
 
-  const badgeCard = (b, isEarned) => `
-    <div class="badge-card ${isEarned ? 'earned' : 'locked'}">
-      <div class="badge-icon">${b.emoji}</div>
-      <div class="badge-name">${b.name}</div>
-      <div class="badge-desc">${b.desc}</div>
-      ${isEarned ? '<div class="badge-earned-label">✓ Earned</div>' : ''}
+  const badgeCard = (b, isEarned) => {
+    const icon = b.iconDataUrl
+      ? `<div class="badge-icon"><img src="${b.iconDataUrl}" style="width:40px;height:40px;object-fit:contain;border-radius:4px;"></div>`
+      : `<div class="badge-icon">${b.emoji}</div>`;
+    const tierHtml = b.tier ? `<div style="font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);margin-bottom:.2rem;">${tierLabel[b.tier]||''}</div>` : '';
+    return `<div class="badge-card ${isEarned?'earned':'locked'}${b.tier&&isEarned?' tier-'+b.tier:''}">
+      ${icon}
+      ${tierHtml}
+      <div class="badge-name">${esc(b.name)}</div>
+      <div class="badge-desc">${esc(b.desc)}</div>
+      ${isEarned?'<div class="badge-earned-label">✓ Earned</div>':''}
     </div>`;
+  };
 
-  document.getElementById('badges-area').innerHTML = `
-    ${earned.length ? `<h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Earned (${earned.length})</h3>
-    <div class="badge-grid">${earned.map(b=>badgeCard(b,true)).join('')}</div>` : ''}
-    ${locked.length ? `<h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;color:var(--soft);">Locked (${locked.length})</h3>
-    <div class="badge-grid">${locked.map(b=>badgeCard(b,false)).join('')}</div>` : ''}`;
+  // Group earned by category
+  const earnedHtml = earned.length
+    ? `<h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Earned (${earned.length})</h3>
+       <div class="badge-grid">${earned.map(b=>badgeCard(b,true)).join('')}</div>`
+    : '<p style="font-size:.85rem;color:var(--soft);margin-bottom:1.5rem;">No badges earned yet — get participating!</p>';
 
-  // Leaderboard
+  const lockedHtml = locked.length
+    ? `<h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;color:var(--soft);">Locked (${locked.length})</h3>
+       <div class="badge-grid">${locked.map(b=>badgeCard(b,false)).join('')}</div>`
+    : '';
+
+  document.getElementById('badges-area').innerHTML = earnedHtml + lockedHtml;
   renderBadgesLeaderboard();
 }
 
@@ -2554,43 +2889,45 @@ function renderBadgesLeaderboard() {
   const archives   = getArchives();
   const allReviews = getReviews();
   const idMap      = buildIdentityMap();
+  const el         = document.getElementById('badges-leaderboard');
+  if (!el) return;
   if (!archives.length) {
-    document.getElementById('badges-leaderboard').innerHTML = '<div class="empty"><div class="icon">🏅</div><p>No data yet.</p></div>';
+    el.innerHTML = '<div class="empty"><div class="icon">🏅</div><p>No data yet.</p></div>';
     return;
   }
-  // Build profiles for all known members
   const members = new Map();
   archives.forEach(a => {
     Object.values(a.votes||{}).forEach(vd => {
-      const name = resolveId(vd.discord, vd.email, idMap);
-      if (!members.has(name)) members.set(name, { discord: vd.discord, email: vd.email });
+      const name = resolveId(vd.discord,vd.email,idMap);
+      if (!members.has(name)) members.set(name,{discord:vd.discord,email:vd.email,key:normEmail(vd.email)||normId(vd.discord)});
     });
-    (a.books||[]).map(normBook).forEach(b => b.suggesters.forEach(s => {
-      const name = resolveId(s.discord, s.email, idMap);
-      if (!members.has(name)) members.set(name, { discord: s.discord, email: s.email });
+    (a.books||[]).map(normBook).forEach(b=>b.suggesters.forEach(s=>{
+      const name = resolveId(s.discord,s.email,idMap);
+      if (!members.has(name)) members.set(name,{discord:s.discord,email:s.email,key:normEmail(s.email)||normId(s.discord)});
     }));
   });
-  Object.values(allReviews).forEach(entries => (entries||[]).forEach(r => {
-    const name = resolveId(r.discord, r.email, idMap);
-    if (!members.has(name)) members.set(name, { discord: r.discord, email: r.email });
+  Object.values(allReviews).forEach(entries=>(entries||[]).forEach(r=>{
+    const name = resolveId(r.discord,r.email,idMap);
+    if (!members.has(name)) members.set(name,{discord:r.discord,email:r.email,key:normEmail(r.email)||normId(r.discord)});
   }));
 
-  const leaderboard = [...members.entries()].map(([name, info]) => {
-    const p = computeMemberProfile(info.discord, info.email);
-    const earnedCount = BADGE_DEFS.filter(b => b.check(p)).length;
-    return { name, earnedCount, topBadges: BADGE_DEFS.filter(b=>b.check(p)).slice(0,5).map(b=>b.emoji).join(' ') };
-  }).filter(m => m.earnedCount > 0).sort((a,b) => b.earnedCount - a.earnedCount).slice(0, 10);
+  const visibleBadges = getAllBadges();
+  const leaderboard = [...members.entries()].map(([name,info])=>{
+    const p = computeMemberProfile(info.discord,info.email);
+    const earned = visibleBadges.filter(b=>hasBadge(b.id,p,info.key));
+    return { name, earnedCount:earned.length, topEmojis:earned.slice(0,6).map(b=>b.iconDataUrl?'🖼️':b.emoji).join(' ') };
+  }).filter(m=>m.earnedCount>0).sort((a,b)=>b.earnedCount-a.earnedCount).slice(0,10);
 
   if (!leaderboard.length) {
-    document.getElementById('badges-leaderboard').innerHTML = '<div class="empty"><div class="icon">🏅</div><p>No badges earned yet.</p></div>';
+    el.innerHTML = '<div class="empty"><div class="icon">🏅</div><p>No badges earned yet.</p></div>';
     return;
   }
-  document.getElementById('badges-leaderboard').innerHTML = leaderboard.map((m, i) => `
+  el.innerHTML = leaderboard.map((m,i)=>`
     <div class="card" style="padding:.8rem 1.25rem;margin-bottom:.5rem;display:flex;align-items:center;gap:1rem;">
       <div style="font-family:'Playfair Display',serif;font-size:1.3rem;color:var(--gold);min-width:2rem;text-align:center;">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</div>
       <div style="flex:1;">
         <div style="font-weight:500;">${esc(m.name)}</div>
-        <div style="font-size:.78rem;color:var(--soft);">${m.topBadges}</div>
+        <div style="font-size:.78rem;color:var(--soft);">${m.topEmojis}</div>
       </div>
       <div style="text-align:right;">
         <div style="font-family:'Playfair Display',serif;font-size:1.2rem;font-weight:700;color:var(--gold);">${m.earnedCount}</div>
@@ -2598,6 +2935,238 @@ function renderBadgesLeaderboard() {
       </div>
     </div>`).join('');
 }
+
+// ════════════════════════════════════════════════════════
+// ADMIN BADGE MANAGER
+// ════════════════════════════════════════════════════════
+function renderAdminBadgeManager() {
+  renderAdminBadgeMembers();
+  renderAdminBadgeControls();
+  renderAdminCustomBadgesList();
+}
+window.renderAdminBadgeManager = renderAdminBadgeManager;
+
+function buildAllMembersMap() {
+  const archives   = getArchives();
+  const allReviews = getReviews();
+  const idMap      = buildIdentityMap();
+  const members    = new Map();
+  archives.forEach(a => {
+    Object.values(a.votes||{}).forEach(vd => {
+      const name = resolveId(vd.discord,vd.email,idMap);
+      const key  = normEmail(vd.email)||normId(vd.discord);
+      if (!members.has(key)) members.set(key,{name,discord:vd.discord,email:vd.email,key});
+    });
+    (a.books||[]).map(normBook).forEach(b=>b.suggesters.forEach(s=>{
+      const name = resolveId(s.discord,s.email,idMap);
+      const key  = normEmail(s.email)||normId(s.discord);
+      if (!members.has(key)) members.set(key,{name,discord:s.discord,email:s.email,key});
+    }));
+  });
+  Object.values(allReviews).forEach(entries=>(entries||[]).forEach(r=>{
+    const name = resolveId(r.discord,r.email,idMap);
+    const key  = normEmail(r.email)||normId(r.discord);
+    if (!members.has(key)) members.set(key,{name,discord:r.discord,email:r.email,key});
+  }));
+  return members;
+}
+
+function renderAdminBadgeMembers() {
+  const area = document.getElementById('admin-badge-members-area');
+  if (!area) return;
+  const members = buildAllMembersMap();
+  if (!members.size) { area.innerHTML = '<p style="font-size:.85rem;color:var(--soft);">No members found yet.</p>'; return; }
+
+  const allBadges = getAllBadges({ includeHidden:true, includeDisabled:true });
+  const cfg = getBadgeConfig();
+
+  area.innerHTML = [...members.values()].map(m => {
+    const p = computeMemberProfile(m.discord, m.email);
+    const earned = allBadges.filter(b => hasBadge(b.id, p, m.key));
+    const notEarned = allBadges.filter(b => !hasBadge(b.id, p, m.key));
+    const memberId = 'mbr-' + m.key.replace(/[^a-z0-9]/g,'_');
+    return `<div class="card" style="padding:1rem;margin-bottom:.75rem;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;margin-bottom:.75rem;">
+        <div>
+          <div style="font-weight:500;">${esc(m.name)}</div>
+          <div style="font-size:.72rem;color:var(--soft);">${esc(m.email||m.discord)}</div>
+        </div>
+        <span style="font-size:.82rem;color:var(--gold);font-weight:600;">${earned.length} badge${earned.length!==1?'s':''}</span>
+      </div>
+      <div style="margin-bottom:.5rem;">
+        <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.4rem;">Earned</div>
+        <div style="display:flex;flex-wrap:wrap;gap:.35rem;">
+          ${earned.length ? earned.map(b=>`
+            <span style="display:inline-flex;align-items:center;gap:.3rem;background:#e8f5e9;border:1px solid #a5d6a7;color:#2d7a3a;padding:.2rem .55rem;border-radius:20px;font-size:.75rem;">
+              ${b.iconDataUrl?`<img src="${b.iconDataUrl}" style="width:14px;height:14px;object-fit:contain;">`:b.emoji} ${esc(b.name)}
+              <button onclick="adminToggleBadge('${m.key}','${b.id}',false)" style="background:none;border:none;cursor:pointer;color:#c0392b;font-size:.9rem;line-height:1;padding:0 0 0 .2rem;" title="Revoke">×</button>
+            </span>`).join('') : '<span style="font-size:.78rem;color:var(--soft);">None yet</span>'}
+        </div>
+      </div>
+      <div>
+        <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.4rem;">Grant a Badge</div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;">
+          <select id="grant-sel-${memberId}" style="font-size:.78rem;padding:.3rem .6rem;max-width:220px;">
+            <option value="">— select badge —</option>
+            ${notEarned.map(b=>`<option value="${b.id}">${b.iconDataUrl?'🖼️':b.emoji} ${esc(b.name)}${b.adminOnly?' (admin-only)':''}</option>`).join('')}
+          </select>
+          <button class="btn btn-secondary btn-sm" onclick="adminGrantBadge('${m.key}','grant-sel-${memberId}')">Grant</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function adminToggleBadge(memberKey, badgeId, grant) {
+  showLoading('Saving…');
+  const cfg = JSON.parse(JSON.stringify(getBadgeConfig()));
+  if (!cfg.overrides) cfg.overrides = {};
+  if (!cfg.overrides[memberKey]) cfg.overrides[memberKey] = {};
+  if (grant) {
+    cfg.overrides[memberKey][badgeId] = true;
+  } else {
+    // If it was manually granted, remove the override; otherwise explicitly revoke
+    const wasManualGrant = cfg.overrides[memberKey][badgeId] === true;
+    if (wasManualGrant) delete cfg.overrides[memberKey][badgeId];
+    else cfg.overrides[memberKey][badgeId] = false;
+    // Clean up empty override objects
+    if (!Object.keys(cfg.overrides[memberKey]).length) delete cfg.overrides[memberKey];
+  }
+  await fbSet(BADGE_CONFIG_REF, cfg);
+  hideLoading();
+  renderAdminBadgeMembers();
+}
+window.adminToggleBadge = adminToggleBadge;
+
+async function adminGrantBadge(memberKey, selectId) {
+  const sel = document.getElementById(selectId);
+  if (!sel || !sel.value) return;
+  await adminToggleBadge(memberKey, sel.value, true);
+}
+window.adminGrantBadge = adminGrantBadge;
+
+function renderAdminBadgeControls() {
+  const area = document.getElementById('admin-badge-controls-area');
+  if (!area) return;
+  const cfg = getBadgeConfig();
+  const allBadges = getAllBadges({ includeHidden:true, includeDisabled:true });
+
+  const tierLabel = { bronze:'🥉', silver:'🥈', gold:'🥇' };
+
+  area.innerHTML = `<div style="display:flex;flex-direction:column;gap:.5rem;">` +
+    allBadges.map(b => {
+      const isDisabled = !!(cfg.disabled && cfg.disabled[b.id]);
+      const isHidden   = !!(cfg.hidden   && cfg.hidden[b.id]);
+      const icon = b.iconDataUrl
+        ? `<img src="${b.iconDataUrl}" style="width:22px;height:22px;object-fit:contain;border-radius:3px;">`
+        : b.emoji;
+      return `<div style="display:flex;align-items:center;gap:.75rem;padding:.6rem .75rem;background:var(--cream);border-radius:6px;flex-wrap:wrap;">
+        <span style="font-size:1.2rem;min-width:1.5rem;text-align:center;">${icon}</span>
+        <div style="flex:1;min-width:130px;">
+          <div style="font-size:.85rem;font-weight:500;">${esc(b.name)}${b.tier?' <span style="font-size:.68rem;color:var(--soft);">('+tierLabel[b.tier]+' '+b.tier+')</span>':''}${b.adminOnly?' <span style="font-size:.65rem;color:var(--soft);">admin-only</span>':''}</div>
+          <div style="font-size:.72rem;color:var(--soft);">${esc(b.desc)}</div>
+        </div>
+        <div style="display:flex;gap:.4rem;flex-shrink:0;">
+          <button class="btn btn-sm ${isDisabled?'btn-primary':'btn-secondary'}" onclick="adminToggleBadgeSetting('disabled','${b.id}',${!isDisabled})" title="${isDisabled?'Enable':'Disable'}">${isDisabled?'Enable':'Disable'}</button>
+          <button class="btn btn-sm ${isHidden?'btn-primary':'btn-secondary'}" onclick="adminToggleBadgeSetting('hidden','${b.id}',${!isHidden})" title="${isHidden?'Show to members':'Hide from members'}">${isHidden?'Unhide':'Hide'}</button>
+          ${b.custom?`<button class="btn btn-danger btn-sm" onclick="adminDeleteCustomBadge('${b.id}')">Delete</button>`:''}
+        </div>
+      </div>`;
+    }).join('') + '</div>';
+}
+
+async function adminToggleBadgeSetting(setting, badgeId, val) {
+  showLoading('Saving…');
+  const cfg = JSON.parse(JSON.stringify(getBadgeConfig()));
+  if (!cfg[setting]) cfg[setting] = {};
+  if (val) cfg[setting][badgeId] = true;
+  else delete cfg[setting][badgeId];
+  await fbSet(BADGE_CONFIG_REF, cfg);
+  hideLoading();
+  renderAdminBadgeControls();
+  renderAdminBadgeMembers();
+}
+window.adminToggleBadgeSetting = adminToggleBadgeSetting;
+
+// ── Custom badge creator ──────────────────────────────
+let _customIconDataUrl = null;
+
+function previewCustomIcon(input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  if (!['image/png','image/jpeg'].includes(file.type)) { alert('Only PNG or JPG files are supported.'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    _customIconDataUrl = e.target.result;
+    const preview = document.getElementById('cb-icon-preview');
+    preview.style.display = '';
+    preview.innerHTML = `<img src="${_customIconDataUrl}" style="width:40px;height:40px;object-fit:contain;">`;
+  };
+  reader.readAsDataURL(file);
+}
+window.previewCustomIcon = previewCustomIcon;
+
+async function saveCustomBadge() {
+  const name  = document.getElementById('cb-name').value.trim();
+  const desc  = document.getElementById('cb-desc').value.trim();
+  const emoji = document.getElementById('cb-emoji').value.trim();
+  const adminOnly = document.getElementById('cb-admin-only').checked;
+  if (!name) { showMsg('cb-msg','Please enter a badge name.','err'); return; }
+  if (!emoji && !_customIconDataUrl) { showMsg('cb-msg','Please add an emoji or upload an icon.','err'); return; }
+  const cfg = JSON.parse(JSON.stringify(getBadgeConfig()));
+  if (!cfg.customBadges) cfg.customBadges = [];
+  const id = 'custom-' + Date.now();
+  cfg.customBadges.push({ id, name, desc, emoji: emoji||'🏅', iconDataUrl: _customIconDataUrl||null, adminOnly });
+  showLoading('Saving…');
+  await fbSet(BADGE_CONFIG_REF, cfg);
+  hideLoading();
+  showMsg('cb-msg','✓ Badge created!','ok');
+  clearCustomBadgeForm();
+  renderAdminCustomBadgesList();
+  renderAdminBadgeControls();
+}
+window.saveCustomBadge = saveCustomBadge;
+
+function clearCustomBadgeForm() {
+  ['cb-name','cb-desc','cb-emoji'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  const chk = document.getElementById('cb-admin-only'); if(chk) chk.checked=false;
+  const prev = document.getElementById('cb-icon-preview'); if(prev){prev.style.display='none';prev.innerHTML='';}
+  const upl = document.getElementById('cb-icon-upload'); if(upl) upl.value='';
+  _customIconDataUrl = null;
+}
+window.clearCustomBadgeForm = clearCustomBadgeForm;
+
+function renderAdminCustomBadgesList() {
+  const area = document.getElementById('admin-custom-badges-list');
+  if (!area) return;
+  const cfg = getBadgeConfig();
+  const custom = cfg.customBadges||[];
+  if (!custom.length) { area.innerHTML = '<p style="font-size:.85rem;color:var(--soft);">No custom badges created yet.</p>'; return; }
+  area.innerHTML = custom.map(b=>`
+    <div style="display:flex;align-items:center;gap:.75rem;padding:.65rem .75rem;background:var(--cream);border-radius:6px;margin-bottom:.4rem;flex-wrap:wrap;">
+      <span style="font-size:1.3rem;">
+        ${b.iconDataUrl?`<img src="${b.iconDataUrl}" style="width:28px;height:28px;object-fit:contain;border-radius:4px;">`:b.emoji}
+      </span>
+      <div style="flex:1;min-width:120px;">
+        <div style="font-size:.88rem;font-weight:500;">${esc(b.name)}</div>
+        <div style="font-size:.72rem;color:var(--soft);">${esc(b.desc)} ${b.adminOnly?'· <em>admin-only</em>':''}</div>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="adminDeleteCustomBadge('${b.id}')">Delete</button>
+    </div>`).join('');
+}
+
+async function adminDeleteCustomBadge(id) {
+  if (!confirm('Delete this custom badge? Members who earned it will lose it.')) return;
+  showLoading('Deleting…');
+  const cfg = JSON.parse(JSON.stringify(getBadgeConfig()));
+  cfg.customBadges = (cfg.customBadges||[]).filter(b=>b.id!==id);
+  await fbSet(BADGE_CONFIG_REF, cfg);
+  hideLoading();
+  renderAdminCustomBadgesList();
+  renderAdminBadgeControls();
+}
+window.adminDeleteCustomBadge = adminDeleteCustomBadge;
+
 
 // ════════════════════════════════════════════════════════
 // GENRE DIVERSITY TRACKER
