@@ -302,12 +302,10 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
     <button class="sub-tab active" onclick="goSubTab('voting',this)">Voting</button>
     <button class="sub-tab" onclick="goSubTab('members',this)">Members</button>
     <button class="sub-tab" onclick="goSubTab('reviews-data',this)">Reviews</button>
-    <button class="sub-tab" onclick="goSubTab('rank-dist',this)">Book Rank Distributions</button>
   </div>
   <div id="sub-voting"><div id="analysis-voting-area"></div></div>
   <div id="sub-members" style="display:none;"><div id="analysis-members-area"></div></div>
   <div id="sub-reviews-data" style="display:none;"><div id="analysis-reviews-area"></div></div>
-  <div id="sub-rank-dist" style="display:none;"><div id="analysis-rankdist-area"></div></div>
 </div>
 
 <!-- ══════════════ ADMIN ══════════════ -->
@@ -1045,7 +1043,7 @@ window.submitReview = submitReview;
 // ANALYSIS — sub-tab controller
 // ════════════════════════════════════════════════════════
 function goSubTab(id, btn) {
-  ['voting','members','reviews-data','rank-dist'].forEach(s => {
+  ['voting','members','reviews-data'].forEach(s => {
     document.getElementById('sub-'+s).style.display = s === id ? '' : 'none';
   });
   document.querySelectorAll('.sub-tab').forEach(b => b.classList.remove('active'));
@@ -1053,7 +1051,6 @@ function goSubTab(id, btn) {
   if (id === 'voting')       renderAnalysisVoting();
   if (id === 'members')      renderAnalysisMembers();
   if (id === 'reviews-data') renderAnalysisReviews();
-  if (id === 'rank-dist')    renderAnalysisRankDist();
 }
 window.goSubTab = goSubTab;
 
@@ -1093,6 +1090,24 @@ function renderAnalysisVoting() {
   const topBooks   = Object.entries(allScores).map(([t,d]) => [t,{...d,avgPct:d.totalPct/d.appears}]).sort((a,b)=>b[1].avgPct-a[1].avgPct).slice(0,10);
   const maxAvgPct  = topBooks[0] ? topBooks[0][1].avgPct : 1;
 
+  // Rank distribution
+  const rankDist = {};
+  archives.forEach(a => {
+    const nb = (a.books||[]).length, voterCount = Object.keys(a.votes||{}).length;
+    if (!nb || !voterCount) return;
+    (a.books||[]).forEach(b => { if (!rankDist[b.title]) rankDist[b.title] = {totalVoters:0,rankCounts:{}}; rankDist[b.title].totalVoters += voterCount; });
+    Object.values(a.votes||{}).forEach(vd => {
+      (vd.ranking||vd).forEach((id, idx) => {
+        const book = (a.books||[]).find(b => String(b.id)===String(id)); if (!book) return;
+        const rank = idx+1; rankDist[book.title].rankCounts[rank] = (rankDist[book.title].rankCounts[rank]||0)+1;
+      });
+    });
+  });
+  const rankDistSorted = Object.entries(rankDist).map(([title,d]) => {
+    let ws=0,tot=0; Object.entries(d.rankCounts).forEach(([r,n])=>{ws+=+r*n;tot+=n;});
+    return [title,{...d,avgRank:tot>0?ws/tot:999}];
+  }).sort((a,b)=>a[1].avgRank-b[1].avgRank);
+
   area.innerHTML = `
   <div class="chart-wrap"><h3>Participation Over Time</h3><div class="bar-chart">
     ${archives.map((a,i)=>`<div class="bar-row">
@@ -1112,59 +1127,36 @@ function renderAnalysisVoting() {
     </div>`).join('')}</div>`:'<p style="color:var(--soft);font-size:.875rem;">Not enough data yet.</p>'}
   </div>
 
-  <div class="chart-wrap"><h3>Monthly Results</h3>
-    <div class="month-tabs">${archives.map((a,i)=>`<div class="month-tab ${i===archives.length-1?'active':''}" onclick="showMonthDetail(${i},this)">${esc(a.label)}</div>`).join('')}</div>
-    <div id="month-detail"></div>
-  </div>`;
-  showMonthDetail(archives.length-1, area.querySelector('.month-tab.active'));
-}
-
-// ── Rank Distributions sub-tab ───────────────────────────────────────────────
-function renderAnalysisRankDist() {
-  const archives = getArchives();
-  const area = document.getElementById('analysis-rankdist-area');
-  if (!archives.length) { area.innerHTML = '<div class="empty"><div class="icon">📊</div><p>No archived months yet.</p></div>'; return; }
-
-  const rankDist = {};
-  archives.forEach(a => {
-    const nb = (a.books||[]).length, voterCount = Object.keys(a.votes||{}).length;
-    if (!nb || !voterCount) return;
-    (a.books||[]).forEach(b => { if (!rankDist[b.title]) rankDist[b.title] = {totalVoters:0,rankCounts:{}}; rankDist[b.title].totalVoters += voterCount; });
-    Object.values(a.votes||{}).forEach(vd => {
-      (vd.ranking||vd).forEach((id, idx) => {
-        const book = (a.books||[]).find(b => String(b.id)===String(id)); if (!book) return;
-        const rank = idx+1; rankDist[book.title].rankCounts[rank] = (rankDist[book.title].rankCounts[rank]||0)+1;
-      });
-    });
-  });
-  const rankDistSorted = Object.entries(rankDist).map(([title,d]) => {
-    let ws=0,tot=0; Object.entries(d.rankCounts).forEach(([r,n])=>{ws+=+r*n;tot+=n;});
-    return [title,{...d,avgRank:tot>0?ws/tot:999}];
-  }).sort((a,b)=>a[1].avgRank-b[1].avgRank);
-
-  area.innerHTML = `<div class="chart-wrap">
+  <div class="chart-wrap">
+    <h3>Book Rank Distributions (Voting)</h3>
     <p style="font-size:.78rem;color:var(--soft);margin-bottom:1rem;">% of voters who ranked each book at each position. Green = #1, red = last. Sorted by best average rank.</p>
     ${rankDistSorted.length ? rankDistSorted.map(([title,d],i)=>{
       const maxR = Math.max(...Object.keys(d.rankCounts).map(Number));
       const rows = Array.from({length:maxR},(_,j)=>{
         const rank=j+1,count=d.rankCounts[rank]||0,pct=d.totalVoters>0?(count/d.totalVoters*100):0;
         const hue=Math.round(120-(rank-1)/Math.max(maxR-1,1)*120);
-        return \`<div class="bar-row" style="margin-bottom:.2rem;">
-          <div style="font-size:.72rem;color:var(--soft);min-width:2rem;text-align:right;">#\${rank}</div>
-          <div class="bar-track"><div class="bar-val" style="width:\${Math.max(pct>0?2:0,pct)}%;background:hsl(\${hue},60%,45%);"></div></div>
-          <div class="bar-lbl" style="font-size:.72rem;">\${pct.toFixed(0)}%<span style="color:var(--soft);margin-left:.25rem;">(\${count})</span></div>
-        </div>\`;
+        return `<div class="bar-row" style="margin-bottom:.2rem;">
+          <div style="font-size:.72rem;color:var(--soft);min-width:2rem;text-align:right;">#${rank}</div>
+          <div class="bar-track"><div class="bar-val" style="width:${Math.max(pct>0?2:0,pct)}%;background:hsl(${hue},60%,45%);"></div></div>
+          <div class="bar-lbl" style="font-size:.72rem;">${pct.toFixed(0)}%<span style="color:var(--soft);margin-left:.25rem;">(${count})</span></div>
+        </div>`;
       }).join('');
-      return \`<div style="margin-bottom:1.25rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border);">
+      return `<div style="margin-bottom:1.25rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border);">
         <div style="display:flex;align-items:baseline;gap:.5rem;margin-bottom:.4rem;">
-          <span style="font-family:'Playfair Display',serif;font-weight:700;color:var(--gold);">\${i+1}.</span>
-          <span style="font-size:.88rem;font-weight:500;">\${esc(title)}</span>
+          <span style="font-family:'Playfair Display',serif;font-weight:700;color:var(--gold);">${i+1}.</span>
+          <span style="font-size:.88rem;font-weight:500;">${esc(title)}</span>
         </div>
-        <div class="bar-chart">\${rows}</div>
-        <div style="font-size:.72rem;color:var(--soft);margin-top:.3rem;">avg rank \${d.avgRank.toFixed(1)} · \${d.totalVoters} vote\${d.totalVoters!==1?'s':''}</div>
-      </div>\`;
+        <div class="bar-chart">${rows}</div>
+        <div style="font-size:.72rem;color:var(--soft);margin-top:.3rem;">avg rank ${d.avgRank.toFixed(1)} · ${d.totalVoters} vote${d.totalVoters!==1?'s':''}</div>
+      </div>`;
     }).join('') : '<p style="color:var(--soft);font-size:.875rem;">Not enough data yet.</p>'}
+  </div>
+
+  <div class="chart-wrap"><h3>Monthly Results</h3>
+    <div class="month-tabs">${archives.map((a,i)=>`<div class="month-tab ${i===archives.length-1?'active':''}" onclick="showMonthDetail(${i},this)">${esc(a.label)}</div>`).join('')}</div>
+    <div id="month-detail"></div>
   </div>`;
+  showMonthDetail(archives.length-1, area.querySelector('.month-tab.active'));
 }
 
 // ── Members sub-tab ───────────────────────────────────────────────────────────
