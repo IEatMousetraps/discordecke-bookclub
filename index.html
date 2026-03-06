@@ -2716,7 +2716,7 @@ const BADGE_DEFS = [
   // ── Fun / personality ─────────────────────────────────────────────────────
   { id:'contrarian',        name:'The Contrarian',      emoji:'🙃',  tier:null,     desc:'Vote 3+ times but your #1 pick has never won',              check:p=>p.voted>=3&&p.top1WinCount===0 },
   { id:'completionist-3',   name:'The Completionist',   emoji:'🧩',  tier:null,     desc:'Vote, suggest, and review for 3+ months in a row',          check:p=>p.longestAllRounderStreak>=3 },
-  { id:'early-bird',        name:'Early Bird',          emoji:'🐦',  tier:null,     desc:'Be the first member to vote in a month (from Mar 18, 2026)', check:p=>p.earlyBird>=1, cutoffGated:true },
+  { id:'early-bird',        name:'Early Bird',          emoji:'🐦',  tier:null,     desc:'Be one of the first 3 members to vote in a month (from Mar 18, 2026)', check:p=>p.earlyBird>=1, cutoffGated:true },
 
   // ── Genre — suggestions ─────────────────────────────────────────────────
   { id:'genre-champion',    name:'Genre Champion',      emoji:'🏷️',  tier:null,     category:'genre', desc:'Suggest 3+ books in the same genre',                        check:p=>p.genreChampion },
@@ -2839,11 +2839,11 @@ function computeMemberProfile(discord, email) {
       if (winnerBooks.map(b=>String(b.id)).includes(String(myR[0]))) top1WinCount++;
     }
 
-    // ── Early Bird (cutoff-gated) ──
+    // ── Early Bird (cutoff-gated) — top 3 earliest voters ──
     const voteEntries = Object.values(a.votes||{}).filter(vd=>vd.ts && vd.ts >= BADGE_CUTOFF);
     if (voteEntries.length) {
-      const earliest = voteEntries.reduce((m,vd)=>vd.ts<m.ts?vd:m, voteEntries[0]);
-      if (resolveId(earliest.discord,earliest.email,idMap)===myName) earlyBird++;
+      const sorted = [...voteEntries].sort((a,b)=>a.ts-b.ts).slice(0,3);
+      if (sorted.some(vd=>resolveId(vd.discord,vd.email,idMap)===myName)) earlyBird++;
     }
 
     // ── Night Owl (cutoff-gated) ──
