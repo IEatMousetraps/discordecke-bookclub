@@ -2671,7 +2671,7 @@ const BADGE_DEFS = [
   { id:'first-review',      name:'Critic',              emoji:'✍️',  tier:null,     desc:'Submit your first book review',                             check:p=>p.reviewed>=1 },
   { id:'all-rounder',       name:'All-Rounder',         emoji:'🌟',  tier:null,     desc:'Vote, suggest, and review in any month',                    check:p=>p.voted>=1&&p.suggested>=1&&p.reviewed>=1 },
   { id:'three-votes',       name:'Regular',             emoji:'📆',  tier:null,     desc:'Vote in 3 or more months',                                  check:p=>p.voted>=3 },
-  { id:'six-votes',         name:'Devoted Reader',      emoji:'🏆',  tier:null,     desc:'Vote in 6 or more months',                                  check:p=>p.voted>=6 },
+  { id:'six-votes',         name:'Civic Duty',          emoji:'🗽',  tier:null,     desc:'Vote in 6 or more months',                                  check:p=>p.voted>=6 },
   { id:'twelve-votes',      name:'Lifer',               emoji:'🎖️',  tier:null,     desc:'Vote in 12 or more months',                                 check:p=>p.voted>=12 },
   { id:'three-suggests',    name:'Curator',             emoji:'🔖',  tier:null,     desc:'Suggest books in 3 or more months',                         check:p=>p.suggested>=3 },
   { id:'three-reviews',     name:'Reviewer',            emoji:'📝',  tier:null,     desc:'Submit reviews in 3 or more months',                        check:p=>p.reviewed>=3 },
@@ -2699,7 +2699,6 @@ const BADGE_DEFS = [
   // ── Book-specific ─────────────────────────────────────────────────────────
   { id:'winner-picker',     name:'Taste-Maker',         emoji:'👑',  tier:null,     desc:'Suggest a book that wins',                                  check:p=>p.pickedWinner>=1 },
   { id:'top3-suggest',      name:'Almost There',        emoji:'🎰',  tier:null,     desc:'Suggest a book that finishes in the top 3',                 check:p=>p.suggestedTop3>=1 },
-  { id:'librarian',         name:'The Librarian',       emoji:'📗',  tier:null,     desc:'Suggest books across 5 different genres',                   check:p=>p.genresSuggested>=5 },
   { id:'tough-crowd',       name:'Tough Crowd',         emoji:'😬',  tier:null,     desc:'Give a book a 1-star rating',                               check:p=>p.oneStarCount>=1 },
   { id:'genre-loyalist',    name:'Genre Loyalist',      emoji:'🎭',  tier:null,     desc:'Give high ratings (4–5★) to 3+ books in the same genre',    check:p=>p.genreLoyalist },
 
@@ -2722,7 +2721,7 @@ const BADGE_DEFS = [
   // ── Genre — suggestions ─────────────────────────────────────────────────
   { id:'genre-champion',    name:'Genre Champion',      emoji:'🏷️',  tier:null,     category:'genre', desc:'Suggest 3+ books in the same genre',                        check:p=>p.genreChampion },
   { id:'genre-specialist',  name:'The Specialist',      emoji:'🔍',  tier:null,     category:'genre', desc:'Suggest 5+ books in the same genre',                        check:p=>p.genreSpecialist },
-  { id:'variety-pack',      name:'Variety Pack',        emoji:'🎨',  tier:null,     category:'genre', desc:'Suggest books across 5+ different genres',                  check:p=>p.genresSuggested>=5 },
+  { id:'variety-pack',      name:'The Librarian',       emoji:'📚',  tier:null,     category:'genre', desc:'Suggest books across 5+ different genres',                  check:p=>p.genresSuggested>=5 },
 
   // ── Genre — voting / reading ──────────────────────────────────────────────
   { id:'genre-devotee',     name:'Genre Devotee',       emoji:'💝',  tier:null,     category:'genre', desc:'Rank a genre in the top half of your ballot 5+ times',      check:p=>p.genreDevotee },
