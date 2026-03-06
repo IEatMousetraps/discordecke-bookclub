@@ -654,7 +654,8 @@ function buildSortable(books) {
       <div class="rank-badge">${i+1}</div>
       <div class="book-info" style="flex:1">
         <div class="book-title">${esc(b.title)}</div>
-        <div class="book-sub">${esc(b.author)}${b.reason ? ` · <em style="font-style:italic;color:var(--soft);">"${esc(b.reason)}"</em>` : ''}</div>
+        <div class="book-sub">${esc(b.author)}</div>
+        ${b.reason ? `<div class="book-sub" style="margin-top:.3rem;"><span style="font-weight:500;color:var(--ink);">Why are you recommending this book?</span> <em style="font-style:italic;">"${esc(b.reason)}"</em></div>` : ''}
       </div>
       <div class="move-btns">
         <button class="move-btn" onclick="moveItem(this,-1)" title="Move up">▲</button>
