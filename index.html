@@ -636,31 +636,110 @@ function normBook(b) {
   return b;
 }
 
-// Normalise a discord username for identity matching: trim + lowercase
-function normId(s) { return (s || '').trim().toLowerCase(); }
+// ── Identity resolution ───────────────────────────────────────────────────────
+// Primary key: email (case-insensitive, trimmed).
+// Fallback: fuzzy discord match (Levenshtein distance ≤ 2 on normalised strings).
+// The canonical display name for a member is always the most-recently-seen discord.
 
-// Return votes object with fuzzy-merged keys: if two keys normalise to the same
-// value, keep the most recent entry under the canonical (first-seen) key.
-function getNormVotes(raw) {
-  const result = {};    // normKey → entry
-  const keyMap  = {};   // normKey → canonical display key
-  Object.entries(raw).forEach(([k, vd]) => {
-    const nk = normId(k);
-    if (!result[nk]) {
-      result[nk] = vd;
-      keyMap[nk]  = k;
-    } else {
-      // Keep whichever entry is more recent
-      if ((vd.ts || 0) > (result[nk].ts || 0)) {
-        result[nk] = vd;
-        keyMap[nk]  = k;
+function normId(s)    { return (s || '').trim().toLowerCase(); }
+function normEmail(e) { return (e || '').trim().toLowerCase(); }
+
+// Levenshtein distance (capped at maxDist+1 for speed)
+function levenshtein(a, b, maxDist) {
+  if (Math.abs(a.length - b.length) > maxDist) return maxDist + 1;
+  const row = Array.from({length: b.length + 1}, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = i;
+    for (let j = 1; j <= b.length; j++) {
+      const val = a[i-1] === b[j-1] ? row[j-1] : 1 + Math.min(row[j-1], row[j], prev);
+      row[j-1] = prev;
+      prev = val;
+    }
+    row[b.length] = prev;
+  }
+  return row[b.length];
+}
+
+// Build a unified identity map from ALL data sources.
+// Returns a Map: canonical-id → { displayName, email, aliases (Set of normId strings) }
+// canonical-id is normEmail if email known, else normId of first-seen discord.
+function buildIdentityMap() {
+  const map = new Map(); // canonicalId → { displayName, email, normIds: Set, ts }
+
+  // Helper: find existing entry by email or fuzzy discord match
+  function findEntry(discord, email) {
+    const nd = normId(discord), ne = normEmail(email);
+    // 1. Email match (strongest)
+    if (ne) {
+      for (const [, e] of map) {
+        if (e.email && normEmail(e.email) === ne) return e;
       }
     }
+    // 2. Exact normalised discord match
+    for (const [, e] of map) {
+      if (e.normIds.has(nd)) return e;
+    }
+    // 3. Fuzzy discord match (distance ≤ 2, but both strings must be ≥ 4 chars)
+    if (nd.length >= 4) {
+      for (const [, e] of map) {
+        for (const alias of e.normIds) {
+          if (alias.length >= 4 && levenshtein(nd, alias, 2) <= 2) return e;
+        }
+      }
+    }
+    return null;
+  }
+
+  function upsert(discord, email, ts) {
+    if (!discord) return;
+    const nd = normId(discord), ne = normEmail(email);
+    let entry = findEntry(discord, email);
+    if (!entry) {
+      const canonId = ne || nd;
+      entry = { canonId, displayName: discord, email: ne, normIds: new Set([nd]), ts: ts || 0 };
+      map.set(canonId, entry);
+    } else {
+      entry.normIds.add(nd);
+      if (ne && !entry.email) { entry.email = ne; }
+      // Most recent discord name wins as display name
+      if ((ts || 0) >= (entry.ts || 0)) { entry.displayName = discord; entry.ts = ts || 0; }
+    }
+  }
+
+  // Feed all data sources
+  const archives = getArchives();
+  archives.forEach(a => {
+    Object.values(a.votes || {}).forEach(vd => upsert(vd.discord, vd.email, vd.ts));
+    (a.books || []).map(normBook).forEach(b => b.suggesters.forEach(s => upsert(s.discord, s.email, a.archivedAt)));
   });
-  // Re-key by canonical display name
-  const out = {};
-  Object.entries(result).forEach(([nk, vd]) => { out[keyMap[nk]] = vd; });
-  return out;
+  getBooks().map(normBook).forEach(b => b.suggesters.forEach(s => upsert(s.discord, s.email, Date.now())));
+  Object.values(getVotes()).forEach(vd => upsert(vd.discord, vd.email, vd.ts));
+  Object.values(getReviews()).forEach(entries => (entries||[]).forEach(r => upsert(r.discord, r.email, r.ts)));
+
+  return map;
+}
+
+// Resolve a discord+email pair to a canonical display name using the identity map.
+// Pass the pre-built map for efficiency inside loops.
+function resolveId(discord, email, identityMap) {
+  if (!identityMap) return normId(discord) || 'unknown';
+  const nd = normId(discord), ne = normEmail(email);
+  if (ne) {
+    for (const [, e] of identityMap) {
+      if (e.email && normEmail(e.email) === ne) return e.displayName;
+    }
+  }
+  for (const [, e] of identityMap) {
+    if (e.normIds.has(nd)) return e.displayName;
+  }
+  if (nd.length >= 4) {
+    for (const [, e] of identityMap) {
+      for (const alias of e.normIds) {
+        if (alias.length >= 4 && levenshtein(nd, alias, 2) <= 2) return e.displayName;
+      }
+    }
+  }
+  return discord || 'unknown';
 }
 
 async function suggestBook() {
@@ -673,7 +752,7 @@ async function suggestBook() {
   const norm = s => s.trim().toLowerCase();
   const existing = books.find(b => norm(b.title) === norm(title) && norm(b.author) === norm(author));
   if (existing) {
-    if (existing.suggesters.some(s => normId(s.discord) === normId(discord))) {
+    if (existing.suggesters.some(s => resolveId(s.discord, s.email, buildIdentityMap()) === resolveId(discord, email, buildIdentityMap()))) {
       showMsg('suggest-msg', "You've already recommended this book!", 'err'); return;
     }
     existing.suggesters.push({ discord, email, reason });
@@ -801,9 +880,11 @@ async function submitVote() {
   if (!email.includes('@')) { showMsg('vote-msg', 'Valid email required.', 'err'); return; }
   const items = [...document.getElementById('sortable-list').querySelectorAll('.sort-item')];
   if (!items.length) { showMsg('vote-msg', 'No books to rank.', 'err'); return; }
-  // Merge under any existing key that normalises to the same identity
+  // Merge under any existing key that resolves to the same identity
   const rawVotes = getVotes();
-  const existingKey = Object.keys(rawVotes).find(k => normId(k) === normId(name));
+  const idMap = buildIdentityMap();
+  const resolvedName = resolveId(name, email, idMap);
+  const existingKey = Object.keys(rawVotes).find(k => resolveId(rawVotes[k].discord||k, rawVotes[k].email, idMap) === resolvedName);
   const votes = rawVotes;
   const storeKey = existingKey || name;
   if (existingKey && !confirm(`"${existingKey}" has already voted. Submit new ranking?`)) return;
@@ -1124,8 +1205,11 @@ async function submitReview() {
 
   // Duplicate key: discord + bookId (for dual months) or just discord (single months)
   // Same person can review both co-winner books, but not the same book twice
+  const idMap2 = buildIdentityMap();
+  const resolvedDiscord = resolveId(discord, email, idMap2);
   const existingIdx = reviews[month].findIndex(r =>
-    normId(r.discord) === normId(discord) && (isDualMonth ? String(r.bookId) === String(bookId) : !r.bookId)
+    resolveId(r.discord, r.email, idMap2) === resolvedDiscord &&
+    (isDualMonth ? String(r.bookId) === String(bookId) : !r.bookId)
   );
   if (existingIdx >= 0) {
     // Silent overwrite — same book, same person
@@ -1276,11 +1360,12 @@ function renderAnalysisMembers() {
   if (!archives.length) { area.innerHTML = '<div class="empty"><div class="icon">👥</div><p>No archived months yet.</p></div>'; return; }
 
   const voterFreq = {};
-  archives.forEach(a => { Object.values(a.votes||{}).forEach(vd => { const k=normId(vd.discord||'')||'Unknown'; voterFreq[k]=(voterFreq[k]||0)+1; }); });
+  const _idMapM = buildIdentityMap();
+  archives.forEach(a => { Object.values(a.votes||{}).forEach(vd => { const k=resolveId(vd.discord,vd.email,_idMapM)||'Unknown'; voterFreq[k]=(voterFreq[k]||0)+1; }); });
   const topVoters = Object.entries(voterFreq).sort((a,b)=>b[1]-a[1]).slice(0,10);
 
   const suggesterFreq = {};
-  archives.forEach(a => { (a.books||[]).map(normBook).forEach(b => { b.suggesters.forEach(s => { const k=normId(s.discord||'')||'Unknown'; suggesterFreq[k]=(suggesterFreq[k]||0)+1; }); }); });
+  archives.forEach(a => { (a.books||[]).map(normBook).forEach(b => { b.suggesters.forEach(s => { const k=resolveId(s.discord,s.email,_idMapM)||'Unknown'; suggesterFreq[k]=(suggesterFreq[k]||0)+1; }); }); });
   const topSuggesters = Object.entries(suggesterFreq).sort((a,b)=>b[1]-a[1]).slice(0,10);
   const maxSuggestions = topSuggesters[0]?topSuggesters[0][1]:1;
 
@@ -1515,51 +1600,38 @@ function renderMemberCompare() {
   // reviewers: { discord: [monthLabel, ...] }
   // rankings:  { discord: { monthLabel: { bookId: rank, ... } } }  (Borda rank given to each book)
 
-  const voterMonths     = {};  // discord → Set of months voted
-  const suggesterMonths = {};  // discord → Set of months suggested
-  const reviewerMonths  = {};  // discord → Set of months reviewed
-  const memberMeta      = {};  // discord → { email, discord }
+  const voterMonths     = {};  // displayName → Set of months voted
+  const suggesterMonths = {};  // displayName → Set of months suggested
+  const reviewerMonths  = {};  // displayName → Set of months reviewed
 
-  const track = (map, discord, month) => {
-    if (!map[discord]) map[discord] = new Set();
-    map[discord].add(month);
-  };
-  const meta = (discord, email) => {
-    // discord is already normId'd when passed in; store with that key
-    if (!memberMeta[discord]) memberMeta[discord] = { discord, email: email || '' };
-    else if (email && !memberMeta[discord].email) memberMeta[discord].email = email;
+  // Build identity map once for this render
+  const idMap = buildIdentityMap();
+
+  const track = (map, name, month) => {
+    if (!map[name]) map[name] = new Set();
+    map[name].add(month);
   };
 
   archives.forEach(a => {
     // Voters
     Object.values(a.votes || {}).forEach(vd => {
-      const d = normId(vd.discord || 'unknown') || 'unknown';
+      const d = resolveId(vd.discord, vd.email, idMap) || 'unknown';
       track(voterMonths, d, a.label);
-      meta(d, vd.email);
     });
     // Suggesters
     (a.books || []).map(normBook).forEach(b => {
       b.suggesters.forEach(s => {
-        const sd = normId(s.discord || 'unknown') || 'unknown';
+        const sd = resolveId(s.discord, s.email, idMap) || 'unknown';
         track(suggesterMonths, sd, a.label);
-        meta(sd, s.email);
       });
-    });
-  });
-
-  // Also include current month suggesters
-  getBooks().map(normBook).forEach(b => {
-    b.suggesters.forEach(s => {
-      if (s.discord) meta(normId(s.discord), s.email);
     });
   });
 
   // Reviewers from reviews map
   Object.entries(allReviews).forEach(([month, entries]) => {
     (entries || []).forEach(r => {
-      const rd = normId(r.discord || 'unknown') || 'unknown';
+      const rd = resolveId(r.discord, r.email, idMap) || 'unknown';
       track(reviewerMonths, rd, month);
-      meta(rd, r.email);
     });
   });
 
@@ -1569,6 +1641,11 @@ function renderMemberCompare() {
     ...Object.keys(suggesterMonths),
     ...Object.keys(reviewerMonths)
   ])].sort();
+  // memberMeta is now derived from idMap
+  const memberMeta = {};
+  for (const [, e] of idMap) {
+    memberMeta[e.displayName] = { discord: e.displayName, email: e.email || '' };
+  }
 
   // ── Build voting rank vectors per member (for similarity) ────────────────
   // For each archive, compute each voter's rank order as a vector (book positions)
@@ -1580,7 +1657,7 @@ function renderMemberCompare() {
     const nb = (a.books || []).length;
     if (!nb) return;
     Object.values(a.votes || {}).forEach(vd => {
-      const d = normId(vd.discord || 'unknown') || 'unknown';
+      const d = resolveId(vd.discord, vd.email, idMap) || 'unknown';
       if (!rankVectors[d]) rankVectors[d] = [];
       const rankMap = {};
       (vd.ranking || vd).forEach((id, idx) => {
