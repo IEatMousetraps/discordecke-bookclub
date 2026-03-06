@@ -1913,12 +1913,32 @@ function renderRankings() {
     return;
   }
 
+  // Build a genre lookup from archives: month label -> winner book genre
+  const archives = getArchives();
+  const monthGenreMap = {};
+  archives.forEach(a => {
+    const nb = (a.books||[]).length;
+    const scores = {};
+    (a.books||[]).forEach(b => scores[b.id] = 0);
+    Object.values(a.votes||{}).forEach(vd => {
+      (vd.ranking||vd).forEach((id,idx2) => { if (scores[id]!==undefined) scores[id]+=(nb-idx2); });
+    });
+    const dualIds = a.dualWinners||[];
+    const sortedBooks = [...(a.books||[])].sort((x,y)=>scores[y.id]-scores[x.id]);
+    const winners = dualIds.length
+      ? (a.books||[]).filter(b=>dualIds.includes(String(b.id)))
+      : sortedBooks.slice(0,1);
+    // Store genre from winner(s) — if multiple winners pick first with a genre
+    const winnerWithGenre = winners.find(b=>b.genre) || winners[0];
+    if (winnerWithGenre && winnerWithGenre.genre) monthGenreMap[a.label] = winnerWithGenre.genre;
+  });
+
   // Aggregate per book title across all months
   const bookData = {};
   Object.entries(reviews).forEach(([month, entries]) => {
     (entries||[]).forEach(r => {
       const title = month; // one book per month — use the month label as the book identifier
-      if (!bookData[title]) bookData[title] = { ratings:[], started:0, finished:0, liked:0, total:0 };
+      if (!bookData[title]) bookData[title] = { ratings:[], started:0, finished:0, liked:0, total:0, genre: monthGenreMap[month]||'' };
       bookData[title].total++;
       if (r.read === 'Yes') bookData[title].started++;
       if (r.finished === 'Yes') bookData[title].finished++;
@@ -1950,6 +1970,7 @@ function renderRankings() {
       <div style="display:flex;align-items:baseline;gap:.75rem;margin-bottom:.85rem;">
         <span style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--gold);">${i+1}.</span>
         <span style="font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:600;">${esc(month)}</span>
+        ${d.genre ? genrePillsHtml(d.genre) : ''}
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.6rem;margin-bottom:.75rem;">
         <div style="background:var(--cream);border-radius:6px;padding:.65rem;text-align:center;">
