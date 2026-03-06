@@ -232,7 +232,16 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       </div>
       <div class="f-group">
         <label>Which month's book are you reviewing? *</label>
-        <select id="rv-month"><option value="">— Select a month —</option></select>
+        <select id="rv-month" onchange="updateBookSelector();updateReviewForm()"><option value="">— Select a month —</option></select>
+      </div>
+    </div>
+
+    <div id="rv-q0" class="card" style="display:none;">
+      <div class="f-group">
+        <label>Which book are you reviewing? *</label>
+        <select id="rv-book" onchange="updateReviewForm()" style="max-width:400px;">
+          <option value="">— Select a book —</option>
+        </select>
       </div>
     </div>
 
@@ -955,7 +964,27 @@ function renderReview() {
   updateReviewForm();
 }
 
+function updateBookSelector() {
+  const monthVal = document.getElementById('rv-month').value;
+  const q0 = document.getElementById('rv-q0');
+  const bookSel = document.getElementById('rv-book');
+  if (!monthVal) { q0.style.display = 'none'; return; }
+  const archive = getArchives().find(a => a.label === monthVal);
+  if (!archive || !archive.dualWinners || !archive.dualWinners.length) {
+    q0.style.display = 'none';
+    bookSel.value = '';
+    return;
+  }
+  // Dual-winner month — populate selector with just the two winners
+  const winnerBooks = (archive.books || []).filter(b => archive.dualWinners.includes(String(b.id)));
+  const curBook = bookSel.value;
+  bookSel.innerHTML = '<option value="">— Select a book —</option>' +
+    winnerBooks.map(b => `<option value="${b.id}"${String(b.id)===curBook?' selected':''}>${esc(b.title)}</option>`).join('');
+  q0.style.display = 'block';
+}
+
 function updateReviewForm() {
+  updateBookSelector();
   const read     = document.querySelector('input[name="rv-read"]:checked')?.value;
   const finished = document.querySelector('input[name="rv-finished"]:checked')?.value;
   const show = id => { const el = document.getElementById(id); if (el) el.style.display = 'block'; };
@@ -1011,10 +1040,20 @@ function updateReviewForm() {
   }
 }
 window.updateReviewForm = updateReviewForm;
+window.updateBookSelector = updateBookSelector;
 
 async function submitReview() {
   const email   = v('rv-email'), discord = v('rv-discord');
   const month   = document.getElementById('rv-month').value;
+
+  // Check if this is a dual-winner month and get selected book
+  const archive = getArchives().find(a => a.label === month);
+  const isDualMonth = archive && archive.dualWinners && archive.dualWinners.length;
+  const bookId  = isDualMonth ? document.getElementById('rv-book').value : null;
+  const bookTitle = isDualMonth && bookId
+    ? ((archive.books||[]).find(b => String(b.id) === String(bookId))?.title || '')
+    : null;
+
   const read    = document.querySelector('input[name="rv-read"]:checked')?.value || '';
   const finished= document.querySelector('input[name="rv-finished"]:checked')?.value || '';
   const dnfWhy  = v('rv-dnf-reason');
@@ -1025,6 +1064,7 @@ async function submitReview() {
   if (!email || !discord) { showMsg('review-msg', 'Please fill in all your details.', 'err'); return; }
   if (!email.includes('@')) { showMsg('review-msg', 'Please enter a valid email.', 'err'); return; }
   if (!month) { showMsg('review-msg', 'Please select a month.', 'err'); return; }
+  if (isDualMonth && !bookId) { showMsg('review-msg', 'Please select which book you are reviewing.', 'err'); return; }
   if (!read)  { showMsg('review-msg', 'Please answer question 1.', 'err'); return; }
   if (read === 'Yes' && !finished) { showMsg('review-msg', 'Please answer question 2.', 'err'); return; }
 
@@ -1032,15 +1072,20 @@ async function submitReview() {
     name: discord, email, discord,
     month, read, finished, dnfWhy, liked, why,
     rating: rating || 'opt-out',
+    ...(isDualMonth ? { bookId: String(bookId), bookTitle } : {}),
     ts: Date.now()
   };
 
   const reviews = getReviews();
   if (!reviews[month]) reviews[month] = [];
-  // Allow one review per discord per month; overwrite if exists
-  const existingIdx = reviews[month].findIndex(r => r.discord === discord);
+
+  // Duplicate key: discord + bookId (for dual months) or just discord (single months)
+  // Same person can review both co-winner books, but not the same book twice
+  const existingIdx = reviews[month].findIndex(r =>
+    r.discord === discord && (isDualMonth ? String(r.bookId) === String(bookId) : !r.bookId)
+  );
   if (existingIdx >= 0) {
-    if (!confirm('You have already reviewed this month\'s book. Overwrite?')) return;
+    // Silent overwrite — same book, same person
     reviews[month][existingIdx] = entry;
   } else {
     reviews[month].push(entry);
@@ -1053,6 +1098,8 @@ async function submitReview() {
   // Reset form
   ['rv-email','rv-discord','rv-dnf-reason','rv-why'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   document.getElementById('rv-month').value = '';
+  const rvBook = document.getElementById('rv-book'); if (rvBook) rvBook.value = '';
+  document.getElementById('rv-q0').style.display = 'none';
   document.querySelectorAll('input[name^="rv-"]').forEach(el => el.checked = false);
   updateReviewForm();
 }
