@@ -203,7 +203,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   <button data-tab="surveys" onclick="goTab('surveys',this)">Surveys</button>
   <button data-tab="progress" onclick="goTab('progress',this)">📖 My Progress</button>
   <button data-tab="badges" onclick="goTab('badges',this)">🏅 Badges</button>
-  <button data-tab="rankings" id="rankings-tab-btn" onclick="goTab('rankings',this)">Book Rankings</button>
+  <button data-tab="rankings" onclick="goTab('rankings',this)">2026 Book Rankings</button>
   <button data-tab="analysis" onclick="goTab('analysis',this)">Book Club Metrics</button>
 </nav>
 
@@ -399,7 +399,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 
 <!-- ══════════════ RANKINGS ══════════════ -->
 <div id="tab-rankings" class="section">
-  <div class="sec-head"><h2 id="rankings-page-title">Book Rankings</h2><p>How every book performed across all months, broken down by rank position.</p></div>
+  <div class="sec-head"><h2>2026 Book Rankings</h2><p>How every book performed across all months, broken down by rank position.</p></div>
   <div id="rankings-area"></div>
 </div>
 
@@ -1968,12 +1968,6 @@ function renderAnalysisReviews() {
 function renderRankings() {
   const reviews = getReviews();
   const area = document.getElementById('rankings-area');
-  // Dynamically set title/tab to current year
-  const currentYear = new Date().getFullYear();
-  const titleEl = document.getElementById('rankings-page-title');
-  const tabBtn  = document.getElementById('rankings-tab-btn');
-  if (titleEl) titleEl.textContent = currentYear + ' Book Rankings';
-  if (tabBtn)  tabBtn.textContent  = currentYear + ' Book Rankings';
   const allEntries = Object.values(reviews).flat();
 
   if (!allEntries.length) {
