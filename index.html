@@ -372,6 +372,8 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
     <div id="progress-books-area"></div>
     <div id="pg-save-msg"></div>
   </div>
+  <div class="sec-head" style="margin-top:2rem;"><h2>Club Reading Leaderboard</h2><p>See where everyone's at across all winning books.</p></div>
+  <div id="progress-leaderboard"></div>
 </div>
 
 <!-- ══════════════ BADGES ══════════════ -->
@@ -2276,9 +2278,34 @@ window.loadProgress = loadProgress;
 function renderProgressTab() {
   const area = document.getElementById('progress-books-area');
   if (!area) return;
-  if (!_pgIdentity) return; // wait for identity
 
   const archives = getArchives();
+
+  // Always compute winner entries for leaderboard (no identity needed)
+  const winnerEntries = archives.map(a => {
+    const dualIds = a.dualWinners || [];
+    let winners;
+    if (dualIds.length) {
+      winners = (a.books || []).filter(b => dualIds.includes(String(b.id)));
+    } else {
+      const nb = (a.books || []).length;
+      const scores = {};
+      (a.books || []).forEach(b => scores[b.id] = 0);
+      Object.values(a.votes || {}).forEach(vd => {
+        (vd.ranking || vd).forEach((id, idx) => {
+          if (scores[id] !== undefined) scores[id] += (nb - idx);
+        });
+      });
+      const sorted = [...(a.books || [])].sort((x, y) => scores[y.id] - scores[x.id]);
+      winners = sorted.length ? [sorted[0]] : [];
+    }
+    return { month: a.label, winners };
+  }).filter(e => e.winners.length);
+
+  renderProgressLeaderboard(winnerEntries);
+
+  if (!_pgIdentity) return; // personal section requires identity
+
   if (!archives.length) {
     area.innerHTML = '<div class="empty"><div class="icon">📚</div><p>No archived months yet. Winner books will appear here once the admin archives a month.</p></div>';
     return;
@@ -2293,28 +2320,6 @@ function renderProgressTab() {
     { key: 'finished',    label: 'Finished',     emoji: '✅' },
     { key: 'dnf',         label: 'DNF',          emoji: '❌' },
   ];
-
-  // Determine winner(s) per archived month using Borda count (same as results/showMonthDetail)
-  const winnerEntries = archives.map(a => {
-    const dualIds = a.dualWinners || [];
-    let winners;
-    if (dualIds.length) {
-      winners = (a.books || []).filter(b => dualIds.includes(String(b.id)));
-    } else {
-      // Compute Borda scores to find the actual winner
-      const nb = (a.books || []).length;
-      const scores = {};
-      (a.books || []).forEach(b => scores[b.id] = 0);
-      Object.values(a.votes || {}).forEach(vd => {
-        (vd.ranking || vd).forEach((id, idx) => {
-          if (scores[id] !== undefined) scores[id] += (nb - idx);
-        });
-      });
-      const sorted = [...(a.books || [])].sort((x, y) => scores[y.id] - scores[x.id]);
-      winners = sorted.length ? [sorted[0]] : [];
-    }
-    return { month: a.label, winners };
-  }).filter(e => e.winners.length);
 
   area.innerHTML = `
     <p style="font-size:.82rem;color:var(--soft);margin-bottom:1.25rem;">Track your reading progress on each month's winning pick.</p>
@@ -2355,6 +2360,93 @@ async function setProgress(bookId, status, btn) {
   await fbSet(PROGRESS_REF, { map: progress });
 }
 window.setProgress = setProgress;
+
+function renderProgressLeaderboard(winnerEntries) {
+  const el = document.getElementById('progress-leaderboard');
+  if (!el) return;
+
+  const progress = getReadingProgress();
+  const archives = getArchives();
+
+  if (!archives.length || !winnerEntries || !winnerEntries.length) {
+    el.innerHTML = '<div class="empty"><div class="icon">📖</div><p>No data yet — check back once months have been archived.</p></div>';
+    return;
+  }
+
+  // Collect all winner book IDs
+  const allWinnerBooks = winnerEntries.flatMap(e => e.winners);
+  const totalBooks = allWinnerBooks.length;
+
+  // Build per-member stats from progress data
+  // We also pull known members from votes/suggestions so everyone shows up even without progress entries
+  const idMap = buildIdentityMap();
+  const memberMap = new Map(); // key → { name, finished, reading, dnf, notStarted, total }
+
+  // Seed known members from archives
+  archives.forEach(a => {
+    Object.values(a.votes || {}).forEach(vd => {
+      const name = resolveId(vd.discord, vd.email, idMap);
+      const key = normEmail(vd.email) || normId(vd.discord);
+      if (!memberMap.has(key)) memberMap.set(key, { name, finished: 0, reading: 0, dnf: 0 });
+    });
+  });
+
+  // Apply progress data
+  Object.entries(progress).forEach(([memberKey, bookStatuses]) => {
+    // Try to get a display name — fall back to the key itself
+    let name = memberKey;
+    for (const [, e] of idMap) {
+      if ((e.email && normEmail(e.email) === memberKey) || e.normIds.has(memberKey)) {
+        name = e.displayName; break;
+      }
+    }
+    if (!memberMap.has(memberKey)) memberMap.set(memberKey, { name, finished: 0, reading: 0, dnf: 0 });
+    const entry = memberMap.get(memberKey);
+    entry.name = name; // update in case we found a better display name
+
+    allWinnerBooks.forEach(b => {
+      const status = bookStatuses[b.id];
+      if (status === 'finished')    entry.finished++;
+      else if (status === 'reading') entry.reading++;
+      else if (status === 'dnf')     entry.dnf++;
+    });
+  });
+
+  // Filter to members who have set at least one status, sort by finished desc then reading
+  const rows = [...memberMap.values()]
+    .filter(m => m.finished + m.reading + m.dnf > 0)
+    .sort((a, b) => b.finished - a.finished || b.reading - a.reading || a.dnf - b.dnf);
+
+  if (!rows.length) {
+    el.innerHTML = '<div class="empty"><div class="icon">📖</div><p>No progress logged yet — be the first to mark a book!</p></div>';
+    return;
+  }
+
+  const statusPip = (count, cls, emoji) => count > 0
+    ? `<span style="display:inline-flex;align-items:center;gap:.25rem;font-size:.75rem;padding:.15rem .5rem;border-radius:12px;background:var(--cream);border:1px solid var(--border);">${emoji} ${count}</span>`
+    : '';
+
+  el.innerHTML = rows.map((m, i) => {
+    const pct = totalBooks > 0 ? Math.round(m.finished / totalBooks * 100) : 0;
+    return `<div class="card" style="padding:.85rem 1.25rem;margin-bottom:.5rem;">
+      <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+        <div style="font-family:'Playfair Display',serif;font-size:1.2rem;color:var(--gold);min-width:2rem;text-align:center;">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</div>
+        <div style="flex:1;min-width:140px;">
+          <div style="font-weight:500;font-size:.92rem;margin-bottom:.3rem;">${esc(m.name)}</div>
+          <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden;max-width:200px;">
+            <div style="height:100%;width:${pct}%;background:var(--green);border-radius:3px;transition:width .6s;"></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;">
+          ${statusPip(m.finished, 'finished', '✅')}
+          ${statusPip(m.reading,  'reading',  '👀')}
+          ${statusPip(m.dnf,      'dnf',      '❌')}
+          <span style="font-size:.72rem;color:var(--soft);margin-left:.2rem;">${m.finished}/${totalBooks} finished</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
 
 // ════════════════════════════════════════════════════════
 // MEMBER ACHIEVEMENTS / BADGES
