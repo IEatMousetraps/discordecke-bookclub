@@ -2840,7 +2840,7 @@ const BADGE_DEFS = [
 
   // ── Night Owl (tiered, cutoff-gated) ─────────────────────────────────────
   { id:'night-owl-1',       name:'Night Owl',           emoji:'🦉',  tier:'bronze', desc:'Submit a vote, suggestion, or review after midnight (from Mar 18, 2026)', check:p=>p.nightOwlCount>=1,  cutoffGated:true },
-  { id:'night-owl-5',       name:'Night Owl ×5',        emoji:'🦉',  tier:'silver', desc:'Submit after midnight 5 times (from Mar 18, 2026)',          check:p=>p.nightOwlCount>=5,  cutoffGated:true },
+  { id:'night-owl-5',       name:'Night Owl ×5',        emoji:'🦉',  tier:'silver', desc:'Submit a vote, suggestion, or review after midnight 5 times (from Mar 18, 2026)', check:p=>p.nightOwlCount>=5,  cutoffGated:true },
 
   // ── Reading streaks ───────────────────────────────────────────────────────
   { id:'read-streak-2',     name:'Back to Back',        emoji:'📖',  tier:'bronze', desc:'Finish 2 winning books in a row',                           check:p=>p.longestReadStreak>=2 },
