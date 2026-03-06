@@ -226,11 +226,11 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
           <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
             <select id="s-genre" style="flex:1;min-width:130px;">
               <option value="">— Primary —</option>
-              <option>Biography / Memoir</option><option>Essays</option><option>Fantasy</option><option>Graphic Novel</option><option>Historical Fiction</option><option>Horror</option><option>LGBTQ+</option><option>Literary Fiction</option><option>Magical Realism</option><option>Mystery</option><option>Non-Fiction</option><option>Poetry</option><option>Psychology</option><option>Romance</option><option>Science Fiction</option><option>Self-Help / Personal Growth</option><option>Thriller / Suspense</option><option>Other</option>
+              <option>Adventure</option><option>Biography / Memoir</option><option>Cozy</option><option>Essays</option><option>Fantasy</option><option>Graphic Novel</option><option>Historical Fiction</option><option>Horror</option><option>Journalism</option><option>LGBTQ+</option><option>Literary Fiction</option><option>Magical Realism</option><option>Mystery</option><option>Non-Fiction</option><option>Poetry</option><option>Psychology</option><option>Romance</option><option>Science Fiction</option><option>Self-Help / Personal Growth</option><option>Thriller / Suspense</option><option>Other</option>
             </select>
             <select id="s-genre2" style="flex:1;min-width:130px;">
               <option value="">— Secondary —</option>
-              <option>Biography / Memoir</option><option>Essays</option><option>Fantasy</option><option>Graphic Novel</option><option>Historical Fiction</option><option>Horror</option><option>LGBTQ+</option><option>Literary Fiction</option><option>Magical Realism</option><option>Mystery</option><option>Non-Fiction</option><option>Poetry</option><option>Psychology</option><option>Romance</option><option>Science Fiction</option><option>Self-Help / Personal Growth</option><option>Thriller / Suspense</option><option>Other</option>
+              <option>Adventure</option><option>Biography / Memoir</option><option>Cozy</option><option>Essays</option><option>Fantasy</option><option>Graphic Novel</option><option>Historical Fiction</option><option>Horror</option><option>Journalism</option><option>LGBTQ+</option><option>Literary Fiction</option><option>Magical Realism</option><option>Mystery</option><option>Non-Fiction</option><option>Poetry</option><option>Psychology</option><option>Romance</option><option>Science Fiction</option><option>Self-Help / Personal Growth</option><option>Thriller / Suspense</option><option>Other</option>
             </select>
           </div>
         </div>
@@ -1204,6 +1204,9 @@ const GENRE_PILL_COLORS = {
   'Psychology':         { bg:'#e8eaf6', text:'#283593', border:'#9fa8da' },
   'LGBTQ+':             { bg:'#fff9c4', text:'#f57f17', border:'#fff176' },
   'Magical Realism':    { bg:'#f3e5f5', text:'#6a1b9a', border:'#ce93d8' },
+  'Adventure':          { bg:'#fff3e0', text:'#e65100', border:'#ffb74d' },
+  'Cozy':               { bg:'#fce4ec', text:'#ad1457', border:'#f48fb1' },
+  'Journalism':         { bg:'#eceff1', text:'#37474f', border:'#b0bec5' },
   'Other':              { bg:'#f5f5f5', text:'#616161', border:'#e0e0e0' },
 };
 
@@ -3279,7 +3282,7 @@ window.adminDeleteCustomBadge = adminDeleteCustomBadge;
 // ════════════════════════════════════════════════════════
 // EDIT BOOKS (ADMIN)
 // ════════════════════════════════════════════════════════
-const EDIT_GENRES = ['','Biography / Memoir','Essays','Fantasy','Graphic Novel','Historical Fiction','Horror','LGBTQ+','Literary Fiction','Magical Realism','Mystery','Non-Fiction','Poetry','Psychology','Romance','Science Fiction','Self-Help / Personal Growth','Thriller / Suspense','Other'];
+const EDIT_GENRES = ['','Adventure','Biography / Memoir','Cozy','Essays','Fantasy','Graphic Novel','Historical Fiction','Horror','Journalism','LGBTQ+','Literary Fiction','Magical Realism','Mystery','Non-Fiction','Poetry','Psychology','Romance','Science Fiction','Self-Help / Personal Growth','Thriller / Suspense','Other'];
 
 function genreSelect(id, val) {
   // val may be 'Romance / Fantasy' — split on ' / '
