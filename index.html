@@ -120,6 +120,11 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 .radio-group{display:flex;flex-direction:column;gap:.4rem;}
 .radio-opt{display:flex;align-items:center;gap:.6rem;cursor:pointer;font-size:.9rem;}
 .radio-opt input{cursor:pointer;accent-color:var(--gold);}
+/* sub-tabs */
+.sub-tabs{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.5rem;border-bottom:2px solid var(--border);padding-bottom:.75rem;}
+.sub-tab{font-family:'DM Sans',sans-serif;font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;padding:.45rem 1.1rem;background:none;border:1px solid var(--border);border-radius:20px;cursor:pointer;color:var(--soft);transition:all .2s;}
+.sub-tab.active{background:var(--gold);color:var(--black);border-color:var(--gold);font-weight:600;}
+.sub-tab:hover:not(.active){border-color:var(--gold);color:var(--ink);}
 /* divider */
 .div{text-align:center;color:var(--border);margin:1.5rem 0;font-size:1rem;letter-spacing:.4em;}
 @media(max-width:520px){.grid2{grid-template-columns:1fr;}.grid3{grid-template-columns:1fr 1fr;}.bar-row{grid-template-columns:90px 1fr 40px;}}
@@ -298,7 +303,14 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 <!-- ══════════════ ANALYSIS ══════════════ -->
 <div id="tab-analysis" class="section">
   <div class="sec-head"><h2>Book Club Metrics</h2><p>Month-by-month and year-end trends.</p></div>
-  <div id="analysis-area"></div>
+  <div class="sub-tabs">
+    <button class="sub-tab active" onclick="goSubTab('voting',this)">Voting</button>
+    <button class="sub-tab" onclick="goSubTab('members',this)">Members</button>
+    <button class="sub-tab" onclick="goSubTab('reviews-data',this)">Reviews</button>
+  </div>
+  <div id="sub-voting"><div id="analysis-voting-area"></div></div>
+  <div id="sub-members" style="display:none;"><div id="analysis-members-area"></div></div>
+  <div id="sub-reviews-data" style="display:none;"><div id="analysis-reviews-area"></div></div>
 </div>
 
 <!-- ══════════════ ADMIN ══════════════ -->
@@ -1002,180 +1014,280 @@ async function submitReview() {
 window.submitReview = submitReview;
 
 // ════════════════════════════════════════════════════════
-// ANALYSIS
+// ANALYSIS — sub-tab controller
 // ════════════════════════════════════════════════════════
+function goSubTab(id, btn) {
+  ['voting','members','reviews-data'].forEach(s => {
+    document.getElementById('sub-'+s).style.display = s === id ? '' : 'none';
+  });
+  document.querySelectorAll('.sub-tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  if (id === 'voting')       renderAnalysisVoting();
+  if (id === 'members')      renderAnalysisMembers();
+  if (id === 'reviews-data') renderAnalysisReviews();
+}
+window.goSubTab = goSubTab;
+
 function renderAnalysis() {
-  const archives = getArchives(), area = document.getElementById('analysis-area');
-  if (!archives.length) { area.innerHTML = '<div class="empty"><div class="icon">📈</div><p>No archived months yet. Archive a month from the Admin tab to see analysis here.</p></div>'; return; }
+  // Default to first sub-tab on load
+  const activeBtn = document.querySelector('.sub-tab.active');
+  const activeId  = activeBtn ? activeBtn.getAttribute('onclick').match(/'([^']+)'/)?.[1] : 'voting';
+  goSubTab(activeId || 'voting', activeBtn);
+}
 
-  // ── Participation over time ───────────────────────────────────────────────
-  const participationData = archives.map(a => Object.keys(a.votes || {}).length);
-  const maxParticipation = Math.max(...participationData, 1);
+// ── Voting sub-tab ────────────────────────────────────────────────────────────
+function renderAnalysisVoting() {
+  const archives = getArchives();
+  const area = document.getElementById('analysis-voting-area');
+  if (!archives.length) { area.innerHTML = '<div class="empty"><div class="icon">📊</div><p>No archived months yet.</p></div>'; return; }
 
-  // ── Top books: normalised score = pts / max_possible_pts_in_that_month ───
-  // Max possible = every voter ranks it #1 = voters × nb points
-  // We store: { pts, maxPossible, pct (avg %), appears }
+  const participationData = archives.map(a => Object.keys(a.votes||{}).length);
+  const maxParticipation  = Math.max(...participationData, 1);
+
   const allScores = {};
   archives.forEach(a => {
-    const nb = (a.books||[]).length;
-    const voterCount = Object.keys(a.votes||{}).length;
+    const nb = (a.books||[]).length, voterCount = Object.keys(a.votes||{}).length;
     if (!nb || !voterCount) return;
-    const maxPossibleInMonth = voterCount * nb; // score if everyone ranked it #1
-    // Calculate actual scores for this month
+    const maxPossible = voterCount * nb;
     const monthScores = {};
     (a.books||[]).forEach(b => { monthScores[b.id] = 0; });
     Object.values(a.votes||{}).forEach(vd => {
-      (vd.ranking||vd).forEach((id, idx) => {
-        if (monthScores[id] !== undefined) monthScores[id] += (nb - idx);
-      });
+      (vd.ranking||vd).forEach((id, idx) => { if (monthScores[id] !== undefined) monthScores[id] += (nb - idx); });
     });
     (a.books||[]).forEach(b => {
       const pts = monthScores[b.id] || 0;
-      const pct = maxPossibleInMonth > 0 ? (pts / maxPossibleInMonth) * 100 : 0;
-      if (!allScores[b.title]) allScores[b.title] = { totalPct: 0, appears: 0, totalPts: 0 };
-      allScores[b.title].totalPct += pct;
-      allScores[b.title].totalPts += pts;
-      allScores[b.title].appears++;
+      const pct = maxPossible > 0 ? (pts / maxPossible) * 100 : 0;
+      if (!allScores[b.title]) allScores[b.title] = { totalPct:0, appears:0 };
+      allScores[b.title].totalPct += pct; allScores[b.title].appears++;
     });
   });
-  // Average normalised % across months the book appeared in
-  const topBooks = Object.entries(allScores)
-    .map(([title, d]) => [title, { ...d, avgPct: d.totalPct / d.appears }])
-    .sort((a, b) => b[1].avgPct - a[1].avgPct)
-    .slice(0, 10);
-  const maxAvgPct = topBooks[0] ? topBooks[0][1].avgPct : 1;
+  const topBooks   = Object.entries(allScores).map(([t,d]) => [t,{...d,avgPct:d.totalPct/d.appears}]).sort((a,b)=>b[1].avgPct-a[1].avgPct).slice(0,10);
+  const maxAvgPct  = topBooks[0] ? topBooks[0][1].avgPct : 1;
 
-  // ── Most consistent voters — keyed by discord username ───────────────────
-  const voterFreq = {}; // discord → count
+  // Rank distribution
+  const rankDist = {};
   archives.forEach(a => {
+    const nb = (a.books||[]).length, voterCount = Object.keys(a.votes||{}).length;
+    if (!nb || !voterCount) return;
+    (a.books||[]).forEach(b => { if (!rankDist[b.title]) rankDist[b.title] = {totalVoters:0,rankCounts:{}}; rankDist[b.title].totalVoters += voterCount; });
     Object.values(a.votes||{}).forEach(vd => {
-      const key = vd.discord || 'Unknown';
-      voterFreq[key] = (voterFreq[key] || 0) + 1;
+      (vd.ranking||vd).forEach((id, idx) => {
+        const book = (a.books||[]).find(b => String(b.id)===String(id)); if (!book) return;
+        const rank = idx+1; rankDist[book.title].rankCounts[rank] = (rankDist[book.title].rankCounts[rank]||0)+1;
+      });
     });
   });
-  const topVoters = Object.entries(voterFreq).sort((a,b) => b[1]-a[1]).slice(0, 10);
-
-  // ── Top suggesters — keyed by discord username ────────────────────────────
-  const suggesterFreq = {};
-  archives.forEach(a => {
-    (a.books||[]).forEach(b => {
-      const key = b.discord || b.suggester || 'Unknown';
-      suggesterFreq[key] = (suggesterFreq[key] || 0) + 1;
-    });
-  });
-  const topSuggesters = Object.entries(suggesterFreq).sort((a,b) => b[1]-a[1]).slice(0, 10);
-  const maxSuggestions = topSuggesters[0] ? topSuggesters[0][1] : 1;
+  const rankDistSorted = Object.entries(rankDist).map(([title,d]) => {
+    let ws=0,tot=0; Object.entries(d.rankCounts).forEach(([r,n])=>{ws+=+r*n;tot+=n;});
+    return [title,{...d,avgRank:tot>0?ws/tot:999}];
+  }).sort((a,b)=>a[1].avgRank-b[1].avgRank);
 
   area.innerHTML = `
   <div class="chart-wrap"><h3>Participation Over Time</h3><div class="bar-chart">
-    ${archives.map((a,i) => `<div class="bar-row">
+    ${archives.map((a,i)=>`<div class="bar-row">
       <div style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(a.label)}</div>
-      <div class="bar-track"><div class="bar-val" style="width:${Math.max(3, participationData[i]/maxParticipation*100)}%"></div></div>
+      <div class="bar-track"><div class="bar-val" style="width:${Math.max(3,participationData[i]/maxParticipation*100)}%"></div></div>
       <div class="bar-lbl">${participationData[i]} voter${participationData[i]!==1?'s':''}</div>
     </div>`).join('')}
   </div></div>
 
   <div class="chart-wrap">
     <h3>Top Books (Normalised Score)</h3>
-    <p style="font-size:.78rem;color:var(--soft);margin-bottom:1rem;">Score = average % of maximum possible points earned in the month the book was voted on. This lets books from months with different voter counts be compared fairly.</p>
-    ${topBooks.length ? `<div class="bar-chart">${topBooks.map(([title, d]) => `<div class="bar-row">
+    <p style="font-size:.78rem;color:var(--soft);margin-bottom:1rem;">Average % of maximum possible Borda points earned per month, so books from months with different voter counts compare fairly.</p>
+    ${topBooks.length?`<div class="bar-chart">${topBooks.map(([title,d])=>`<div class="bar-row">
       <div style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(title)}">${esc(title)}</div>
-      <div class="bar-track"><div class="bar-val" style="width:${Math.max(3, d.avgPct/maxAvgPct*100)}%"></div></div>
+      <div class="bar-track"><div class="bar-val" style="width:${Math.max(3,d.avgPct/maxAvgPct*100)}%"></div></div>
       <div class="bar-lbl">${d.avgPct.toFixed(1)}%</div>
-    </div>`).join('')}</div>` : '<p style="color:var(--soft);font-size:.875rem;">Not enough data yet.</p>'}
+    </div>`).join('')}</div>`:'<p style="color:var(--soft);font-size:.875rem;">Not enough data yet.</p>'}
   </div>
 
-  <div class="chart-wrap"><h3>Most Consistent Voters</h3>
-    ${topVoters.length ? `<div class="bar-chart">${topVoters.map(([discord, count]) => `<div class="bar-row">
-      <div style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(discord)}</div>
-      <div class="bar-track"><div class="bar-val" style="width:${Math.max(3, count/archives.length*100)}%"></div></div>
-      <div class="bar-lbl">${count}/${archives.length}</div>
-    </div>`).join('')}</div>` : '<p style="color:var(--soft);font-size:.875rem;">Not enough data.</p>'}
-  </div>
-
-  <div class="chart-wrap"><h3>Top Book Suggesters</h3>
-    ${topSuggesters.length ? `<div class="bar-chart">${topSuggesters.map(([discord, count]) => `<div class="bar-row">
-      <div style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(discord)}</div>
-      <div class="bar-track"><div class="bar-val" style="width:${Math.max(3, count/maxSuggestions*100)}%"></div></div>
-      <div class="bar-lbl">${count} book${count!==1?'s':''}</div>
-    </div>`).join('')}</div>` : '<p style="color:var(--soft);font-size:.875rem;">Not enough data.</p>'}
-  </div>
-
-  <div class="chart-wrap"><h3>Monthly Results</h3>
-    <div class="month-tabs">${archives.map((a,i) => `<div class="month-tab ${i===archives.length-1?'active':''}" onclick="showMonthDetail(${i},this)">${esc(a.label)}</div>`).join('')}</div>
-    <div id="month-detail"></div>
-  </div>`;
-  showMonthDetail(archives.length - 1, area.querySelector('.month-tab.active'));
-}
-
-// ════════════════════════════════════════════════════════
-// RANKINGS PAGE
-// ════════════════════════════════════════════════════════
-function renderRankings() {
-  const archives = getArchives();
-  const area = document.getElementById('rankings-area');
-  if (!archives.length) {
-    area.innerHTML = '<div class="empty"><div class="icon">🏆</div><p>No archived months yet. Rankings will appear here once months have been archived.</p></div>';
-    return;
-  }
-
-  const rankDist = {};
-  archives.forEach(a => {
-    const nb = (a.books||[]).length;
-    const voterCount = Object.keys(a.votes||{}).length;
-    if (!nb || !voterCount) return;
-    (a.books||[]).forEach(b => {
-      if (!rankDist[b.title]) rankDist[b.title] = { totalVoters: 0, rankCounts: {} };
-      rankDist[b.title].totalVoters += voterCount;
-    });
-    Object.values(a.votes||{}).forEach(vd => {
-      (vd.ranking||vd).forEach((id, idx) => {
-        const book = (a.books||[]).find(b => String(b.id) === String(id));
-        if (!book) return;
-        const rank = idx + 1;
-        rankDist[book.title].rankCounts[rank] = (rankDist[book.title].rankCounts[rank] || 0) + 1;
-      });
-    });
-  });
-
-  const rankDistSorted = Object.entries(rankDist)
-    .map(([title, d]) => {
-      let weightedSum = 0, total = 0;
-      Object.entries(d.rankCounts).forEach(([r, n]) => { weightedSum += +r * n; total += n; });
-      return [title, { ...d, avgRank: total > 0 ? weightedSum / total : 999 }];
-    })
-    .sort((a, b) => a[1].avgRank - b[1].avgRank);
-
-  if (!rankDistSorted.length) {
-    area.innerHTML = '<div class="empty"><div class="icon">🏆</div><p>Not enough data yet.</p></div>';
-    return;
-  }
-
-  area.innerHTML = `<div class="chart-wrap">
-    <p style="font-size:.78rem;color:var(--soft);margin-bottom:1.25rem;">Each book shows the % of voters who ranked it at each position, normalised by total voters in that month. Green = #1 votes, red = last place. Sorted by best average rank.</p>
-    ${rankDistSorted.map(([title, d], i) => {
-      const maxRankInBook = Math.max(...Object.keys(d.rankCounts).map(Number));
-      const rows = Array.from({length: maxRankInBook}, (_, j) => {
-        const rank = j + 1;
-        const count = d.rankCounts[rank] || 0;
-        const pct = d.totalVoters > 0 ? (count / d.totalVoters * 100) : 0;
-        const hue = Math.round(120 - (rank - 1) / Math.max(maxRankInBook - 1, 1) * 120);
+  <div class="chart-wrap">
+    <h3>Book Rank Distributions (Voting)</h3>
+    <p style="font-size:.78rem;color:var(--soft);margin-bottom:1rem;">% of voters who ranked each book at each position. Green = #1, red = last. Sorted by best average rank.</p>
+    ${rankDistSorted.length ? rankDistSorted.map(([title,d],i)=>{
+      const maxR = Math.max(...Object.keys(d.rankCounts).map(Number));
+      const rows = Array.from({length:maxR},(_,j)=>{
+        const rank=j+1,count=d.rankCounts[rank]||0,pct=d.totalVoters>0?(count/d.totalVoters*100):0;
+        const hue=Math.round(120-(rank-1)/Math.max(maxR-1,1)*120);
         return `<div class="bar-row" style="margin-bottom:.2rem;">
           <div style="font-size:.72rem;color:var(--soft);min-width:2rem;text-align:right;">#${rank}</div>
-          <div class="bar-track"><div class="bar-val" style="width:${Math.max(pct > 0 ? 2 : 0, pct)}%;background:hsl(${hue},60%,45%);"></div></div>
+          <div class="bar-track"><div class="bar-val" style="width:${Math.max(pct>0?2:0,pct)}%;background:hsl(${hue},60%,45%);"></div></div>
           <div class="bar-lbl" style="font-size:.72rem;">${pct.toFixed(0)}%<span style="color:var(--soft);margin-left:.25rem;">(${count})</span></div>
         </div>`;
       }).join('');
-      return `<div style="margin-bottom:1.5rem;padding-bottom:1.5rem;border-bottom:1px solid var(--border);">
-        <div style="display:flex;align-items:baseline;gap:.75rem;margin-bottom:.5rem;">
-          <span style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--gold);">${i + 1}.</span>
-          <span style="font-size:.92rem;font-weight:500;">${esc(title)}</span>
+      return `<div style="margin-bottom:1.25rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border);">
+        <div style="display:flex;align-items:baseline;gap:.5rem;margin-bottom:.4rem;">
+          <span style="font-family:'Playfair Display',serif;font-weight:700;color:var(--gold);">${i+1}.</span>
+          <span style="font-size:.88rem;font-weight:500;">${esc(title)}</span>
         </div>
         <div class="bar-chart">${rows}</div>
-        <div style="font-size:.72rem;color:var(--soft);margin-top:.35rem;">avg rank ${d.avgRank.toFixed(1)} · ${d.totalVoters} total vote${d.totalVoters!==1?'s':''}</div>
+        <div style="font-size:.72rem;color:var(--soft);margin-top:.3rem;">avg rank ${d.avgRank.toFixed(1)} · ${d.totalVoters} vote${d.totalVoters!==1?'s':''}</div>
       </div>`;
-    }).join('')}
+    }).join('') : '<p style="color:var(--soft);font-size:.875rem;">Not enough data yet.</p>'}
+  </div>
+
+  <div class="chart-wrap"><h3>Monthly Results</h3>
+    <div class="month-tabs">${archives.map((a,i)=>`<div class="month-tab ${i===archives.length-1?'active':''}" onclick="showMonthDetail(${i},this)">${esc(a.label)}</div>`).join('')}</div>
+    <div id="month-detail"></div>
   </div>`;
+  showMonthDetail(archives.length-1, area.querySelector('.month-tab.active'));
+}
+
+// ── Members sub-tab ───────────────────────────────────────────────────────────
+function renderAnalysisMembers() {
+  const archives = getArchives();
+  const area = document.getElementById('analysis-members-area');
+  if (!archives.length) { area.innerHTML = '<div class="empty"><div class="icon">👥</div><p>No archived months yet.</p></div>'; return; }
+
+  const voterFreq = {};
+  archives.forEach(a => { Object.values(a.votes||{}).forEach(vd => { const k=vd.discord||'Unknown'; voterFreq[k]=(voterFreq[k]||0)+1; }); });
+  const topVoters = Object.entries(voterFreq).sort((a,b)=>b[1]-a[1]).slice(0,10);
+
+  const suggesterFreq = {};
+  archives.forEach(a => { (a.books||[]).forEach(b => { const k=b.discord||b.suggester||'Unknown'; suggesterFreq[k]=(suggesterFreq[k]||0)+1; }); });
+  const topSuggesters = Object.entries(suggesterFreq).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const maxSuggestions = topSuggesters[0]?topSuggesters[0][1]:1;
+
+  area.innerHTML = `
+  <div class="chart-wrap"><h3>Most Consistent Voters</h3>
+    ${topVoters.length?`<div class="bar-chart">${topVoters.map(([discord,count])=>`<div class="bar-row">
+      <div style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(discord)}</div>
+      <div class="bar-track"><div class="bar-val" style="width:${Math.max(3,count/archives.length*100)}%"></div></div>
+      <div class="bar-lbl">${count}/${archives.length}</div>
+    </div>`).join('')}</div>`:'<p style="color:var(--soft);font-size:.875rem;">Not enough data.</p>'}
+  </div>
+
+  <div class="chart-wrap"><h3>Top Book Suggesters</h3>
+    ${topSuggesters.length?`<div class="bar-chart">${topSuggesters.map(([discord,count])=>`<div class="bar-row">
+      <div style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(discord)}</div>
+      <div class="bar-track"><div class="bar-val" style="width:${Math.max(3,count/maxSuggestions*100)}%"></div></div>
+      <div class="bar-lbl">${count} book${count!==1?'s':''}</div>
+    </div>`).join('')}</div>`:'<p style="color:var(--soft);font-size:.875rem;">Not enough data.</p>'}
+  </div>`;
+}
+
+// ── Reviews sub-tab ───────────────────────────────────────────────────────────
+function renderAnalysisReviews() {
+  const reviews = getReviews();
+  const area = document.getElementById('analysis-reviews-area');
+  const allEntries = Object.values(reviews).flat();
+  if (!allEntries.length) { area.innerHTML = '<div class="empty"><div class="icon">📖</div><p>No reviews submitted yet.</p></div>'; return; }
+
+  // Per-month summaries
+  const months = Object.keys(reviews).sort();
+  const monthBlocks = months.map(month => {
+    const entries = reviews[month] || [];
+    const total     = entries.length;
+    const started   = entries.filter(r => r.read === 'Yes').length;
+    const finished  = entries.filter(r => r.finished === 'Yes').length;
+    const liked     = entries.filter(r => r.liked === 'Yes').length;
+    const ratings   = entries.map(r => +r.rating).filter(r => r > 0 && r <= 5);
+    const avgRating = ratings.length ? (ratings.reduce((a,b)=>a+b,0)/ratings.length).toFixed(1) : '—';
+    const stars     = avgRating !== '—' ? '⭐'.repeat(Math.round(+avgRating)) : '';
+    return `<div class="chart-wrap">
+      <h3>${esc(month)}</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.75rem;margin-bottom:1rem;">
+        <div style="background:var(--cream);border-radius:6px;padding:.75rem;text-align:center;">
+          <div style="font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:700;color:var(--gold);">${total}</div>
+          <div style="font-size:.72rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Reviews</div>
+        </div>
+        <div style="background:var(--cream);border-radius:6px;padding:.75rem;text-align:center;">
+          <div style="font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:700;color:var(--gold);">${started}</div>
+          <div style="font-size:.72rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Started</div>
+        </div>
+        <div style="background:var(--cream);border-radius:6px;padding:.75rem;text-align:center;">
+          <div style="font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:700;color:var(--gold);">${finished}</div>
+          <div style="font-size:.72rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Finished</div>
+        </div>
+        <div style="background:var(--cream);border-radius:6px;padding:.75rem;text-align:center;">
+          <div style="font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:700;color:var(--gold);">${liked}</div>
+          <div style="font-size:.72rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Liked It</div>
+        </div>
+        <div style="background:var(--cream);border-radius:6px;padding:.75rem;text-align:center;">
+          <div style="font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--gold);">${avgRating} ${stars}</div>
+          <div style="font-size:.72rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Avg Rating</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  area.innerHTML = monthBlocks;
+}
+
+// ════════════════════════════════════════════════════════
+// RANKINGS PAGE — based on Rank A Book submissions
+// ════════════════════════════════════════════════════════
+function renderRankings() {
+  const reviews = getReviews();
+  const area = document.getElementById('rankings-area');
+  const allEntries = Object.values(reviews).flat();
+
+  if (!allEntries.length) {
+    area.innerHTML = '<div class="empty"><div class="icon">🏆</div><p>No reviews submitted yet. Rankings will appear here once members have submitted reviews via the Rank A Book page.</p></div>';
+    return;
+  }
+
+  // Aggregate per book title across all months
+  const bookData = {};
+  Object.entries(reviews).forEach(([month, entries]) => {
+    (entries||[]).forEach(r => {
+      const title = month; // one book per month — use the month label as the book identifier
+      if (!bookData[title]) bookData[title] = { ratings:[], started:0, finished:0, liked:0, total:0 };
+      bookData[title].total++;
+      if (r.read === 'Yes') bookData[title].started++;
+      if (r.finished === 'Yes') bookData[title].finished++;
+      if (r.liked === 'Yes') bookData[title].liked++;
+      const rating = +r.rating;
+      if (rating >= 1 && rating <= 5) bookData[title].ratings.push(rating);
+    });
+  });
+
+  // Sort by average rating descending, then by started% as tiebreaker
+  const sorted = Object.entries(bookData).map(([month, d]) => {
+    const avgRating = d.ratings.length ? d.ratings.reduce((a,b)=>a+b,0)/d.ratings.length : 0;
+    const startedPct = d.total > 0 ? (d.started/d.total*100) : 0;
+    const finishedPct = d.total > 0 ? (d.finished/d.total*100) : 0;
+    const likedPct = d.started > 0 ? (d.liked/d.started*100) : 0;
+    return [month, { ...d, avgRating, startedPct, finishedPct, likedPct }];
+  }).sort((a,b) => b[1].avgRating - a[1].avgRating || b[1].startedPct - a[1].startedPct);
+
+  const starDisplay = avg => {
+    if (!avg) return '<span style="color:var(--soft);">No ratings</span>';
+    const full = Math.floor(avg), half = avg - full >= 0.5;
+    return '⭐'.repeat(full) + (half?'½':'') + ` <span style="font-size:.8rem;color:var(--soft);">${avg.toFixed(1)}/5</span>`;
+  };
+
+  area.innerHTML = `
+  <p style="font-size:.78rem;color:var(--soft);margin-bottom:1.5rem;">Rankings are based on member reviews submitted through the Rank A Book page. Sorted by average star rating.</p>
+  ${sorted.map(([month, d], i) => `
+    <div class="chart-wrap" style="margin-bottom:1rem;">
+      <div style="display:flex;align-items:baseline;gap:.75rem;margin-bottom:.85rem;">
+        <span style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--gold);">${i+1}.</span>
+        <span style="font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:600;">${esc(month)}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.6rem;margin-bottom:.75rem;">
+        <div style="background:var(--cream);border-radius:6px;padding:.65rem;text-align:center;">
+          <div style="font-size:1rem;margin-bottom:.2rem;">${starDisplay(d.avgRating)}</div>
+          <div style="font-size:.68rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Avg Rating</div>
+        </div>
+        <div style="background:var(--cream);border-radius:6px;padding:.65rem;text-align:center;">
+          <div style="font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--gold);">${d.startedPct.toFixed(0)}%</div>
+          <div style="font-size:.68rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Started</div>
+        </div>
+        <div style="background:var(--cream);border-radius:6px;padding:.65rem;text-align:center;">
+          <div style="font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--gold);">${d.finishedPct.toFixed(0)}%</div>
+          <div style="font-size:.68rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Finished</div>
+        </div>
+        <div style="background:var(--cream);border-radius:6px;padding:.65rem;text-align:center;">
+          <div style="font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--gold);">${d.likedPct.toFixed(0)}%</div>
+          <div style="font-size:.68rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Liked It</div>
+        </div>
+        <div style="background:var(--cream);border-radius:6px;padding:.65rem;text-align:center;">
+          <div style="font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--gold);">${d.total}</div>
+          <div style="font-size:.68rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Reviews</div>
+        </div>
+      </div>
+    </div>`).join('')}`;
 }
 
 function showMonthDetail(idx, el) {
