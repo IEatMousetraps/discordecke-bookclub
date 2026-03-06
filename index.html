@@ -221,14 +221,24 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       </div>
       <div class="grid3">
         <div class="f-group"><label>Email *</label><input type="email" id="s-email" placeholder="you@email.com"></div>
-        <div class="f-group"><label>Genre <span style="font-size:.7rem;color:var(--soft);text-transform:none;letter-spacing:0;">(optional)</span></label>
-          <select id="s-genre">
-            <option value="">— Select genre —</option>
-            <option>Literary Fiction</option><option>Historical Fiction</option><option>Science Fiction</option>
-            <option>Fantasy</option><option>Mystery / Thriller</option><option>Romance</option>
-            <option>Horror</option><option>Non-Fiction</option><option>Biography / Memoir</option>
-            <option>Essays</option><option>Poetry</option><option>Graphic Novel</option><option>Other</option>
-          </select>
+        <div class="f-group">
+          <label>Genre <span style="font-size:.7rem;color:var(--soft);text-transform:none;letter-spacing:0;">(optional — pick up to 2)</span></label>
+          <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+            <select id="s-genre" style="flex:1;min-width:130px;">
+              <option value="">— Primary —</option>
+              <option>Literary Fiction</option><option>Historical Fiction</option><option>Science Fiction</option>
+              <option>Fantasy</option><option>Mystery / Thriller</option><option>Romance</option>
+              <option>Horror</option><option>Non-Fiction</option><option>Biography / Memoir</option>
+              <option>Essays</option><option>Poetry</option><option>Graphic Novel</option><option>Other</option>
+            </select>
+            <select id="s-genre2" style="flex:1;min-width:130px;">
+              <option value="">— Secondary —</option>
+              <option>Literary Fiction</option><option>Historical Fiction</option><option>Science Fiction</option>
+              <option>Fantasy</option><option>Mystery / Thriller</option><option>Romance</option>
+              <option>Horror</option><option>Non-Fiction</option><option>Biography / Memoir</option>
+              <option>Essays</option><option>Poetry</option><option>Graphic Novel</option><option>Other</option>
+            </select>
+          </div>
         </div>
       </div>
       <div class="grid2">
@@ -973,7 +983,9 @@ function resolveId(discord, email, identityMap) {
 async function suggestBook() {
   const title = v('s-title'), author = v('s-author'),
         email = v('s-email'), discord = v('s-discord'), reason = v('s-reason');
-  const genre = (document.getElementById('s-genre')?.value || '').trim();
+  const genre1 = (document.getElementById('s-genre')?.value || '').trim();
+  const genre2 = (document.getElementById('s-genre2')?.value || '').trim();
+  const genre = [genre1, genre2].filter(Boolean).join(' / ');
   if (!getSettings().suggestionsOpen) { showMsg('suggest-msg', 'Suggestions are currently closed.', 'err'); return; }
   if (!title || !author || !email || !discord) { showMsg('suggest-msg', 'Please fill in all fields.', 'err'); return; }
   if (!email.includes('@')) { showMsg('suggest-msg', 'Please enter a valid email.', 'err'); return; }
@@ -991,6 +1003,7 @@ async function suggestBook() {
     hideLoading();
     ['s-title','s-author','s-email','s-discord','s-reason'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     const gEl = document.getElementById('s-genre'); if (gEl) gEl.value = '';
+    const gEl1b = document.getElementById('s-genre2'); if (gEl1b) gEl1b.value = '';
     showMsg('suggest-msg', '✓ Your recommendation was added to an existing entry!', 'ok');
     if (document.getElementById('s-receipt')?.checked) downloadSuggestReceipt({ discord, email, title, author, reason });
     return;
@@ -1002,6 +1015,7 @@ async function suggestBook() {
   hideLoading();
   ['s-title','s-author','s-email','s-discord','s-reason'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const gEl2 = document.getElementById('s-genre'); if (gEl2) gEl2.value = '';
+  const gEl2b = document.getElementById('s-genre2'); if (gEl2b) gEl2b.value = '';
   showMsg('suggest-msg', '✓ Book added!', 'ok');
   if (document.getElementById('s-receipt')?.checked) downloadSuggestReceipt({ discord, email, title, author, reason });
 }
@@ -1733,7 +1747,7 @@ function renderAnalysisRankDist() {
     Books are sorted by <strong>average rank position</strong> — a book most members placed #1 or #2 appears at the top.
     Each bar chart shows what percentage of voters placed that book at each rank position, from #1 (green) to last place (red).
     The <em>avg rank</em> figure is the mean position given to that book across all votes cast on it.<br><br>
-    Use the toggles above to view a single month in isolation or the full year at once.
+    Use the toggles below to view a single month in isolation or the full year at once.
     Books that have been nominated more than once (e.g. Born to Run) appear as separate entries, each labelled with the month they competed in, so their results are never mixed together.
   </p>`;
 
@@ -3241,9 +3255,15 @@ window.adminDeleteCustomBadge = adminDeleteCustomBadge;
 const EDIT_GENRES = ['','Literary Fiction','Historical Fiction','Science Fiction','Fantasy','Mystery / Thriller','Romance','Horror','Non-Fiction','Biography / Memoir','Essays','Poetry','Graphic Novel','Other'];
 
 function genreSelect(id, val) {
-  return `<select id="${id}" style="font-size:.78rem;padding:.3rem .5rem;max-width:180px;">
-    ${EDIT_GENRES.map(g=>`<option value="${g}"${g===val?' selected':''}>${g||'— no genre —'}</option>`).join('')}
-  </select>`;
+  // val may be 'Romance / Fantasy' — split on ' / '
+  const parts = (val||'').split(' / ').map(s=>s.trim());
+  const val1 = parts[0]||'', val2 = parts[1]||'';
+  const opts = EDIT_GENRES.map(g=>`<option value="${g}"${g===val1?' selected':''}>${g||'— Primary —'}</option>`).join('');
+  const opts2 = EDIT_GENRES.map(g=>`<option value="${g}"${g===val2?' selected':''}>${g||'— Secondary —'}</option>`).join('');
+  return `<div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+    <select id="${id}" style="font-size:.78rem;padding:.3rem .5rem;flex:1;min-width:110px;">${opts}</select>
+    <select id="${id}-2" style="font-size:.78rem;padding:.3rem .5rem;flex:1;min-width:110px;">${opts2}</select>
+  </div>`;
 }
 
 function editBookCard(book, onSave, onCancel, context) {
@@ -3334,7 +3354,9 @@ window.cancelEditCurrentBook = cancelEditCurrentBook;
 async function saveCurrentBook(bookId, uid) {
   const title     = document.getElementById(uid+'-title')?.value.trim();
   const author    = document.getElementById(uid+'-author')?.value.trim();
-  const genre     = document.getElementById(uid+'-genre')?.value.trim();
+  const g1       = (document.getElementById(uid+'-genre')?.value||'').trim();
+  const g2       = (document.getElementById(uid+'-genre-2')?.value||'').trim();
+  const genre    = [g1,g2].filter(Boolean).join(' / ');
   const suggester = document.getElementById(uid+'-suggester')?.value.trim();
   if (!title || !author) { showMsg(uid+'-msg','Title and author are required.','err'); return; }
   showLoading('Saving…');
@@ -3412,7 +3434,9 @@ window.cancelEditArchiveBook = cancelEditArchiveBook;
 async function saveArchiveBook(label, bookId, uid) {
   const title     = document.getElementById(uid+'-title')?.value.trim();
   const author    = document.getElementById(uid+'-author')?.value.trim();
-  const genre     = document.getElementById(uid+'-genre')?.value.trim();
+  const ag1      = (document.getElementById(uid+'-genre')?.value||'').trim();
+  const ag2      = (document.getElementById(uid+'-genre-2')?.value||'').trim();
+  const genre    = [ag1,ag2].filter(Boolean).join(' / ');
   const suggester = document.getElementById(uid+'-suggester')?.value.trim();
   if (!title || !author) { showMsg(uid+'-msg','Title and author are required.','err'); return; }
   showLoading('Saving…');
