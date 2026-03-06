@@ -2294,12 +2294,25 @@ function renderProgressTab() {
     { key: 'dnf',         label: 'DNF',          emoji: '❌' },
   ];
 
-  // Build list of winner books from each archived month
+  // Determine winner(s) per archived month using Borda count (same as results/showMonthDetail)
   const winnerEntries = archives.map(a => {
     const dualIds = a.dualWinners || [];
-    const winners = dualIds.length
-      ? (a.books || []).filter(b => dualIds.includes(String(b.id)))
-      : (a.books || []).slice(0, 1);
+    let winners;
+    if (dualIds.length) {
+      winners = (a.books || []).filter(b => dualIds.includes(String(b.id)));
+    } else {
+      // Compute Borda scores to find the actual winner
+      const nb = (a.books || []).length;
+      const scores = {};
+      (a.books || []).forEach(b => scores[b.id] = 0);
+      Object.values(a.votes || {}).forEach(vd => {
+        (vd.ranking || vd).forEach((id, idx) => {
+          if (scores[id] !== undefined) scores[id] += (nb - idx);
+        });
+      });
+      const sorted = [...(a.books || [])].sort((x, y) => scores[y.id] - scores[x.id]);
+      winners = sorted.length ? [sorted[0]] : [];
+    }
     return { month: a.label, winners };
   }).filter(e => e.winners.length);
 
