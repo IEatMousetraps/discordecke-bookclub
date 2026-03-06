@@ -587,16 +587,38 @@ window.goTab = goTab;
 // ════════════════════════════════════════════════════════
 // SUGGEST
 // ════════════════════════════════════════════════════════
+// Normalize legacy book entries so suggesters is always an array
+function normBook(b) {
+  if (!b.suggesters) {
+    b.suggesters = [{ discord: b.discord||b.suggester||'', email: b.email||'', reason: b.reason||'' }];
+  }
+  return b;
+}
+
 async function suggestBook() {
   const title = v('s-title'), author = v('s-author'),
         email = v('s-email'), discord = v('s-discord'), reason = v('s-reason');
   if (!getSettings().suggestionsOpen) { showMsg('suggest-msg', 'Suggestions are currently closed.', 'err'); return; }
   if (!title || !author || !email || !discord) { showMsg('suggest-msg', 'Please fill in all fields.', 'err'); return; }
   if (!email.includes('@')) { showMsg('suggest-msg', 'Please enter a valid email.', 'err'); return; }
-  const books = getBooks();
+  const books = getBooks().map(normBook);
+  const norm = s => s.trim().toLowerCase();
+  const existing = books.find(b => norm(b.title) === norm(title) && norm(b.author) === norm(author));
+  if (existing) {
+    if (existing.suggesters.some(s => s.discord.toLowerCase() === discord.toLowerCase())) {
+      showMsg('suggest-msg', "You've already recommended this book!", 'err'); return;
+    }
+    existing.suggesters.push({ discord, email, reason });
+    showLoading('Adding recommendation…');
+    await fbSet(BOOKS_REF, { list: books });
+    hideLoading();
+    ['s-title','s-author','s-email','s-discord','s-reason'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    showMsg('suggest-msg', '✓ Your recommendation was added to an existing entry!', 'ok');
+    return;
+  }
   if (books.length >= 30) { showMsg('suggest-msg', 'Maximum 30 books reached.', 'err'); return; }
   showLoading('Adding book…');
-  books.push({ id: Date.now(), title, author, suggester: discord, email, discord, reason });
+  books.push({ id: Date.now(), title, author, suggesters: [{ discord, email, reason }] });
   await fbSet(BOOKS_REF, { list: books });
   hideLoading();
   ['s-title','s-author','s-email','s-discord','s-reason'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
@@ -616,14 +638,20 @@ function renderSuggest() {
   document.getElementById('suggest-count').textContent = books.length + ' book' + (books.length !== 1 ? 's' : '') + ' suggested';
   const list = document.getElementById('book-list');
   if (!books.length) { list.innerHTML = '<div class="empty"><div class="icon">📚</div><p>No books yet — be the first!</p></div>'; return; }
-  list.innerHTML = books.map((b, i) => `
-    <div class="book-item">
+  list.innerHTML = books.map(normBook).map((b, i) => {
+    const blurbs = b.suggesters.filter(s => s.reason).map(s =>
+      `<div class="book-sub" style="margin-top:.25rem;">&#x1f4ac; <strong>${esc(s.discord)}</strong>: <em>"${esc(s.reason)}"</em></div>`
+    ).join('');
+    const recommenders = b.suggesters.map(s => esc(s.discord)).join(', ');
+    return `<div class="book-item">
       <div class="book-num">${i+1}</div>
       <div class="book-info">
         <div class="book-title">${esc(b.title)}</div>
-        <div class="book-sub">${esc(b.author)}</div>
+        <div class="book-sub">${esc(b.author)} &middot; ${recommenders}</div>
+        ${blurbs}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 // ════════════════════════════════════════════════════════
@@ -641,25 +669,28 @@ function renderVote() {
 function buildSortable(books) {
   const c = document.getElementById('sortable-list');
   c.innerHTML = '';
-  books.forEach((b, i) => {
+  books.map(normBook).forEach((b, i) => {
     const d = document.createElement('div');
     d.className = 'sort-item'; d.dataset.id = b.id;
+    const blurbs = b.suggesters.filter(s => s.reason).map(s =>
+      `<div class="book-sub" style="margin-top:.3rem;">&#x1f4ac; <strong>${esc(s.discord)}</strong>: <em>"${esc(s.reason)}"</em></div>`
+    ).join('');
+    const recommenders = b.suggesters.map(s => esc(s.discord)).join(', ');
     d.innerHTML = `
       <div class="rank-badge">${i+1}</div>
       <div class="book-info" style="flex:1">
         <div class="book-title">${esc(b.title)}</div>
-        <div class="book-sub">${esc(b.author)}</div>
-        ${b.reason ? `<div class="book-sub" style="margin-top:.3rem;"><span style="font-weight:500;color:var(--ink);">Why are you recommending this book?</span> <em style="font-style:italic;">"${esc(b.reason)}"</em></div>` : ''}
+        <div class="book-sub">${esc(b.author)} &middot; recommended by ${recommenders}</div>
+        ${blurbs}
       </div>
       <div class="move-btns">
-        <button class="move-btn" onclick="moveItem(this,-1)" title="Move up">▲</button>
-        <button class="move-btn" onclick="moveItem(this,1)" title="Move down">▼</button>
+        <button class="move-btn" onclick="moveItem(this,-1)" title="Move up">&#x25b2;</button>
+        <button class="move-btn" onclick="moveItem(this,1)" title="Move down">&#x25bc;</button>
       </div>`;
     c.appendChild(d);
   });
   updateMoveButtons();
 }
-
 function moveItem(btn, dir) {
   const item = btn.closest('.sort-item');
   const c = document.getElementById('sortable-list');
@@ -1137,7 +1168,7 @@ function renderAnalysisMembers() {
   const topVoters = Object.entries(voterFreq).sort((a,b)=>b[1]-a[1]).slice(0,10);
 
   const suggesterFreq = {};
-  archives.forEach(a => { (a.books||[]).forEach(b => { const k=b.discord||b.suggester||'Unknown'; suggesterFreq[k]=(suggesterFreq[k]||0)+1; }); });
+  archives.forEach(a => { (a.books||[]).map(normBook).forEach(b => { b.suggesters.forEach(s => { const k=s.discord||'Unknown'; suggesterFreq[k]=(suggesterFreq[k]||0)+1; }); }); });
   const topSuggesters = Object.entries(suggesterFreq).sort((a,b)=>b[1]-a[1]).slice(0,10);
   const maxSuggestions = topSuggesters[0]?topSuggesters[0][1]:1;
 
@@ -1327,7 +1358,7 @@ function renderAdmin() {
   }).join('') : '<p style="font-size:.85rem;color:var(--soft);">No votes yet.</p>';
   document.getElementById('admin-book-list').innerHTML = books.length ? books.map(b => `
     <div class="book-item" style="margin-bottom:.35rem;">
-      <div class="book-info"><div class="book-title">${esc(b.title)}</div><div class="book-sub">${esc(b.author)} · ${esc(b.suggester)} · ${esc(b.email||'')} · ${esc(b.discord||'')}</div></div>
+      <div class="book-info"><div class="book-title">${esc(b.title)}</div><div class="book-sub">${esc(b.author)} &middot; ${normBook(b).suggesters.map(s=>esc(s.discord)).join(', ')}</div></div>
       <button class="btn btn-danger btn-sm" onclick="deleteBook(${b.id})">Remove</button>
     </div>`).join('') : '<p style="font-size:.85rem;color:var(--soft);">No books.</p>';
   document.getElementById('admin-surveys-list').innerHTML = surveys.length ? surveys.map((s, i) => `
@@ -1401,7 +1432,7 @@ function downloadCSV(type) {
     Object.values(votes).forEach(vd => { (vd.ranking||vd).forEach((id,idx) => { if (scores[id] !== undefined) scores[id] += (nb-idx); }); });
     const sorted = [...books].sort((a,b) => scores[b.id]-scores[a.id]);
     rows = [['Rank','Title','Author','Suggested By','Borda Points']];
-    sorted.forEach((b,i) => rows.push([i+1, b.title, b.author, b.suggester, scores[b.id]]));
+    sorted.forEach((b,i) => rows.push([i+1, b.title, b.author, normBook(b).suggesters.map(s=>s.discord).join('; '), scores[b.id]]));
     rows.push([]); rows.push(['Voter','Email','Discord','Ranking (1st to last)']);
     Object.entries(votes).forEach(([name,vd]) => {
       const ranked = (vd.ranking||vd).map(id => { const b = books.find(b => String(b.id)===String(id)); return b?b.title:'?'; });
@@ -1426,10 +1457,10 @@ function downloadCSV(type) {
       const key = email||name;
       if (!seen.has(key)) { seen.add(key); rows.push([name, email||'', discord||'', source, ts?new Date(ts).toLocaleDateString():'']); }
     };
-    getBooks().forEach(b => addMember(b.suggester,b.email,b.discord,'suggestion',b.id));
+    getBooks().map(normBook).forEach(b => b.suggesters.forEach(s => addMember(s.discord,s.email,s.discord,'suggestion',b.id)));
     Object.entries(getVotes()).forEach(([name,vd]) => addMember(name,vd.email,vd.discord,'vote',vd.ts));
     getArchives().forEach(a => {
-      (a.books||[]).forEach(b => addMember(b.suggester,b.email,b.discord,'suggestion (archived)',null));
+      (a.books||[]).map(normBook).forEach(b => b.suggesters.forEach(s => addMember(s.discord,s.email,s.discord,'suggestion (archived)',null)));
       Object.entries(a.votes||{}).forEach(([name,vd]) => addMember(name,vd.email||'',vd.discord||'','vote (archived)',vd.ts));
     });
   } else if (type === 'surveys') {
