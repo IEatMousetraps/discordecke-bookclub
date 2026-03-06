@@ -1680,7 +1680,7 @@ function renderAnalysisRankDist() {
     let ws=0,tot=0; Object.entries(d.rankCounts).forEach(([r,n])=>{ws+=+r*n;tot+=n;});
     return [title,{...d,avgRank:tot>0?ws/tot:999}];
   }).sort((a,b)=>a[1].avgRank-b[1].avgRank);
-  area.innerHTML = rankDistSorted.length ? rankDistSorted.map(([title,d],i)=>{
+  area.innerHTML = rankDistSorted.length ? '<p style="font-size:.82rem;color:var(--soft);margin-bottom:1.5rem;">Books are sorted by <strong>average rank position</strong> across all archived months — a book that most members placed #1 or #2 will appear at the top. Each bar chart shows what percentage of voters placed that book at each rank position, from #1 (green) to last place (red). The <em>avg rank</em> figure is the mean position given to that book across all votes cast on it.</p>' + rankDistSorted.map(([title,d],i)=>{
     const maxR = Math.max(...Object.keys(d.rankCounts).map(Number));
     const rows = Array.from({length:maxR},(_,j)=>{
       const rank=j+1,count=d.rankCounts[rank]||0,pct=d.totalVoters>0?(count/d.totalVoters*100):0;
