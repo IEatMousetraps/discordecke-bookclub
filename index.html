@@ -175,6 +175,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       <div class="grid2">
         <div class="f-group"><label>Discord Username *</label><input type="text" id="s-discord" placeholder="user#0000"></div>
       </div>
+      <div class="f-group"><label>Why are you recommending this book? <span style="font-size:.7rem;color:var(--soft);text-transform:none;letter-spacing:0;">(optional)</span></label><textarea id="s-reason" placeholder="Tell the club why they should read this…" rows="3"></textarea></div>
       <button class="btn btn-primary" onclick="suggestBook()">Submit Suggestion</button>
       <div id="suggest-msg"></div>
     </div>
@@ -594,17 +595,17 @@ window.goTab = goTab;
 async function suggestBook() {
   const title = v('s-title'), author = v('s-author'),
         fname = v('s-fname'), lname = v('s-lname'),
-        email = v('s-email'), discord = v('s-discord');
+        email = v('s-email'), discord = v('s-discord'), reason = v('s-reason');
   if (!getSettings().suggestionsOpen) { showMsg('suggest-msg', 'Suggestions are currently closed.', 'err'); return; }
   if (!title || !author || !fname || !lname || !email || !discord) { showMsg('suggest-msg', 'Please fill in all fields.', 'err'); return; }
   if (!email.includes('@')) { showMsg('suggest-msg', 'Please enter a valid email.', 'err'); return; }
   const books = getBooks();
   if (books.length >= 30) { showMsg('suggest-msg', 'Maximum 30 books reached.', 'err'); return; }
   showLoading('Adding book…');
-  books.push({ id: Date.now(), title, author, suggester: fname + ' ' + lname, email, discord });
+  books.push({ id: Date.now(), title, author, suggester: fname + ' ' + lname, email, discord, reason });
   await fbSet(BOOKS_REF, { list: books });
   hideLoading();
-  ['s-title','s-author','s-fname','s-lname','s-email','s-discord'].forEach(id => document.getElementById(id).value = '');
+  ['s-title','s-author','s-fname','s-lname','s-email','s-discord','s-reason'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   showMsg('suggest-msg', '✓ Book added!', 'ok');
 }
 window.suggestBook = suggestBook;
@@ -653,7 +654,7 @@ function buildSortable(books) {
       <div class="rank-badge">${i+1}</div>
       <div class="book-info" style="flex:1">
         <div class="book-title">${esc(b.title)}</div>
-        <div class="book-sub">${esc(b.author)}</div>
+        <div class="book-sub">${esc(b.author)}${b.reason ? ` · <em style="font-style:italic;color:var(--soft);">"${esc(b.reason)}"</em>` : ''}</div>
       </div>
       <div class="move-btns">
         <button class="move-btn" onclick="moveItem(this,-1)" title="Move up">▲</button>
