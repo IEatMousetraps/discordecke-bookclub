@@ -1192,6 +1192,33 @@ function renderVote() {
   buildSortable(books);
 }
 
+const GENRE_PILL_COLORS = {
+  'Romance':            { bg:'#fce4ec', text:'#c2185b', border:'#f48fb1' },
+  'Fantasy':            { bg:'#ede7f6', text:'#6a1b9a', border:'#ce93d8' },
+  'Horror':             { bg:'#212121', text:'#eeeeee', border:'#555'     },
+  'Mystery / Thriller': { bg:'#ffebee', text:'#b71c1c', border:'#ef9a9a' },
+  'Science Fiction':    { bg:'#e3f2fd', text:'#0d47a1', border:'#90caf9' },
+  'Historical Fiction': { bg:'#fff8e1', text:'#e65100', border:'#ffcc80' },
+  'Literary Fiction':   { bg:'#f3e5f5', text:'#4a148c', border:'#ba68c8' },
+  'Non-Fiction':        { bg:'#e8f5e9', text:'#1b5e20', border:'#a5d6a7' },
+  'Biography / Memoir': { bg:'#e0f7fa', text:'#006064', border:'#80deea' },
+  'Essays':             { bg:'#fafafa', text:'#424242', border:'#bdbdbd' },
+  'Poetry':             { bg:'#fce4ec', text:'#880e4f', border:'#f48fb1' },
+  'Graphic Novel':      { bg:'#fff3e0', text:'#bf360c', border:'#ffcc80' },
+  'Other':              { bg:'#f5f5f5', text:'#616161', border:'#e0e0e0' },
+};
+
+function genrePillsHtml(genreStr) {
+  if (!genreStr) return '';
+  const genres = genreStr.split('/').map(g => g.trim()).filter(Boolean);
+  return '<div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.3rem;">' +
+    genres.map(g => {
+      const c = GENRE_PILL_COLORS[g] || { bg:'#f5f5f5', text:'#616161', border:'#e0e0e0' };
+      return `<span style="font-size:.68rem;padding:.15rem .55rem;border-radius:20px;background:${c.bg};color:${c.text};border:1px solid ${c.border};font-weight:500;letter-spacing:.02em;">${esc(g)}</span>`;
+    }).join('') +
+  '</div>';
+}
+
 function buildSortable(books) {
   const c = document.getElementById('sortable-list');
   c.innerHTML = '';
@@ -1208,6 +1235,7 @@ function buildSortable(books) {
       <div class="book-info" style="flex:1">
         <div class="book-title">${esc(b.title)}</div>
         <div class="book-sub">${esc(b.author)}</div>
+        ${genrePillsHtml(b.genre)}
         ${blurbs}
       </div>
       <div class="move-btns">
