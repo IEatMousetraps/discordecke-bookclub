@@ -1863,8 +1863,9 @@ function renderAnalysisMembers() {
 
 // ── Reviews sub-tab ───────────────────────────────────────────────────────────
 function renderAnalysisReviews() {
-  const reviews = getReviews();
-  const area = document.getElementById('analysis-reviews-area');
+  const reviews  = getReviews();
+  const area     = document.getElementById('analysis-reviews-area');
+  const idMap    = buildIdentityMap();
   const allEntries = Object.values(reviews).flat();
   if (!allEntries.length) { area.innerHTML = '<div class="empty"><div class="icon">📖</div><p>No reviews submitted yet.</p></div>'; return; }
 
@@ -1874,80 +1875,91 @@ function renderAnalysisReviews() {
     const wb = winnerBooks[0];
     if (!wb) return;
     archiveLookup[a.label] = {
-      title:  wb.title  || a.label,
-      author: wb.author || '',
-      genre:  (winnerBooks.find(b=>b.genre)||wb).genre || '',
-      dual:   (a.dualWinners||[]).length > 0,
+      title:    wb.title  || a.label,
+      author:   wb.author || '',
+      genre:    (winnerBooks.find(b=>b.genre)||wb).genre || '',
+      dual:     (a.dualWinners||[]).length > 0,
       coTitles: winnerBooks.map(b=>b.title),
     };
   });
 
-  const starDisplay = avg => {
-    if (!avg) return '<span style="color:var(--soft);font-size:.85rem;">No ratings yet</span>';
-    const full = Math.floor(avg), half = (avg - full) >= 0.5;
-    return '⭐'.repeat(full) + (half ? '½' : '') + `<span style="font-size:.78rem;color:var(--soft);margin-left:.3rem;">${avg.toFixed(1)}/5</span>`;
+  // Star rendering for individual ratings
+  const starHtml = val => {
+    const n = +val;
+    if (!n || n < 1 || n > 5) return '<span style="color:var(--soft);font-size:.75rem;">No rating</span>';
+    return '<span style="font-size:.85rem;">' + '⭐'.repeat(n) + '</span>' +
+           `<span style="font-size:.72rem;color:var(--soft);margin-left:.25rem;">${n}/5</span>`;
   };
 
-  const statBox = (value, label) => `
-    <div style="background:var(--cream);border-radius:6px;padding:.65rem .5rem;text-align:center;min-width:0;">
-      <div style="font-family:'Playfair Display',serif;font-size:1.35rem;font-weight:700;color:var(--gold);line-height:1.1;">${value}</div>
-      <div style="font-size:.65rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;margin-top:.2rem;">${label}</div>
-    </div>`;
+  // Sort months newest-first
+  const months = Object.keys(reviews).sort((a,b) => new Date(b) - new Date(a));
 
-  // Sort months newest-first (assumes labels like "Jan 2026")
-  const months = Object.keys(reviews).sort((a,b) => {
-    const toDate = s => new Date(s); return toDate(b) - toDate(a);
-  });
-
-  const blocks = months.map((month, i) => {
-    const entries = reviews[month] || [];
-    const total    = entries.length;
-    const started  = entries.filter(r => r.read === 'Yes').length;
-    const finished = entries.filter(r => r.finished === 'Yes').length;
-    const liked    = entries.filter(r => r.liked === 'Yes').length;
-    const ratings  = entries.map(r => +r.rating).filter(r => r >= 1 && r <= 5);
-    const avgRating = ratings.length ? ratings.reduce((a,b)=>a+b,0)/ratings.length : 0;
-    const startedPct  = total > 0 ? Math.round(started/total*100)   : 0;
-    const finishedPct = total > 0 ? Math.round(finished/total*100)  : 0;
-    const likedPct    = started > 0 ? Math.round(liked/started*100) : 0;
-
-    const meta = archiveLookup[month] || {};
-    const title  = meta.title  || month;
-    const author = meta.author || '';
-    const genre  = meta.genre  || '';
-    const isDual = meta.dual;
+  const blocks = months.map(month => {
+    const entries  = reviews[month] || [];
+    if (!entries.length) return '';
+    const meta     = archiveLookup[month] || {};
+    const genre    = meta.genre || '';
+    const isDual   = meta.dual;
     const coTitles = meta.coTitles || [];
 
+    // Header: book title(s) + author + month pill + genre
     const titleHtml = isDual
-      ? coTitles.map(t=>`<span style="font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:600;">${esc(t)}</span>`).join('<span style="color:var(--soft);padding:0 .4rem;">&</span>')
-      : `<span style="font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:600;">${esc(title)}</span>`;
+      ? coTitles.map(t=>`<span style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:600;">${esc(t)}</span>`).join('<span style="color:var(--soft);padding:0 .35rem;font-size:.9rem;">&</span>')
+      : `<span style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:600;">${esc(meta.title||month)}</span>`;
+
+    // Summary bar: avg rating + participation counts
+    const ratings   = entries.map(r=>+r.rating).filter(r=>r>=1&&r<=5);
+    const avg       = ratings.length ? ratings.reduce((a,b)=>a+b,0)/ratings.length : 0;
+    const finished  = entries.filter(r=>r.finished==='Yes').length;
+    const liked     = entries.filter(r=>r.liked==='Yes').length;
+    const avgStars  = avg ? '⭐'.repeat(Math.round(avg)) + ` <span style="font-size:.72rem;color:var(--soft);">${avg.toFixed(1)}</span>` : '<span style="font-size:.75rem;color:var(--soft);">No ratings</span>';
+
+    // Individual review cards
+    const reviewCards = entries.map(r => {
+      const name     = resolveId(r.discord||'', r.email||'', idMap) || r.discord || 'Anonymous';
+      const bookLine = isDual && r.bookTitle ? `<span style="font-size:.72rem;color:var(--soft);font-style:italic;">${esc(r.bookTitle)}</span>` : '';
+      const statusPills = [
+        r.read     === 'Yes' ? '<span style="background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;font-size:.65rem;padding:.1rem .45rem;border-radius:20px;">Started</span>' : '<span style="background:#fce4ec;color:#c62828;border:1px solid #ef9a9a;font-size:.65rem;padding:.1rem .45rem;border-radius:20px;">Did not start</span>',
+        r.read === 'Yes' ? (r.finished === 'Yes' ? '<span style="background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;font-size:.65rem;padding:.1rem .45rem;border-radius:20px;">Finished</span>' : '<span style="background:#fff3e0;color:#e65100;border:1px solid #ffcc80;font-size:.65rem;padding:.1rem .45rem;border-radius:20px;">DNF</span>') : '',
+        r.liked    === 'Yes' ? '<span style="background:#fce4ec;color:#c2185b;border:1px solid #f48fb1;font-size:.65rem;padding:.1rem .45rem;border-radius:20px;">❤️ Liked it</span>' : '',
+      ].filter(Boolean).join(' ');
+
+      const quoteHtml = r.why ? `<div style="font-size:.82rem;color:var(--ink);font-style:italic;margin-top:.5rem;padding:.5rem .75rem;background:var(--paper);border-left:2px solid var(--gold);border-radius:0 4px 4px 0;line-height:1.55;">"${esc(r.why)}"</div>` : '';
+      const dnfHtml   = r.dnfWhy && r.finished !== 'Yes' ? `<div style="font-size:.78rem;color:var(--soft);margin-top:.35rem;font-style:italic;">Why DNF: ${esc(r.dnfWhy)}</div>` : '';
+
+      return `<div style="padding:.75rem 0;border-bottom:1px solid var(--border);">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.4rem;margin-bottom:.3rem;">
+          <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
+            <span style="font-weight:500;font-size:.88rem;">${esc(name)}</span>
+            ${bookLine}
+          </div>
+          <div>${starHtml(r.rating)}</div>
+        </div>
+        <div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.1rem;">${statusPills}</div>
+        ${quoteHtml}${dnfHtml}
+      </div>`;
+    }).join('');
 
     return `<div class="chart-wrap" style="margin-bottom:1rem;">
-      <div style="display:flex;align-items:flex-start;gap:.75rem;margin-bottom:.75rem;flex-wrap:wrap;">
-        <span style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--gold);flex-shrink:0;">${i+1}.</span>
+      <div style="display:flex;align-items:flex-start;gap:.75rem;margin-bottom:.6rem;flex-wrap:wrap;">
         <div style="flex:1;min-width:0;">
-          <div style="display:flex;align-items:baseline;gap:.5rem;flex-wrap:wrap;">${titleHtml}</div>
-          ${author ? `<div style="font-size:.8rem;color:var(--soft);margin-top:.15rem;">by ${esc(author)}</div>` : ''}
-          <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-top:.25rem;">
-            <span style="font-size:.72rem;color:var(--soft);background:var(--cream);border:1px solid var(--border);padding:.1rem .5rem;border-radius:20px;">${esc(month)}</span>
+          <div style="display:flex;align-items:baseline;gap:.4rem;flex-wrap:wrap;margin-bottom:.2rem;">${titleHtml}</div>
+          ${meta.author ? `<div style="font-size:.78rem;color:var(--soft);">by ${esc(meta.author)}</div>` : ''}
+          <div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;margin-top:.3rem;">
+            <span style="font-size:.7rem;color:var(--soft);background:var(--cream);border:1px solid var(--border);padding:.1rem .5rem;border-radius:20px;">${esc(month)}</span>
             ${genre ? genrePillsHtml(genre) : ''}
           </div>
         </div>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:.5rem;margin-bottom:.6rem;">
-        <div style="background:var(--cream);border-radius:6px;padding:.65rem .5rem;text-align:center;grid-column:span 2;">
-          <div style="margin-bottom:.15rem;">${starDisplay(avgRating)}</div>
-          <div style="font-size:.65rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Avg Rating</div>
+        <div style="text-align:right;flex-shrink:0;">
+          <div style="font-size:.85rem;">${avgStars}</div>
+          <div style="font-size:.7rem;color:var(--soft);margin-top:.2rem;">${finished}/${entries.length} finished · ${liked} liked</div>
         </div>
-        ${statBox(startedPct+'%','Started')}
-        ${statBox(finishedPct+'%','Finished')}
-        ${statBox(likedPct+'%','Liked It')}
-        ${statBox(total,'Reviews')}
       </div>
+      <div style="margin-top:.25rem;">${reviewCards}</div>
     </div>`;
   }).join('');
 
-  area.innerHTML = `<p style="font-size:.78rem;color:var(--soft);margin-bottom:1.25rem;">Sorted by most recent month. Percentages show member engagement with each book.</p>${blocks}`;
+  area.innerHTML = `<p style="font-size:.78rem;color:var(--soft);margin-bottom:1.25rem;">Individual member reviews, sorted by most recent month. Written thoughts are shown where provided.</p>${blocks}`;
 }
 
 // ════════════════════════════════════════════════════════
