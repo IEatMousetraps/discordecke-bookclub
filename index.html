@@ -640,15 +640,14 @@ function renderSuggest() {
   if (!books.length) { list.innerHTML = '<div class="empty"><div class="icon">📚</div><p>No books yet — be the first!</p></div>'; return; }
   list.innerHTML = books.map(normBook).map((b, i) => {
     const reasons = b.suggesters.filter(s => s.reason);
-    const blurbs = reasons.length === 0 ? '' : (reasons.length === 1
-      ? `<div class="book-sub" style="margin-top:.25rem;font-style:italic;">"${esc(reasons[0].reason)}"</div>`
-      : `<div class="book-sub" style="margin-top:.25rem;font-weight:500;color:var(--ink);">Why are we recommending this book?</div>` + reasons.map(s => `<div class="book-sub" style="margin-left:.75rem;font-style:italic;">"${esc(s.reason)}"</div>`).join(''));
-    const recommenders = b.suggesters.map(s => esc(s.discord)).join(', ');
+    const blurbs = reasons.length === 0 ? '' :
+      `<div class="book-sub" style="margin-top:.25rem;"><strong>Why are you recommending this book?</strong></div>` +
+      reasons.map(s => `<div class="book-sub" style="margin-left:.75rem;font-style:italic;">"${esc(s.reason)}"</div>`).join('');
     return `<div class="book-item">
       <div class="book-num">${i+1}</div>
       <div class="book-info">
         <div class="book-title">${esc(b.title)}</div>
-        <div class="book-sub">${esc(b.author)} &middot; ${recommenders}</div>
+        <div class="book-sub">${esc(b.author)}</div>
         ${blurbs}
       </div>
     </div>`;
@@ -674,15 +673,14 @@ function buildSortable(books) {
     const d = document.createElement('div');
     d.className = 'sort-item'; d.dataset.id = b.id;
     const reasons = b.suggesters.filter(s => s.reason);
-    const blurbs = reasons.length === 0 ? '' : (reasons.length === 1
-      ? `<div class="book-sub" style="margin-top:.3rem;font-style:italic;">"${esc(reasons[0].reason)}"</div>`
-      : `<div class="book-sub" style="margin-top:.3rem;font-weight:500;color:var(--ink);">Why are we recommending this book?</div>` + reasons.map(s => `<div class="book-sub" style="margin-left:.75rem;font-style:italic;">"${esc(s.reason)}"</div>`).join(''));
-    const recommenders = b.suggesters.map(s => esc(s.discord)).join(', ');
+    const blurbs = reasons.length === 0 ? '' :
+      `<div class="book-sub" style="margin-top:.3rem;"><strong>Why are you recommending this book?</strong></div>` +
+      reasons.map(s => `<div class="book-sub" style="margin-left:.75rem;font-style:italic;">"${esc(s.reason)}"</div>`).join('');
     d.innerHTML = `
       <div class="rank-badge">${i+1}</div>
       <div class="book-info" style="flex:1">
         <div class="book-title">${esc(b.title)}</div>
-        <div class="book-sub">${esc(b.author)} &middot; recommended by ${recommenders}</div>
+        <div class="book-sub">${esc(b.author)}</div>
         ${blurbs}
       </div>
       <div class="move-btns">
