@@ -128,7 +128,11 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 /* divider */
 .div{text-align:center;color:var(--border);margin:1.5rem 0;font-size:1rem;letter-spacing:.4em;}
 @media(max-width:520px){.grid2{grid-template-columns:1fr;}.grid3{grid-template-columns:1fr 1fr;}.bar-row{grid-template-columns:90px 1fr 40px;}}
+/* receipt download checkbox */
+.receipt-check{display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem;font-size:.85rem;color:var(--soft);cursor:pointer;user-select:none;}
+.receipt-check input{accent-color:var(--accent);width:1rem;height:1rem;cursor:pointer;}
 </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
@@ -174,6 +178,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
         <div class="f-group"><label>Discord Username *</label><input type="text" id="s-discord" placeholder="user#0000"></div>
       </div>
       <div class="f-group"><label>Why are you recommending this book? <span style="font-size:.7rem;color:var(--soft);text-transform:none;letter-spacing:0;">(optional)</span></label><textarea id="s-reason" placeholder="Tell the club why they should read this…" rows="3"></textarea></div>
+      <label class="receipt-check"><input type="checkbox" id="s-receipt"> Download a copy of my submission (PDF)</label>
       <button class="btn btn-primary" onclick="suggestBook()">Submit Suggestion</button>
       <div id="suggest-msg"></div>
     </div>
@@ -200,7 +205,8 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
     <div class="drag-hint">↑ ↓ Use the arrow buttons to rank your books — #1 is your top choice</div>
     <div id="sortable-list"></div>
     <div id="vote-msg"></div>
-    <div style="margin-top:1.25rem;"><button class="btn btn-primary" onclick="submitVote()">Submit Rankings</button></div>
+    <label class="receipt-check"><input type="checkbox" id="v-receipt"> Download a copy of my submission (PDF)</label>
+    <div style="margin-top:.75rem;"><button class="btn btn-primary" onclick="submitVote()">Submit Rankings</button></div>
   </div>
 </div>
 
@@ -293,6 +299,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       </div>
     </div>
 
+    <label class="receipt-check"><input type="checkbox" id="rv-receipt"> Download a copy of my submission (PDF)</label>
     <button class="btn btn-primary" onclick="submitReview()">Submit Review</button>
     <div id="review-msg"></div>
   </div>
@@ -761,6 +768,7 @@ async function suggestBook() {
     hideLoading();
     ['s-title','s-author','s-email','s-discord','s-reason'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     showMsg('suggest-msg', '✓ Your recommendation was added to an existing entry!', 'ok');
+    if (document.getElementById('s-receipt')?.checked) downloadSuggestReceipt({ discord, email, title, author, reason });
     return;
   }
   if (books.length >= 30) { showMsg('suggest-msg', 'Maximum 30 books reached.', 'err'); return; }
@@ -770,8 +778,139 @@ async function suggestBook() {
   hideLoading();
   ['s-title','s-author','s-email','s-discord','s-reason'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   showMsg('suggest-msg', '✓ Book added!', 'ok');
+  if (document.getElementById('s-receipt')?.checked) downloadSuggestReceipt({ discord, email, title, author, reason });
 }
 window.suggestBook = suggestBook;
+
+// ════════════════════════════════════════════════════════
+// PDF Receipt Generation
+// ════════════════════════════════════════════════════════
+function makePdfReceipt({ title, subtitle, rows, filename }) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const W = doc.internal.pageSize.getWidth();
+  const margin = 48;
+  let y = margin;
+
+  // Gold header bar
+  doc.setFillColor(212, 160, 23);
+  doc.rect(0, 0, W, 54, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.setTextColor(255, 255, 255);
+  doc.text('Discordecke Book Club', margin, 34);
+  doc.setFontSize(9);
+  doc.text('SUBMISSION RECEIPT', W - margin, 34, { align: 'right' });
+
+  y = 78;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.setTextColor(26, 26, 26);
+  doc.text(title, margin, y);
+  y += 4;
+
+  if (subtitle) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(110, 100, 85);
+    const subLines = doc.splitTextToSize(subtitle, W - margin * 2);
+    doc.text(subLines, margin, y + 14);
+    y += 14 + subLines.length * 13;
+  }
+  y += 18;
+
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(9);
+  doc.setTextColor(150, 140, 120);
+  doc.text('Submitted: ' + new Date().toLocaleString(), margin, y);
+  y += 20;
+
+  doc.setDrawColor(212, 160, 23);
+  doc.setLineWidth(1);
+  doc.line(margin, y, W - margin, y);
+  y += 16;
+
+  const colX = margin + 170;
+  rows.filter(Boolean).forEach(({ label, value }) => {
+    if (!value && value !== 0) return;
+    const maxW = W - colX - margin;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(110, 100, 85);
+    doc.text(label + ':', margin, y);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(26, 26, 26);
+    const lines = doc.splitTextToSize(String(value), maxW);
+    doc.text(lines, colX, y);
+    y += Math.max(16, lines.length * 14) + 4;
+    doc.setDrawColor(220, 215, 200);
+    doc.setLineWidth(0.5);
+    doc.line(margin, y, W - margin, y);
+    y += 10;
+    if (y > doc.internal.pageSize.getHeight() - margin) { doc.addPage(); y = margin; }
+  });
+
+  // Footer
+  const pageH = doc.internal.pageSize.getHeight();
+  doc.setFillColor(247, 245, 240);
+  doc.rect(0, pageH - 36, W, 36, 'F');
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(8);
+  doc.setTextColor(150, 140, 120);
+  doc.text('We Are Literally Massive  \u00b7  Keep this receipt for your records', W / 2, pageH - 16, { align: 'center' });
+
+  doc.save(filename);
+}
+
+function downloadSuggestReceipt(data) {
+  makePdfReceipt({
+    title: 'Book Suggestion',
+    subtitle: '\u201c' + data.title + '\u201d by ' + data.author,
+    filename: 'bookclub-suggestion-' + Date.now() + '.pdf',
+    rows: [
+      { label: 'Discord Username', value: data.discord },
+      { label: 'Email',            value: data.email },
+      { label: 'Book Title',       value: data.title },
+      { label: 'Author',           value: data.author },
+      { label: 'Why Recommend?',   value: data.reason || '(not provided)' },
+    ]
+  });
+}
+
+function downloadVoteReceipt(data) {
+  makePdfReceipt({
+    title: 'Vote / Rankings',
+    subtitle: 'Your ranked reading list for this month',
+    filename: 'bookclub-vote-' + Date.now() + '.pdf',
+    rows: [
+      { label: 'Discord Username', value: data.discord },
+      { label: 'Email',            value: data.email },
+      ...data.ranking.map((t, i) => ({ label: '#' + (i + 1) + ' Choice', value: t }))
+    ]
+  });
+}
+
+function downloadReviewReceipt(data) {
+  const ratingLabel = data.rating === 'opt-out' ? 'Opted out' : data.rating + ' / 5 stars';
+  makePdfReceipt({
+    title: 'Book Review',
+    subtitle: data.bookTitle ? '\u201c' + data.bookTitle + '\u201d  \u2014  ' + data.month : data.month,
+    filename: 'bookclub-review-' + Date.now() + '.pdf',
+    rows: [
+      { label: 'Discord Username', value: data.discord },
+      { label: 'Email',            value: data.email },
+      { label: 'Month',            value: data.month },
+      data.bookTitle ? { label: 'Book Reviewed',   value: data.bookTitle } : null,
+      { label: 'Did you read it?', value: data.read },
+      data.read === 'Yes' ? { label: 'Did you finish?', value: data.finished } : null,
+      data.dnfWhy    ? { label: 'Why DNF?',         value: data.dnfWhy }   : null,
+      { label: 'Did you like it?', value: data.liked || '(not answered)' },
+      { label: 'Thoughts',         value: data.why   || '(not provided)' },
+      { label: 'Star Rating',      value: ratingLabel },
+    ]
+  });
+}
 
 function renderSuggest() {
   const s = getSettings(), books = getBooks();
@@ -893,6 +1032,14 @@ async function submitVote() {
   await fbSet(VOTES_REF, { map: votes });
   hideLoading();
   showMsg('vote-msg', '✓ Vote recorded — thank you!', 'ok');
+  if (document.getElementById('v-receipt')?.checked) {
+    const allBooks = getBooks().map(normBook);
+    const rankTitles = votes[storeKey].ranking.map(id => {
+      const b = allBooks.find(b => String(b.id) === String(id));
+      return b ? b.title : id;
+    });
+    downloadVoteReceipt({ discord: name, email, ranking: rankTitles });
+  }
 }
 window.submitVote = submitVote;
 
@@ -1222,6 +1369,7 @@ async function submitReview() {
   await fbSet(REVIEWS_REF, { map: reviews });
   hideLoading();
   showMsg('review-msg', '✓ Review submitted — thank you!', 'ok');
+  if (document.getElementById('rv-receipt')?.checked) downloadReviewReceipt(entry);
   // Reset form
   ['rv-email','rv-discord','rv-dnf-reason','rv-why'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   document.getElementById('rv-month').value = '';
