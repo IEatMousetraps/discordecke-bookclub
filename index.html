@@ -2727,7 +2727,7 @@ const BADGE_DEFS = [
   // ── Genre — voting / reading ──────────────────────────────────────────────
   { id:'genre-devotee',     name:'Genre Devotee',       emoji:'💝',  tier:null,     category:'genre', desc:'Rank a genre in the top half of your ballot 5+ times',      check:p=>p.genreDevotee },
   { id:'comfort-zone',      name:'Comfort Zone',        emoji:'🛋️',  tier:null,     category:'genre', desc:'Finish 3+ winning books in the same genre',                 check:p=>p.comfortZone },
-  { id:'against-type',      name:'Against Type',        emoji:'🔀',  tier:null,     category:'genre', desc:'Finish a winner book in a genre you've never suggested',    check:p=>p.againstType },
+  { id:'against-type',      name:'Against Type',        emoji:'🔀',  tier:null,     category:'genre', desc:"Finish a winner book in a genre you've never suggested",    check:p=>p.againstType },
 
   // ── Genre — reviews ───────────────────────────────────────────────────────
   { id:'adventurous-reader',name:'Adventurous Reader',  emoji:'🧭',  tier:null,     category:'genre', desc:'Rate books across 6+ different genres',                     check:p=>p.genresRated>=6 },
