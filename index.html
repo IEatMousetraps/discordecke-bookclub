@@ -130,6 +130,35 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 @media(max-width:520px){.grid2{grid-template-columns:1fr;}.grid3{grid-template-columns:1fr 1fr;}.bar-row{grid-template-columns:90px 1fr 40px;}}
 /* receipt download checkbox */
 .receipt-check{display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem;font-size:.85rem;color:var(--soft);cursor:pointer;user-select:none;}
+/* meeting countdown banner */
+#meeting-banner{background:linear-gradient(135deg,#1a1a1a,#2a2000);border-bottom:2px solid var(--gold);padding:.65rem 1.5rem;text-align:center;position:relative;z-index:2;}
+#meeting-banner .mb-inner{display:flex;align-items:center;justify-content:center;gap:1.25rem;flex-wrap:wrap;}
+#meeting-banner .mb-label{font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.45);}
+#meeting-banner .mb-title{font-family:'Playfair Display',serif;font-size:.95rem;color:#fff;font-style:italic;}
+#meeting-banner .mb-countdown{display:flex;gap:.5rem;align-items:center;}
+#meeting-banner .mb-unit{text-align:center;background:rgba(240,180,41,.12);border:1px solid rgba(240,180,41,.3);border-radius:5px;padding:.25rem .55rem;}
+#meeting-banner .mb-num{font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:700;color:var(--gold);line-height:1;}
+#meeting-banner .mb-ulab{font-size:.55rem;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-top:.1rem;}
+#meeting-banner .mb-link{font-size:.78rem;color:var(--gold);text-decoration:none;border:1px solid rgba(240,180,41,.4);padding:.2rem .65rem;border-radius:20px;transition:all .2s;}
+#meeting-banner .mb-link:hover{background:var(--gold);color:#111;}
+#meeting-banner .mb-past{font-size:.8rem;color:rgba(255,255,255,.5);font-style:italic;}
+/* progress tracker */
+.progress-btn{display:inline-flex;align-items:center;gap:.4rem;padding:.45rem 1rem;border-radius:20px;border:1.5px solid var(--border);background:var(--cream);cursor:pointer;font-size:.8rem;font-family:'DM Sans',sans-serif;transition:all .2s;font-weight:500;}
+.progress-btn.active-notstarted{border-color:#9e9e9e;background:#f5f5f5;color:#555;}
+.progress-btn.active-reading{border-color:#1565c0;background:#e3f2fd;color:#1565c0;}
+.progress-btn.active-finished{border-color:var(--green);background:#e8f5e9;color:var(--green);}
+.progress-btn.active-dnf{border-color:var(--red);background:#fce4ec;color:var(--red);}
+.progress-btn:hover:not(.active-reading):not(.active-finished):not(.active-dnf):not(.active-notstarted){border-color:var(--gold);}
+/* badges */
+.badge-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.75rem;margin-bottom:1.5rem;}
+.badge-card{background:var(--card);border:1.5px solid var(--border);border-radius:10px;padding:1rem;text-align:center;transition:border-color .2s;}
+.badge-card.earned{border-color:var(--gold);background:linear-gradient(135deg,#fffdf5,#fff8e0);}
+.badge-card.locked{opacity:.45;filter:grayscale(.7);}
+.badge-icon{font-size:2rem;margin-bottom:.4rem;}
+.badge-name{font-family:'Playfair Display',serif;font-size:.85rem;font-weight:600;margin-bottom:.2rem;}
+.badge-desc{font-size:.7rem;color:var(--soft);line-height:1.3;}
+.badge-earned-label{font-size:.65rem;color:var(--gold);font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-top:.35rem;}
+
 .receipt-check input{accent-color:var(--accent);width:1rem;height:1rem;cursor:pointer;}
 </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -148,6 +177,18 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   </div>
 </header>
 
+<!-- ══════════════ MEETING COUNTDOWN BANNER ══════════════ -->
+<div id="meeting-banner" style="display:none;">
+  <div class="mb-inner">
+    <div>
+      <div class="mb-label">Next Meeting</div>
+      <div class="mb-title" id="mb-title-text">Book Club Meeting</div>
+    </div>
+    <div class="mb-countdown" id="mb-countdown"></div>
+    <a class="mb-link" id="mb-discord-link" href="#" target="_blank" style="display:none;">Join Discord →</a>
+  </div>
+</div>
+
 
 <nav id="app-nav">
   <button class="active" data-tab="suggest" onclick="goTab('suggest',this)">Submit</button>
@@ -155,6 +196,8 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   <button data-tab="results" onclick="goTab('results',this)">Results</button>
   <button data-tab="review" onclick="goTab('review',this)">Rank A Book</button>
   <button data-tab="surveys" onclick="goTab('surveys',this)">Surveys</button>
+  <button data-tab="progress" onclick="goTab('progress',this)">📖 My Progress</button>
+  <button data-tab="badges" onclick="goTab('badges',this)">🏅 Badges</button>
   <button data-tab="rankings" onclick="goTab('rankings',this)">2026 Book Rankings</button>
   <button data-tab="analysis" onclick="goTab('analysis',this)">Book Club Metrics</button>
 </nav>
@@ -173,6 +216,15 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       </div>
       <div class="grid3">
         <div class="f-group"><label>Email *</label><input type="email" id="s-email" placeholder="you@email.com"></div>
+        <div class="f-group"><label>Genre <span style="font-size:.7rem;color:var(--soft);text-transform:none;letter-spacing:0;">(optional)</span></label>
+          <select id="s-genre">
+            <option value="">— Select genre —</option>
+            <option>Literary Fiction</option><option>Historical Fiction</option><option>Science Fiction</option>
+            <option>Fantasy</option><option>Mystery / Thriller</option><option>Romance</option>
+            <option>Horror</option><option>Non-Fiction</option><option>Biography / Memoir</option>
+            <option>Essays</option><option>Poetry</option><option>Graphic Novel</option><option>Other</option>
+          </select>
+        </div>
       </div>
       <div class="grid2">
         <div class="f-group"><label>Discord Username *</label><input type="text" id="s-discord" placeholder="user#0000"></div>
@@ -305,6 +357,42 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   </div>
 </div>
 
+<!-- ══════════════ READING PROGRESS ══════════════ -->
+<div id="tab-progress" class="section">
+  <div class="sec-head"><h2>📖 My Reading Progress</h2><p>Track where you are with this month's book club pick.</p></div>
+  <div id="progress-identity-card" class="card">
+    <div class="grid2">
+      <div class="f-group"><label>Email *</label><input type="email" id="pg-email" placeholder="you@email.com"></div>
+      <div class="f-group"><label>Discord Username *</label><input type="text" id="pg-discord" placeholder="user#0000"></div>
+    </div>
+    <button class="btn btn-primary" onclick="loadProgress()">Load My Progress</button>
+    <div id="pg-identity-msg"></div>
+  </div>
+  <div id="progress-main" style="display:none;">
+    <div id="progress-books-area"></div>
+    <div id="pg-save-msg"></div>
+  </div>
+</div>
+
+<!-- ══════════════ BADGES ══════════════ -->
+<div id="tab-badges" class="section">
+  <div class="sec-head"><h2>🏅 Member Achievements</h2><p>Earn badges for your participation milestones.</p></div>
+  <div class="card" id="badges-identity-card">
+    <div class="grid2">
+      <div class="f-group"><label>Email *</label><input type="email" id="bg-email" placeholder="you@email.com"></div>
+      <div class="f-group"><label>Discord Username *</label><input type="text" id="bg-discord" placeholder="user#0000"></div>
+    </div>
+    <button class="btn btn-primary" onclick="loadBadges()">Show My Badges</button>
+    <div id="bg-identity-msg"></div>
+  </div>
+  <div id="badges-main" style="display:none;">
+    <div id="badges-summary" class="card" style="margin-bottom:1.25rem;"></div>
+    <div id="badges-area"></div>
+    <div class="sec-head" style="margin-top:2rem;"><h2>Club Leaderboard</h2><p>Most badges earned by any member.</p></div>
+    <div id="badges-leaderboard"></div>
+  </div>
+</div>
+
 <!-- ══════════════ RANKINGS ══════════════ -->
 <div id="tab-rankings" class="section">
   <div class="sec-head"><h2>2026 Book Rankings</h2><p>How every book performed across all months, broken down by rank position.</p></div>
@@ -319,11 +407,13 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
     <button class="sub-tab" onclick="goSubTab('members',this)">Members</button>
     <button class="sub-tab" onclick="goSubTab('reviews-data',this)">Reviews</button>
     <button class="sub-tab" onclick="goSubTab('rank-dist',this)">Book Rank Distributions</button>
+    <button class="sub-tab" onclick="goSubTab('genre-diversity',this)">Genre Diversity</button>
   </div>
   <div id="sub-voting"><div id="analysis-voting-area"></div></div>
   <div id="sub-members" style="display:none;"><div id="analysis-members-area"></div></div>
   <div id="sub-reviews-data" style="display:none;"><div id="analysis-reviews-area"></div></div>
   <div id="sub-rank-dist" style="display:none;"><div id="analysis-rankdist-area"></div></div>
+  <div id="sub-genre-diversity" style="display:none;"><div id="analysis-genre-area"></div></div>
 </div>
 
 <!-- ══════════════ ADMIN ══════════════ -->
@@ -374,6 +464,24 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
           <button class="btn btn-secondary btn-sm" style="margin-left:.5rem;" onclick="toggleSetting('reviewsOpen')">Toggle</button>
         </div>
       </div>
+    </div>
+
+    <!-- Meeting countdown -->
+    <div class="card">
+      <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Meeting Countdown Banner</h3>
+      <p style="font-size:.85rem;color:var(--soft);margin-bottom:.75rem;">Display a countdown to the next book club meeting at the top of the page.</p>
+      <div class="grid2">
+        <div class="f-group"><label>Meeting Title</label><input type="text" id="meeting-title-input" placeholder="e.g. April Book Club Meeting"></div>
+        <div class="f-group"><label>Meeting Date &amp; Time</label><input type="datetime-local" id="meeting-datetime-input"></div>
+      </div>
+      <div class="f-group" style="max-width:400px;">
+        <label>Discord Event Link (optional)</label><input type="text" id="meeting-link-input" placeholder="https://discord.gg/...">
+      </div>
+      <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-top:.5rem;">
+        <button class="btn btn-primary" onclick="saveMeetingInfo()">Save &amp; Show Banner</button>
+        <button class="btn btn-secondary" onclick="clearMeetingInfo()">Hide Banner</button>
+      </div>
+      <div id="meeting-admin-msg"></div>
     </div>
 
     <!-- Month archive -->
@@ -516,11 +624,14 @@ const SURVEYS_REF  = doc(db, 'club', 'surveys');
 const SRESP_REF    = doc(db, 'club', 'surveyResponses');
 const DRAFT_REF    = doc(db, 'club', 'draftSurvey');
 const REVIEWS_REF  = doc(db, 'club', 'reviews');
+const PROGRESS_REF = doc(db, 'club', 'readingProgress');
+const MEETING_REF  = doc(db, 'club', 'meetingInfo');
 
 // ── In-memory cache kept fresh by real-time listeners ──
 let CACHE = {
   settings: {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,reviewsOpen:false,password:'bookclub123'},
-  books: [], votes: {}, archives: [], surveys: [], surveyResponses: {}, reviews: {}
+  books: [], votes: {}, archives: [], surveys: [], surveyResponses: {}, reviews: {},
+  readingProgress: {}, meetingInfo: {}
 };
 
 // ── Loading overlay ────────────────────────────────────
@@ -580,6 +691,14 @@ function startListeners() {
     CACHE.reviews = snap.exists() ? (snap.data().map || {}) : {};
     refreshActiveTab();
   });
+  onSnapshot(PROGRESS_REF, snap => {
+    CACHE.readingProgress = snap.exists() ? (snap.data().map || {}) : {};
+    refreshActiveTab();
+  });
+  onSnapshot(MEETING_REF, snap => {
+    CACHE.meetingInfo = snap.exists() ? snap.data() : {};
+    renderMeetingBanner();
+  });
 }
 
 function refreshActiveTab() {
@@ -593,6 +712,8 @@ function refreshActiveTab() {
   else if (id === 'rankings')  renderRankings();
   else if (id === 'surveys')   renderMemberSurveys();
   else if (id === 'analysis') renderAnalysis();
+  else if (id === 'progress') renderProgressTab();
+  else if (id === 'badges') renderBadgesTab();
   else if (id === 'admin' && document.getElementById('admin-panel').style.display !== 'none') renderAdmin();
 }
 
@@ -604,6 +725,8 @@ function getArchives()       { return CACHE.archives || []; }
 function getSurveys()        { return CACHE.surveys || []; }
 function getSurveyResponses(){ return CACHE.surveyResponses || {}; }
 function getReviews()        { return CACHE.reviews || {}; }
+function getReadingProgress(){ return CACHE.readingProgress || {}; }
+function getMeetingInfo()    { return CACHE.meetingInfo || {}; }
 
 // ════════════════════════════════════════════════════════
 // NAV
@@ -628,6 +751,8 @@ function goTab(id, btn) {
   if (id === 'rankings') renderRankings();
   if (id === 'surveys')  renderMemberSurveys();
   if (id === 'analysis') renderAnalysis();
+  if (id === 'progress') renderProgressTab();
+  if (id === 'badges')   renderBadgesTab();
   if (id === 'admin' && document.getElementById('admin-panel').style.display !== 'none') renderAdmin();
 }
 window.goTab = goTab;
@@ -752,6 +877,7 @@ function resolveId(discord, email, identityMap) {
 async function suggestBook() {
   const title = v('s-title'), author = v('s-author'),
         email = v('s-email'), discord = v('s-discord'), reason = v('s-reason');
+  const genre = (document.getElementById('s-genre')?.value || '').trim();
   if (!getSettings().suggestionsOpen) { showMsg('suggest-msg', 'Suggestions are currently closed.', 'err'); return; }
   if (!title || !author || !email || !discord) { showMsg('suggest-msg', 'Please fill in all fields.', 'err'); return; }
   if (!email.includes('@')) { showMsg('suggest-msg', 'Please enter a valid email.', 'err'); return; }
@@ -763,20 +889,23 @@ async function suggestBook() {
       showMsg('suggest-msg', "You've already recommended this book!", 'err'); return;
     }
     existing.suggesters.push({ discord, email, reason });
+    if (genre && !existing.genre) existing.genre = genre;
     showLoading('Adding recommendation…');
     await fbSet(BOOKS_REF, { list: books });
     hideLoading();
     ['s-title','s-author','s-email','s-discord','s-reason'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    const gEl = document.getElementById('s-genre'); if (gEl) gEl.value = '';
     showMsg('suggest-msg', '✓ Your recommendation was added to an existing entry!', 'ok');
     if (document.getElementById('s-receipt')?.checked) downloadSuggestReceipt({ discord, email, title, author, reason });
     return;
   }
   if (books.length >= 30) { showMsg('suggest-msg', 'Maximum 30 books reached.', 'err'); return; }
   showLoading('Adding book…');
-  books.push({ id: Date.now(), title, author, suggesters: [{ discord, email, reason }] });
+  books.push({ id: Date.now(), title, author, genre: genre || undefined, suggesters: [{ discord, email, reason }] });
   await fbSet(BOOKS_REF, { list: books });
   hideLoading();
   ['s-title','s-author','s-email','s-discord','s-reason'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  const gEl2 = document.getElementById('s-genre'); if (gEl2) gEl2.value = '';
   showMsg('suggest-msg', '✓ Book added!', 'ok');
   if (document.getElementById('s-receipt')?.checked) downloadSuggestReceipt({ discord, email, title, author, reason });
 }
@@ -1384,15 +1513,16 @@ window.submitReview = submitReview;
 // ANALYSIS — sub-tab controller
 // ════════════════════════════════════════════════════════
 function goSubTab(id, btn) {
-  ['voting','members','reviews-data','rank-dist'].forEach(s => {
+  ['voting','members','reviews-data','rank-dist','genre-diversity'].forEach(s => {
     document.getElementById('sub-'+s).style.display = s === id ? '' : 'none';
   });
   document.querySelectorAll('.sub-tab').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
-  if (id === 'voting')       renderAnalysisVoting();
-  if (id === 'members')      renderAnalysisMembers();
-  if (id === 'reviews-data') renderAnalysisReviews();
-  if (id === 'rank-dist')    renderAnalysisRankDist();
+  if (id === 'voting')          renderAnalysisVoting();
+  if (id === 'members')         renderAnalysisMembers();
+  if (id === 'reviews-data')    renderAnalysisReviews();
+  if (id === 'rank-dist')       renderAnalysisRankDist();
+  if (id === 'genre-diversity') renderGenreDiversity();
 }
 window.goSubTab = goSubTab;
 
@@ -1695,6 +1825,11 @@ window.adminLogin = adminLogin;
 
 function renderAdmin() {
   const s = getSettings(), votes = getVotes(), books = getBooks(), surveys = getSurveys();
+  // Populate meeting fields
+  const mi = getMeetingInfo();
+  if (mi.title)   { const el = document.getElementById('meeting-title-input'); if (el) el.value = mi.title; }
+  if (mi.datetime){ const el = document.getElementById('meeting-datetime-input'); if (el) el.value = mi.datetime; }
+  if (mi.discordLink){ const el = document.getElementById('meeting-link-input'); if (el) el.value = mi.discordLink; }
   setPill('a-suggest-pill',    s.suggestionsOpen,    'Open',    'Closed',  'pill-open', 'pill-closed');
   setPill('a-suggestvis-pill', s.suggestionsVisible, 'Visible', 'Hidden',  'pill-open', 'pill-closed');
   setPill('a-voting-pill',     s.votingOpen,         'Open',    'Closed',  'pill-open', 'pill-closed');
@@ -2060,6 +2195,405 @@ async function archiveMonth() {
 window.archiveMonth = archiveMonth;
 
 // ════════════════════════════════════════════════════════
+// MEETING COUNTDOWN BANNER
+// ════════════════════════════════════════════════════════
+let _countdownInterval = null;
+
+function renderMeetingBanner() {
+  const info = getMeetingInfo();
+  const banner = document.getElementById('meeting-banner');
+  if (!info || !info.datetime || !info.active) {
+    banner.style.display = 'none';
+    if (_countdownInterval) { clearInterval(_countdownInterval); _countdownInterval = null; }
+    return;
+  }
+  banner.style.display = '';
+  document.getElementById('mb-title-text').textContent = info.title || 'Book Club Meeting';
+  const linkEl = document.getElementById('mb-discord-link');
+  if (info.discordLink) { linkEl.href = info.discordLink; linkEl.style.display = ''; }
+  else { linkEl.style.display = 'none'; }
+
+  function tick() {
+    const target = new Date(info.datetime).getTime();
+    const now = Date.now();
+    const diff = target - now;
+    const cd = document.getElementById('mb-countdown');
+    if (diff <= 0) {
+      cd.innerHTML = `<span class="mb-past">Meeting time has passed — see you there! 🎉</span>`;
+      if (_countdownInterval) { clearInterval(_countdownInterval); _countdownInterval = null; }
+      return;
+    }
+    const d = Math.floor(diff / 86400000);
+    const h = Math.floor((diff % 86400000) / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    const unit = (n, l) => `<div class="mb-unit"><div class="mb-num">${String(n).padStart(2,'0')}</div><div class="mb-ulab">${l}</div></div>`;
+    cd.innerHTML = unit(d,'days') + unit(h,'hrs') + unit(m,'min') + unit(s,'sec');
+  }
+  tick();
+  if (_countdownInterval) clearInterval(_countdownInterval);
+  _countdownInterval = setInterval(tick, 1000);
+}
+
+async function saveMeetingInfo() {
+  const title    = document.getElementById('meeting-title-input').value.trim();
+  const datetime = document.getElementById('meeting-datetime-input').value;
+  const link     = document.getElementById('meeting-link-input').value.trim();
+  if (!datetime) { showMsg('meeting-admin-msg', 'Please set a date and time.', 'err'); return; }
+  showLoading('Saving…');
+  await fbSet(MEETING_REF, { title: title || 'Book Club Meeting', datetime, discordLink: link, active: true });
+  hideLoading();
+  showMsg('meeting-admin-msg', '✓ Banner saved and visible to all members.', 'ok');
+}
+async function clearMeetingInfo() {
+  showLoading('Hiding…');
+  await fbSet(MEETING_REF, { active: false });
+  hideLoading();
+  showMsg('meeting-admin-msg', '✓ Banner hidden.', 'ok');
+}
+window.saveMeetingInfo = saveMeetingInfo;
+window.clearMeetingInfo = clearMeetingInfo;
+
+// ════════════════════════════════════════════════════════
+// READING PROGRESS TRACKER
+// ════════════════════════════════════════════════════════
+let _pgIdentity = null; // { email, discord, key }
+
+function pgKey(email, discord) {
+  return normEmail(email) || normId(discord);
+}
+
+async function loadProgress() {
+  const email   = document.getElementById('pg-email').value.trim();
+  const discord = document.getElementById('pg-discord').value.trim();
+  if (!email && !discord) { showMsg('pg-identity-msg', 'Please enter your email or Discord username.', 'err'); return; }
+  _pgIdentity = { email, discord, key: pgKey(email, discord) };
+  document.getElementById('progress-main').style.display = '';
+  renderProgressTab();
+}
+window.loadProgress = loadProgress;
+
+function renderProgressTab() {
+  const area = document.getElementById('progress-books-area');
+  if (!area) return;
+  const books = getBooks();
+  if (!books.length) {
+    area.innerHTML = '<div class="empty"><div class="icon">📚</div><p>No books are up for consideration this month yet.</p></div>';
+    return;
+  }
+  if (!_pgIdentity) return; // wait for identity
+
+  const progress = getReadingProgress();
+  const myProgress = progress[_pgIdentity.key] || {};
+
+  const statuses = [
+    { key: 'not-started', label: 'Not Started', emoji: '📋' },
+    { key: 'reading',     label: 'Reading',     emoji: '👀' },
+    { key: 'finished',    label: 'Finished',     emoji: '✅' },
+    { key: 'dnf',         label: 'DNF',          emoji: '❌' },
+  ];
+
+  area.innerHTML = `
+    <p style="font-size:.82rem;color:var(--soft);margin-bottom:1.25rem;">Tap a status for each book to let the club know where you're at.</p>
+    ${books.map(b => {
+      const cur = myProgress[b.id] || 'not-started';
+      return `<div class="card" style="padding:1rem 1.25rem;">
+        <div style="display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap;">
+          <div style="flex:1;min-width:150px;">
+            <div style="font-weight:500;font-size:.95rem;">${esc(b.title)}</div>
+            <div style="font-size:.78rem;color:var(--soft);">${esc(b.author)}</div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:.45rem;">
+            ${statuses.map(st => `
+              <button class="progress-btn ${cur===st.key ? 'active-'+st.key : ''}"
+                onclick="setProgress('${b.id}','${st.key}',this)">
+                ${st.emoji} ${st.label}
+              </button>`).join('')}
+          </div>
+        </div>
+      </div>`;
+    }).join('')}`;
+}
+
+async function setProgress(bookId, status, btn) {
+  if (!_pgIdentity) return;
+  const progress = JSON.parse(JSON.stringify(getReadingProgress()));
+  if (!progress[_pgIdentity.key]) progress[_pgIdentity.key] = {};
+  progress[_pgIdentity.key][bookId] = status;
+  // Optimistic UI update
+  const card = btn.closest('.card');
+  card.querySelectorAll('.progress-btn').forEach(b => {
+    b.className = 'progress-btn';
+    if (b.getAttribute('onclick').includes(`'${status}'`)) b.classList.add('active-'+status);
+  });
+  await fbSet(PROGRESS_REF, { map: progress });
+}
+window.setProgress = setProgress;
+
+// ════════════════════════════════════════════════════════
+// MEMBER ACHIEVEMENTS / BADGES
+// ════════════════════════════════════════════════════════
+let _bgIdentity = null;
+
+const BADGE_DEFS = [
+  { id: 'first-vote',       name: 'First Vote',        emoji: '🗳️',  desc: 'Cast your first vote',              check: (p) => p.voted >= 1 },
+  { id: 'first-suggest',    name: 'Bookworm',           emoji: '📚',  desc: 'Submit your first book suggestion',   check: (p) => p.suggested >= 1 },
+  { id: 'first-review',     name: 'Critic',             emoji: '✍️',  desc: 'Submit your first book review',       check: (p) => p.reviewed >= 1 },
+  { id: 'all-rounder',      name: 'All-Rounder',        emoji: '🌟',  desc: 'Vote, suggest, and review in any month', check: (p) => p.voted >= 1 && p.suggested >= 1 && p.reviewed >= 1 },
+  { id: 'three-votes',      name: 'Regular',            emoji: '📆',  desc: 'Vote in 3 or more months',            check: (p) => p.voted >= 3 },
+  { id: 'six-votes',        name: 'Devoted Reader',     emoji: '🏆',  desc: 'Vote in 6 or more months',            check: (p) => p.voted >= 6 },
+  { id: 'three-suggests',   name: 'Curator',            emoji: '🔖',  desc: 'Suggest books in 3 or more months',   check: (p) => p.suggested >= 3 },
+  { id: 'three-reviews',    name: 'Reviewer',           emoji: '📝',  desc: 'Submit reviews in 3 or more months',  check: (p) => p.reviewed >= 3 },
+  { id: 'winner-picker',    name: 'Taste-Maker',        emoji: '👑',  desc: 'Suggest a book that wins',            check: (p) => p.pickedWinner >= 1 },
+  { id: 'consistent',       name: 'The Backbone',       emoji: '💎',  desc: 'Vote in every archived month (min 3)', check: (p) => p.totalMonths >= 3 && p.voted >= p.totalMonths },
+];
+
+function computeMemberProfile(discord, email) {
+  const archives   = getArchives();
+  const allReviews = getReviews();
+  const idMap      = buildIdentityMap();
+  const myName     = resolveId(discord, email, idMap);
+
+  let voted = 0, suggested = 0, reviewed = 0, pickedWinner = 0;
+  const totalMonths = archives.length;
+
+  archives.forEach(a => {
+    // voted?
+    const voterNames = Object.values(a.votes||{}).map(vd => resolveId(vd.discord, vd.email, idMap));
+    if (voterNames.includes(myName)) voted++;
+    // suggested?
+    const suggesterNames = (a.books||[]).flatMap(b => normBook(b).suggesters.map(s => resolveId(s.discord, s.email, idMap)));
+    if (suggesterNames.includes(myName)) suggested++;
+    // winner?
+    const dualIds = a.dualWinners || [];
+    const winnerBooks = dualIds.length
+      ? (a.books||[]).filter(b => dualIds.includes(String(b.id)))
+      : (a.books||[]).slice(0,1);
+    const winnerSuggesters = winnerBooks.flatMap(b => normBook(b).suggesters.map(s => resolveId(s.discord, s.email, idMap)));
+    if (winnerSuggesters.includes(myName)) pickedWinner++;
+  });
+
+  // reviewed
+  Object.values(allReviews).forEach(entries => {
+    (entries||[]).forEach(r => {
+      if (resolveId(r.discord, r.email, idMap) === myName) reviewed++;
+    });
+  });
+
+  return { voted, suggested, reviewed, pickedWinner, totalMonths };
+}
+
+async function loadBadges() {
+  const email   = document.getElementById('bg-email').value.trim();
+  const discord = document.getElementById('bg-discord').value.trim();
+  if (!email && !discord) { showMsg('bg-identity-msg', 'Please enter your email or Discord username.', 'err'); return; }
+  _bgIdentity = { email, discord };
+  document.getElementById('badges-main').style.display = '';
+  renderBadgesTab();
+}
+window.loadBadges = loadBadges;
+
+function renderBadgesTab() {
+  const mainEl = document.getElementById('badges-main');
+  if (!mainEl || mainEl.style.display === 'none') return;
+  if (!_bgIdentity) return;
+
+  const profile = computeMemberProfile(_bgIdentity.discord, _bgIdentity.email);
+  const earned  = BADGE_DEFS.filter(b => b.check(profile));
+  const locked  = BADGE_DEFS.filter(b => !b.check(profile));
+
+  document.getElementById('badges-summary').innerHTML = `
+    <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
+      <div style="text-align:center;">
+        <div style="font-family:'Playfair Display',serif;font-size:2.5rem;font-weight:700;color:var(--gold);">${earned.length}</div>
+        <div style="font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);">Badges Earned</div>
+      </div>
+      <div style="flex:1;min-width:180px;">
+        <div style="font-weight:500;margin-bottom:.3rem;">${earned.map(b=>b.emoji).join(' ') || '—'}</div>
+        <div style="font-size:.82rem;color:var(--soft);">${profile.voted} months voted · ${profile.suggested} books suggested · ${profile.reviewed} reviews · ${profile.pickedWinner} winning pick${profile.pickedWinner!==1?'s':''}</div>
+      </div>
+    </div>`;
+
+  const badgeCard = (b, isEarned) => `
+    <div class="badge-card ${isEarned ? 'earned' : 'locked'}">
+      <div class="badge-icon">${b.emoji}</div>
+      <div class="badge-name">${b.name}</div>
+      <div class="badge-desc">${b.desc}</div>
+      ${isEarned ? '<div class="badge-earned-label">✓ Earned</div>' : ''}
+    </div>`;
+
+  document.getElementById('badges-area').innerHTML = `
+    ${earned.length ? `<h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Earned (${earned.length})</h3>
+    <div class="badge-grid">${earned.map(b=>badgeCard(b,true)).join('')}</div>` : ''}
+    ${locked.length ? `<h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;color:var(--soft);">Locked (${locked.length})</h3>
+    <div class="badge-grid">${locked.map(b=>badgeCard(b,false)).join('')}</div>` : ''}`;
+
+  // Leaderboard
+  renderBadgesLeaderboard();
+}
+
+function renderBadgesLeaderboard() {
+  const archives   = getArchives();
+  const allReviews = getReviews();
+  const idMap      = buildIdentityMap();
+  if (!archives.length) {
+    document.getElementById('badges-leaderboard').innerHTML = '<div class="empty"><div class="icon">🏅</div><p>No data yet.</p></div>';
+    return;
+  }
+  // Build profiles for all known members
+  const members = new Map();
+  archives.forEach(a => {
+    Object.values(a.votes||{}).forEach(vd => {
+      const name = resolveId(vd.discord, vd.email, idMap);
+      if (!members.has(name)) members.set(name, { discord: vd.discord, email: vd.email });
+    });
+    (a.books||[]).map(normBook).forEach(b => b.suggesters.forEach(s => {
+      const name = resolveId(s.discord, s.email, idMap);
+      if (!members.has(name)) members.set(name, { discord: s.discord, email: s.email });
+    }));
+  });
+  Object.values(allReviews).forEach(entries => (entries||[]).forEach(r => {
+    const name = resolveId(r.discord, r.email, idMap);
+    if (!members.has(name)) members.set(name, { discord: r.discord, email: r.email });
+  }));
+
+  const leaderboard = [...members.entries()].map(([name, info]) => {
+    const p = computeMemberProfile(info.discord, info.email);
+    const earnedCount = BADGE_DEFS.filter(b => b.check(p)).length;
+    return { name, earnedCount, topBadges: BADGE_DEFS.filter(b=>b.check(p)).slice(0,5).map(b=>b.emoji).join(' ') };
+  }).filter(m => m.earnedCount > 0).sort((a,b) => b.earnedCount - a.earnedCount).slice(0, 10);
+
+  if (!leaderboard.length) {
+    document.getElementById('badges-leaderboard').innerHTML = '<div class="empty"><div class="icon">🏅</div><p>No badges earned yet.</p></div>';
+    return;
+  }
+  document.getElementById('badges-leaderboard').innerHTML = leaderboard.map((m, i) => `
+    <div class="card" style="padding:.8rem 1.25rem;margin-bottom:.5rem;display:flex;align-items:center;gap:1rem;">
+      <div style="font-family:'Playfair Display',serif;font-size:1.3rem;color:var(--gold);min-width:2rem;text-align:center;">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</div>
+      <div style="flex:1;">
+        <div style="font-weight:500;">${esc(m.name)}</div>
+        <div style="font-size:.78rem;color:var(--soft);">${m.topBadges}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-family:'Playfair Display',serif;font-size:1.2rem;font-weight:700;color:var(--gold);">${m.earnedCount}</div>
+        <div style="font-size:.68rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">badges</div>
+      </div>
+    </div>`).join('');
+}
+
+// ════════════════════════════════════════════════════════
+// GENRE DIVERSITY TRACKER
+// ════════════════════════════════════════════════════════
+const GENRE_COLORS = ['#f0b429','#2d7a3a','#1565c0','#c0392b','#7b1fa2','#e65100','#00695c','#4a148c','#827717','#1a237e'];
+
+function renderGenreDiversity() {
+  const area = document.getElementById('analysis-genre-area');
+  if (!area) return;
+  const archives = getArchives();
+
+  if (!archives.length) {
+    area.innerHTML = '<div class="empty"><div class="icon">🎭</div><p>No archived months yet. Genre data will appear here once books have a genre tag.</p></div>';
+    return;
+  }
+
+  // Collect all books that have genre tags
+  const allBooks = archives.flatMap(a => (a.books||[]).map(b => ({...b, month: a.label})));
+  const taggedBooks = allBooks.filter(b => b.genre);
+
+  if (!taggedBooks.length) {
+    area.innerHTML = `
+      <div class="pending-box">
+        <div class="icon">🎭</div>
+        <h3>No Genre Data Yet</h3>
+        <p>Add genre tags to books when submitting suggestions to enable this chart.<br>
+        <span style="font-size:.78rem;color:var(--soft);">Genres are stored on each book's record. Ask your admin to tag existing books.</span></p>
+      </div>
+      <div class="card" style="margin-top:1.5rem;">
+        <h3 style="font-family:'Playfair Display',serif;font-size:1.05rem;margin-bottom:.75rem;">All Archived Books</h3>
+        <p style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">Here's your reading history — add genres to unlock the diversity chart.</p>
+        ${archives.map(a => `
+          <div style="margin-bottom:.75rem;">
+            <div style="font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);margin-bottom:.3rem;">${esc(a.label)}</div>
+            ${(a.books||[]).map(b => `<div style="font-size:.85rem;padding:.2rem 0;">${esc(b.title)} <span style="color:var(--soft);">by ${esc(b.author)}</span></div>`).join('')}
+          </div>`).join('')}
+      </div>`;
+    return;
+  }
+
+  // Count genres
+  const genreCounts = {};
+  taggedBooks.forEach(b => {
+    const g = b.genre.trim();
+    genreCounts[g] = (genreCounts[g] || 0) + 1;
+  });
+  const total = taggedBooks.length;
+  const sorted = Object.entries(genreCounts).sort((a,b) => b[1]-a[1]);
+
+  // Genre breakdown by month
+  const monthGenres = {};
+  taggedBooks.forEach(b => {
+    if (!monthGenres[b.month]) monthGenres[b.month] = {};
+    monthGenres[b.month][b.genre] = (monthGenres[b.month][b.genre] || 0) + 1;
+  });
+
+  const allGenres = sorted.map(([g]) => g);
+  const colorMap = {};
+  allGenres.forEach((g, i) => colorMap[g] = GENRE_COLORS[i % GENRE_COLORS.length]);
+
+  area.innerHTML = `
+    <div class="chart-wrap">
+      <h3>Overall Genre Breakdown</h3>
+      <div class="bar-chart">
+        ${sorted.map(([genre, count]) => `
+          <div class="bar-row">
+            <div style="font-size:.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(genre)}</div>
+            <div class="bar-track"><div class="bar-val" style="width:${count/sorted[0][1]*100}%;background:${colorMap[genre]};"></div></div>
+            <div class="bar-lbl">${count} (${(count/total*100).toFixed(0)}%)</div>
+          </div>`).join('')}
+      </div>
+      <p style="font-size:.75rem;color:var(--soft);margin-top:.75rem;">${total} tagged books · ${sorted.length} genre${sorted.length!==1?'s':''}</p>
+    </div>
+
+    <div class="chart-wrap">
+      <h3>Genre Diversity Score</h3>
+      <p style="font-size:.82rem;color:var(--soft);margin-bottom:1rem;">Shannon entropy — higher = more variety in reading choices (max: ${Math.log2(sorted.length).toFixed(2)}).</p>
+      ${(() => {
+        const entropy = -sorted.reduce((sum,[,c]) => {
+          const p = c/total; return sum + (p > 0 ? p * Math.log2(p) : 0);
+        }, 0);
+        const maxEntropy = Math.log2(sorted.length);
+        const score = maxEntropy > 0 ? (entropy/maxEntropy*100).toFixed(0) : 0;
+        return `<div style="display:flex;align-items:center;gap:1.25rem;flex-wrap:wrap;">
+          <div style="text-align:center;background:var(--cream);border-radius:8px;padding:1rem 1.5rem;">
+            <div style="font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;color:var(--gold);">${score}%</div>
+            <div style="font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);">Diversity</div>
+          </div>
+          <div style="flex:1;min-width:150px;">
+            <div style="height:12px;background:var(--border);border-radius:6px;overflow:hidden;margin-bottom:.5rem;">
+              <div style="height:100%;width:${score}%;background:var(--gold);border-radius:6px;transition:width .8s;"></div>
+            </div>
+            <p style="font-size:.78rem;color:var(--soft);">${score >= 80 ? '🌈 Excellent variety!' : score >= 55 ? '📖 Good mix of genres.' : '🔁 Consider branching out to new genres.'}</p>
+          </div>
+        </div>`;
+      })()}
+    </div>
+
+    <div class="chart-wrap">
+      <h3>Genre by Month</h3>
+      ${Object.entries(monthGenres).map(([month, genres]) => `
+        <div style="margin-bottom:.75rem;">
+          <div style="font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);margin-bottom:.4rem;">${esc(month)}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:.35rem;">
+            ${Object.entries(genres).map(([g,c]) => `
+              <span style="display:inline-flex;align-items:center;gap:.3rem;background:${colorMap[g]}22;border:1px solid ${colorMap[g]}66;color:${colorMap[g]};padding:.2rem .65rem;border-radius:20px;font-size:.75rem;font-weight:500;">
+                ${esc(g)}${c>1?` ×${c}`:''}
+              </span>`).join('')}
+          </div>
+        </div>`).join('')}
+    </div>`;
+}
+
+// ════════════════════════════════════════════════════════
 // CSV DOWNLOADS
 // ════════════════════════════════════════════════════════
 function downloadCSV(type) {
@@ -2164,7 +2698,7 @@ function setPill(id, cond, tLabel, fLabel, tCls, fCls) {
 // Show the app immediately — Firebase listeners will update data as they arrive
 hideLoading();
 const _initTab = location.hash.replace('#', '');
-const _validTabs = ['suggest','vote','results','review','surveys','rankings','analysis','admin'];
+const _validTabs = ['suggest','vote','results','review','surveys','rankings','analysis','progress','badges','admin'];
 if (_initTab && _validTabs.includes(_initTab)) {
   const _btn = document.querySelector(`nav button[data-tab="${_initTab}"]`) || document.getElementById('admin-nav-btn');
   goTab(_initTab, _btn);
