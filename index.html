@@ -302,10 +302,12 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
     <button class="sub-tab active" onclick="goSubTab('voting',this)">Voting</button>
     <button class="sub-tab" onclick="goSubTab('members',this)">Members</button>
     <button class="sub-tab" onclick="goSubTab('reviews-data',this)">Reviews</button>
+    <button class="sub-tab" onclick="goSubTab('rank-dist',this)">Book Rank Distributions</button>
   </div>
   <div id="sub-voting"><div id="analysis-voting-area"></div></div>
   <div id="sub-members" style="display:none;"><div id="analysis-members-area"></div></div>
   <div id="sub-reviews-data" style="display:none;"><div id="analysis-reviews-area"></div></div>
+  <div id="sub-rank-dist" style="display:none;"><div id="analysis-rankdist-area"></div></div>
 </div>
 
 <!-- ══════════════ ADMIN ══════════════ -->
@@ -359,7 +361,24 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
         <label>Month Label</label>
         <input type="text" id="archive-label" placeholder="e.g. June 2025">
       </div>
-      <button class="btn btn-gold" onclick="archiveMonth()">Archive &amp; Reset</button>
+      <div class="f-group" style="margin-top:.75rem;">
+        <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.85rem;text-transform:none;letter-spacing:0;">
+          <input type="checkbox" id="archive-dual-winner" onchange="toggleDualWinner()" style="width:auto;margin:0;">
+          This month has two winners (tie / joint pick)
+        </label>
+      </div>
+      <div id="dual-winner-fields" style="display:none;margin-top:.75rem;padding:.75rem;background:var(--cream);border:1px solid var(--border);border-radius:6px;">
+        <p style="font-size:.78rem;color:var(--soft);margin-bottom:.6rem;">Select the two winning books — they will both be marked as co-winners in the archive.</p>
+        <div class="f-group" style="max-width:320px;">
+          <label>Winner #1</label>
+          <select id="archive-winner1"><option value="">— select book —</option></select>
+        </div>
+        <div class="f-group" style="max-width:320px;margin-top:.5rem;">
+          <label>Winner #2</label>
+          <select id="archive-winner2"><option value="">— select book —</option></select>
+        </div>
+      </div>
+      <button class="btn btn-gold" style="margin-top:.75rem;" onclick="archiveMonth()">Archive &amp; Reset</button>
       <div id="archive-msg"></div>
     </div>
 
@@ -1043,7 +1062,7 @@ window.submitReview = submitReview;
 // ANALYSIS — sub-tab controller
 // ════════════════════════════════════════════════════════
 function goSubTab(id, btn) {
-  ['voting','members','reviews-data'].forEach(s => {
+  ['voting','members','reviews-data','rank-dist'].forEach(s => {
     document.getElementById('sub-'+s).style.display = s === id ? '' : 'none';
   });
   document.querySelectorAll('.sub-tab').forEach(b => b.classList.remove('active'));
@@ -1051,6 +1070,7 @@ function goSubTab(id, btn) {
   if (id === 'voting')       renderAnalysisVoting();
   if (id === 'members')      renderAnalysisMembers();
   if (id === 'reviews-data') renderAnalysisReviews();
+  if (id === 'rank-dist')    renderAnalysisRankDist();
 }
 window.goSubTab = goSubTab;
 
@@ -1090,24 +1110,6 @@ function renderAnalysisVoting() {
   const topBooks   = Object.entries(allScores).map(([t,d]) => [t,{...d,avgPct:d.totalPct/d.appears}]).sort((a,b)=>b[1].avgPct-a[1].avgPct).slice(0,10);
   const maxAvgPct  = topBooks[0] ? topBooks[0][1].avgPct : 1;
 
-  // Rank distribution
-  const rankDist = {};
-  archives.forEach(a => {
-    const nb = (a.books||[]).length, voterCount = Object.keys(a.votes||{}).length;
-    if (!nb || !voterCount) return;
-    (a.books||[]).forEach(b => { if (!rankDist[b.title]) rankDist[b.title] = {totalVoters:0,rankCounts:{}}; rankDist[b.title].totalVoters += voterCount; });
-    Object.values(a.votes||{}).forEach(vd => {
-      (vd.ranking||vd).forEach((id, idx) => {
-        const book = (a.books||[]).find(b => String(b.id)===String(id)); if (!book) return;
-        const rank = idx+1; rankDist[book.title].rankCounts[rank] = (rankDist[book.title].rankCounts[rank]||0)+1;
-      });
-    });
-  });
-  const rankDistSorted = Object.entries(rankDist).map(([title,d]) => {
-    let ws=0,tot=0; Object.entries(d.rankCounts).forEach(([r,n])=>{ws+=+r*n;tot+=n;});
-    return [title,{...d,avgRank:tot>0?ws/tot:999}];
-  }).sort((a,b)=>a[1].avgRank-b[1].avgRank);
-
   area.innerHTML = `
   <div class="chart-wrap"><h3>Participation Over Time</h3><div class="bar-chart">
     ${archives.map((a,i)=>`<div class="bar-row">
@@ -1127,36 +1129,54 @@ function renderAnalysisVoting() {
     </div>`).join('')}</div>`:'<p style="color:var(--soft);font-size:.875rem;">Not enough data yet.</p>'}
   </div>
 
-  <div class="chart-wrap">
-    <h3>Book Rank Distributions (Voting)</h3>
-    <p style="font-size:.78rem;color:var(--soft);margin-bottom:1rem;">% of voters who ranked each book at each position. Green = #1, red = last. Sorted by best average rank.</p>
-    ${rankDistSorted.length ? rankDistSorted.map(([title,d],i)=>{
-      const maxR = Math.max(...Object.keys(d.rankCounts).map(Number));
-      const rows = Array.from({length:maxR},(_,j)=>{
-        const rank=j+1,count=d.rankCounts[rank]||0,pct=d.totalVoters>0?(count/d.totalVoters*100):0;
-        const hue=Math.round(120-(rank-1)/Math.max(maxR-1,1)*120);
-        return `<div class="bar-row" style="margin-bottom:.2rem;">
-          <div style="font-size:.72rem;color:var(--soft);min-width:2rem;text-align:right;">#${rank}</div>
-          <div class="bar-track"><div class="bar-val" style="width:${Math.max(pct>0?2:0,pct)}%;background:hsl(${hue},60%,45%);"></div></div>
-          <div class="bar-lbl" style="font-size:.72rem;">${pct.toFixed(0)}%<span style="color:var(--soft);margin-left:.25rem;">(${count})</span></div>
-        </div>`;
-      }).join('');
-      return `<div style="margin-bottom:1.25rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border);">
-        <div style="display:flex;align-items:baseline;gap:.5rem;margin-bottom:.4rem;">
-          <span style="font-family:'Playfair Display',serif;font-weight:700;color:var(--gold);">${i+1}.</span>
-          <span style="font-size:.88rem;font-weight:500;">${esc(title)}</span>
-        </div>
-        <div class="bar-chart">${rows}</div>
-        <div style="font-size:.72rem;color:var(--soft);margin-top:.3rem;">avg rank ${d.avgRank.toFixed(1)} · ${d.totalVoters} vote${d.totalVoters!==1?'s':''}</div>
-      </div>`;
-    }).join('') : '<p style="color:var(--soft);font-size:.875rem;">Not enough data yet.</p>'}
-  </div>
-
   <div class="chart-wrap"><h3>Monthly Results</h3>
     <div class="month-tabs">${archives.map((a,i)=>`<div class="month-tab ${i===archives.length-1?'active':''}" onclick="showMonthDetail(${i},this)">${esc(a.label)}</div>`).join('')}</div>
     <div id="month-detail"></div>
   </div>`;
   showMonthDetail(archives.length-1, area.querySelector('.month-tab.active'));
+}
+
+// ── Rank Distributions sub-tab ───────────────────────────────────────────────
+function renderAnalysisRankDist() {
+  const archives = getArchives();
+  const area = document.getElementById('analysis-rankdist-area');
+  if (!archives.length) { area.innerHTML = '<div class="empty"><div class="icon">📊</div><p>No archived months yet.</p></div>'; return; }
+  const rankDist = {};
+  archives.forEach(a => {
+    const nb = (a.books||[]).length, voterCount = Object.keys(a.votes||{}).length;
+    if (!nb || !voterCount) return;
+    (a.books||[]).forEach(b => { if (!rankDist[b.title]) rankDist[b.title] = {totalVoters:0,rankCounts:{}}; rankDist[b.title].totalVoters += voterCount; });
+    Object.values(a.votes||{}).forEach(vd => {
+      (vd.ranking||vd).forEach((id, idx) => {
+        const book = (a.books||[]).find(b => String(b.id)===String(id)); if (!book) return;
+        const rank = idx+1; rankDist[book.title].rankCounts[rank] = (rankDist[book.title].rankCounts[rank]||0)+1;
+      });
+    });
+  });
+  const rankDistSorted = Object.entries(rankDist).map(([title,d]) => {
+    let ws=0,tot=0; Object.entries(d.rankCounts).forEach(([r,n])=>{ws+=+r*n;tot+=n;});
+    return [title,{...d,avgRank:tot>0?ws/tot:999}];
+  }).sort((a,b)=>a[1].avgRank-b[1].avgRank);
+  area.innerHTML = rankDistSorted.length ? rankDistSorted.map(([title,d],i)=>{
+    const maxR = Math.max(...Object.keys(d.rankCounts).map(Number));
+    const rows = Array.from({length:maxR},(_,j)=>{
+      const rank=j+1,count=d.rankCounts[rank]||0,pct=d.totalVoters>0?(count/d.totalVoters*100):0;
+      const hue=Math.round(120-(rank-1)/Math.max(maxR-1,1)*120);
+      return `<div class="bar-row" style="margin-bottom:.2rem;">
+        <div style="font-size:.72rem;color:var(--soft);min-width:2rem;text-align:right;">#${rank}</div>
+        <div class="bar-track"><div class="bar-val" style="width:${Math.max(pct>0?2:0,pct)}%;background:hsl(${hue},60%,45%);"></div></div>
+        <div class="bar-lbl" style="font-size:.72rem;">${pct.toFixed(0)}%<span style="color:var(--soft);margin-left:.25rem;">(${count})</span></div>
+      </div>`;
+    }).join('');
+    return `<div style="margin-bottom:1.25rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:baseline;gap:.5rem;margin-bottom:.4rem;">
+        <span style="font-family:'Playfair Display',serif;font-weight:700;color:var(--gold);">${i+1}.</span>
+        <span style="font-size:.88rem;font-weight:500;">${esc(title)}</span>
+      </div>
+      <div class="bar-chart">${rows}</div>
+      <div style="font-size:.72rem;color:var(--soft);margin-top:.3rem;">avg rank ${d.avgRank.toFixed(1)} · ${d.totalVoters} vote${d.totalVoters!==1?'s':''}</div>
+    </div>`;
+  }).join('') : '<p style="color:var(--soft);font-size:.875rem;">Not enough data yet.</p>';
 }
 
 // ── Members sub-tab ───────────────────────────────────────────────────────────
@@ -1326,9 +1346,14 @@ function showMonthDetail(idx, el) {
   const sorted = [...(a.books||[])].sort((x,y) => scores[y.id] - scores[x.id]);
   const maxPts = sorted[0] ? scores[sorted[0].id] : 1;
   const vcount = Object.keys(a.votes||{}).length;
+  const dualIds = a.dualWinners || [];
+  const isWinner = (b, i) => dualIds.length ? dualIds.includes(String(b.id)) : i === 0;
   document.getElementById('month-detail').innerHTML = `
-    <p style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">${vcount} voter${vcount!==1?'s':''} · ${nb} book${nb!==1?'s':''}</p>
-    <div class="bar-chart">${sorted.map((b,i) => `<div class="bar-row"><div style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${i===0?'👑 ':''}${esc(b.title)}</div><div class="bar-track"><div class="bar-val" style="width:${Math.max(3,scores[b.id]/maxPts*100)}%;${i===0?'background:var(--gold)':''}"></div></div><div class="bar-lbl">${scores[b.id]} pts</div></div>`).join('')}</div>`;
+    <p style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">${vcount} voter${vcount!==1?'s':''} · ${nb} book${nb!==1?'s':''}${dualIds.length?' · <strong style="color:var(--gold);">Co-winner month</strong>':''}</p>
+    <div class="bar-chart">${sorted.map((b,i) => {
+      const w = isWinner(b,i);
+      return `<div class="bar-row"><div style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${w?'👑 ':''}${esc(b.title)}</div><div class="bar-track"><div class="bar-val" style="width:${Math.max(3,scores[b.id]/maxPts*100)}%;${w?'background:var(--gold)':''}"></div></div><div class="bar-lbl">${scores[b.id]} pts</div></div>`;
+    }).join('')}</div>`;
 }
 window.showMonthDetail = showMonthDetail;
 
@@ -1404,11 +1429,45 @@ async function changePass() {
 }
 window.changePass = changePass;
 
+function toggleDualWinner() {
+  const checked = document.getElementById('archive-dual-winner').checked;
+  document.getElementById('dual-winner-fields').style.display = checked ? '' : 'none';
+  if (checked) populateDualWinnerSelects();
+}
+window.toggleDualWinner = toggleDualWinner;
+
+function populateDualWinnerSelects() {
+  const books = getBooks();
+  ['archive-winner1','archive-winner2'].forEach(id => {
+    const sel = document.getElementById(id);
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— select book —</option>' +
+      books.map(b => `<option value="${b.id}"${String(b.id)===cur?' selected':''}>${esc(b.title)}</option>`).join('');
+  });
+}
+window.populateDualWinnerSelects = populateDualWinnerSelects;
+
 async function archiveMonth() {
   const label = v('archive-label').trim();
   if (!label) { showMsg('archive-msg', 'Please enter a label (e.g. June 2025).', 'err'); return; }
   const books = getBooks(), votes = getVotes(), archives = getArchives();
-  archives.push({ label, books: JSON.parse(JSON.stringify(books)), votes: JSON.parse(JSON.stringify(votes)), archivedAt: Date.now() });
+  const isDual = document.getElementById('archive-dual-winner').checked;
+  let winners = [];
+  if (isDual) {
+    const w1 = document.getElementById('archive-winner1').value;
+    const w2 = document.getElementById('archive-winner2').value;
+    if (!w1 || !w2) { showMsg('archive-msg', 'Please select both winners.', 'err'); return; }
+    if (w1 === w2)  { showMsg('archive-msg', 'Please select two different books.', 'err'); return; }
+    winners = [String(w1), String(w2)];
+  }
+  const snapshot = {
+    label,
+    books: JSON.parse(JSON.stringify(books)),
+    votes: JSON.parse(JSON.stringify(votes)),
+    archivedAt: Date.now(),
+    ...(isDual ? { dualWinners: winners } : {})
+  };
+  archives.push(snapshot);
   showLoading('Archiving…');
   await fbSet(ARCHIVES_REF, {list: archives});
   await fbSet(BOOKS_REF,    {list: []});
@@ -1417,7 +1476,9 @@ async function archiveMonth() {
   await fbSet(SETTINGS_REF, s);
   hideLoading();
   document.getElementById('archive-label').value = '';
-  showMsg('archive-msg', '✓ Archived! Books & votes reset for new month.', 'ok');
+  document.getElementById('archive-dual-winner').checked = false;
+  document.getElementById('dual-winner-fields').style.display = 'none';
+  showMsg('archive-msg', isDual ? '✓ Archived with two co-winners! Reset for new month.' : '✓ Archived! Books & votes reset for new month.', 'ok');
   renderAdmin();
 }
 window.archiveMonth = archiveMonth;
