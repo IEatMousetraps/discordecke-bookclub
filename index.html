@@ -636,6 +636,33 @@ function normBook(b) {
   return b;
 }
 
+// Normalise a discord username for identity matching: trim + lowercase
+function normId(s) { return (s || '').trim().toLowerCase(); }
+
+// Return votes object with fuzzy-merged keys: if two keys normalise to the same
+// value, keep the most recent entry under the canonical (first-seen) key.
+function getNormVotes(raw) {
+  const result = {};    // normKey → entry
+  const keyMap  = {};   // normKey → canonical display key
+  Object.entries(raw).forEach(([k, vd]) => {
+    const nk = normId(k);
+    if (!result[nk]) {
+      result[nk] = vd;
+      keyMap[nk]  = k;
+    } else {
+      // Keep whichever entry is more recent
+      if ((vd.ts || 0) > (result[nk].ts || 0)) {
+        result[nk] = vd;
+        keyMap[nk]  = k;
+      }
+    }
+  });
+  // Re-key by canonical display name
+  const out = {};
+  Object.entries(result).forEach(([nk, vd]) => { out[keyMap[nk]] = vd; });
+  return out;
+}
+
 async function suggestBook() {
   const title = v('s-title'), author = v('s-author'),
         email = v('s-email'), discord = v('s-discord'), reason = v('s-reason');
@@ -646,7 +673,7 @@ async function suggestBook() {
   const norm = s => s.trim().toLowerCase();
   const existing = books.find(b => norm(b.title) === norm(title) && norm(b.author) === norm(author));
   if (existing) {
-    if (existing.suggesters.some(s => s.discord.toLowerCase() === discord.toLowerCase())) {
+    if (existing.suggesters.some(s => normId(s.discord) === normId(discord))) {
       showMsg('suggest-msg', "You've already recommended this book!", 'err'); return;
     }
     existing.suggesters.push({ discord, email, reason });
@@ -774,11 +801,14 @@ async function submitVote() {
   if (!email.includes('@')) { showMsg('vote-msg', 'Valid email required.', 'err'); return; }
   const items = [...document.getElementById('sortable-list').querySelectorAll('.sort-item')];
   if (!items.length) { showMsg('vote-msg', 'No books to rank.', 'err'); return; }
-  const votes = getVotes();
-  // Only ask to overwrite if they haven't touched the form yet — always allow resubmit after reordering
-  if (votes[name] && !confirm(`"${name}" has already voted. Submit new ranking?`)) return;
+  // Merge under any existing key that normalises to the same identity
+  const rawVotes = getVotes();
+  const existingKey = Object.keys(rawVotes).find(k => normId(k) === normId(name));
+  const votes = rawVotes;
+  const storeKey = existingKey || name;
+  if (existingKey && !confirm(`"${existingKey}" has already voted. Submit new ranking?`)) return;
   showLoading('Submitting vote…');
-  votes[name] = { ranking: items.map(el => el.dataset.id), email, discord, ts: Date.now() };
+  votes[storeKey] = { ranking: items.map(el => el.dataset.id), email, discord: name, ts: Date.now() };
   await fbSet(VOTES_REF, { map: votes });
   hideLoading();
   showMsg('vote-msg', '✓ Vote recorded — thank you!', 'ok');
@@ -1095,7 +1125,7 @@ async function submitReview() {
   // Duplicate key: discord + bookId (for dual months) or just discord (single months)
   // Same person can review both co-winner books, but not the same book twice
   const existingIdx = reviews[month].findIndex(r =>
-    r.discord === discord && (isDualMonth ? String(r.bookId) === String(bookId) : !r.bookId)
+    normId(r.discord) === normId(discord) && (isDualMonth ? String(r.bookId) === String(bookId) : !r.bookId)
   );
   if (existingIdx >= 0) {
     // Silent overwrite — same book, same person
@@ -1246,11 +1276,11 @@ function renderAnalysisMembers() {
   if (!archives.length) { area.innerHTML = '<div class="empty"><div class="icon">👥</div><p>No archived months yet.</p></div>'; return; }
 
   const voterFreq = {};
-  archives.forEach(a => { Object.values(a.votes||{}).forEach(vd => { const k=vd.discord||'Unknown'; voterFreq[k]=(voterFreq[k]||0)+1; }); });
+  archives.forEach(a => { Object.values(a.votes||{}).forEach(vd => { const k=normId(vd.discord||'')||'Unknown'; voterFreq[k]=(voterFreq[k]||0)+1; }); });
   const topVoters = Object.entries(voterFreq).sort((a,b)=>b[1]-a[1]).slice(0,10);
 
   const suggesterFreq = {};
-  archives.forEach(a => { (a.books||[]).map(normBook).forEach(b => { b.suggesters.forEach(s => { const k=s.discord||'Unknown'; suggesterFreq[k]=(suggesterFreq[k]||0)+1; }); }); });
+  archives.forEach(a => { (a.books||[]).map(normBook).forEach(b => { b.suggesters.forEach(s => { const k=normId(s.discord||'')||'Unknown'; suggesterFreq[k]=(suggesterFreq[k]||0)+1; }); }); });
   const topSuggesters = Object.entries(suggesterFreq).sort((a,b)=>b[1]-a[1]).slice(0,10);
   const maxSuggestions = topSuggesters[0]?topSuggesters[0][1]:1;
 
@@ -1495,21 +1525,24 @@ function renderMemberCompare() {
     map[discord].add(month);
   };
   const meta = (discord, email) => {
+    // discord is already normId'd when passed in; store with that key
     if (!memberMeta[discord]) memberMeta[discord] = { discord, email: email || '' };
+    else if (email && !memberMeta[discord].email) memberMeta[discord].email = email;
   };
 
   archives.forEach(a => {
     // Voters
     Object.values(a.votes || {}).forEach(vd => {
-      const d = vd.discord || 'unknown';
+      const d = normId(vd.discord || 'unknown') || 'unknown';
       track(voterMonths, d, a.label);
       meta(d, vd.email);
     });
     // Suggesters
     (a.books || []).map(normBook).forEach(b => {
       b.suggesters.forEach(s => {
-        track(suggesterMonths, s.discord || 'unknown', a.label);
-        meta(s.discord || 'unknown', s.email);
+        const sd = normId(s.discord || 'unknown') || 'unknown';
+        track(suggesterMonths, sd, a.label);
+        meta(sd, s.email);
       });
     });
   });
@@ -1517,15 +1550,16 @@ function renderMemberCompare() {
   // Also include current month suggesters
   getBooks().map(normBook).forEach(b => {
     b.suggesters.forEach(s => {
-      if (s.discord) meta(s.discord, s.email);
+      if (s.discord) meta(normId(s.discord), s.email);
     });
   });
 
   // Reviewers from reviews map
   Object.entries(allReviews).forEach(([month, entries]) => {
     (entries || []).forEach(r => {
-      track(reviewerMonths, r.discord || 'unknown', month);
-      meta(r.discord || 'unknown', r.email);
+      const rd = normId(r.discord || 'unknown') || 'unknown';
+      track(reviewerMonths, rd, month);
+      meta(rd, r.email);
     });
   });
 
@@ -1546,7 +1580,7 @@ function renderMemberCompare() {
     const nb = (a.books || []).length;
     if (!nb) return;
     Object.values(a.votes || {}).forEach(vd => {
-      const d = vd.discord || 'unknown';
+      const d = normId(vd.discord || 'unknown') || 'unknown';
       if (!rankVectors[d]) rankVectors[d] = [];
       const rankMap = {};
       (vd.ranking || vd).forEach((id, idx) => {
