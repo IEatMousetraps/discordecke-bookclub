@@ -439,6 +439,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       <button class="sub-tab active" onclick="goAdminTab('manage',this)">Manage</button>
       <button class="sub-tab" onclick="goAdminTab('compare',this)">Member Comparison</button>
       <button class="sub-tab" onclick="goAdminTab('badges-admin',this)">🏅 Badge Manager</button>
+      <button class="sub-tab" onclick="goAdminTab('edit-books',this)">✏️ Edit Books</button>
     </div>
 
     <div id="admin-sub-manage">
@@ -649,6 +650,30 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
         <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Custom Badges</h3>
         <div id="admin-custom-badges-list"></div>
       </div>
+    </div>
+
+    <div id="admin-sub-edit-books" style="display:none;">
+
+      <!-- Current month books -->
+      <div class="card">
+        <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.5rem;">Current Month Books</h3>
+        <p style="font-size:.85rem;color:var(--soft);margin-bottom:.75rem;">Edit title, author, genre, or suggester name on any book currently up for voting this month.</p>
+        <div id="edit-current-books-area"></div>
+      </div>
+
+      <!-- Archived months -->
+      <div class="card">
+        <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.5rem;">Archived Month Books</h3>
+        <p style="font-size:.85rem;color:var(--soft);margin-bottom:.75rem;">Select a month to edit its books. Changes are saved directly to the archive.</p>
+        <div class="f-group" style="max-width:280px;margin-bottom:1rem;">
+          <label>Select Month</label>
+          <select id="edit-archive-month-sel" onchange="loadEditArchiveMonth()">
+            <option value="">— choose a month —</option>
+          </select>
+        </div>
+        <div id="edit-archive-books-area"></div>
+      </div>
+
     </div>
 
   </div>
@@ -1660,27 +1685,59 @@ function renderAnalysisVoting() {
 }
 
 // ── Rank Distributions sub-tab ───────────────────────────────────────────────
+// Track active month filter for rank dist ('all' or an archive label)
+let _rankDistMonth = 'all';
+
 function renderAnalysisRankDist() {
   const archives = getArchives();
   const area = document.getElementById('analysis-rankdist-area');
   if (!archives.length) { area.innerHTML = '<div class="empty"><div class="icon">📊</div><p>No archived months yet.</p></div>'; return; }
-  const rankDist = {};
+
+  // Build per-entry list: one entry per book-per-month (not aggregated)
+  // so the same title appearing in two months shows separately
+  const entries = []; // { title, month, avgRank, totalVoters, rankCounts }
   archives.forEach(a => {
     const nb = (a.books||[]).length, voterCount = Object.keys(a.votes||{}).length;
     if (!nb || !voterCount) return;
-    (a.books||[]).forEach(b => { if (!rankDist[b.title]) rankDist[b.title] = {totalVoters:0,rankCounts:{}}; rankDist[b.title].totalVoters += voterCount; });
+    const bookMap = {}; // bookId -> { title, rankCounts, totalVoters }
+    (a.books||[]).forEach(b => { bookMap[b.id] = { title: b.title, rankCounts:{}, totalVoters: voterCount }; });
     Object.values(a.votes||{}).forEach(vd => {
       (vd.ranking||vd).forEach((id, idx) => {
-        const book = (a.books||[]).find(b => String(b.id)===String(id)); if (!book) return;
-        const rank = idx+1; rankDist[book.title].rankCounts[rank] = (rankDist[book.title].rankCounts[rank]||0)+1;
+        if (!bookMap[id]) return;
+        const rank = idx+1;
+        bookMap[id].rankCounts[rank] = (bookMap[id].rankCounts[rank]||0)+1;
       });
     });
+    Object.values(bookMap).forEach(d => {
+      let ws=0,tot=0;
+      Object.entries(d.rankCounts).forEach(([r,n])=>{ws+=+r*n;tot+=n;});
+      entries.push({ title:d.title, month:a.label, avgRank:tot>0?ws/tot:999, totalVoters:d.totalVoters, rankCounts:d.rankCounts });
+    });
   });
-  const rankDistSorted = Object.entries(rankDist).map(([title,d]) => {
-    let ws=0,tot=0; Object.entries(d.rankCounts).forEach(([r,n])=>{ws+=+r*n;tot+=n;});
-    return [title,{...d,avgRank:tot>0?ws/tot:999}];
-  }).sort((a,b)=>a[1].avgRank-b[1].avgRank);
-  area.innerHTML = rankDistSorted.length ? '<p style="font-size:.82rem;color:var(--soft);margin-bottom:1.5rem;">Books are sorted by <strong>average rank position</strong> across all archived months — a book that most members placed #1 or #2 will appear at the top. Each bar chart shows what percentage of voters placed that book at each rank position, from #1 (green) to last place (red). The <em>avg rank</em> figure is the mean position given to that book across all votes cast on it.</p>' + rankDistSorted.map(([title,d],i)=>{
+
+  // Month toggle buttons
+  const monthLabels = [...new Set(archives.map(a=>a.label))];
+  const togglesHtml = `<div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:1.25rem;">
+    <button class="month-tab ${_rankDistMonth==='all'?'active':''}" onclick="setRankDistMonth('all')">All Time</button>
+    ${monthLabels.map(m=>`<button class="month-tab ${_rankDistMonth===m?'active':''}" onclick="setRankDistMonth('${m.replace(/'/g,"\'")}')">${esc(m)}</button>`).join('')}
+  </div>`;
+
+  // Filter to selected month
+  const filtered = _rankDistMonth === 'all'
+    ? entries
+    : entries.filter(e => e.month === _rankDistMonth);
+
+  const sorted = [...filtered].sort((a,b)=>a.avgRank-b.avgRank);
+
+  const desc = `<p style="font-size:.82rem;color:var(--soft);margin-bottom:1.25rem;">
+    Books are sorted by <strong>average rank position</strong> — a book most members placed #1 or #2 appears at the top.
+    Each bar chart shows what percentage of voters placed that book at each rank position, from #1 (green) to last place (red).
+    The <em>avg rank</em> figure is the mean position given to that book across all votes cast on it.<br><br>
+    Use the toggles above to view a single month in isolation or the full year at once.
+    Books that have been nominated more than once (e.g. Born to Run) appear as separate entries, each labelled with the month they competed in, so their results are never mixed together.
+  </p>`;
+
+  const booksHtml = sorted.length ? sorted.map((d,i)=>{
     const maxR = Math.max(...Object.keys(d.rankCounts).map(Number));
     const rows = Array.from({length:maxR},(_,j)=>{
       const rank=j+1,count=d.rankCounts[rank]||0,pct=d.totalVoters>0?(count/d.totalVoters*100):0;
@@ -1692,15 +1749,24 @@ function renderAnalysisRankDist() {
       </div>`;
     }).join('');
     return `<div style="margin-bottom:1.25rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border);">
-      <div style="display:flex;align-items:baseline;gap:.5rem;margin-bottom:.4rem;">
+      <div style="display:flex;align-items:baseline;gap:.5rem;margin-bottom:.25rem;flex-wrap:wrap;">
         <span style="font-family:'Playfair Display',serif;font-weight:700;color:var(--gold);">${i+1}.</span>
-        <span style="font-size:.88rem;font-weight:500;">${esc(title)}</span>
+        <span style="font-size:.88rem;font-weight:500;">${esc(d.title)}</span>
+        <span style="font-size:.7rem;color:var(--soft);background:var(--cream);border:1px solid var(--border);padding:.1rem .5rem;border-radius:20px;white-space:nowrap;">${esc(d.month)}</span>
       </div>
       <div class="bar-chart">${rows}</div>
       <div style="font-size:.72rem;color:var(--soft);margin-top:.3rem;">avg rank ${d.avgRank.toFixed(1)} · ${d.totalVoters} vote${d.totalVoters!==1?'s':''}</div>
     </div>`;
-  }).join('') : '<p style="color:var(--soft);font-size:.875rem;">Not enough data yet.</p>';
+  }).join('') : '<p style="color:var(--soft);font-size:.875rem;">No data for this month yet.</p>';
+
+  area.innerHTML = desc + togglesHtml + booksHtml;
 }
+
+function setRankDistMonth(month) {
+  _rankDistMonth = month;
+  renderAnalysisRankDist();
+}
+window.setRankDistMonth = setRankDistMonth;
 
 // ── Members sub-tab ───────────────────────────────────────────────────────────
 function renderAnalysisMembers() {
@@ -1929,13 +1995,14 @@ function renderAdmin() {
 }
 
 function goAdminTab(id, btn) {
-  ['manage','compare','badges-admin'].forEach(s => {
+  ['manage','compare','badges-admin','edit-books'].forEach(s => {
     document.getElementById('admin-sub-'+s).style.display = s === id ? '' : 'none';
   });
   document.querySelectorAll('#admin-panel .sub-tab').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   if (id === 'compare') renderMemberCompare();
   if (id === 'badges-admin') renderAdminBadgeManager();
+  if (id === 'edit-books') renderEditBooksTab();
 }
 window.goAdminTab = goAdminTab;
 
@@ -3166,6 +3233,208 @@ async function adminDeleteCustomBadge(id) {
   renderAdminBadgeControls();
 }
 window.adminDeleteCustomBadge = adminDeleteCustomBadge;
+
+
+// ════════════════════════════════════════════════════════
+// EDIT BOOKS (ADMIN)
+// ════════════════════════════════════════════════════════
+const EDIT_GENRES = ['','Literary Fiction','Historical Fiction','Science Fiction','Fantasy','Mystery / Thriller','Romance','Horror','Non-Fiction','Biography / Memoir','Essays','Poetry','Graphic Novel','Other'];
+
+function genreSelect(id, val) {
+  return `<select id="${id}" style="font-size:.78rem;padding:.3rem .5rem;max-width:180px;">
+    ${EDIT_GENRES.map(g=>`<option value="${g}"${g===val?' selected':''}>${g||'— no genre —'}</option>`).join('')}
+  </select>`;
+}
+
+function editBookCard(book, onSave, onCancel, context) {
+  // context: 'current' or 'archive'
+  const b = normBook(book);
+  const primarySuggester = b.suggesters[0] || {};
+  const uid = 'eb-' + book.id;
+  return `<div class="card" style="padding:1rem;margin-bottom:.65rem;border-left:3px solid var(--gold);">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem;">
+      <div class="f-group">
+        <label>Title</label>
+        <input type="text" id="${uid}-title" value="${esc(book.title)}" style="font-size:.85rem;padding:.4rem .7rem;">
+      </div>
+      <div class="f-group">
+        <label>Author</label>
+        <input type="text" id="${uid}-author" value="${esc(book.author)}" style="font-size:.85rem;padding:.4rem .7rem;">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem;">
+      <div class="f-group">
+        <label>Genre</label>
+        ${genreSelect(uid+'-genre', book.genre||'')}
+      </div>
+      <div class="f-group">
+        <label>Primary Suggester</label>
+        <input type="text" id="${uid}-suggester" value="${esc(primarySuggester.discord||'')}" style="font-size:.85rem;padding:.4rem .7rem;">
+      </div>
+    </div>
+    <div id="${uid}-msg"></div>
+    <div style="display:flex;gap:.5rem;margin-top:.4rem;">
+      <button class="btn btn-primary btn-sm" onclick="${onSave}('${book.id}','${uid}')">Save</button>
+      <button class="btn btn-secondary btn-sm" onclick="${onCancel}()">Cancel</button>
+    </div>
+  </div>`;
+}
+
+// ── Current month books ───────────────────────────────
+function renderEditBooksTab() {
+  renderEditCurrentBooks();
+  // Populate archive month selector
+  const sel = document.getElementById('edit-archive-month-sel');
+  if (sel) {
+    const archives = getArchives();
+    sel.innerHTML = '<option value="">— choose a month —</option>' +
+      [...archives].reverse().map(a=>`<option value="${esc(a.label)}">${esc(a.label)}</option>`).join('');
+  }
+  document.getElementById('edit-archive-books-area').innerHTML = '';
+}
+window.renderEditBooksTab = renderEditBooksTab;
+
+function renderEditCurrentBooks() {
+  const area = document.getElementById('edit-current-books-area');
+  if (!area) return;
+  const books = getBooks();
+  if (!books.length) { area.innerHTML = '<p style="font-size:.85rem;color:var(--soft);">No books submitted this month yet.</p>'; return; }
+  area.innerHTML = books.map(b => {
+    const nb = normBook(b);
+    const genreTag = b.genre ? `<span style="font-size:.7rem;background:var(--cream);border:1px solid var(--border);padding:.1rem .5rem;border-radius:12px;color:var(--soft);">${esc(b.genre)}</span>` : '<span style="font-size:.7rem;color:var(--red);">no genre</span>';
+    return `<div id="ecb-row-${b.id}" style="display:flex;align-items:center;gap:.75rem;padding:.65rem .75rem;background:var(--cream);border-radius:6px;margin-bottom:.4rem;flex-wrap:wrap;">
+      <div style="flex:1;min-width:150px;">
+        <div style="font-size:.88rem;font-weight:500;">${esc(b.title)}</div>
+        <div style="font-size:.75rem;color:var(--soft);">${esc(b.author)} · ${esc(nb.suggesters.map(s=>s.discord).join(', '))} · ${genreTag}</div>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="openEditCurrentBook('${b.id}')">Edit</button>
+    </div>
+    <div id="ecb-form-${b.id}" style="display:none;"></div>`;
+  }).join('');
+}
+window.renderEditCurrentBooks = renderEditCurrentBooks;
+
+function openEditCurrentBook(bookId) {
+  // Close any other open forms
+  document.querySelectorAll('[id^="ecb-form-"]').forEach(el => { el.style.display='none'; el.innerHTML=''; });
+  const form = document.getElementById('ecb-form-' + bookId);
+  if (!form) return;
+  const book = getBooks().find(b => String(b.id) === String(bookId));
+  if (!book) return;
+  form.style.display = '';
+  form.innerHTML = editBookCard(book, 'saveCurrentBook', 'cancelEditCurrentBook', 'current');
+}
+window.openEditCurrentBook = openEditCurrentBook;
+
+function cancelEditCurrentBook() {
+  document.querySelectorAll('[id^="ecb-form-"]').forEach(el => { el.style.display='none'; el.innerHTML=''; });
+}
+window.cancelEditCurrentBook = cancelEditCurrentBook;
+
+async function saveCurrentBook(bookId, uid) {
+  const title     = document.getElementById(uid+'-title')?.value.trim();
+  const author    = document.getElementById(uid+'-author')?.value.trim();
+  const genre     = document.getElementById(uid+'-genre')?.value.trim();
+  const suggester = document.getElementById(uid+'-suggester')?.value.trim();
+  if (!title || !author) { showMsg(uid+'-msg','Title and author are required.','err'); return; }
+  showLoading('Saving…');
+  const books = JSON.parse(JSON.stringify(getBooks()));
+  const idx = books.findIndex(b => String(b.id) === String(bookId));
+  if (idx === -1) { hideLoading(); return; }
+  books[idx].title  = title;
+  books[idx].author = author;
+  if (genre) books[idx].genre = genre; else delete books[idx].genre;
+  const nb = normBook(books[idx]);
+  if (suggester && nb.suggesters.length > 0) nb.suggesters[0].discord = suggester;
+  books[idx].suggesters = nb.suggesters;
+  await fbSet(BOOKS_REF, { list: books });
+  hideLoading();
+  cancelEditCurrentBook();
+  renderEditCurrentBooks();
+}
+window.saveCurrentBook = saveCurrentBook;
+
+// ── Archived month books ──────────────────────────────
+function loadEditArchiveMonth() {
+  const sel = document.getElementById('edit-archive-month-sel');
+  const area = document.getElementById('edit-archive-books-area');
+  if (!sel || !area) return;
+  const label = sel.value;
+  if (!label) { area.innerHTML = ''; return; }
+  renderEditArchiveBooks(label);
+}
+window.loadEditArchiveMonth = loadEditArchiveMonth;
+
+function renderEditArchiveBooks(label) {
+  const area = document.getElementById('edit-archive-books-area');
+  if (!area) return;
+  const archive = getArchives().find(a => a.label === label);
+  if (!archive) { area.innerHTML = '<p style="font-size:.85rem;color:var(--soft);">Archive not found.</p>'; return; }
+  const books = archive.books || [];
+  if (!books.length) { area.innerHTML = '<p style="font-size:.85rem;color:var(--soft);">No books in this archive.</p>'; return; }
+  area.innerHTML = `<p style="font-size:.78rem;color:var(--soft);margin-bottom:.75rem;">Showing ${books.length} book${books.length!==1?'s':''} from <strong>${esc(label)}</strong>.</p>` +
+    books.map(b => {
+      const nb = normBook(b);
+      const genreTag = b.genre ? `<span style="font-size:.7rem;background:var(--cream);border:1px solid var(--border);padding:.1rem .5rem;border-radius:12px;color:var(--soft);">${esc(b.genre)}</span>` : '<span style="font-size:.7rem;color:var(--red);">no genre</span>';
+      return `<div id="eab-row-${b.id}" style="display:flex;align-items:center;gap:.75rem;padding:.65rem .75rem;background:var(--cream);border-radius:6px;margin-bottom:.4rem;flex-wrap:wrap;">
+        <div style="flex:1;min-width:150px;">
+          <div style="font-size:.88rem;font-weight:500;">${esc(b.title)}</div>
+          <div style="font-size:.75rem;color:var(--soft);">${esc(b.author)} · ${esc(nb.suggesters.map(s=>s.discord).join(', '))} · ${genreTag}</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="openEditArchiveBook('${esc(label)}','${b.id}')">Edit</button>
+      </div>
+      <div id="eab-form-${b.id}" style="display:none;"></div>`;
+    }).join('');
+}
+
+function openEditArchiveBook(label, bookId) {
+  document.querySelectorAll('[id^="eab-form-"]').forEach(el => { el.style.display='none'; el.innerHTML=''; });
+  const form = document.getElementById('eab-form-' + bookId);
+  if (!form) return;
+  const archive = getArchives().find(a => a.label === label);
+  if (!archive) return;
+  const book = (archive.books||[]).find(b => String(b.id) === String(bookId));
+  if (!book) return;
+  form.style.display = '';
+  // Pass label encoded into the save call
+  form.innerHTML = editBookCard(book, `saveArchiveBook.bind(null,'${label.replace(/'/g,"\\'")}')`, 'cancelEditArchiveBook', 'archive');
+  // Rebind save button with label
+  const saveBtn = form.querySelector('button');
+  if (saveBtn) saveBtn.setAttribute('onclick', `saveArchiveBook('${label.replace(/'/g,"\\'")}','${bookId}','eb-${bookId}')`);
+}
+window.openEditArchiveBook = openEditArchiveBook;
+
+function cancelEditArchiveBook() {
+  document.querySelectorAll('[id^="eab-form-"]').forEach(el => { el.style.display='none'; el.innerHTML=''; });
+}
+window.cancelEditArchiveBook = cancelEditArchiveBook;
+
+async function saveArchiveBook(label, bookId, uid) {
+  const title     = document.getElementById(uid+'-title')?.value.trim();
+  const author    = document.getElementById(uid+'-author')?.value.trim();
+  const genre     = document.getElementById(uid+'-genre')?.value.trim();
+  const suggester = document.getElementById(uid+'-suggester')?.value.trim();
+  if (!title || !author) { showMsg(uid+'-msg','Title and author are required.','err'); return; }
+  showLoading('Saving…');
+  const archives = JSON.parse(JSON.stringify(getArchives()));
+  const arcIdx = archives.findIndex(a => a.label === label);
+  if (arcIdx === -1) { hideLoading(); return; }
+  const books = archives[arcIdx].books || [];
+  const bIdx = books.findIndex(b => String(b.id) === String(bookId));
+  if (bIdx === -1) { hideLoading(); return; }
+  books[bIdx].title  = title;
+  books[bIdx].author = author;
+  if (genre) books[bIdx].genre = genre; else delete books[bIdx].genre;
+  const nb = normBook(books[bIdx]);
+  if (suggester && nb.suggesters.length > 0) nb.suggesters[0].discord = suggester;
+  books[bIdx].suggesters = nb.suggesters;
+  archives[arcIdx].books = books;
+  await fbSet(ARCHIVES_REF, { list: archives });
+  hideLoading();
+  cancelEditArchiveBook();
+  renderEditArchiveBooks(label);
+}
+window.saveArchiveBook = saveArchiveBook;
 
 
 // ════════════════════════════════════════════════════════
