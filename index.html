@@ -640,9 +640,10 @@ function renderSuggest() {
   if (!books.length) { list.innerHTML = '<div class="empty"><div class="icon">📚</div><p>No books yet — be the first!</p></div>'; return; }
   list.innerHTML = books.map(normBook).map((b, i) => {
     const reasons = b.suggesters.filter(s => s.reason);
-    const blurbs = reasons.length === 0 ? '' :
+    const blurbs = reasons.map(s =>
       `<div class="book-sub" style="margin-top:.25rem;"><strong>Why are you recommending this book?</strong></div>` +
-      reasons.map(s => `<div class="book-sub" style="margin-left:.75rem;font-style:italic;">"${esc(s.reason)}"</div>`).join('');
+      `<div class="book-sub" style="margin-left:.75rem;font-style:italic;">"${esc(s.reason)}"</div>`
+    ).join('');
     return `<div class="book-item">
       <div class="book-num">${i+1}</div>
       <div class="book-info">
@@ -673,9 +674,10 @@ function buildSortable(books) {
     const d = document.createElement('div');
     d.className = 'sort-item'; d.dataset.id = b.id;
     const reasons = b.suggesters.filter(s => s.reason);
-    const blurbs = reasons.length === 0 ? '' :
+    const blurbs = reasons.map(s =>
       `<div class="book-sub" style="margin-top:.3rem;"><strong>Why are you recommending this book?</strong></div>` +
-      reasons.map(s => `<div class="book-sub" style="margin-left:.75rem;font-style:italic;">"${esc(s.reason)}"</div>`).join('');
+      `<div class="book-sub" style="margin-left:.75rem;font-style:italic;">"${esc(s.reason)}"</div>`
+    ).join('');
     d.innerHTML = `
       <div class="rank-badge">${i+1}</div>
       <div class="book-info" style="flex:1">
