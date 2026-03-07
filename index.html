@@ -407,13 +407,11 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   <div class="sub-tabs">
     <button class="sub-tab active" onclick="goSubTab('voting',this)">Voting</button>
     <button class="sub-tab" onclick="goSubTab('members',this)">Members</button>
-    <button class="sub-tab" onclick="goSubTab('reviews-data',this)">Reviews</button>
     <button class="sub-tab" onclick="goSubTab('rank-dist',this)">Book Rank Distributions</button>
     <button class="sub-tab" onclick="goSubTab('genre-diversity',this)">Genre Diversity</button>
   </div>
   <div id="sub-voting"><div id="analysis-voting-area"></div></div>
   <div id="sub-members" style="display:none;"><div id="analysis-members-area"></div></div>
-  <div id="sub-reviews-data" style="display:none;"><div id="analysis-reviews-area"></div></div>
   <div id="sub-rank-dist" style="display:none;"><div id="analysis-rankdist-area"></div></div>
   <div id="sub-genre-diversity" style="display:none;"><div id="analysis-genre-area"></div></div>
 </div>
@@ -1736,7 +1734,7 @@ window.submitReview = submitReview;
 // ANALYSIS — sub-tab controller
 // ════════════════════════════════════════════════════════
 function goSubTab(id, btn) {
-  ['voting','members','reviews-data','rank-dist','genre-diversity'].forEach(s => {
+  ['voting','members','rank-dist','genre-diversity'].forEach(s => {
     document.getElementById('sub-'+s).style.display = s === id ? '' : 'none';
   });
   document.querySelectorAll('.sub-tab').forEach(b => b.classList.remove('active'));
@@ -1744,7 +1742,6 @@ function goSubTab(id, btn) {
   const _sharedIdMap = buildIdentityMap();
   if      (id === 'voting')          renderAnalysisVoting();
   else if (id === 'members')         renderAnalysisMembers(_sharedIdMap);
-  else if (id === 'reviews-data')    renderAnalysisReviews();
   else if (id === 'rank-dist')       renderAnalysisRankDist();
   else if (id === 'genre-diversity') renderGenreDiversity();
 }
@@ -2092,7 +2089,7 @@ function renderRankings() {
   const bookData = {};
   Object.entries(reviews).forEach(([month, entries]) => {
     (entries||[]).forEach(r => {
-      const title = month; // one book per month — use the month label as the book identifier
+      const title = month;
       if (!bookData[title]) bookData[title] = { ratings:[], started:0, finished:0, liked:0, total:0, genre: monthGenreMap[month]||'' };
       bookData[title].total++;
       if (r.read === 'Yes') bookData[title].started++;
@@ -2118,9 +2115,70 @@ function renderRankings() {
     return '⭐'.repeat(full) + (half?'½':'') + ` <span style="font-size:.8rem;color:var(--soft);">${avg.toFixed(1)}/5</span>`;
   };
 
+  // Build member review cards for a given month (mirrors renderAnalysisReviews style)
+  const idMap = buildIdentityMap();
+  const archiveLookup = {};
+  getArchiveWinners().forEach(({archive:a, winnerBooks}) => {
+    const wb = winnerBooks[0];
+    if (!wb) return;
+    archiveLookup[a.label] = {
+      dual:     (a.dualWinners||[]).length > 0,
+      coTitles: winnerBooks.map(b=>b.title),
+    };
+  });
+
+  const starHtml = val => {
+    const n = +val;
+    if (!n || n < 1 || n > 5) return '<span style="color:var(--soft);font-size:.75rem;">No rating</span>';
+    return '<span style="font-size:.85rem;">' + '⭐'.repeat(n) + '</span>' +
+           `<span style="font-size:.72rem;color:var(--soft);margin-left:.25rem;">${n}/5</span>`;
+  };
+
+  function buildReviewCards(month) {
+    const entries = reviews[month] || [];
+    if (!entries.length) return '<p style="font-size:.82rem;color:var(--soft);padding:.5rem 0;">No reviews submitted yet.</p>';
+    const meta = archiveLookup[month] || {};
+    const isDual = meta.dual;
+    const monthId = month.replace(/[^a-z0-9]/gi, '_');
+
+    return entries.map((r, ri) => {
+      const name = resolveId(r.discord||'', r.email||'', idMap) || r.discord || 'Anonymous';
+      const bookLine = isDual && r.bookTitle ? `<span style="font-size:.72rem;color:var(--soft);font-style:italic;">${esc(r.bookTitle)}</span>` : '';
+      const statusPills = [
+        r.read === 'Yes'
+          ? '<span style="background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;font-size:.65rem;padding:.1rem .45rem;border-radius:20px;">Started</span>'
+          : '<span style="background:#fce4ec;color:#c62828;border:1px solid #ef9a9a;font-size:.65rem;padding:.1rem .45rem;border-radius:20px;">Did not start</span>',
+        r.read === 'Yes' ? (r.finished === 'Yes'
+          ? '<span style="background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;font-size:.65rem;padding:.1rem .45rem;border-radius:20px;">Finished</span>'
+          : '<span style="background:#fff3e0;color:#e65100;border:1px solid #ffcc80;font-size:.65rem;padding:.1rem .45rem;border-radius:20px;">DNF</span>') : '',
+        r.liked === 'Yes' ? '<span style="background:#fce4ec;color:#c2185b;border:1px solid #f48fb1;font-size:.65rem;padding:.1rem .45rem;border-radius:20px;">❤️ Liked it</span>' : '',
+      ].filter(Boolean).join(' ');
+
+      const hasThoughts = !!(r.why || (r.dnfWhy && r.finished !== 'Yes'));
+      const toggleId = `rk_thoughts_${monthId}_${ri}`;
+      const quoteHtml = r.why ? `<div style="font-size:.82rem;color:var(--ink);font-style:italic;padding:.5rem .75rem;background:var(--paper);border-left:2px solid var(--gold);border-radius:0 4px 4px 0;line-height:1.55;">"${esc(r.why)}"</div>` : '';
+      const dnfHtml = r.dnfWhy && r.finished !== 'Yes' ? `<div style="font-size:.78rem;color:var(--soft);font-style:italic;">${r.read === 'No' ? 'Why DNS' : 'Why DNF'}: ${esc(r.dnfWhy)}</div>` : '';
+      const thoughtsBlock = hasThoughts ? `<div id="${toggleId}" style="display:none;margin-top:.45rem;">${quoteHtml}${dnfHtml}</div>` : '';
+      const toggleBtn = hasThoughts ? `<button onclick="toggleThoughts('${toggleId}',this)" style="background:none;border:none;cursor:pointer;font-size:.72rem;color:var(--soft);padding:.1rem 0;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:.25rem;margin-top:.3rem;"><span style="font-size:.65rem;">▶</span> Show thoughts</button>` : '';
+
+      return `<div style="padding:.75rem 0;border-bottom:1px solid var(--border);">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.4rem;margin-bottom:.3rem;">
+          <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
+            <span style="font-weight:500;font-size:.88rem;">${esc(name)}</span>${bookLine}
+          </div>
+          <div>${starHtml(r.rating)}</div>
+        </div>
+        <div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.1rem;">${statusPills}</div>
+        ${toggleBtn}${thoughtsBlock}
+      </div>`;
+    }).join('');
+  }
+
   area.innerHTML = `
-  <p style="font-size:.78rem;color:var(--soft);margin-bottom:1.5rem;">Rankings are based on member reviews submitted through the Rank A Book page. Sorted by average star rating.</p>
-  ${sorted.map(([month, d], i) => `
+  <p style="font-size:.78rem;color:var(--soft);margin-bottom:1.5rem;">Rankings are based on member reviews submitted through the Rank A Book page. Sorted by average star rating. Click <strong>Member Reviews</strong> on any book to see individual responses.</p>
+  ${sorted.map(([month, d], i) => {
+    const reviewToggleId = `rkrev_${month.replace(/[^a-z0-9]/gi,'_')}`;
+    return `
     <div class="chart-wrap" style="margin-bottom:1rem;">
       <div style="display:flex;align-items:baseline;gap:.75rem;margin-bottom:.85rem;">
         <span style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--gold);">${i+1}.</span>
@@ -2149,10 +2207,36 @@ function renderRankings() {
           <div style="font-size:.68rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Reviews</div>
         </div>
       </div>
-    </div>`).join('')}`;
+      <button onclick="toggleRankingReviews('${reviewToggleId}', this)"
+        style="background:none;border:1px solid var(--border);border-radius:20px;cursor:pointer;font-size:.75rem;color:var(--soft);padding:.3rem .85rem;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:.35rem;transition:all .2s;"
+        onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--ink)';"
+        onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--soft)';">
+        <span style="font-size:.65rem;">▶</span> Member Reviews (${d.total})
+      </button>
+      <div id="${reviewToggleId}" style="display:none;margin-top:.75rem;border-top:1px solid var(--border);padding-top:.5rem;">
+        ${buildReviewCards(month)}
+      </div>
+    </div>`;
+  }).join('')}`;
 }
 
-function showMonthDetail(idx, el) {
+function toggleRankingReviews(id, btn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const isHidden = el.style.display === 'none';
+  el.style.display = isHidden ? 'block' : 'none';
+  const arrow = btn.querySelector('span');
+  if (arrow) arrow.textContent = isHidden ? '▼' : '▶';
+  const label = btn.childNodes[btn.childNodes.length - 1];
+  if (label) label.textContent = label.textContent.replace(/^[\s▼▶]*/, isHidden ? ' Hide Reviews' : ' Member Reviews').replace(/\(\d+\)/, m => m);
+  // re-apply text with count preserved
+  const countMatch = btn.textContent.match(/\((\d+)\)/);
+  const count = countMatch ? countMatch[1] : '';
+  btn.childNodes[btn.childNodes.length - 1].textContent = isHidden ? ` Hide Reviews (${count})` : ` Member Reviews (${count})`;
+}
+window.toggleRankingReviews = toggleRankingReviews;
+
+
   document.querySelectorAll('.month-tab').forEach(t => t.classList.remove('active'));
   if (el) el.classList.add('active');
   const a = getArchives()[idx]; if (!a) return;
