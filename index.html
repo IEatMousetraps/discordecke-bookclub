@@ -260,7 +260,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
     <div id="sortable-list"></div>
     <div id="vote-msg"></div>
     <label class="receipt-check"><input type="checkbox" id="v-receipt"> Download a copy of my submission (PDF)</label>
-    <div style="margin-top:.75rem;"><button class="btn btn-primary" onclick="submitVote()">Submit Rankings</button></div>
+    <div style="margin-top:.75rem;"><button class="btn btn-primary" onclick="submitVote()">Submit Vote</button></div>
   </div>
 </div>
 
@@ -1838,8 +1838,11 @@ function renderAnalysisRankDist() {
   archives.forEach(a => {
     const nb = (a.books||[]).length, voterCount = Object.keys(a.votes||{}).length;
     if (!nb || !voterCount) return;
-    const bookMap = {}; // bookId -> { title, rankCounts, totalVoters }
-    (a.books||[]).forEach(b => { bookMap[b.id] = { title: b.title, rankCounts:{}, totalVoters: voterCount }; });
+    const bookMap = {}; // bookId -> { title, rankCounts, totalVoters, suggesters }
+    (a.books||[]).forEach(b => {
+      const nb2 = normBook(b);
+      bookMap[b.id] = { title: b.title, rankCounts:{}, totalVoters: voterCount, suggesters: nb2.suggesters.map(s=>s.discord||s.email||'').filter(Boolean) };
+    });
     Object.values(a.votes||{}).forEach(vd => {
       (vd.ranking||vd).forEach((id, idx) => {
         if (!bookMap[id]) return;
@@ -1850,7 +1853,7 @@ function renderAnalysisRankDist() {
     Object.values(bookMap).forEach(d => {
       let ws=0,tot=0;
       Object.entries(d.rankCounts).forEach(([r,n])=>{ws+=+r*n;tot+=n;});
-      entries.push({ title:d.title, month:a.label, avgRank:tot>0?ws/tot:999, totalVoters:d.totalVoters, rankCounts:d.rankCounts });
+      entries.push({ title:d.title, month:a.label, avgRank:tot>0?ws/tot:999, totalVoters:d.totalVoters, rankCounts:d.rankCounts, suggesters:d.suggesters||[] });
     });
   });
 
@@ -1893,6 +1896,7 @@ function renderAnalysisRankDist() {
         <span style="font-size:.88rem;font-weight:500;">${esc(d.title)}</span>
         <span style="font-size:.7rem;color:var(--soft);background:var(--cream);border:1px solid var(--border);padding:.1rem .5rem;border-radius:20px;white-space:nowrap;">${esc(d.month)}</span>
       </div>
+      ${d.suggesters && d.suggesters.length ? `<div style="font-size:.72rem;color:var(--soft);margin-bottom:.4rem;">📌 Recommended by: <strong>${d.suggesters.map(s=>esc(s)).join(', ')}</strong></div>` : ''}
       <div class="bar-chart">${rows}</div>
       <div style="font-size:.72rem;color:var(--soft);margin-top:.3rem;">avg rank ${d.avgRank.toFixed(1)} · ${d.totalVoters} vote${d.totalVoters!==1?'s':''}</div>
     </div>`;
@@ -2016,7 +2020,7 @@ function renderAnalysisReviews() {
       const toggleId = `thoughts_${monthId}_${ri}`;
 
       const quoteHtml = r.why ? `<div style="font-size:.82rem;color:var(--ink);font-style:italic;padding:.5rem .75rem;background:var(--paper);border-left:2px solid var(--gold);border-radius:0 4px 4px 0;line-height:1.55;">"${esc(r.why)}"</div>` : '';
-      const dnfHtml   = r.dnfWhy && r.finished !== 'Yes' ? `<div style="font-size:.78rem;color:var(--soft);font-style:italic;">Why DNF: ${esc(r.dnfWhy)}</div>` : '';
+      const dnfHtml   = r.dnfWhy && r.finished !== 'Yes' ? `<div style="font-size:.78rem;color:var(--soft);font-style:italic;">${r.read === 'No' ? 'Why DNS' : 'Why DNF'}: ${esc(r.dnfWhy)}</div>` : '';
 
       const thoughtsBlock = hasThoughts ? `
         <div id="${toggleId}" style="display:none;margin-top:.45rem;display:none;">
@@ -2880,12 +2884,12 @@ const BADGE_DEFS = [
   { id:'librarian',          name:'The Librarian',       emoji:'📚',  tier:null,     category:'genre', desc:'Suggest books across 5+ different genres',                  check:p=>p.genresSuggested>=5 },
 
   // ── Genre — voting / reading ──────────────────────────────────────────────
-  { id:'genre-devotee',     name:'Genre Devotee',       emoji:'💝',  tier:null,     category:'genre', desc:'Rank a genre in the top half of your ballot 5+ times',      check:p=>p.genreDevotee },
+  { id:'genre-devotee',     name:'Genre Devotee',       emoji:'💝',  tier:null,     category:'genre', desc:'Rank a genre in the top half of your ballot 5+ times (non-fiction excluded)',      check:p=>p.genreDevotee },
   { id:'comfort-zone',      name:'Comfort Zone',        emoji:'🛋️',  tier:null,     category:'genre', desc:'Finish 3+ winning books in the same genre',                 check:p=>p.comfortZone },
-  { id:'against-type',      name:'Against Type',        emoji:'🔀',  tier:null,     category:'genre', desc:"Finish a winner book in a genre you've never suggested",    check:p=>p.againstType },
+  { id:'against-type',      name:'Against Type',        emoji:'🔀',  tier:null,     category:'genre', desc:"Finish a winner in a genre you've never suggested (must have suggested at least 3 books)",    check:p=>p.againstType },
 
   // ── Genre — reviews ───────────────────────────────────────────────────────
-  { id:'adventurous-reader',name:'Adventurous Reader',  emoji:'🧭',  tier:null,     category:'genre', desc:'Rate books across 6+ different genres',                     check:p=>p.genresRated>=6 },
+  { id:'adventurous-reader',name:'Adventurous Reader',  emoji:'🧭',  tier:null,     category:'genre', desc:'Rate books across 12+ different genres',                    check:p=>p.genresRated>=12 },
 
   // ── Admin-only ────────────────────────────────────────────────────────────
   { id:'founding-reader',   name:'1st Edition',         emoji:'🏛️',  tier:null,     desc:'Member during the inaugural year — admin awarded only',     check:()=>false, adminOnly:true },
@@ -3145,6 +3149,7 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
       const book = (a.books||[]).find(b=>String(b.id)===String(id));
       if (!book || !book.genre) return;
       book.genre.split('/').map(g=>g.trim()).filter(Boolean).forEach(g => {
+        if (g.toLowerCase() === 'non-fiction') return; // excluded from Genre Devotee
         genreTopHalfCounts[g] = (genreTopHalfCounts[g]||0)+1;
       });
     });
@@ -3166,8 +3171,9 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
   const comfortZone = Object.values(genreFinishCounts).some(c=>c>=3);
 
   // ── Against Type: finished a winner in a genre never suggested ──
+  // Requires at least 1 suggestion so new members with 0 suggestions can't earn this trivially
   const suggestedGenres = new Set(Object.keys(genreSuggestCounts).map(g=>g.toLowerCase()));
-  const againstType = Object.keys(genreFinishCounts).some(g => !suggestedGenres.has(g.toLowerCase()));
+  const againstType = suggested >= 3 && Object.keys(genreFinishCounts).some(g => !suggestedGenres.has(g.toLowerCase()));
 
   // ── Adventurous Reader: rated books across 6+ different genres ──
   const genresRatedSet = new Set();
