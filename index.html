@@ -1268,9 +1268,12 @@ function renderVote() {
 function genrePillsHtml(genreStr) {
   if (!genreStr) return '';
   const genres = genreStr.split('/').map(g => g.trim()).filter(Boolean);
+  // Build a case-insensitive lookup once
+  const ciMap = {};
+  GENRES.forEach(g => { ciMap[g.name.toLowerCase()] = { bg:g.bg, text:g.text, border:g.border }; });
   return '<div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.3rem;">' +
     genres.map(g => {
-      const c = GENRE_PILL_COLORS_MAP[g] || { bg:'#f5f5f5', text:'#616161', border:'#e0e0e0' };
+      const c = GENRE_PILL_COLORS_MAP[g] || ciMap[g.toLowerCase()] || { bg:'#f5f5f5', text:'#616161', border:'#e0e0e0' };
       return `<span style="font-size:.68rem;padding:.15rem .55rem;border-radius:20px;background:${c.bg};color:${c.text};border:1px solid ${c.border};font-weight:500;letter-spacing:.02em;">${esc(g)}</span>`;
     }).join('') +
   '</div>';
@@ -4085,20 +4088,19 @@ function renderGenreDiversity() {
     });
   });
 
-  const allGenres = sorted.map(([g]) => g);
-  const colorMap = {};
-  allGenres.forEach((g, i) => colorMap[g] = GENRE_COLORS[i % GENRE_COLORS.length]);
 
   area.innerHTML = `
     <div class="chart-wrap">
       <h3>Overall Genre Breakdown</h3>
       <div class="bar-chart">
-        ${sorted.map(([genre, count]) => `
-          <div class="bar-row">
-            <div style="font-size:.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(genre)}</div>
-            <div class="bar-track"><div class="bar-val" style="width:${count/sorted[0][1]*100}%;background:${colorMap[genre]};"></div></div>
+        ${sorted.map(([genre, count]) => {
+          const c = GENRE_PILL_COLORS_MAP[genre] || { bg:'#f5f5f5', text:'#616161', border:'#e0e0e0' };
+          return `<div class="bar-row" style="align-items:center;">
+            <div style="min-width:0;flex-shrink:0;"><span style="display:inline-block;font-size:.68rem;padding:.15rem .55rem;border-radius:20px;background:${c.bg};color:${c.text};border:1px solid ${c.border};font-weight:500;letter-spacing:.02em;white-space:nowrap;">${esc(genre)}</span></div>
+            <div class="bar-track"><div class="bar-val" style="width:${count/sorted[0][1]*100}%;background:${c.border};"></div></div>
             <div class="bar-lbl">${count} (${(count/total*100).toFixed(0)}%)</div>
-          </div>`).join('')}
+          </div>`;
+        }).join('')}
       </div>
       <p style="font-size:.75rem;color:var(--soft);margin-top:.75rem;">${total} tagged books · ${sorted.length} genre${sorted.length!==1?'s':''}</p>
       ${nonFictionCount > 0 ? `<p style="font-size:.72rem;color:var(--soft);margin-top:.5rem;padding:.5rem .75rem;background:var(--cream);border-left:2px solid var(--border);border-radius:0 4px 4px 0;">* Non-Fiction has been omitted from this chart (${nonFictionCount} book${nonFictionCount!==1?'s':''} affected). Because the club reads dedicated non-fiction months, it would appear disproportionately and skew the chart — this graph is intended to show variety across specific genres.</p>` : ''}
@@ -4130,16 +4132,20 @@ function renderGenreDiversity() {
 
     <div class="chart-wrap">
       <h3>Genre by Month</h3>
-      ${Object.entries(monthGenres).map(([month, genres]) => `
-        <div style="margin-bottom:.75rem;">
+      ${Object.entries(monthGenres).map(([month, genres]) => {
+        const filtered = Object.entries(genres).filter(([g]) => g.toLowerCase() !== 'non-fiction');
+        if (!filtered.length) return '';
+        return `<div style="margin-bottom:.75rem;">
           <div style="font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);margin-bottom:.4rem;">${esc(month)}</div>
           <div style="display:flex;flex-wrap:wrap;gap:.35rem;">
-            ${Object.entries(genres).map(([g,c]) => `
-              <span style="display:inline-flex;align-items:center;gap:.3rem;background:${colorMap[g]}22;border:1px solid ${colorMap[g]}66;color:${colorMap[g]};padding:.2rem .65rem;border-radius:20px;font-size:.75rem;font-weight:500;">
-                ${esc(g)}${c>1?` ×${c}`:''}
-              </span>`).join('')}
+            ${filtered.map(([g,c]) => {
+              const col = GENRE_PILL_COLORS_MAP[g] || { bg:'#f5f5f5', text:'#616161', border:'#e0e0e0' };
+              return `<span style="display:inline-flex;align-items:center;gap:.3rem;background:${col.bg};border:1px solid ${col.border};color:${col.text};padding:.2rem .65rem;border-radius:20px;font-size:.75rem;font-weight:500;">${esc(g)}${c>1?` ×${c}`:''}</span>`;
+            }).join('')}
           </div>
-        </div>`).join('')}
+        </div>`;
+      }).join('')}
+      ${nonFictionCount > 0 ? `<p style="font-size:.72rem;color:var(--soft);margin-top:.75rem;padding:.5rem .75rem;background:var(--cream);border-left:2px solid var(--border);border-radius:0 4px 4px 0;">* Non-Fiction has been omitted from this view (${nonFictionCount} book${nonFictionCount!==1?'s':''} affected). Because the club reads dedicated non-fiction months, it would appear disproportionately — this section is intended to highlight variety across specific genres.</p>` : ''}
     </div>`;
 }
 
