@@ -1998,6 +1998,17 @@ function renderAnalysisMembers(_idMapM) {
   // ── Sort members alphabetically ──
   const sorted = [...allMembers].sort((a,b) => a.localeCompare(b));
 
+  // ── Favourite genre logic: handle ties ──
+  function getFavouriteGenreLabel(genreCounts) {
+    const entries = Object.entries(genreCounts).sort((a,b) => b[1]-a[1]);
+    if (!entries.length) return null;
+    const topCount = entries[0][1];
+    const tied = entries.filter(([,c]) => c === topCount);
+    if (tied.length === 1) return tied[0][0];
+    if (tied.length === 2) return `${tied[0][0]} & ${tied[1][0]}`;
+    return 'No clearly defined genre';
+  }
+
   // ── Clickable stat pill — triggers expand ──
   function clickablePill(emoji, label, value, titleAttr, toggleId, clickable) {
     if (value === null || value === undefined) return '';
@@ -2035,7 +2046,7 @@ function renderAnalysisMembers(_idMapM) {
     const s = stats[name];
     const avgRating  = s.ratings.length ? (s.ratings.reduce((a,b)=>a+b,0)/s.ratings.length).toFixed(1) : null;
     const finishRate = s.totalReviews >= 1 ? Math.round(s.finishedReviews/s.totalReviews*100)+'%' : null;
-    const topGenre   = Object.entries(s.genreCounts).sort((a,b)=>b[1]-a[1])[0]?.[0] || null;
+    const topGenre   = getFavouriteGenreLabel(s.genreCounts);
     const hasAnyStats = s.votedMonths > 0 || s.suggestedBooks > 0 || s.winsFromSuggestions > 0 || avgRating || finishRate;
     if (!hasAnyStats) return '';
 
@@ -4103,20 +4114,23 @@ function renderGenreDiversity() {
     return;
   }
 
-  // Count genres
+  // Count genres — split combined strings (e.g. "Fantasy / Horror") into individual genres
   const genreCounts = {};
   taggedBooks.forEach(b => {
-    const g = b.genre.trim();
-    genreCounts[g] = (genreCounts[g] || 0) + 1;
+    b.genre.split('/').map(g => g.trim()).filter(Boolean).forEach(g => {
+      genreCounts[g] = (genreCounts[g] || 0) + 1;
+    });
   });
-  const total = taggedBooks.length;
+  const total = Object.values(genreCounts).reduce((a,b) => a+b, 0);
   const sorted = Object.entries(genreCounts).sort((a,b) => b[1]-a[1]);
 
-  // Genre breakdown by month
+  // Genre breakdown by month — split combined genre strings
   const monthGenres = {};
   taggedBooks.forEach(b => {
     if (!monthGenres[b.month]) monthGenres[b.month] = {};
-    monthGenres[b.month][b.genre] = (monthGenres[b.month][b.genre] || 0) + 1;
+    b.genre.split('/').map(g => g.trim()).filter(Boolean).forEach(g => {
+      monthGenres[b.month][g] = (monthGenres[b.month][g] || 0) + 1;
+    });
   });
 
   const allGenres = sorted.map(([g]) => g);
@@ -4139,7 +4153,7 @@ function renderGenreDiversity() {
 
     <div class="chart-wrap">
       <h3>Genre Diversity Score</h3>
-      <p style="font-size:.82rem;color:var(--soft);margin-bottom:1rem;">Shannon entropy — higher = more variety in reading choices (max: ${Math.log2(sorted.length).toFixed(2)}).</p>
+      <p style="font-size:.82rem;color:var(--soft);margin-bottom:1rem;">Measures how evenly spread the club's reading is across genres. A score of 100% means every genre has been read equally — the closer to 100%, the more variety the club has explored. A lower score means a few genres dominate.</p>
       ${(() => {
         const entropy = -sorted.reduce((sum,[,c]) => {
           const p = c/total; return sum + (p > 0 ? p * Math.log2(p) : 0);
