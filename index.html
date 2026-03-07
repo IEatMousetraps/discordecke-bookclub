@@ -1914,32 +1914,110 @@ function renderAnalysisMembers(_idMapM) {
   const area = document.getElementById('analysis-members-area');
   if (!archives.length) { area.innerHTML = '<div class="empty"><div class="icon">👥</div><p>No archived months yet.</p></div>'; return; }
 
-  const voterFreq = {};
   if (!_idMapM) _idMapM = buildIdentityMap();
-  archives.forEach(a => { Object.values(a.votes||{}).forEach(vd => { const k=resolveId(vd.discord,vd.email,_idMapM)||'Unknown'; voterFreq[k]=(voterFreq[k]||0)+1; }); });
-  const topVoters = Object.entries(voterFreq).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const archiveWinners = getArchiveWinners();
+  const allReviews = getReviews();
 
-  const suggesterFreq = {};
-  archives.forEach(a => { (a.books||[]).map(normBook).forEach(b => { b.suggesters.forEach(s => { const k=resolveId(s.discord,s.email,_idMapM)||'Unknown'; suggesterFreq[k]=(suggesterFreq[k]||0)+1; }); }); });
-  const topSuggesters = Object.entries(suggesterFreq).sort((a,b)=>b[1]-a[1]).slice(0,10);
-  const maxSuggestions = topSuggesters[0]?topSuggesters[0][1]:1;
+  // ── Collect all known member names ──
+  const allMembers = new Set();
+  archives.forEach(a => {
+    Object.values(a.votes||{}).forEach(vd => allMembers.add(resolveId(vd.discord,vd.email,_idMapM)));
+    (a.books||[]).map(normBook).forEach(b => b.suggesters.forEach(s => allMembers.add(resolveId(s.discord,s.email,_idMapM))));
+  });
+  Object.values(allReviews).forEach(entries => (entries||[]).forEach(r => allMembers.add(resolveId(r.discord,r.email,_idMapM))));
+  allMembers.delete('Unknown'); allMembers.delete('');
 
-  area.innerHTML = `
-  <div class="chart-wrap"><h3>Most Consistent Voters</h3>
-    ${topVoters.length?`<div class="bar-chart">${topVoters.map(([discord,count])=>`<div class="bar-row">
-      <div style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(discord)}</div>
-      <div class="bar-track"><div class="bar-val" style="width:${Math.max(3,count/archives.length*100)}%"></div></div>
-      <div class="bar-lbl">${count}/${archives.length}</div>
-    </div>`).join('')}</div>`:'<p style="color:var(--soft);font-size:.875rem;">Not enough data.</p>'}
-  </div>
+  // ── Per-member stats ──
+  const stats = {}; // name → { votedMonths, suggestedBooks, winsFromSuggestions, ratings[], finishedReviews, totalReviews, genreCounts{} }
+  allMembers.forEach(name => { stats[name] = { votedMonths:0, suggestedBooks:0, winsFromSuggestions:0, ratings:[], finishedReviews:0, totalReviews:0, genreCounts:{} }; });
 
-  <div class="chart-wrap"><h3>Top Book Suggesters</h3>
-    ${topSuggesters.length?`<div class="bar-chart">${topSuggesters.map(([discord,count])=>`<div class="bar-row">
-      <div style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(discord)}</div>
-      <div class="bar-track"><div class="bar-val" style="width:${Math.max(3,count/maxSuggestions*100)}%"></div></div>
-      <div class="bar-lbl">${count} book${count!==1?'s':''}</div>
-    </div>`).join('')}</div>`:'<p style="color:var(--soft);font-size:.875rem;">Not enough data.</p>'}
-  </div>`;
+  // Votes cast per month
+  archives.forEach(a => {
+    Object.values(a.votes||{}).forEach(vd => {
+      const k = resolveId(vd.discord,vd.email,_idMapM);
+      if (stats[k]) stats[k].votedMonths++;
+    });
+  });
+
+  // Suggestions & wins from suggestions
+  archives.forEach(a => {
+    (a.books||[]).map(normBook).forEach(b => {
+      b.suggesters.forEach(s => {
+        const k = resolveId(s.discord,s.email,_idMapM);
+        if (!stats[k]) return;
+        stats[k].suggestedBooks++;
+        // Track genre
+        if (b.genre) {
+          b.genre.split('/').map(g=>g.trim()).filter(Boolean).forEach(g => {
+            stats[k].genreCounts[g] = (stats[k].genreCounts[g]||0) + 1;
+          });
+        }
+      });
+    });
+  });
+  archiveWinners.forEach(({ winnerBooks }) => {
+    winnerBooks.forEach(b => {
+      normBook(b).suggesters.forEach(s => {
+        const k = resolveId(s.discord,s.email,_idMapM);
+        if (stats[k]) stats[k].winsFromSuggestions++;
+      });
+    });
+  });
+
+  // Reviews: finish rate & average rating
+  Object.values(allReviews).forEach(entries => {
+    (entries||[]).forEach(r => {
+      const k = resolveId(r.discord,r.email,_idMapM);
+      if (!stats[k]) return;
+      stats[k].totalReviews++;
+      if (r.finished === 'Yes') stats[k].finishedReviews++;
+      const rat = +r.rating;
+      if (rat >= 1 && rat <= 5) stats[k].ratings.push(rat);
+    });
+  });
+
+  // ── Sort members alphabetically ──
+  const sorted = [...allMembers].sort((a,b) => a.localeCompare(b));
+
+  // ── Stat pill helper ──
+  function statPill(emoji, label, value, title) {
+    if (value === null || value === undefined) return '';
+    return `<div title="${title||''}" style="display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--cream);border:1px solid var(--border);border-radius:8px;padding:.5rem .65rem;min-width:70px;text-align:center;flex:1;">
+      <div style="font-size:.72rem;margin-bottom:.15rem;">${emoji}</div>
+      <div style="font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:700;color:var(--ink);line-height:1.1;">${value}</div>
+      <div style="font-size:.62rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;margin-top:.15rem;line-height:1.2;">${label}</div>
+    </div>`;
+  }
+
+  const memberCards = sorted.map(name => {
+    const s = stats[name];
+    const avgRating = s.ratings.length ? (s.ratings.reduce((a,b)=>a+b,0)/s.ratings.length).toFixed(1) : null;
+    const finishRate = s.totalReviews >= 1 ? Math.round(s.finishedReviews/s.totalReviews*100)+'%' : null;
+    const topGenre = Object.entries(s.genreCounts).sort((a,b)=>b[1]-a[1])[0]?.[0] || null;
+    const hasAnyStats = s.votedMonths > 0 || s.suggestedBooks > 0 || s.winsFromSuggestions > 0 || avgRating || finishRate;
+    if (!hasAnyStats) return '';
+
+    // Star display for avg rating
+    const starVal = avgRating ? `${avgRating} ⭐` : null;
+    // Win badge — only show if they have at least 1 win
+    const winsVal = s.winsFromSuggestions > 0 ? `${s.winsFromSuggestions}` : null;
+
+    return `<div class="card" style="padding:1rem 1.25rem;margin-bottom:.65rem;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;flex-wrap:wrap;gap:.4rem;">
+        <span style="font-family:'Playfair Display',serif;font-size:.98rem;font-weight:600;">${esc(name)}</span>
+        <span style="font-size:.7rem;color:var(--soft);background:var(--cream);border:1px solid var(--border);padding:.15rem .55rem;border-radius:20px;">${s.votedMonths} month${s.votedMonths!==1?'s':''} voted</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:.4rem;">
+        ${statPill('📚', 'Suggested', s.suggestedBooks > 0 ? s.suggestedBooks : '—', 'Total books suggested')}
+        ${winsVal ? statPill('👑', 'Picks Won', winsVal, 'Number of suggested books that became the monthly read') : ''}
+        ${finishRate ? statPill('✅', 'Finish Rate', finishRate, `Finished ${s.finishedReviews} of ${s.totalReviews} reviewed books`) : ''}
+        ${starVal ? statPill('⭐', 'Avg Rating', starVal, `Average star rating given across ${s.ratings.length} review${s.ratings.length!==1?'s':''}`) : ''}
+      </div>
+      ${topGenre ? `<div style="margin-top:.6rem;font-size:.72rem;color:var(--soft);">🏷️ Favourite genre to suggest: <strong style="color:var(--ink);">${esc(topGenre)}</strong></div>` : ''}
+    </div>`;
+  }).filter(Boolean).join('');
+
+  area.innerHTML = memberCards || '<div class="empty"><div class="icon">👥</div><p>No member data yet.</p></div>';
 }
 
 // ── Reviews sub-tab ───────────────────────────────────────────────────────────
