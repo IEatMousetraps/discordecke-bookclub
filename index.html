@@ -1921,12 +1921,12 @@ function renderAnalysisMembers(_idMapM) {
   // ── Voting frequency ──
   const voterFreq = {};
   archives.forEach(a => { Object.values(a.votes||{}).forEach(vd => { const k=resolveId(vd.discord,vd.email,_idMapM)||'Unknown'; voterFreq[k]=(voterFreq[k]||0)+1; }); });
-  const topVoters = Object.entries(voterFreq).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const topVoters = Object.entries(voterFreq).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,10);
 
   // ── Suggestion frequency ──
   const suggesterFreq = {};
   archives.forEach(a => { (a.books||[]).map(normBook).forEach(b => { b.suggesters.forEach(s => { const k=resolveId(s.discord,s.email,_idMapM)||'Unknown'; suggesterFreq[k]=(suggesterFreq[k]||0)+1; }); }); });
-  const topSuggesters = Object.entries(suggesterFreq).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const topSuggesters = Object.entries(suggesterFreq).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,10);
   const maxSuggestions = topSuggesters[0]?topSuggesters[0][1]:1;
 
   // ── Suggested books that won ──
@@ -1939,7 +1939,7 @@ function renderAnalysisMembers(_idMapM) {
       });
     });
   });
-  const topWinnerSuggesters = Object.entries(winnerSuggesters).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const topWinnerSuggesters = Object.entries(winnerSuggesters).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,10);
   const maxWins = topWinnerSuggesters[0]?topWinnerSuggesters[0][1]:1;
 
   // ── Finish rate ──
@@ -1955,7 +1955,7 @@ function renderAnalysisMembers(_idMapM) {
   const topFinishers = Object.entries(finishData)
     .filter(([,d]) => d.total >= 2)
     .map(([k,d]) => [k, Math.round(d.finished/d.total*100), d.finished, d.total])
-    .sort((a,b) => b[1]-a[1] || b[2]-a[2])
+    .sort((a,b) => b[1]-a[1] || b[2]-a[2] || a[0].localeCompare(b[0]))
     .slice(0,10);
 
   // ── Average star rating ──
@@ -1973,7 +1973,7 @@ function renderAnalysisMembers(_idMapM) {
   const topRaters = Object.entries(ratingData)
     .filter(([,arr]) => arr.length >= 2)
     .map(([k,arr]) => [k, arr.reduce((a,b)=>a+b,0)/arr.length, arr.length])
-    .sort((a,b) => b[1]-a[1])
+    .sort((a,b) => b[1]-a[1] || a[0].localeCompare(b[0]))
     .slice(0,10);
   const maxAvgRating = topRaters[0]?topRaters[0][1]:5;
 
@@ -2192,6 +2192,7 @@ function renderRankings() {
   // Build member review cards for a given month (mirrors renderAnalysisReviews style)
   const idMap = buildIdentityMap();
   const archiveLookup = {};
+  const recommenderMap = {}; // month label → array of suggester names
   getArchiveWinners().forEach(({archive:a, winnerBooks}) => {
     const wb = winnerBooks[0];
     if (!wb) return;
@@ -2199,6 +2200,15 @@ function renderRankings() {
       dual:     (a.dualWinners||[]).length > 0,
       coTitles: winnerBooks.map(b=>b.title),
     };
+    // Collect suggesters for each winner book
+    const names = [];
+    winnerBooks.forEach(b => {
+      normBook(b).suggesters.forEach(s => {
+        const n = resolveId(s.discord, s.email, idMap) || s.discord || '';
+        if (n && !names.includes(n)) names.push(n);
+      });
+    });
+    if (names.length) recommenderMap[a.label] = names.sort((a,b) => a.localeCompare(b));
   });
 
   const starHtml = val => {
@@ -2252,6 +2262,10 @@ function renderRankings() {
   <p style="font-size:.78rem;color:var(--soft);margin-bottom:1.5rem;">Rankings are based on member reviews submitted through the Rank A Book page. Sorted by average star rating. Click <strong>Member Reviews</strong> on any book to see individual responses.</p>
   ${sorted.map(([month, d], i) => {
     const reviewToggleId = `rkrev_${month.replace(/[^a-z0-9]/gi,'_')}`;
+    const recommenders = recommenderMap[month] || [];
+    const recommenderHtml = recommenders.length
+      ? `<div style="font-size:.72rem;color:var(--soft);margin-bottom:.75rem;">📌 Recommended by: <strong style="color:var(--ink);">${recommenders.map(r=>esc(r)).join(', ')}</strong></div>`
+      : '';
     return `
     <div class="chart-wrap" style="margin-bottom:1rem;">
       <div style="display:flex;align-items:baseline;gap:.75rem;margin-bottom:.85rem;">
@@ -2259,6 +2273,7 @@ function renderRankings() {
         <span style="font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:600;">${esc(month)}</span>
         ${d.genre ? genrePillsHtml(d.genre) : ''}
       </div>
+      ${recommenderHtml}
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.6rem;margin-bottom:.75rem;">
         <div style="background:var(--cream);border-radius:6px;padding:.65rem;text-align:center;">
           <div style="font-size:1rem;margin-bottom:.2rem;">${starDisplay(d.avgRating)}</div>
@@ -4056,7 +4071,7 @@ function renderGenreDiversity() {
     });
   });
   const total = Object.values(genreCounts).reduce((a,b) => a+b, 0);
-  const sorted = Object.entries(genreCounts).sort((a,b) => b[1]-a[1]);
+  const sorted = Object.entries(genreCounts).sort((a,b) => b[1]-a[1] || a[0].localeCompare(b[0]));
 
   // Genre breakdown by month — split combined genre strings
   const monthGenres = {};
