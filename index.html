@@ -719,33 +719,33 @@ let CACHE = {
 // To add a genre: add one object here. Submit form, Edit Books, and vote pills
 // all derive from this array automatically.
 const GENRES = [
-  { name:'Adventure',                bg:'#fff3e0', text:'#e65100', border:'#ffb74d' },
-  { name:'Biography / Memoir',       bg:'#e0f7fa', text:'#006064', border:'#80deea' },
-  { name:'Classic Literature',       bg:'#efebe9', text:'#4e342e', border:'#bcaaa4' },
-  { name:'Comedy / Humor',           bg:'#fffde7', text:'#f9a825', border:'#fff176' },
-  { name:'Contemporary Fiction',     bg:'#e0f2f1', text:'#00695c', border:'#80cbc4' },
-  { name:'Cozy',                     bg:'#fce4ec', text:'#ad1457', border:'#f48fb1' },
-  { name:'Crime',                    bg:'#263238', text:'#eceff1', border:'#546e7a' },
-  { name:'Essays',                   bg:'#fafafa', text:'#424242', border:'#bdbdbd' },
-  { name:'Fantasy',                  bg:'#ede7f6', text:'#6a1b9a', border:'#ce93d8' },
-  { name:'Graphic Novel',            bg:'#fff3e0', text:'#bf360c', border:'#ffcc80' },
-  { name:'Historical Fiction',       bg:'#fff8e1', text:'#e65100', border:'#ffcc80' },
-  { name:'Horror',                   bg:'#212121', text:'#eeeeee', border:'#555'    },
-  { name:'Journalism',               bg:'#eceff1', text:'#37474f', border:'#b0bec5' },
-  { name:'LGBTQ+',                   bg:'#fff9c4', text:'#f57f17', border:'#fff176' },
-  { name:'Literary Fiction',         bg:'#f3e5f5', text:'#4a148c', border:'#ba68c8' },
-  { name:'Magical Realism',          bg:'#f3e5f5', text:'#6a1b9a', border:'#ce93d8' },
-  { name:'Mystery',                  bg:'#ffebee', text:'#b71c1c', border:'#ef9a9a' },
-  { name:'Non-Fiction',              bg:'#e8f5e9', text:'#1b5e20', border:'#a5d6a7' },
-  { name:'Poetry',                   bg:'#fce4ec', text:'#880e4f', border:'#f48fb1' },
-  { name:'Psychology',               bg:'#e8eaf6', text:'#283593', border:'#9fa8da' },
-  { name:'Romance',                  bg:'#fce4ec', text:'#c2185b', border:'#f48fb1' },
-  { name:'Science Fiction',          bg:'#e3f2fd', text:'#0d47a1', border:'#90caf9' },
-  { name:'Self-Help / Personal Growth', bg:'#e8f5e9', text:'#2e7d32', border:'#81c784' },
-  { name:'Supernatural',             bg:'#311b92', text:'#ede7f6', border:'#7c4dff' },
-  { name:'Thriller / Suspense',      bg:'#fce4ec', text:'#880e4f', border:'#f06292' },
-  { name:'Western',                  bg:'#f9f6f0', text:'#795548', border:'#d7ccc8' },
-  { name:'Other',                    bg:'#f5f5f5', text:'#616161', border:'#e0e0e0' },
+  { name:'Adventure',                bg:'#fff3e0', text:'#bf360c', border:'#ff8a65' },  // warm orange — movement & outdoors
+  { name:'Biography / Memoir',       bg:'#e8eaf6', text:'#283593', border:'#7986cb' },  // indigo — personal, reflective
+  { name:'Classic Literature',       bg:'#efebe9', text:'#4e342e', border:'#a1887f' },  // warm brown — aged, timeless
+  { name:'Comedy / Humor',           bg:'#fffde7', text:'#f57f17', border:'#ffd54f' },  // bright yellow — cheerful
+  { name:'Contemporary Fiction',     bg:'#e0f2f1', text:'#00695c', border:'#4db6ac' },  // teal — modern, grounded
+  { name:'Cozy',                     bg:'#fce4ec', text:'#880e4f', border:'#f48fb1' },  // soft pink — warm & comfort
+  { name:'Crime',                    bg:'#eceff1', text:'#263238', border:'#78909c' },  // steel grey — gritty, urban
+  { name:'Essays',                   bg:'#f5f5f5', text:'#424242', border:'#9e9e9e' },  // neutral grey — intellectual
+  { name:'Fantasy',                  bg:'#ede7f6', text:'#4a148c', border:'#9c27b0' },  // deep purple — magical
+  { name:'Graphic Novel',            bg:'#fff8e1', text:'#e65100', border:'#ffb300' },  // amber — visual, bold
+  { name:'Historical Fiction',       bg:'#f9f5f0', text:'#5d4037', border:'#bcaaa4' },  // sepia — past & period
+  { name:'Horror',                   bg:'#1a1a1a', text:'#ef9a9a', border:'#b71c1c' },  // near-black red — fear
+  { name:'Journalism',               bg:'#eceff1', text:'#37474f', border:'#90a4ae' },  // blue-grey — news, factual
+  { name:'LGBTQ+',                   bg:'#fff9c4', text:'#e65100', border:'#ffcc02' },  // rainbow-inspired gold/yellow
+  { name:'Literary Fiction',         bg:'#f3e5f5', text:'#4a148c', border:'#ba68c8' },  // lavender — thoughtful, artistic
+  { name:'Magical Realism',          bg:'#e8f5e9', text:'#1b5e20', border:'#66bb6a' },  // green — earthy magic, rooted
+  { name:'Mystery',                  bg:'#fafafa', text:'#212121', border:'#616161' },  // near-white/dark — concealed
+  { name:'Non-Fiction',              bg:'#e3f2fd', text:'#0d47a1', border:'#64b5f6' },  // clear blue — factual, informative
+  { name:'Poetry',                   bg:'#fce4ec', text:'#ad1457', border:'#e91e63' },  // rose — lyrical, emotional
+  { name:'Psychology',               bg:'#e8eaf6', text:'#1a237e', border:'#5c6bc0' },  // deep blue-indigo — the mind
+  { name:'Romance',                  bg:'#fce4ec', text:'#c2185b', border:'#f06292' },  // hot pink — love & passion
+  { name:'Science Fiction',          bg:'#e3f2fd', text:'#0277bd', border:'#29b6f6' },  // sky blue — space & future
+  { name:'Self-Help / Personal Growth', bg:'#f1f8e9', text:'#33691e', border:'#aed581' }, // lime green — growth
+  { name:'Supernatural',             bg:'#1a0033', text:'#e1bee7', border:'#7b1fa2' },  // deep violet — otherworldly
+  { name:'Thriller / Suspense',      bg:'#212121', text:'#ff8a80', border:'#e53935' },  // dark charcoal red — tension
+  { name:'Western',                  bg:'#fdf6ec', text:'#6d4c41', border:'#d7ccc8' },  // dusty tan — frontier
+  { name:'Other',                    bg:'#f5f5f5', text:'#757575', border:'#e0e0e0' },  // neutral
 ];
 
 // Derive helpers from GENRES
@@ -1838,7 +1838,7 @@ function renderAnalysisRankDist() {
     const bookMap = {}; // bookId -> { title, rankCounts, totalVoters, suggesters }
     (a.books||[]).forEach(b => {
       const nb2 = normBook(b);
-      bookMap[b.id] = { title: b.title, rankCounts:{}, totalVoters: voterCount, suggesters: nb2.suggesters.map(s=>s.discord||s.email||'').filter(Boolean) };
+      bookMap[b.id] = { title: b.title, genre: b.genre||'', rankCounts:{}, totalVoters: voterCount, suggesters: nb2.suggesters.map(s=>s.discord||s.email||'').filter(Boolean) };
     });
     Object.values(a.votes||{}).forEach(vd => {
       (vd.ranking||vd).forEach((id, idx) => {
@@ -1850,7 +1850,7 @@ function renderAnalysisRankDist() {
     Object.values(bookMap).forEach(d => {
       let ws=0,tot=0;
       Object.entries(d.rankCounts).forEach(([r,n])=>{ws+=+r*n;tot+=n;});
-      entries.push({ title:d.title, month:a.label, avgRank:tot>0?ws/tot:999, totalVoters:d.totalVoters, rankCounts:d.rankCounts, suggesters:d.suggesters||[] });
+      entries.push({ title:d.title, genre:d.genre||'', month:a.label, avgRank:tot>0?ws/tot:999, totalVoters:d.totalVoters, rankCounts:d.rankCounts, suggesters:d.suggesters||[] });
     });
   });
 
@@ -1893,8 +1893,9 @@ function renderAnalysisRankDist() {
         <span style="font-size:.88rem;font-weight:500;">${esc(d.title)}</span>
         <span style="font-size:.7rem;color:var(--soft);background:var(--cream);border:1px solid var(--border);padding:.1rem .5rem;border-radius:20px;white-space:nowrap;">${esc(d.month)}</span>
       </div>
-      ${d.suggesters && d.suggesters.length ? `<div style="font-size:.72rem;color:var(--soft);margin-bottom:.4rem;">📌 Recommended by: <strong>${d.suggesters.map(s=>esc(s)).join(', ')}</strong></div>` : ''}
-      <div class="bar-chart">${rows}</div>
+      ${d.genre ? genrePillsHtml(d.genre) : ''}
+      ${d.suggesters && d.suggesters.length ? `<div style="font-size:.72rem;color:var(--soft);margin-top:.3rem;margin-bottom:.4rem;">📌 Recommended by: <strong>${d.suggesters.map(s=>esc(s)).join(', ')}</strong></div>` : ''}
+      <div class="bar-chart" style="margin-top:.5rem;">${rows}</div>
       <div style="font-size:.72rem;color:var(--soft);margin-top:.3rem;">avg rank ${d.avgRank.toFixed(1)} · ${d.totalVoters} vote${d.totalVoters!==1?'s':''}</div>
     </div>`;
   }).join('') : '<p style="color:var(--soft);font-size:.875rem;">No data for this month yet.</p>';
