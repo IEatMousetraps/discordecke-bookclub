@@ -4063,10 +4063,12 @@ function renderGenreDiversity() {
     return;
   }
 
-  // Count genres — split combined strings (e.g. "Fantasy / Horror") into individual genres
+  // Count genres — split combined strings, omit Non-Fiction from chart
   const genreCounts = {};
+  let nonFictionCount = 0;
   taggedBooks.forEach(b => {
     b.genre.split('/').map(g => g.trim()).filter(Boolean).forEach(g => {
+      if (g.toLowerCase() === 'non-fiction') { nonFictionCount++; return; }
       genreCounts[g] = (genreCounts[g] || 0) + 1;
     });
   });
@@ -4098,6 +4100,7 @@ function renderGenreDiversity() {
           </div>`).join('')}
       </div>
       <p style="font-size:.75rem;color:var(--soft);margin-top:.75rem;">${total} tagged books · ${sorted.length} genre${sorted.length!==1?'s':''}</p>
+      ${nonFictionCount > 0 ? `<p style="font-size:.72rem;color:var(--soft);margin-top:.5rem;padding:.5rem .75rem;background:var(--cream);border-left:2px solid var(--border);border-radius:0 4px 4px 0;">* Non-Fiction has been omitted from this chart (${nonFictionCount} book${nonFictionCount!==1?'s':''} affected). Because the club reads dedicated non-fiction months, it would appear disproportionately and skew the chart — this graph is intended to show variety across specific genres.</p>` : ''}
     </div>
 
     <div class="chart-wrap">
