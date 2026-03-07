@@ -2236,7 +2236,7 @@ function toggleRankingReviews(id, btn) {
 }
 window.toggleRankingReviews = toggleRankingReviews;
 
-
+function showMonthDetail(idx, el) {
   document.querySelectorAll('.month-tab').forEach(t => t.classList.remove('active'));
   if (el) el.classList.add('active');
   const a = getArchives()[idx]; if (!a) return;
