@@ -273,6 +273,13 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 <!-- ══════════════ SURVEYS ══════════════ -->
 <div id="tab-surveys" class="section">
   <div class="sec-head"><h2>Surveys</h2><p>Fill out any active surveys from the club admin.</p></div>
+  <div class="card" id="surveys-identity-card">
+    <div class="grid2">
+      <div class="f-group"><label>Email *</label><input type="email" id="sv-email" placeholder="you@email.com"></div>
+      <div class="f-group"><label>Discord Username *</label><input type="text" id="sv-discord" placeholder="user#0000"></div>
+    </div>
+    <div id="sv-identity-msg"></div>
+  </div>
   <div id="surveys-member-area"></div>
 </div>
 
@@ -705,6 +712,7 @@ const REVIEWS_REF  = doc(db, 'club', 'reviews');
 const PROGRESS_REF = doc(db, 'club', 'readingProgress');
 const MEETING_REF      = doc(db, 'club', 'meetingInfo');
 const BADGE_CONFIG_REF = doc(db, 'club', 'badgeConfig');
+const DRAFT_REF        = doc(db, 'club', 'surveyDraft');
 
 // ── In-memory cache kept fresh by real-time listeners ──
 let CACHE = {
@@ -888,13 +896,25 @@ function goTab(id, btn) {
   else if (id === 'results')  renderResults();
   else if (id === 'review')   renderReview();
   else if (id === 'rankings') renderRankings();
-  else if (id === 'surveys')  renderMemberSurveys();
+  else if (id === 'surveys')  { renderMemberSurveys(); _attachSurveyIdentityListeners(); }
   else if (id === 'analysis') renderAnalysis();
   else if (id === 'progress') renderProgressTab();
   else if (id === 'badges')   renderBadgesTab();
   else if (id === 'admin' && document.getElementById('admin-panel').style.display !== 'none') renderAdmin();
 }
 window.goTab = goTab;
+
+// Re-render survey forms when identity fields change so "already completed" banners update
+function _attachSurveyIdentityListeners() {
+  const emailEl   = document.getElementById('sv-email');
+  const discordEl = document.getElementById('sv-discord');
+  [emailEl, discordEl].forEach(el => {
+    if (!el) return;
+    el.removeEventListener('blur', el._svCheck);
+    el._svCheck = () => renderMemberSurveys();
+    el.addEventListener('blur', el._svCheck);
+  });
+}
 
 // ════════════════════════════════════════════════════════
 // SUGGEST
@@ -1430,16 +1450,40 @@ function renderResults() {
 // SURVEYS — MEMBER VIEW
 // ════════════════════════════════════════════════════════
 function renderMemberSurveys() {
+  const email   = (document.getElementById('sv-email')?.value||'').trim();
+  const discord = (document.getElementById('sv-discord')?.value||'').trim();
   const surveys = getSurveys().filter(s => s.active);
   const area = document.getElementById('surveys-member-area');
   if (!surveys.length) { area.innerHTML = '<div class="empty"><div class="icon">📋</div><p>No active surveys right now.</p></div>'; return; }
-  area.innerHTML = surveys.map(s => `
+  const responses = getSurveyResponses();
+  const idMap = buildIdentityMap();
+  const myName = (email || discord) ? resolveId(discord, email, idMap) : null;
+
+  area.innerHTML = surveys.map(s => {
+    // Check if this member already responded
+    const existing = myName
+      ? (responses[s.id]||[]).find(r => resolveId(r.discord||'', r.email||'', idMap) === myName)
+      : null;
+    const alreadyDoneBanner = existing
+      ? `<div id="sv-already-${s.id}" style="background:#fffbef;border-left:3px solid var(--gold);padding:.75rem 1rem;border-radius:0 4px 4px 0;margin-bottom:1rem;">
+          <div style="font-size:.8rem;font-weight:600;margin-bottom:.35rem;">✓ You've already completed this survey</div>
+          <div style="font-size:.75rem;color:var(--soft);margin-bottom:.5rem;">Submitted ${existing.ts ? new Date(existing.ts).toLocaleDateString() : 'previously'}. You can overwrite your previous response below.</div>
+          ${s.questions.map(q => {
+            const ans = existing.answers[q.id];
+            const display = (ans === undefined || ans === '' || ans === 0) ? '<em style="color:var(--soft);">No answer</em>' : esc(String(ans));
+            return `<div style="font-size:.78rem;margin-bottom:.2rem;"><strong>${esc(q.prompt)}:</strong> ${display}</div>`;
+          }).join('')}
+        </div>`
+      : '';
+    return `
     <div class="card" id="scard-${s.id}">
       <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:1rem;">${esc(s.title)}</h3>
+      ${alreadyDoneBanner}
       ${renderSurveyQuestions(s)}
-      <div style="margin-top:1rem;"><button class="btn btn-primary" onclick="submitSurveyResponse('${s.id}')">Submit Response</button></div>
+      <div style="margin-top:1rem;"><button class="btn btn-primary" onclick="submitSurveyResponse('${s.id}')">${existing ? 'Overwrite My Response' : 'Submit Response'}</button></div>
       <div id="sr-msg-${s.id}"></div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 function renderSurveyQuestions(s) {
   return s.questions.map((q, i) => `
@@ -1466,6 +1510,11 @@ function setStar(uid, val) {
 window.setStar = setStar;
 
 async function submitSurveyResponse(sid) {
+  const email   = (document.getElementById('sv-email')?.value||'').trim();
+  const discord = (document.getElementById('sv-discord')?.value||'').trim();
+  if (!email && !discord) { showMsg('sv-identity-msg', 'Please enter your email and Discord username before submitting a survey.', 'err'); return; }
+  if (email && !email.includes('@')) { showMsg('sv-identity-msg', 'Please enter a valid email address.', 'err'); return; }
+
   const surveys = getSurveys(), survey = surveys.find(s => s.id === sid); if (!survey) return;
   const answers = {};
   survey.questions.forEach(q => {
@@ -1474,15 +1523,30 @@ async function submitSurveyResponse(sid) {
     else if (q.type === 'rating') { const row = document.getElementById(`stars-${uid}`); answers[q.id] = row ? +row.dataset.val : 0; }
     else { const sel = document.querySelector(`input[name="qi-${uid}"]:checked`); answers[q.id] = sel ? sel.value : ''; }
   });
+
   const responses = getSurveyResponses();
   if (!responses[sid]) responses[sid] = [];
+
+  // Check for existing response from this member
+  const idMap = buildIdentityMap();
+  const myName = resolveId(discord, email, idMap);
+  const existingIdx = responses[sid].findIndex(r => resolveId(r.discord||'', r.email||'', idMap) === myName);
+
+  if (existingIdx !== -1) {
+    // Replace the existing entry in place
+    responses[sid][existingIdx] = { answers, discord, email, ts: Date.now() };
+  } else {
+    responses[sid].push({ answers, discord, email, ts: Date.now() });
+  }
+
   showLoading('Submitting response…');
-  responses[sid].push({ answers, ts: Date.now() });
   await fbSet(SRESP_REF, { map: responses });
   hideLoading();
-  showMsg(`sr-msg-${sid}`, '✓ Response submitted!', 'ok');
+  showMsg(`sr-msg-${sid}`, existingIdx !== -1 ? '✓ Response updated!' : '✓ Response submitted!', 'ok');
   document.getElementById(`scard-${sid}`).querySelectorAll('input,textarea').forEach(el => { if (el.type === 'radio' || el.type === 'checkbox') el.checked = false; else el.value = ''; });
-  document.querySelectorAll('[id^="star-"]').forEach(el => el.classList.remove('on'));
+  document.querySelectorAll(`#scard-${sid} [id^="star-"]`).forEach(el => el.classList.remove('on'));
+  // Re-render to update the "already completed" banner
+  renderMemberSurveys();
 }
 window.submitSurveyResponse = submitSurveyResponse;
 
@@ -2670,8 +2734,18 @@ async function deleteVote(name) { if (!confirm(`Remove vote for "${name}"?`)) re
 async function deleteBook(id)   { if (!confirm('Remove this book?')) return; showLoading('Removing…'); await fbSet(BOOKS_REF, {list:getBooks().filter(b=>b.id!==id)}); hideLoading(); }
 async function clearVotes()     { if (!confirm('Clear ALL votes?')) return; showLoading('Clearing…'); await fbSet(VOTES_REF, {map:{}}); hideLoading(); renderAdmin(); }
 async function clearBooks()     { if (!confirm('Clear all books & votes?')) return; showLoading('Clearing…'); await fbSet(BOOKS_REF, {list:[]}); await fbSet(VOTES_REF, {map:{}}); hideLoading(); renderAdmin(); }
-async function clearArchives()  { if (!confirm('Delete ALL archived months? This cannot be undone.')) return; showLoading('Clearing…'); await fbSet(ARCHIVES_REF, {list:[]}); hideLoading(); renderAdmin(); }
-async function clearRankings()  { if (!confirm('Delete ALL book ranking reviews? This cannot be undone.')) return; showLoading('Clearing…'); await fbSet(REVIEWS_REF, {map:{}}); hideLoading(); renderAdmin(); }
+async function clearArchives()  {
+  const phrase = prompt('This will permanently delete ALL archived months and cannot be undone.\n\nType DELETE to confirm:');
+  if (phrase === null) return;
+  if (phrase.trim() !== 'DELETE') { alert('Confirmation phrase did not match. Archives were not deleted.'); return; }
+  showLoading('Clearing…'); await fbSet(ARCHIVES_REF, {list:[]}); hideLoading(); renderAdmin();
+}
+async function clearRankings()  {
+  const phrase = prompt('This will permanently delete ALL book ranking reviews and cannot be undone.\n\nType DELETE to confirm:');
+  if (phrase === null) return;
+  if (phrase.trim() !== 'DELETE') { alert('Confirmation phrase did not match. Rankings were not deleted.'); return; }
+  showLoading('Clearing…'); await fbSet(REVIEWS_REF, {map:{}}); hideLoading(); renderAdmin();
+}
 window.toggleSurvey=toggleSurvey; window.deleteSurvey=deleteSurvey; window.deleteVote=deleteVote;
 window.deleteBook=deleteBook; window.clearVotes=clearVotes; window.clearBooks=clearBooks; window.clearArchives=clearArchives; window.clearRankings=clearRankings;
 
@@ -3021,8 +3095,8 @@ const BADGE_DEFS = [
   { id:'streak-12',         name:'Unstoppable',         emoji:'⚡',  tier:'gold',   desc:'Vote 12 months in a row',                                   check:p=>p.longestVoteStreak>=12 },
 
   // ── Night Owl (tiered, cutoff-gated) ─────────────────────────────────────
-  { id:'night-owl-1',       name:'Night Owl',           emoji:'🦉',  tier:'bronze', desc:'Submit a vote, suggestion, or review after midnight (from Mar 18, 2026)', check:p=>p.nightOwlCount>=1,  cutoffGated:true },
-  { id:'night-owl-5',       name:'Night Owl ×5',        emoji:'🦉',  tier:'silver', desc:'Submit a vote, suggestion, or review after midnight 5 times (from Mar 18, 2026)', check:p=>p.nightOwlCount>=5,  cutoffGated:true },
+  { id:'night-owl-1',       name:'Night Owl',           emoji:'🦉',  tier:'bronze', desc:'Submit a vote, suggestion, or review between midnight and 5am (from Mar 18, 2026)', check:p=>p.nightOwlCount>=1,  cutoffGated:true },
+  { id:'night-owl-5',       name:'Night Owl ×5',        emoji:'🦉',  tier:'silver', desc:'Submit a vote, suggestion, or review between midnight and 5am 5 times (from Mar 18, 2026)', check:p=>p.nightOwlCount>=5,  cutoffGated:true },
 
   // ── Reading streaks ───────────────────────────────────────────────────────
   { id:'read-streak-2',     name:'Back to Back',        emoji:'📖',  tier:'bronze', desc:'Finish 2 winning books in a row',                           check:p=>p.longestReadStreak>=2 },
@@ -3072,30 +3146,18 @@ const BADGE_DEFS = [
 
   // ── New badges ────────────────────────────────────────────────────────────
   { id:'pen-pal',           name:'Pen Pal',             emoji:'✉️',  tier:null,     desc:'Leave written thoughts on 5 or more reviews',              check:p=>p.penPalCount>=5 },
-  { id:'essayist',          name:'The Essayist',        emoji:'📜',  tier:null,     desc:'Write a review with 100 or more words',                    check:p=>p.essayistCount>=1 },
-  { id:'try-try-again',     name:'Try, Try Again',      emoji:'🔁',  tier:null,     desc:'Suggest the same book in 3 or more different months',      check:p=>p.tryTryAgain },
-  { id:'chefs-kiss',        name:"Chef's Kiss",         emoji:'🤌',  tier:null,     desc:'Suggest a book that receives an average rating of 4.5★ or higher (min 2 reviews)', check:p=>p.chefsKiss },
-  { id:'cover-to-cover',    name:'Cover to Cover',      emoji:'📕',  tier:null,     desc:'Finish every winning book across a full calendar year (min 10 winners)', check:p=>p.coverToCover },
-  { id:'hot-take',          name:'Hot Take',            emoji:'🌶️',  tier:null,     desc:'Give a rating that is 2+ stars away from the group average', check:p=>p.hotTake },
-  { id:'unanimous',         name:'Unanimous',           emoji:'🤝',  tier:null,     desc:'Give the exact same rating as every other reviewer in a month (min 2 reviewers)', check:p=>p.unanimous },
+  { id:'essayist',          name:'The Essayist',        emoji:'🖊️',  tier:null,     desc:'Write a review with 100 or more words',                    check:p=>p.essayistCount>=1 },
+  { id:'try-try-again',     name:'Try, Try Again',      emoji:'🔄',  tier:null,     desc:'Suggest the same book in 3 or more different months',      check:p=>p.tryTryAgain },
+  { id:'chefs-kiss',        name:"Chef's Kiss",         emoji:'🤌',  tier:null,     desc:'Suggest a book that earns an average rating of 4.5★ or higher (min 2 reviews)', check:p=>p.chefsKiss },
+  { id:'cover-to-cover',    name:'Cover to Cover',      emoji:'📕',  tier:null,     desc:'Finish every winning book across a full calendar year (min 10 books)', check:p=>p.coverToCover },
+  { id:'hot-take',          name:'Hot Take',            emoji:'🌶️',  tier:null,     desc:'Give a rating that is 2 or more stars away from the group average', check:p=>p.hotTake },
+  { id:'unanimous',         name:'Unanimous',           emoji:'🤝',  tier:null,     desc:'Give the exact same star rating as every other reviewer in a month (min 2 reviewers)', check:p=>p.unanimous },
   { id:'early-to-rise',     name:'Early to Rise',       emoji:'🌅',  tier:null,     desc:'Submit a vote before 8am (from Mar 18, 2026)',             check:p=>p.earlyToRise>=1, cutoffGated:true },
-  { id:'mirror-mirror',     name:'Mirror Mirror',       emoji:'🪞',  tier:null,     desc:'Vote with the exact same ranking as another member in any month', check:p=>p.mirrorMirror, detailFn:p=>p.mirrorMirror?`Matched ${p.mirrorMatchName} in ${p.mirrorMatchMonth}`:'' },
+  { id:'mirror-mirror',     name:'Mirror Mirror',       emoji:'🪞',  tier:null,     desc:p=>(p&&p.mirrorMirror&&p.mirrorMatchName)?`Voted identically to ${p.mirrorMatchName} in ${p.mirrorMatchMonth}`:'Vote with the exact same ranking order as another member in any month', check:p=>p.mirrorMirror },
   { id:'glass-half-full',   name:'Glass Half Full',     emoji:'🥂',  tier:null,     desc:'Never give below 3 stars across 5 or more rated reviews',  check:p=>p.glassHalfFull },
 
   // ── Admin-only ────────────────────────────────────────────────────────────
   { id:'founding-reader',   name:'1st Edition',         emoji:'🏛️',  tier:null,     desc:'Member during the inaugural year — admin awarded only',     check:()=>false, adminOnly:true },
-
-  // ── New badges ───────────────────────────────────────────────────────────
-  { id:'pen-pal',           name:'Pen Pal',              emoji:'✉️',  tier:null,     desc:'Write thoughts in 5 or more reviews',                       check:p=>p.penPalCount>=5 },
-  { id:'try-try-again',     name:'Try, Try Again',       emoji:'🔄',  tier:null,     desc:'Suggest the same book in 3 or more different months',       check:p=>p.tryTryAgain },
-  { id:'chefs-kiss',        name:"Chef's Kiss",          emoji:'🤌',  tier:null,     desc:'Suggest a book that earns an average rating of 4.5★ or higher (min 2 reviews)', check:p=>p.chefsKiss },
-  { id:'cover-to-cover',    name:'Cover to Cover',       emoji:'📕',  tier:null,     desc:'Finish every winning book across a full calendar year (min 10 books)', check:p=>p.coverToCover },
-  { id:'essayist',          name:'The Essayist',         emoji:'🖊️',  tier:null,     desc:'Write a review with 100 or more words',                     check:p=>p.essayistCount>=1 },
-  { id:'hot-take',          name:'Hot Take',             emoji:'🌶️',  tier:null,     desc:'Give a rating that is 2 or more stars away from the group average', check:p=>p.hotTake },
-  { id:'unanimous',         name:'Unanimous',            emoji:'🤝',  tier:null,     desc:'Give the exact same star rating as every other reviewer in a month (min 2 reviewers)', check:p=>p.unanimous },
-  { id:'early-to-rise',     name:'Early to Rise',        emoji:'🌅',  tier:null,     desc:'Submit a vote before 8am',                                  check:p=>p.earlyToRise>=1, cutoffGated:true },
-  { id:'mirror-mirror',     name:'Mirror Mirror',        emoji:'🪞',  tier:null,     desc:p=>(p&&p.mirrorMirror&&p.mirrorMatchName)?`Voted identically to ${p.mirrorMatchName} in ${p.mirrorMatchMonth}`:'Vote with the exact same ranking order as another member in any month', check:p=>p.mirrorMirror },
-  { id:'glass-half-full',   name:'Glass Half Full',      emoji:'🥂',  tier:null,     desc:'Never give below 3 stars across 5 or more rated reviews',   check:p=>p.glassHalfFull },
 ];
 
 // Returns all BADGE_DEFS + custom badges, respecting disabled/hidden for members
@@ -3169,6 +3231,7 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
   let dnfCount=0, reviewsWithRating=0, surveysCompleted=0;
   let nightOwlCount=0, earlyBird=0, top1WinCount=0, top1VoteCount=0;
   let oneStarCount=0, genreLoyalist=false, speedFinishCount=0, lastMinuteCount=0;
+  const dnfBookIds = new Set(); // track DNF book IDs from progress to avoid double-counting
   const totalMonths  = archives.length;
   const totalSurveys = allSurveys.length;
 
@@ -3267,7 +3330,8 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
           if (ft >= followMonthStart && ft <= day10End)  speedFinishCount++;
           if (ft >= last24Start      && ft <= followMonthEnd) lastMinuteCount++;
         }
-        if (status==='dnf') dnfCount++;
+        // Count DNF from progress tracker; store book IDs to avoid double-counting with reviews
+        if (status==='dnf') { dnfCount++; dnfBookIds.add(String(b.id)); }
       });
     }
 
@@ -3290,13 +3354,25 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
     if (hasRatingThisMonth) reviewsWithRating++;
     const aw = archiveWinners.find(w=>w.archive.label===monthLabel);
     const isDual = aw && aw.winnerBooks && aw.winnerBooks.length > 1;
-    if (isDual && myEntries.length >= aw.winnerBooks.length) whyNotBoth++;
+    // whyNotBoth: count distinct winner book IDs reviewed, not raw entry count
+    if (isDual && aw) {
+      const reviewedBookIds = new Set(myEntries.map(r => String(r.bookId||'')).filter(Boolean));
+      const winnerIds = aw.winnerBooks.map(b => String(b.id));
+      const coveredByReview = winnerIds.filter(id => reviewedBookIds.has(id));
+      // Also credit if member submitted ≥ 2 review entries in a dual month (legacy: no bookId stored)
+      const reviewCount = myEntries.length;
+      if (coveredByReview.length >= winnerIds.length || reviewCount >= winnerIds.length) whyNotBoth++;
+    }
     myEntries.forEach(r => {
       const rat = +r.rating;
       if (rat>=1 && rat<=5) {
         if (rat===1) oneStarCount++;
       }
-      if (r.finished==='No / DNF') dnfCount++;
+      // Only count review DNF if progress tracker didn't already count this book
+      if (r.finished==='No / DNF') {
+        const bookIdStr = String(r.bookId||'');
+        if (!bookIdStr || !dnfBookIds.has(bookIdStr)) dnfCount++;
+      }
       // Night Owl: review timestamp
       if (r.ts && r.ts>=BADGE_CUTOFF) {
         const h = new Date(r.ts).getHours();
@@ -3315,10 +3391,18 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
       if (resolveId(r.discord,r.email,idMap)!==myName) return;
       const rat = +r.rating;
       if (rat>=4 && rat<=5) {
-        winnerBooksArc.forEach(b => {
+        // Use the specific reviewed book's genre if stored, otherwise fall back to winner books
+        const reviewedBook = r.bookId
+          ? winnerBooksArc.find(b => String(b.id) === String(r.bookId))
+          : null;
+        const booksToCredit = reviewedBook ? [reviewedBook] : winnerBooksArc;
+        booksToCredit.forEach(b => {
           if (b.genre) {
-            const g = b.genre.trim().toLowerCase();
-            genreHighRatings[g] = (genreHighRatings[g]||0)+1;
+            // Split compound genres ("Fantasy / Romance" → ["Fantasy", "Romance"])
+            b.genre.split('/').map(g=>g.trim()).filter(Boolean).forEach(g => {
+              const gk = g.toLowerCase();
+              genreHighRatings[gk] = (genreHighRatings[gk]||0)+1;
+            });
           }
         });
       }
@@ -3329,7 +3413,10 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
   // ── Survey completions ──
   allSurveys.forEach(s => {
     const responses = allSurveyResps[s.id]||[];
-    if (responses.some(r => resolveId(r.name,'',idMap)===myName || normEmail(r.email)===normEmail(email))) {
+    if (responses.some(r => {
+      const rName = resolveId(r.discord||r.name||'', r.email||'', idMap);
+      return rName === myName || (r.email && normEmail(r.email) === normEmail(email));
+    })) {
       surveysCompleted++;
     }
   });
@@ -3342,15 +3429,15 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
   }
 
   // ── Steady Eddie: voted in all but 1 month across any window of 6+ months ──
+  // O(n) sliding window: expand right, shrink left when misses > 1
   let steadyEddie = false;
   if (monthVoted.length >= 6) {
-    for (let i = 0; i <= monthVoted.length - 6; i++) {
-      for (let len = 6; len <= monthVoted.length - i; len++) {
-        const window = monthVoted.slice(i, i + len);
-        const misses = window.filter(v => !v).length;
-        if (misses <= 1) { steadyEddie = true; break; }
-      }
-      if (steadyEddie) break;
+    let misses = 0, left = 0;
+    for (let right = 0; right < monthVoted.length; right++) {
+      if (!monthVoted[right]) misses++;
+      // Shrink window from left while misses > 1
+      while (misses > 1) { if (!monthVoted[left]) misses--; left++; }
+      if (right - left + 1 >= 6) { steadyEddie = true; break; }
     }
   }
 
@@ -3590,7 +3677,6 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
     longestVoteStreak:       longestStreak(monthVoted),
     longestReadStreak:       longestStreak(monthReadFinished),
     longestAllRounderStreak: longestStreak(monthAllRounder),
-    get nightOwl() { return this.nightOwlCount >= 1; },
   };
 }
 
@@ -3663,30 +3749,37 @@ function renderBadgesTab() {
   const visibleBadges = getAllBadges();
 
   const tierLabel = { bronze:'🥉 Bronze', silver:'🥈 Silver', gold:'🥇 Gold' };
-  const totalEarned = visibleBadges.filter(b => hasBadge(b.id, profile, myKey)).length;
-
-  // Find most recently earned badge by replaying profile month-by-month
   const earnedBadges = visibleBadges.filter(b => hasBadge(b.id, profile, myKey));
+  const totalEarned = earnedBadges.length;
+
+  // Find the most recently earned badge by checking which badge the member earned last.
+  // Strategy: for threshold-based badges, the "latest" is the one whose threshold they most
+  // recently crossed. We approximate this cheaply by finding the badge whose check predicate
+  // is satisfied by the current profile but would NOT be satisfied if each key stat were 1 less.
+  // For non-numeric / boolean badges we treat them as equally "recent" and pick by BADGE_DEFS order.
   let mostRecentBadge = null;
   if (earnedBadges.length) {
-    const _allAW = getArchiveWinners(); // cache once
-    // Replay profile up to each month and find the latest month a new badge appeared
-    for (let i = _allAW.length - 1; i >= 0 && !mostRecentBadge; i--) {
-      const partialProfile = computeMemberProfile(
-        _bgIdentity.discord, _bgIdentity.email,
-        { archiveWinners: _allAW.slice(0, i + 1) }
-      );
-      const prevProfile = i > 0
-        ? computeMemberProfile(_bgIdentity.discord, _bgIdentity.email,
-            { archiveWinners: _allAW.slice(0, i) })
-        : null;
-      for (const b of earnedBadges) {
-        const earnedNow = b.check ? b.check(partialProfile) : false;
-        const earnedBefore = prevProfile && b.check ? b.check(prevProfile) : false;
-        if (earnedNow && !earnedBefore) { mostRecentBadge = b; break; }
+    // Pick the last badge in earned list whose check barely passes (margin-of-1 heuristic)
+    // Walk BADGE_DEFS order in reverse so the last-defined earned badge acts as tie-break
+    const marginProfile = { ...profile };
+    const numericKeys = ['voted','suggestedMonths','reviewed','pickedWinner','suggestedTop3',
+      'dnfCount','reviewsWithRating','surveysCompleted','nightOwlCount','earlyBird',
+      'speedFinishCount','lastMinuteCount','oneStarCount','penPalCount','essayistCount',
+      'earlyToRise','longestVoteStreak','longestReadStreak','longestAllRounderStreak',
+      'whyNotBoth','genresSuggested'];
+    for (const b of [...earnedBadges].reverse()) {
+      if (!b.check) continue;
+      // Check if reducing each numeric stat by 1 would un-earn this badge
+      let wouldLose = false;
+      for (const k of numericKeys) {
+        if (typeof profile[k] === 'number' && profile[k] > 0) {
+          const tmp = { ...profile, [k]: profile[k] - 1 };
+          if (!b.check(tmp)) { wouldLose = true; break; }
+        }
       }
+      if (wouldLose) { mostRecentBadge = b; break; }
     }
-    // Fallback: if no month-crossing found (e.g. admin badges), use last in earned list
+    // Fallback: most recent earned badge in definition order
     if (!mostRecentBadge) mostRecentBadge = earnedBadges[earnedBadges.length - 1];
   }
 
@@ -3781,10 +3874,9 @@ function renderBadgesLeaderboard() {
   }));
 
   const visibleBadges = getAllBadges();
-  const _sharedIdMap = buildIdentityMap();
   const _sharedAW    = getArchiveWinners();
   const leaderboard = [...members.entries()].map(([name,info])=>{
-    const p = computeMemberProfile(info.discord,info.email,{idMap:_sharedIdMap,archiveWinners:_sharedAW});
+    const p = computeMemberProfile(info.discord,info.email,{idMap,archiveWinners:_sharedAW});
     const earned = visibleBadges.filter(b=>hasBadge(b.id,p,info.key));
     return { name, earnedCount:earned.length, earnedBadges:earned };
   }).filter(m=>m.earnedCount>0).sort((a,b)=>b.earnedCount-a.earnedCount).slice(0,10);
