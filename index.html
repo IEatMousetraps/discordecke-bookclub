@@ -603,7 +603,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       <!-- Badge Enable/Disable/Hide Controls -->
       <div class="card">
         <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Badge Visibility &amp; Controls</h3>
-        <p style="font-size:.85rem;color:var(--soft);margin-bottom:.75rem;">Toggle badges on/off (disabled = no one earns it), or hide from members (still tracked, but invisible to users — useful for upcoming badges).</p>
+        <p style="font-size:.85rem;color:var(--soft);margin-bottom:.75rem;"><strong>Disable</strong> — badge is off entirely, no one earns it. &nbsp;<strong>Hide</strong> — tracked silently, invisible to all members (useful for upcoming badges). &nbsp;<strong>Organic</strong> — hidden until a member earns it; once earned it appears automatically on their profile only.</p>
         <div id="admin-badge-controls-area"></div>
       </div>
 
@@ -711,7 +711,7 @@ let CACHE = {
   settings: {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,reviewsOpen:false,password:'bookclub123'},
   books: [], votes: {}, archives: [], surveys: [], surveyResponses: {}, reviews: {},
   readingProgress: {}, meetingInfo: {},
-  badgeConfig: { disabled:{}, hidden:{}, customBadges:[], overrides:{} }
+  badgeConfig: { disabled:{}, hidden:{}, organic:{}, customBadges:[], overrides:{} }
 };
 
 // ── Single source of truth for all genres ─────────────────────────────────
@@ -739,7 +739,6 @@ const GENRES = [
   { name:'Memoir',             bg:'#dde8ff', text:'#1a3d8f', border:'#4a72d4' },
   { name:'Mystery',            bg:'#f4e6ff', text:'#5c1a8a', border:'#9b4dca' },
   { name:'Non-Fiction',        bg:'#e3f2fd', text:'#0d47a1', border:'#64b5f6' },
-  { name:'Personal Growth',    bg:'#d6f5e3', text:'#0a5c2e', border:'#2e9e5e' },
   { name:'Poetry',             bg:'#fce4ec', text:'#ad1457', border:'#e91e63' },
   { name:'Psychology',         bg:'#e8eaf6', text:'#1a237e', border:'#5c6bc0' },
   { name:'Romance',            bg:'#fce4ec', text:'#c2185b', border:'#f06292' },
@@ -828,7 +827,7 @@ function startListeners() {
   });
   onSnapshot(BADGE_CONFIG_REF, snap => {
     CACHE.badgeConfig = Object.assign(
-      { disabled:{}, hidden:{}, customBadges:[], overrides:{} },
+      { disabled:{}, hidden:{}, organic:{}, customBadges:[], overrides:{} },
       snap.exists() ? snap.data() : {}
     );
     refreshActiveTab();
@@ -866,7 +865,7 @@ function getSurveyResponses(){ return CACHE.surveyResponses || {}; }
 function getReviews()        { return CACHE.reviews || {}; }
 function getReadingProgress(){ return CACHE.readingProgress || {}; }
 function getMeetingInfo()    { return CACHE.meetingInfo || {}; }
-function getBadgeConfig()    { return CACHE.badgeConfig || { disabled:{}, hidden:{}, customBadges:[], overrides:{} }; }
+function getBadgeConfig()    { return CACHE.badgeConfig || { disabled:{}, hidden:{}, organic:{}, customBadges:[], overrides:{} }; }
 
 // ════════════════════════════════════════════════════════
 // NAV
@@ -3004,16 +3003,17 @@ const BADGE_CUTOFF = new Date('2026-03-18T00:00:00').getTime();
 const BADGE_DEFS = [
   // ── Participation basics ──────────────────────────────────────────────────
   { id:'first-vote',        name:'First Vote',          emoji:'🗳️',  tier:null,     desc:'Cast your first vote',                                      check:p=>p.voted>=1 },
-  { id:'first-suggest',     name:'Bookworm',            emoji:'📚',  tier:null,     desc:'Submit your first book suggestion',                         check:p=>p.suggested>=1 },
+  { id:'first-suggest',     name:'Bookworm',            emoji:'📚',  tier:null,     desc:'Submit your first book suggestion',                         check:p=>p.suggestedMonths>=1 },
   { id:'first-review',      name:'Critic',              emoji:'✍️',  tier:null,     desc:'Submit your first book review',                             check:p=>p.reviewed>=1 },
-  { id:'all-rounder',       name:'All-Rounder',         emoji:'🌟',  tier:null,     desc:'Vote, suggest, and review in any month',                    check:p=>p.voted>=1&&p.suggested>=1&&p.reviewed>=1 },
-  { id:'why-not-both',      name:'Why Not Both?',        emoji:'📚🤝📖', tier:null,  desc:'Read both books in a month that had two winners',            check:p=>p.whyNotBoth>=1 },
+  { id:'all-rounder',       name:'All-Rounder',         emoji:'🌟',  tier:null,     desc:'Vote, suggest, and review in the same month',               check:p=>p.longestAllRounderStreak>=1 },
+  { id:'why-not-both',      name:'Why Not Both?',       emoji:'📚🤝📖', tier:null,  desc:'Read both books in a month that had two winners',            check:p=>p.whyNotBoth>=1 },
   { id:'three-votes',       name:'Regular',             emoji:'📆',  tier:null,     desc:'Vote in 3 or more months',                                  check:p=>p.voted>=3 },
   { id:'six-votes',         name:'Civic Duty',          emoji:'🗽',  tier:null,     desc:'Vote in 6 or more months',                                  check:p=>p.voted>=6 },
   { id:'twelve-votes',      name:'Lifer',               emoji:'🎖️',  tier:null,     desc:'Vote in 12 or more months',                                 check:p=>p.voted>=12 },
-  { id:'three-suggests',    name:'Curator',             emoji:'🔖',  tier:null,     desc:'Suggest books in 3 or more months',                         check:p=>p.suggested>=3 },
+  { id:'three-suggests',    name:'Curator',             emoji:'🔖',  tier:null,     desc:'Suggest books in 3 or more months',                         check:p=>p.suggestedMonths>=3 },
   { id:'three-reviews',     name:'Reviewer',            emoji:'📝',  tier:null,     desc:'Submit reviews in 3 or more months',                        check:p=>p.reviewed>=3 },
-  { id:'consistent',        name:'The Backbone',        emoji:'💎',  tier:null,     desc:'Vote in every archived month (min 3)',                      check:p=>p.totalMonths>=3&&p.voted>=p.totalMonths&&p.voted>0 },
+  { id:'consistent',        name:'The Backbone',        emoji:'💎',  tier:null,     desc:'Vote in every single archived month without missing one (min 3)', check:p=>p.totalMonths>=3&&p.voted>=p.totalMonths&&p.voted>0 },
+  { id:'steady-eddie',      name:'Steady Eddie',        emoji:'🪨',  tier:null,     desc:'Vote in all but 1 month across any stretch of 6+ archived months', check:p=>p.steadyEddie },
 
   // ── Voting streaks (tiered) ───────────────────────────────────────────────
   { id:'streak-3',          name:'Hat Trick',           emoji:'🔥',  tier:'bronze', desc:'Vote 3 months in a row',                                    check:p=>p.longestVoteStreak>=3 },
@@ -3052,32 +3052,58 @@ const BADGE_DEFS = [
   { id:'just-in-time',      name:'Just In Time',        emoji:'⏰',  tier:null,     desc:'Finish the winner book in the final 24hrs of the month',    check:p=>p.lastMinuteCount>=1,  cutoffGated:true },
 
   // ── Fun / personality ─────────────────────────────────────────────────────
-  { id:'contrarian',        name:'The Contrarian',      emoji:'🙃',  tier:null,     desc:'Vote 3+ times but your #1 pick has never won',              check:p=>p.voted>=3&&p.top1WinCount===0 },
+  { id:'contrarian',        name:'The Contrarian',      emoji:'🙃',  tier:null,     desc:'Vote 5+ times and your #1 pick has won less than 20% of the time', check:p=>p.top1VoteCount>=5&&(p.top1WinCount/p.top1VoteCount)<0.2 },
+  { id:'broken-clock',      name:'Broken Clock',        emoji:'🕰️',  tier:null,     desc:'Your #1 pick finally won after being wrong 5+ times in a row — even a broken clock is right twice a day', check:p=>p.brokenClock },
   { id:'completionist-3',   name:'The Completionist',   emoji:'🧩',  tier:null,     desc:'Vote, suggest, and review for 3+ months in a row',          check:p=>p.longestAllRounderStreak>=3 },
   { id:'early-bird',        name:'Early Bird',          emoji:'🐦',  tier:null,     desc:'Be one of the first 3 members to vote in a month (from Mar 18, 2026)', check:p=>p.earlyBird>=1, cutoffGated:true },
 
   // ── Genre — suggestions ─────────────────────────────────────────────────
   { id:'genre-champion',    name:'Genre Champion',      emoji:'🏷️',  tier:null,     category:'genre', desc:'Suggest 3+ books in the same genre',                        check:p=>p.genreChampion },
   { id:'genre-specialist',  name:'The Specialist',      emoji:'🔍',  tier:null,     category:'genre', desc:'Suggest 5+ books in the same genre',                        check:p=>p.genreSpecialist },
-  { id:'librarian',          name:'The Librarian',       emoji:'📚',  tier:null,     category:'genre', desc:'Suggest books across 5+ different genres',                  check:p=>p.genresSuggested>=5 },
+  { id:'librarian',         name:'The Librarian',       emoji:'📚',  tier:null,     category:'genre', desc:'Suggest books across 5+ different genres',                  check:p=>p.genresSuggested>=5 },
 
   // ── Genre — voting / reading ──────────────────────────────────────────────
-  { id:'genre-devotee',     name:'Genre Devotee',       emoji:'💝',  tier:null,     category:'genre', desc:'Rank a genre in the top half of your ballot 5+ times (non-fiction excluded)',      check:p=>p.genreDevotee },
+  { id:'genre-devotee',     name:'Genre Devotee',       emoji:'💝',  tier:null,     category:'genre', desc:'Rank a genre in the top half of your ballot 5+ times (non-fiction excluded)', check:p=>p.genreDevotee },
   { id:'comfort-zone',      name:'Comfort Zone',        emoji:'🛋️',  tier:null,     category:'genre', desc:'Finish 3+ winning books in the same genre',                 check:p=>p.comfortZone },
-  { id:'against-type',      name:'Against Type',        emoji:'🔀',  tier:null,     category:'genre', desc:"Finish a winner in a genre you've never suggested (must have suggested at least 3 books)",    check:p=>p.againstType },
+  { id:'against-type',      name:'Against Type',        emoji:'🔀',  tier:null,     category:'genre', desc:"Finish a winner in a genre you've never suggested (must have suggested in at least 6 months)", check:p=>p.againstType },
 
   // ── Genre — reviews ───────────────────────────────────────────────────────
-  { id:'adventurous-reader',name:'Adventurous Reader',  emoji:'🧭',  tier:null,     category:'genre', desc:'Rate books across 12+ different genres',                    check:p=>p.genresRated>=12 },
+  { id:'adventurous-reader',name:'Adventurous Reader',  emoji:'🧭',  tier:null,     category:'genre', desc:'Rate books across 8+ different genres',                    check:p=>p.genresRated>=8 },
+
+  // ── New badges ────────────────────────────────────────────────────────────
+  { id:'pen-pal',           name:'Pen Pal',             emoji:'✉️',  tier:null,     desc:'Leave written thoughts on 5 or more reviews',              check:p=>p.penPalCount>=5 },
+  { id:'essayist',          name:'The Essayist',        emoji:'📜',  tier:null,     desc:'Write a review with 100 or more words',                    check:p=>p.essayistCount>=1 },
+  { id:'try-try-again',     name:'Try, Try Again',      emoji:'🔁',  tier:null,     desc:'Suggest the same book in 3 or more different months',      check:p=>p.tryTryAgain },
+  { id:'chefs-kiss',        name:"Chef's Kiss",         emoji:'🤌',  tier:null,     desc:'Suggest a book that receives an average rating of 4.5★ or higher (min 2 reviews)', check:p=>p.chefsKiss },
+  { id:'cover-to-cover',    name:'Cover to Cover',      emoji:'📕',  tier:null,     desc:'Finish every winning book across a full calendar year (min 10 winners)', check:p=>p.coverToCover },
+  { id:'hot-take',          name:'Hot Take',            emoji:'🌶️',  tier:null,     desc:'Give a rating that is 2+ stars away from the group average', check:p=>p.hotTake },
+  { id:'unanimous',         name:'Unanimous',           emoji:'🤝',  tier:null,     desc:'Give the exact same rating as every other reviewer in a month (min 2 reviewers)', check:p=>p.unanimous },
+  { id:'early-to-rise',     name:'Early to Rise',       emoji:'🌅',  tier:null,     desc:'Submit a vote before 8am (from Mar 18, 2026)',             check:p=>p.earlyToRise>=1, cutoffGated:true },
+  { id:'mirror-mirror',     name:'Mirror Mirror',       emoji:'🪞',  tier:null,     desc:'Vote with the exact same ranking as another member in any month', check:p=>p.mirrorMirror, detailFn:p=>p.mirrorMirror?`Matched ${p.mirrorMatchName} in ${p.mirrorMatchMonth}`:'' },
+  { id:'glass-half-full',   name:'Glass Half Full',     emoji:'🥂',  tier:null,     desc:'Never give below 3 stars across 5 or more rated reviews',  check:p=>p.glassHalfFull },
 
   // ── Admin-only ────────────────────────────────────────────────────────────
   { id:'founding-reader',   name:'1st Edition',         emoji:'🏛️',  tier:null,     desc:'Member during the inaugural year — admin awarded only',     check:()=>false, adminOnly:true },
+
+  // ── New badges ───────────────────────────────────────────────────────────
+  { id:'pen-pal',           name:'Pen Pal',              emoji:'✉️',  tier:null,     desc:'Write thoughts in 5 or more reviews',                       check:p=>p.penPalCount>=5 },
+  { id:'try-try-again',     name:'Try, Try Again',       emoji:'🔄',  tier:null,     desc:'Suggest the same book in 3 or more different months',       check:p=>p.tryTryAgain },
+  { id:'chefs-kiss',        name:"Chef's Kiss",          emoji:'🤌',  tier:null,     desc:'Suggest a book that earns an average rating of 4.5★ or higher (min 2 reviews)', check:p=>p.chefsKiss },
+  { id:'cover-to-cover',    name:'Cover to Cover',       emoji:'📕',  tier:null,     desc:'Finish every winning book across a full calendar year (min 10 books)', check:p=>p.coverToCover },
+  { id:'essayist',          name:'The Essayist',         emoji:'🖊️',  tier:null,     desc:'Write a review with 100 or more words',                     check:p=>p.essayistCount>=1 },
+  { id:'hot-take',          name:'Hot Take',             emoji:'🌶️',  tier:null,     desc:'Give a rating that is 2 or more stars away from the group average', check:p=>p.hotTake },
+  { id:'unanimous',         name:'Unanimous',            emoji:'🤝',  tier:null,     desc:'Give the exact same star rating as every other reviewer in a month (min 2 reviewers)', check:p=>p.unanimous },
+  { id:'early-to-rise',     name:'Early to Rise',        emoji:'🌅',  tier:null,     desc:'Submit a vote before 8am',                                  check:p=>p.earlyToRise>=1, cutoffGated:true },
+  { id:'mirror-mirror',     name:'Mirror Mirror',        emoji:'🪞',  tier:null,     desc:p=>(p&&p.mirrorMirror&&p.mirrorMatchName)?`Voted identically to ${p.mirrorMatchName} in ${p.mirrorMatchMonth}`:'Vote with the exact same ranking order as another member in any month', check:p=>p.mirrorMirror },
+  { id:'glass-half-full',   name:'Glass Half Full',      emoji:'🥂',  tier:null,     desc:'Never give below 3 stars across 5 or more rated reviews',   check:p=>p.glassHalfFull },
 ];
 
 // Returns all BADGE_DEFS + custom badges, respecting disabled/hidden for members
+// organic badges are always included here — the renderer decides visibility per-member
 function getAllBadges({ includeHidden = false, includeDisabled = false } = {}) {
   const cfg = getBadgeConfig();
   const custom = (cfg.customBadges || []).map(cb => ({
-    id: cb.id, name: cb.name, emoji: cb.emoji || '🏅', tier: null,
+    id: cb.id, name: cb.name, emoji: cb.emoji || '\U0001f3c5', tier: null,
     desc: cb.desc, check: () => false, adminOnly: true, custom: true,
     iconDataUrl: cb.iconDataUrl || null,
   }));
@@ -3087,6 +3113,12 @@ function getAllBadges({ includeHidden = false, includeDisabled = false } = {}) {
     if (!includeHidden   && cfg.hidden   && cfg.hidden[b.id])   return false;
     return true;
   });
+}
+
+// Returns true if a badge is organic (hidden until earned)
+function isBadgeOrganic(badgeId) {
+  const cfg = getBadgeConfig();
+  return !!(cfg.organic && cfg.organic[badgeId]);
 }
 
 // Resolve whether a member has earned a given badge, considering overrides
@@ -3133,22 +3165,30 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
   const myName          = resolveId(discord, email, idMap);
   const myKey           = normEmail(email) || normId(discord);
 
-  let voted=0, suggested=0, reviewed=0, pickedWinner=0, suggestedTop3=0;
+  let voted=0, suggestedMonths=0, reviewed=0, pickedWinner=0, suggestedTop3=0;
   let dnfCount=0, reviewsWithRating=0, surveysCompleted=0;
-  let nightOwlCount=0, earlyBird=0, top1WinCount=0;
+  let nightOwlCount=0, earlyBird=0, top1WinCount=0, top1VoteCount=0;
   let oneStarCount=0, genreLoyalist=false, speedFinishCount=0, lastMinuteCount=0;
   const totalMonths  = archives.length;
   const totalSurveys = allSurveys.length;
 
-  // Track genres suggested by this member
+  // Track genres suggested by this member — split on / for accurate per-genre counts
   const genresSuggestedSet = new Set();
   // Track genres and their high ratings for Genre Loyalist
   const genreHighRatings = {}; // genre -> count
 
   // Per-month booleans for streak calculations
-  const monthVoted      = [];
-  const monthAllRounder = [];
+  const monthVoted        = [];
+  const monthAllRounder   = [];
   const monthReadFinished = [];
+
+  // Pre-index reviews by month label for use inside the archive loop (fixes All-Rounder streak)
+  const reviewedMonthSet = new Set();
+  Object.entries(allReviews).forEach(([monthLabel, entries]) => {
+    if ((entries||[]).some(r => resolveId(r.discord,r.email,idMap)===myName)) {
+      reviewedMonthSet.add(monthLabel);
+    }
+  });
 
   const archiveWinners = archiveWinnersCache || getArchiveWinners();
 
@@ -3167,11 +3207,21 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
       normBook(b).suggesters.forEach(s => {
         if (resolveId(s.discord,s.email,idMap)===myName) {
           didSuggest = true;
-          if (b.genre) genresSuggestedSet.add(b.genre.trim().toLowerCase());
+          // Fix: split combined genre strings so each sub-genre is counted individually
+          if (b.genre) {
+            b.genre.split('/').map(g=>g.trim()).filter(Boolean).forEach(g => {
+              genresSuggestedSet.add(g.toLowerCase());
+            });
+          }
+          // Night Owl: check suggestion timestamp if available
+          if (s.ts && s.ts >= BADGE_CUTOFF) {
+            const h = new Date(s.ts).getHours();
+            if (h >= 0 && h < 5) nightOwlCount++;
+          }
         }
       });
     });
-    if (didSuggest) suggested++;
+    if (didSuggest) suggestedMonths++;
 
     // ── Winner / top-3 ──
     const winnerSuggesters = winnerBooks.flatMap(b=>normBook(b).suggesters.map(s=>resolveId(s.discord,s.email,idMap)));
@@ -3179,9 +3229,10 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
     const top3Suggesters = sortedBooks.slice(0,3).flatMap(b=>normBook(b).suggesters.map(s=>resolveId(s.discord,s.email,idMap)));
     if (top3Suggesters.includes(myName)) suggestedTop3++;
 
-    // ── Contrarian: did my #1 win? ──
+    // ── Contrarian / Broken Clock: track #1 pick votes and wins ──
     if (myVoteEntry) {
       const myR = myVoteEntry.ranking||myVoteEntry;
+      top1VoteCount++;
       if (winnerBooks.map(b=>String(b.id)).includes(String(myR[0]))) top1WinCount++;
     }
 
@@ -3192,7 +3243,7 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
       if (sorted.some(vd=>resolveId(vd.discord,vd.email,idMap)===myName)) earlyBird++;
     }
 
-    // ── Night Owl (cutoff-gated) ──
+    // ── Night Owl (cutoff-gated) — vote timestamp ──
     if (myVoteEntry && myVoteEntry.ts && myVoteEntry.ts >= BADGE_CUTOFF) {
       const h = new Date(myVoteEntry.ts).getHours();
       if (h>=0 && h<5) nightOwlCount++;
@@ -3201,11 +3252,8 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
     // ── Reading progress on this month's winner ──
     const myProgressMap = allProgress[myKey]||{};
 
-    // For Page Turner / Just In Time: track finish timestamps
-    // We use the archivedAt date as a proxy for when the "following calendar month" begins
     if (a.archivedAt) {
       const archiveDate = new Date(a.archivedAt);
-      // Following calendar month = month after archivedAt
       const followMonthStart = new Date(archiveDate.getFullYear(), archiveDate.getMonth()+1, 1);
       const followMonthEnd   = new Date(archiveDate.getFullYear(), archiveDate.getMonth()+2, 0, 23, 59, 59);
       const day10End         = new Date(followMonthStart.getTime() + 10*24*60*60*1000 - 1);
@@ -3219,7 +3267,6 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
           if (ft >= followMonthStart && ft <= day10End)  speedFinishCount++;
           if (ft >= last24Start      && ft <= followMonthEnd) lastMinuteCount++;
         }
-        // count DNF from progress tracker too
         if (status==='dnf') dnfCount++;
       });
     }
@@ -3228,23 +3275,19 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
     const finishedWinner = winnerBooks.some(b=>(allProgress[myKey]||{})[b.id]==='finished');
     monthReadFinished.push(finishedWinner);
 
-    // ── All-rounder streak ──
-    monthAllRounder.push(didVote && didSuggest);
+    // ── All-rounder streak — now correctly includes reviewed ──
+    const didReview = reviewedMonthSet.has(a.label);
+    monthAllRounder.push(didVote && didSuggest && didReview);
   });
 
   // ── Reviews ──
-  // Count reviewed per-month (not per-entry) so dual-winner months don't inflate counts.
-  // A member who reviews one or both books in a dual month counts as 1 reviewed month.
   let whyNotBoth = 0;
   Object.entries(allReviews).forEach(([monthLabel, entries]) => {
     const myEntries = (entries||[]).filter(r => resolveId(r.discord,r.email,idMap)===myName);
     if (!myEntries.length) return;
-    // Count this month as 1 review regardless of how many entries
     reviewed++;
-    // For rated-all: month counts as rated if at least one entry has a rating
     const hasRatingThisMonth = myEntries.some(r => { const rat = +r.rating; return rat>=1 && rat<=5; });
     if (hasRatingThisMonth) reviewsWithRating++;
-    // Check if this was a dual-winner month and they reviewed both books
     const aw = archiveWinners.find(w=>w.archive.label===monthLabel);
     const isDual = aw && aw.winnerBooks && aw.winnerBooks.length > 1;
     if (isDual && myEntries.length >= aw.winnerBooks.length) whyNotBoth++;
@@ -3254,6 +3297,7 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
         if (rat===1) oneStarCount++;
       }
       if (r.finished==='No / DNF') dnfCount++;
+      // Night Owl: review timestamp
       if (r.ts && r.ts>=BADGE_CUTOFF) {
         const h = new Date(r.ts).getHours();
         if (h>=0 && h<5) nightOwlCount++;
@@ -3296,6 +3340,36 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
     arr.forEach(b=>{ cur=b?cur+1:0; longest=Math.max(longest,cur); });
     return longest;
   }
+
+  // ── Steady Eddie: voted in all but 1 month across any window of 6+ months ──
+  let steadyEddie = false;
+  if (monthVoted.length >= 6) {
+    for (let i = 0; i <= monthVoted.length - 6; i++) {
+      for (let len = 6; len <= monthVoted.length - i; len++) {
+        const window = monthVoted.slice(i, i + len);
+        const misses = window.filter(v => !v).length;
+        if (misses <= 1) { steadyEddie = true; break; }
+      }
+      if (steadyEddie) break;
+    }
+  }
+
+  // ── Broken Clock: #1 pick finally won after missing 5+ times in a row ──
+  let brokenClock = false;
+  let consecutiveMisses = 0;
+  archiveWinners.forEach(({ archive:a, winnerBooks }) => {
+    const myVote = Object.values(a.votes||{}).find(vd=>resolveId(vd.discord,vd.email,idMap)===myName);
+    if (!myVote) return;
+    const myR = myVote.ranking||myVote;
+    const myTopId = String(myR[0]);
+    const won = winnerBooks.map(b=>String(b.id)).includes(myTopId);
+    if (won) {
+      if (consecutiveMisses >= 5) brokenClock = true;
+      consecutiveMisses = 0;
+    } else {
+      consecutiveMisses++;
+    }
+  });
 
   // ── Genre Champion / Specialist ──
   // genresSuggestedSet already built above; we also need per-genre counts
@@ -3351,7 +3425,7 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
   // ── Against Type: finished a winner in a genre never suggested ──
   // Requires at least 1 suggestion so new members with 0 suggestions can't earn this trivially
   const suggestedGenres = new Set(Object.keys(genreSuggestCounts).map(g=>g.toLowerCase()));
-  const againstType = suggested >= 3 && Object.keys(genreFinishCounts).some(g => !suggestedGenres.has(g.toLowerCase()));
+  const againstType = suggestedMonths >= 6 && Object.keys(genreFinishCounts).some(g => !suggestedGenres.has(g.toLowerCase()));
 
   // ── Adventurous Reader: rated books across 6+ different genres ──
   const genresRatedSet = new Set();
@@ -3369,20 +3443,153 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
     });
   });
 
+  // ── Pen Pal: written thoughts on 5+ reviews ──
+  let penPalCount = 0;
+  Object.values(allReviews).forEach(entries => {
+    (entries||[]).forEach(r => {
+      if (resolveId(r.discord,r.email,idMap)!==myName) return;
+      if (r.why && r.why.trim().length > 0) penPalCount++;
+    });
+  });
+
+  // ── The Essayist: written thoughts of 100+ words on any review ──
+  let essayistCount = 0;
+  Object.values(allReviews).forEach(entries => {
+    (entries||[]).forEach(r => {
+      if (resolveId(r.discord,r.email,idMap)!==myName) return;
+      if (r.why && r.why.trim().split(/\s+/).length >= 100) essayistCount++;
+    });
+  });
+
+  // ── Try, Try Again: suggest the same book in 3+ different months ──
+  const suggestByTitle = {}; // normTitle -> Set of month labels
+  archiveWinners.forEach(({archive:a}) => {
+    (a.books||[]).forEach(b => {
+      normBook(b).suggesters.forEach(s => {
+        if (resolveId(s.discord,s.email,idMap)!==myName) return;
+        const key = (b.title||'').trim().toLowerCase();
+        if (!suggestByTitle[key]) suggestByTitle[key] = new Set();
+        suggestByTitle[key].add(a.label);
+      });
+    });
+  });
+  const tryTryAgain = Object.values(suggestByTitle).some(months => months.size >= 3);
+
+  // ── Chef's Kiss: suggest a book that receives a 5-star average ──
+  let chefsKiss = false;
+  archiveWinners.forEach(({archive:a, winnerBooks}) => {
+    winnerBooks.forEach(b => {
+      const isMine = normBook(b).suggesters.some(s => resolveId(s.discord,s.email,idMap)===myName);
+      if (!isMine) return;
+      const monthEntries = allReviews[a.label]||[];
+      const ratings = monthEntries.map(r=>+r.rating).filter(r=>r>=1&&r<=5);
+      if (ratings.length >= 2) {
+        const avg = ratings.reduce((a,b)=>a+b,0)/ratings.length;
+        if (avg >= 4.5) chefsKiss = true;
+      }
+    });
+  });
+
+  // ── Cover to Cover: finish every winning book in a full calendar year ──
+  let coverToCover = false;
+  const yearFinish = {};
+  archiveWinners.forEach(({archive:a, winnerBooks}) => {
+    if (!a.archivedAt) return;
+    const year = new Date(a.archivedAt).getFullYear();
+    if (!yearFinish[year]) yearFinish[year] = { total:0, finished:0 };
+    yearFinish[year].total += winnerBooks.length;
+    winnerBooks.forEach(b => {
+      if ((allProgress[myKey]||{})[b.id]==='finished') yearFinish[year].finished++;
+    });
+  });
+  coverToCover = Object.values(yearFinish).some(y => y.total >= 10 && y.finished >= y.total);
+
+  // ── Hot Take: give a rating 2+ stars away from the group average ──
+  let hotTake = false;
+  Object.entries(allReviews).forEach(([monthLabel, entries]) => {
+    const myEntry = (entries||[]).find(r => resolveId(r.discord,r.email,idMap)===myName);
+    if (!myEntry) return;
+    const myRat = +myEntry.rating;
+    if (!myRat || myRat < 1 || myRat > 5) return;
+    const otherRatings = (entries||[])
+      .filter(r => resolveId(r.discord,r.email,idMap)!==myName)
+      .map(r=>+r.rating).filter(r=>r>=1&&r<=5);
+    if (otherRatings.length < 2) return;
+    const avg = otherRatings.reduce((a,b)=>a+b,0)/otherRatings.length;
+    if (Math.abs(myRat - avg) >= 2) hotTake = true;
+  });
+
+  // ── Unanimous: give the exact same rating as every other reviewer ──
+  let unanimous = false;
+  Object.entries(allReviews).forEach(([monthLabel, entries]) => {
+    const allRated = (entries||[]).filter(r => { const n=+r.rating; return n>=1&&n<=5; });
+    if (allRated.length < 2) return;
+    const myEntry = allRated.find(r => resolveId(r.discord,r.email,idMap)===myName);
+    if (!myEntry) return;
+    const myRat = +myEntry.rating;
+    if (allRated.every(r => +r.rating === myRat)) unanimous = true;
+  });
+
+  // ── Early to Rise: vote before 8am (cutoff-gated) ──
+  let earlyToRise = 0;
+  archiveWinners.forEach(({archive:a}) => {
+    const myVote = Object.values(a.votes||{}).find(vd=>resolveId(vd.discord,vd.email,idMap)===myName);
+    if (!myVote || !myVote.ts || myVote.ts < BADGE_CUTOFF) return;
+    const h = new Date(myVote.ts).getHours();
+    if (h >= 5 && h < 8) earlyToRise++;
+  });
+
+  // ── Mirror Mirror: vote with identical ranking to another member ──
+  // Returns { matched: bool, matchName: string, matchMonth: string }
+  let mirrorMirror = false, mirrorMatchName = '', mirrorMatchMonth = '';
+  archiveWinners.forEach(({archive:a}) => {
+    if (mirrorMirror) return;
+    const myVote = Object.values(a.votes||{}).find(vd=>resolveId(vd.discord,vd.email,idMap)===myName);
+    if (!myVote) return;
+    const myRanking = (myVote.ranking||myVote).map(String).join(',');
+    Object.values(a.votes||{}).forEach(vd => {
+      if (mirrorMirror) return;
+      const otherName = resolveId(vd.discord,vd.email,idMap);
+      if (otherName === myName) return;
+      const otherRanking = (vd.ranking||vd).map(String).join(',');
+      if (otherRanking === myRanking && myRanking.length > 0) {
+        mirrorMirror = true;
+        mirrorMatchName = otherName;
+        mirrorMatchMonth = a.label;
+      }
+    });
+  });
+
+  // ── Glass Half Full: never below 3 stars across 5+ reviews ──
+  let glassHalfFullRatings = 0, glassHalfFullValid = true;
+  Object.values(allReviews).forEach(entries => {
+    (entries||[]).forEach(r => {
+      if (resolveId(r.discord,r.email,idMap)!==myName) return;
+      const rat = +r.rating;
+      if (rat >= 1 && rat <= 5) {
+        glassHalfFullRatings++;
+        if (rat < 3) glassHalfFullValid = false;
+      }
+    });
+  });
+  const glassHalfFull = glassHalfFullValid && glassHalfFullRatings >= 5;
+
   return {
-    voted, suggested, reviewed, pickedWinner, suggestedTop3,
+    voted, suggestedMonths, reviewed, pickedWinner, suggestedTop3,
     dnfCount, reviewsWithRating, surveysCompleted, totalSurveys,
-    nightOwlCount, earlyBird, top1WinCount,
+    nightOwlCount, earlyBird, top1WinCount, top1VoteCount,
     oneStarCount, genreLoyalist, speedFinishCount, lastMinuteCount,
     genresSuggested: genresSuggestedSet.size,
     genreChampion, genreSpecialist, genreDevotee, comfortZone, againstType,
     genresRated: genresRatedSet.size,
-    whyNotBoth,
+    whyNotBoth, steadyEddie, brokenClock,
+    penPalCount, essayistCount, tryTryAgain, chefsKiss, coverToCover,
+    hotTake, unanimous, earlyToRise, mirrorMirror, mirrorMatchName, mirrorMatchMonth,
+    glassHalfFull,
     totalMonths,
     longestVoteStreak:       longestStreak(monthVoted),
     longestReadStreak:       longestStreak(monthReadFinished),
     longestAllRounderStreak: longestStreak(monthAllRounder),
-    // legacy compat
     get nightOwl() { return this.nightOwlCount >= 1; },
   };
 }
@@ -3391,7 +3598,9 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
 async function loadBadges() {
   const email   = document.getElementById('bg-email').value.trim();
   const discord = document.getElementById('bg-discord').value.trim();
-  if (!email && !discord) { showMsg('bg-identity-msg', 'Please enter your email or Discord username.', 'err'); return; }
+  if (!email && !discord) { showMsg('bg-identity-msg', 'Please enter both your email and Discord username.', 'err'); return; }
+  if (!email) { showMsg('bg-identity-msg', 'Please enter your email address.', 'err'); return; }
+  if (!discord) { showMsg('bg-identity-msg', 'Please enter your Discord username.', 'err'); return; }
   _bgIdentity = { email, discord };
   document.getElementById('badges-main').style.display = '';
   renderBadgesTab();
@@ -3484,7 +3693,7 @@ function renderBadgesTab() {
       </div>
       <div style="flex:1;min-width:180px;">
         <div style="font-weight:500;margin-bottom:.3rem;">${earnedBadges.map(b=>b.iconDataUrl?'🖼️':b.emoji).join(' ')||'—'}</div>
-        <div style="font-size:.82rem;color:var(--soft);">${profile.voted} months voted · ${profile.suggested} suggested · ${profile.reviewed} reviews · ${profile.surveysCompleted} surveys · ${profile.pickedWinner} winning pick${profile.pickedWinner!==1?'s':''}</div>
+        <div style="font-size:.82rem;color:var(--soft);">${profile.voted} months voted · ${profile.suggestedMonths} months suggested · ${profile.reviewed} reviews · ${profile.surveysCompleted} surveys · ${profile.pickedWinner} winning pick${profile.pickedWinner!==1?'s':''}</div>
         <div style="font-size:.78rem;color:var(--soft);margin-top:.2rem;">Longest vote streak: ${profile.longestVoteStreak} · Longest read streak: ${profile.longestReadStreak}</div>
         ${recentBadgeHtml}
       </div>
@@ -3498,12 +3707,13 @@ function renderBadgesTab() {
     return `<div class="badge-card ${isEarned?'earned':'locked'}${b.tier&&isEarned?' tier-'+b.tier:''}">
       ${icon}${tierHtml}
       <div class="badge-name">${esc(b.name)}</div>
-      <div class="badge-desc">${esc(b.desc)}</div>
+      <div class="badge-desc">${esc((typeof b.desc === 'function' ? b.desc(isEarned ? profile : null) : b.desc).replace(/\s*\(from Mar \d+, \d{4}\)/g, ''))}</div>
       ${isEarned?'<div class="badge-earned-label">✓ Earned</div>':''}
     </div>`;
   };
 
   // Group badges by category, earned first then locked within each group
+  // Organic (hidden-until-earned) badges are excluded from the locked grid and total count
   const html = BADGE_CATEGORIES.map(cat => {
     const inCat = visibleBadges.filter(b => {
       const catId = b.category || BADGE_CATEGORY_MAP[b.id] || (b.adminOnly ? 'admin' : b.custom ? 'admin' : 'fun');
@@ -3511,9 +3721,11 @@ function renderBadgesTab() {
     });
     if (!inCat.length) return '';
     const earnedInCat = inCat.filter(b => hasBadge(b.id, profile, myKey));
-    const lockedInCat = inCat.filter(b => !hasBadge(b.id, profile, myKey));
+    // Organic unearned badges are invisible to the member — omit from locked list and total
+    const lockedInCat = inCat.filter(b => !hasBadge(b.id, profile, myKey) && !isBadgeOrganic(b.id));
     const earnedCount = earnedInCat.length;
-    const totalCount  = inCat.length;
+    const totalCount  = earnedInCat.length + lockedInCat.length; // excludes hidden organics
+    if (!earnedInCat.length && !lockedInCat.length) return '';
     return `<div style="margin-bottom:2rem;">
       <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.75rem;padding-bottom:.4rem;border-bottom:2px solid var(--border);">
         <span style="font-size:1.1rem;">${cat.emoji}</span>
@@ -3574,7 +3786,7 @@ function renderBadgesLeaderboard() {
       <div style="flex:1;min-width:120px;">
         <div style="font-weight:500;margin-bottom:.25rem;">${esc(m.name)}</div>
         <div style="display:flex;flex-wrap:wrap;gap:.25rem;">
-          ${m.earnedBadges.slice(0,8).map(b=>`<span title="${esc(b.name)}: ${esc(b.desc)}" style="font-size:1rem;cursor:default;">${b.iconDataUrl?'🖼️':b.emoji}</span>`).join('')}
+          ${m.earnedBadges.slice(0,8).map(b=>`<span title="${esc(b.name)}: ${esc(typeof b.desc === 'function' ? b.desc(null) : b.desc)}" style="font-size:1rem;cursor:default;">${b.iconDataUrl?'🖼️':b.emoji}</span>`).join('')}
           ${m.earnedBadges.length>8?`<span style="font-size:.72rem;color:var(--soft);align-self:center;">+${m.earnedBadges.length-8} more</span>`:''}
         </div>
       </div>
@@ -3706,18 +3918,23 @@ function renderAdminBadgeControls() {
     allBadges.map(b => {
       const isDisabled = !!(cfg.disabled && cfg.disabled[b.id]);
       const isHidden   = !!(cfg.hidden   && cfg.hidden[b.id]);
+      const isOrganic  = !!(cfg.organic  && cfg.organic[b.id]);
       const icon = b.iconDataUrl
         ? `<img src="${b.iconDataUrl}" style="width:22px;height:22px;object-fit:contain;border-radius:3px;">`
         : b.emoji;
-      return `<div style="display:flex;align-items:center;gap:.75rem;padding:.6rem .75rem;background:var(--cream);border-radius:6px;flex-wrap:wrap;">
+      const organicLabel = isOrganic
+        ? `<span style="font-size:.62rem;background:#f0f7ee;color:#3a7d44;border:1px solid #b2d8b5;border-radius:3px;padding:1px 5px;margin-left:.35rem;letter-spacing:.04em;">organic</span>`
+        : '';
+      return `<div style="display:flex;align-items:center;gap:.75rem;padding:.6rem .75rem;background:var(--cream);border-radius:6px;flex-wrap:wrap;${isDisabled?'opacity:.45':''}">
         <span style="font-size:1.2rem;min-width:1.5rem;text-align:center;">${icon}</span>
         <div style="flex:1;min-width:130px;">
-          <div style="font-size:.85rem;font-weight:500;">${esc(b.name)}${b.tier?' <span style="font-size:.68rem;color:var(--soft);">('+tierLabel[b.tier]+' '+b.tier+')</span>':''}${b.adminOnly?' <span style="font-size:.65rem;color:var(--soft);">admin-only</span>':''}</div>
-          <div style="font-size:.72rem;color:var(--soft);">${esc(b.desc)}</div>
+          <div style="font-size:.85rem;font-weight:500;">${esc(b.name)}${b.tier?' <span style="font-size:.68rem;color:var(--soft);">('+tierLabel[b.tier]+' '+b.tier+')</span>':''}${b.adminOnly?' <span style="font-size:.65rem;color:var(--soft);">admin-only</span>':''}${organicLabel}</div>
+          <div style="font-size:.72rem;color:var(--soft);">${esc(typeof b.desc === 'function' ? b.desc(null) : b.desc)}</div>
         </div>
-        <div style="display:flex;gap:.4rem;flex-shrink:0;">
-          <button class="btn btn-sm ${isDisabled?'btn-primary':'btn-secondary'}" onclick="adminToggleBadgeSetting('disabled','${b.id}',${!isDisabled})" title="${isDisabled?'Enable':'Disable'}">${isDisabled?'Enable':'Disable'}</button>
-          <button class="btn btn-sm ${isHidden?'btn-primary':'btn-secondary'}" onclick="adminToggleBadgeSetting('hidden','${b.id}',${!isHidden})" title="${isHidden?'Show to members':'Hide from members'}">${isHidden?'Unhide':'Hide'}</button>
+        <div style="display:flex;gap:.4rem;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">
+          <button class="btn btn-sm ${isDisabled?'btn-primary':'btn-secondary'}" onclick="adminToggleBadgeSetting('disabled','${b.id}',${!isDisabled})" title="${isDisabled?'Enable badge — members can earn it':'Disable badge — no one earns it'}">${isDisabled?'Enable':'Disable'}</button>
+          <button class="btn btn-sm ${isHidden?'btn-primary':'btn-secondary'}" onclick="adminToggleBadgeSetting('hidden','${b.id}',${!isHidden})" title="${isHidden?'Unhide — badge is visible to all members':'Hide — badge is tracked but invisible to everyone'}">${isHidden?'Unhide':'Hide'}</button>
+          <button class="btn btn-sm ${isOrganic?'btn-primary':'btn-secondary'}" onclick="adminToggleBadgeSetting('organic','${b.id}',${!isOrganic})" title="${isOrganic?'Remove organic — badge appears in locked list for all members':'Make organic — badge is hidden until a member earns it, then appears automatically'}">${isOrganic?'Uncover':'Organic'}</button>
           ${b.custom?`<button class="btn btn-danger btn-sm" onclick="adminDeleteCustomBadge('${b.id}')">Delete</button>`:''}
         </div>
       </div>`;
@@ -3798,7 +4015,7 @@ function renderAdminCustomBadgesList() {
       </span>
       <div style="flex:1;min-width:120px;">
         <div style="font-size:.88rem;font-weight:500;">${esc(b.name)}</div>
-        <div style="font-size:.72rem;color:var(--soft);">${esc(b.desc)} ${b.adminOnly?'· <em>admin-only</em>':''}</div>
+        <div style="font-size:.72rem;color:var(--soft);">${esc(typeof b.desc === 'function' ? b.desc(null) : b.desc)} ${b.adminOnly?'· <em>admin-only</em>':''}</div>
       </div>
       <button class="btn btn-danger btn-sm" onclick="adminDeleteCustomBadge('${b.id}')">Delete</button>
     </div>`).join('');
