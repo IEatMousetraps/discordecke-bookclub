@@ -1554,26 +1554,222 @@ window.submitSurveyResponse = submitSurveyResponse;
 // SURVEY BUILDER
 // ════════════════════════════════════════════════════════
 let questions = [];
+
 function addQ(type) {
-  questions.push({ id: 'q' + Date.now(), type, prompt: '', options: type === 'mc' ? ['',''] : [], max: 5 });
-  renderBuilder();
+  questions.push({ id: 'q' + Date.now(), type, prompt: '', options: type === 'mc' ? ['', ''] : [], max: 5 });
+  renderBuilder(questions.length - 1); // pass index of newly added block to auto-focus it
 }
-function renderBuilder() {
-  const c = document.getElementById('question-builder'); c.innerHTML = '';
-  questions.forEach((q, i) => {
-    const div = document.createElement('div'); div.className = 'q-block';
-    let extra = '';
-    if (q.type === 'mc') {
-      extra = `<div id="opts-${q.id}">${(q.options||[]).map((o,oi) => `<div class="option-row"><input type="text" value="${esc(o)}" placeholder="Option ${oi+1}" oninput="questions[${i}].options[${oi}]=this.value"><button class="btn btn-sm btn-danger" onclick="rmOpt(${i},${oi})">✕</button></div>`).join('')}</div><button class="btn btn-sm btn-secondary" style="margin-top:.4rem;" onclick="addOpt(${i})">+ Option</button>`;
-    }
-    if (q.type === 'rating') {
-      extra = `<div style="margin-top:.5rem;display:flex;align-items:center;gap:.75rem;"><label style="margin:0;white-space:nowrap;">Max rating:</label><select onchange="questions[${i}].max=+this.value" style="width:90px;padding:.4rem;"><option value="5" ${q.max===5?'selected':''}>1–5</option><option value="10" ${q.max===10?'selected':''}>1–10</option></select></div>`;
-    }
-    div.innerHTML = `<div class="q-block-header"><div class="q-num">${i+1}</div><div style="flex:1;"><input type="text" value="${esc(q.prompt)}" placeholder="Question prompt…" oninput="questions[${i}].prompt=this.value"></div><div class="q-type-badge">${q.type}</div><button class="btn btn-sm btn-danger" onclick="rmQ(${i})">✕</button></div>${extra}`;
-    c.appendChild(div);
+
+// ── Build the DOM for a single question block ──────────────────────────────
+// Returns a detached <div class="q-block"> element.
+// This is only ever called for brand-new blocks or blocks whose type changed.
+function buildQBlock(q, i) {
+  const div = document.createElement('div');
+  div.className = 'q-block';
+  div.dataset.qid = q.id;
+
+  // Header row: number · prompt input · type badge · delete
+  const header = document.createElement('div');
+  header.className = 'q-block-header';
+  header.innerHTML = `<div class="q-num">${i + 1}</div>`;
+
+  const promptWrap = document.createElement('div');
+  promptWrap.style.flex = '1';
+  const promptInput = document.createElement('input');
+  promptInput.type = 'text';
+  promptInput.value = q.prompt || '';
+  promptInput.placeholder = 'Question prompt…';
+  promptInput.oninput = () => { q.prompt = promptInput.value; scheduleDraftSave(); };
+  promptWrap.appendChild(promptInput);
+  header.appendChild(promptWrap);
+
+  const typeBadge = document.createElement('div');
+  typeBadge.className = 'q-type-badge';
+  typeBadge.textContent = q.type;
+  header.appendChild(typeBadge);
+
+  // Move up / move down buttons
+  const moveUp = document.createElement('button');
+  moveUp.className = 'btn btn-sm btn-secondary';
+  moveUp.title = 'Move up';
+  moveUp.textContent = '↑';
+  moveUp.style.padding = '.25rem .5rem';
+  moveUp.onclick = () => { if (i > 0) { [questions[i-1], questions[i]] = [questions[i], questions[i-1]]; renderBuilder(); } };
+  header.appendChild(moveUp);
+
+  const moveDown = document.createElement('button');
+  moveDown.className = 'btn btn-sm btn-secondary';
+  moveDown.title = 'Move down';
+  moveDown.textContent = '↓';
+  moveDown.style.padding = '.25rem .5rem';
+  moveDown.onclick = () => { if (i < questions.length - 1) { [questions[i], questions[i+1]] = [questions[i+1], questions[i]]; renderBuilder(); } };
+  header.appendChild(moveDown);
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'btn btn-sm btn-danger';
+  delBtn.textContent = '✕';
+  delBtn.onclick = () => { questions.splice(i, 1); renderBuilder(); };
+  header.appendChild(delBtn);
+
+  div.appendChild(header);
+
+  // Extra controls per type
+  if (q.type === 'mc') {
+    div.appendChild(buildMcOptions(q, i));
+  } else if (q.type === 'rating') {
+    div.appendChild(buildRatingControl(q, i));
+  }
+  // text / yesno: no extra controls needed
+
+  return div;
+}
+
+// ── Build the options list for a multiple-choice question ──────────────────
+function buildMcOptions(q, i) {
+  const wrap = document.createElement('div');
+  wrap.className = 'q-mc-opts';
+
+  const optsList = document.createElement('div');
+  optsList.id = 'opts-' + q.id;
+  (q.options || []).forEach((o, oi) => {
+    optsList.appendChild(buildOptRow(q, i, oi));
   });
-  fbSet(DRAFT_REF, { title: v('survey-title'), questions });
+  wrap.appendChild(optsList);
+
+  const addBtn = document.createElement('button');
+  addBtn.className = 'btn btn-sm btn-secondary';
+  addBtn.style.marginTop = '.4rem';
+  addBtn.textContent = '+ Option';
+  addBtn.onclick = () => {
+    q.options.push('');
+    // Append just the new row — no full rebuild
+    const list = document.getElementById('opts-' + q.id);
+    if (list) {
+      const newRow = buildOptRow(q, i, q.options.length - 1);
+      list.appendChild(newRow);
+      newRow.querySelector('input')?.focus();
+    }
+    scheduleDraftSave();
+  };
+  wrap.appendChild(addBtn);
+  return wrap;
 }
+
+// ── Build a single option row ───────────────────────────────────────────────
+function buildOptRow(q, qi, oi) {
+  const row = document.createElement('div');
+  row.className = 'option-row';
+  row.dataset.oi = oi;
+
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.value = q.options[oi] || '';
+  inp.placeholder = 'Option ' + (oi + 1);
+  inp.oninput = () => { q.options[oi] = inp.value; scheduleDraftSave(); };
+  row.appendChild(inp);
+
+  const rmBtn = document.createElement('button');
+  rmBtn.className = 'btn btn-sm btn-danger';
+  rmBtn.textContent = '✕';
+  rmBtn.onclick = () => {
+    q.options.splice(oi, 1);
+    // Rebuild only the options list for this question
+    const list = document.getElementById('opts-' + q.id);
+    if (list) {
+      list.innerHTML = '';
+      q.options.forEach((_, newOi) => list.appendChild(buildOptRow(q, qi, newOi)));
+    }
+    scheduleDraftSave();
+  };
+  row.appendChild(rmBtn);
+  return row;
+}
+
+// ── Build the max-rating control ────────────────────────────────────────────
+function buildRatingControl(q, i) {
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'margin-top:.5rem;display:flex;align-items:center;gap:.75rem;';
+  const lbl = document.createElement('label');
+  lbl.style.cssText = 'margin:0;white-space:nowrap;';
+  lbl.textContent = 'Max rating:';
+  const sel = document.createElement('select');
+  sel.style.cssText = 'width:90px;padding:.4rem;';
+  [5, 10].forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v; opt.textContent = '1–' + v;
+    if (q.max === v) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  sel.onchange = () => { q.max = +sel.value; scheduleDraftSave(); };
+  wrap.appendChild(lbl);
+  wrap.appendChild(sel);
+  return wrap;
+}
+
+// ── Debounced draft save — doesn't interrupt typing ─────────────────────────
+let _draftSaveTimer = null;
+function scheduleDraftSave() {
+  clearTimeout(_draftSaveTimer);
+  _draftSaveTimer = setTimeout(() => {
+    fbSet(DRAFT_REF, { title: v('survey-title'), questions });
+  }, 800);
+}
+
+// ── Main render — surgical DOM reconciliation ───────────────────────────────
+// Only rebuilds blocks that are new or have changed type.
+// Existing blocks are left untouched so focused inputs keep their cursor.
+// focusNewIndex: if set, focuses the prompt input of that block after render.
+function renderBuilder(focusNewIndex) {
+  const c = document.getElementById('question-builder');
+  if (!c) return;
+
+  const existing = [...c.querySelectorAll('.q-block')];
+  const existingById = {};
+  existing.forEach(el => { existingById[el.dataset.qid] = el; });
+
+  // Build the new ordered list of blocks
+  const newBlocks = questions.map((q, i) => {
+    const old = existingById[q.id];
+    if (old) {
+      // Block already exists — just update the question number and move-button states
+      const numEl = old.querySelector('.q-num');
+      if (numEl) numEl.textContent = i + 1;
+      // Update move button disabled states
+      const moveBtns = old.querySelectorAll('.q-block-header .btn-secondary');
+      if (moveBtns[0]) moveBtns[0].disabled = (i === 0);
+      if (moveBtns[1]) moveBtns[1].disabled = (i === questions.length - 1);
+      // Re-wire onclick closures so indices stay correct after reordering
+      const delBtn = old.querySelector('.btn-danger');
+      if (delBtn) delBtn.onclick = () => { questions.splice(i, 1); renderBuilder(); };
+      if (moveBtns[0]) moveBtns[0].onclick = () => { if (i > 0) { [questions[i-1], questions[i]] = [questions[i], questions[i-1]]; renderBuilder(); } };
+      if (moveBtns[1]) moveBtns[1].onclick = () => { if (i < questions.length - 1) { [questions[i], questions[i+1]] = [questions[i+1], questions[i]]; renderBuilder(); } };
+      return old;
+    } else {
+      // New block — build from scratch
+      return buildQBlock(q, i);
+    }
+  });
+
+  // Remove blocks no longer in questions
+  existing.forEach(el => {
+    if (!questions.find(q => q.id === el.dataset.qid)) el.remove();
+  });
+
+  // Re-order / append blocks in correct order without touching unchanged ones
+  newBlocks.forEach((block, i) => {
+    const current = c.children[i];
+    if (current !== block) c.insertBefore(block, current || null);
+  });
+
+  // Auto-focus the prompt of a newly added question
+  if (focusNewIndex !== undefined && newBlocks[focusNewIndex]) {
+    const inp = newBlocks[focusNewIndex].querySelector('input[type="text"]');
+    if (inp) inp.focus();
+  }
+
+  scheduleDraftSave();
+}
+
 function rmQ(i)        { questions.splice(i, 1); renderBuilder(); }
 function addOpt(qi)    { questions[qi].options.push(''); renderBuilder(); }
 function rmOpt(qi, oi) { questions[qi].options.splice(oi, 1); renderBuilder(); }
