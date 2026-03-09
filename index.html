@@ -3621,22 +3621,35 @@ const BADGE_CATEGORIES = [
 
 // Map badge ids to categories
 const BADGE_CATEGORY_MAP = {
+  // Participation — first-timers and cumulative counts
   'first-vote':'participation','first-suggest':'participation','first-review':'participation',
   'all-rounder':'participation','why-not-both':'participation','three-votes':'participation','six-votes':'participation',
   'twelve-votes':'participation','three-suggests':'participation','three-reviews':'participation',
-  'consistent':'participation',
+  'consistent':'participation','steady-eddie':'participation',
+  // Streaks — consecutive or sustained patterns
   'streak-3':'streaks','streak-6':'streaks','streak-12':'streaks',
-  'night-owl-1':'streaks','night-owl-5':'streaks',
+  'completionist-3':'streaks',
+  // Reading — finishing, timing, and review habits
   'read-streak-2':'reading','read-streak-3':'reading','read-streak-6':'reading',
   'page-turner-speed':'reading','just-in-time':'reading',
+  'dnf-1':'reading','dnf-3':'reading','rated-all':'reading',
+  'cover-to-cover':'reading',
+  // Surveys
   'first-survey':'surveys','three-surveys':'surveys','all-surveys':'surveys',
+  // Books & Suggestions — recommending and winning
   'winner-picker':'books','top3-suggest':'books',
-  'tough-crowd':'books','genre-loyalist':'books','dnf-1':'books','dnf-3':'books',
-  'rated-all':'books',
+  'try-try-again':'books','chefs-kiss':'books',
+  // Genre
   'genre-champion':'genre','genre-specialist':'genre','librarian':'genre',
   'genre-devotee':'genre','comfort-zone':'genre','against-type':'genre',
-  'adventurous-reader':'genre',
-  'contrarian':'fun','completionist-3':'fun','early-bird':'fun',
+  'adventurous-reader':'genre','genre-loyalist':'genre',
+  // Fun & Personality
+  'contrarian':'fun','early-bird':'fun','broken-clock':'fun',
+  'tough-crowd':'fun','hot-take':'fun','unanimous':'fun',
+  'mirror-mirror':'fun','glass-half-full':'fun',
+  'night-owl-1':'fun','night-owl-5':'fun',
+  'pen-pal':'fun','essayist':'fun','early-to-rise':'fun',
+  // Special Awards
   'founding-reader':'admin',
 };
 
