@@ -1599,15 +1599,8 @@ async function submitSurveyResponse(sid) {
       const display = q.type === 'rating' ? `${'★'.repeat(+ans)}${'☆'.repeat(Math.max(0,(q.max||5)-(+ans)))} (${ans}/${q.max||5})` : String(ans);
       return `${q.prompt}: ${display}`;
     }).filter(Boolean);
-    const prevSummary = prevLines.length ? prevLines.join('
-') : '(no answers recorded)';
-    if (!confirm(`You've already submitted a response to this survey (${prevDate}).
-
-Your previous answers:
-
-${prevSummary}
-
-Submitting will replace your existing response. Continue?`)) return;
+    const prevSummary = prevLines.length ? prevLines.join('\n') : '(no answers recorded)';
+    if (!confirm(`You've already submitted a response to this survey (${prevDate}).\n\nYour previous answers:\n\n${prevSummary}\n\nSubmitting will replace your existing response. Continue?`)) return;
     responses[sid][existingIdx] = entry;
   } else {
     responses[sid].push(entry);
