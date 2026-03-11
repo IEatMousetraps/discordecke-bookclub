@@ -3465,8 +3465,8 @@ const BADGE_DEFS = [
   { id:'rated-all',         name:'Full Score',          emoji:'⭐',  tier:null,     desc:'Leave a star rating on every review you submit',            check:p=>p.reviewed>=1&&p.reviewsWithRating>=p.reviewed },
 
   // ── Speed reading (time-gated) ────────────────────────────────────────────
-  { id:'page-turner-speed', name:'Speed Reader',        emoji:'💨',  tier:null,     desc:'Finish the winner book within 10 days of the new month',    check:p=>p.speedFinishCount>=1, cutoffGated:true },
-  { id:'just-in-time',      name:'Just In Time',        emoji:'⏰',  tier:null,     desc:'Finish the winner book in the final 24hrs of the month',    check:p=>p.lastMinuteCount>=1,  cutoffGated:true },
+  { id:'page-turner-speed', name:'Speed Reader',        emoji:'💨',  tier:null,     desc:'Mark the winner book as finished on My Reading Progress within 10 days of the new month',    check:p=>p.speedFinishCount>=1, cutoffGated:true },
+  { id:'just-in-time',      name:'Just In Time',        emoji:'⏰',  tier:null,     desc:'Mark the winner book as finished on My Reading Progress in the final 24hrs of the month',    check:p=>p.lastMinuteCount>=1,  cutoffGated:true },
 
   // ── Fun / personality ─────────────────────────────────────────────────────
   { id:'contrarian',        name:'The Contrarian',      emoji:'🙃',  tier:null,     desc:'Vote 5+ times and your #1 pick has won less than 20% of the time', check:p=>p.top1VoteCount>=5&&(p.top1WinCount/p.top1VoteCount)<0.2 },
