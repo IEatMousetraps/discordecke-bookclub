@@ -273,10 +273,12 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 
 <!-- ══════════════ SURVEYS ══════════════ -->
 <div id="tab-surveys" class="section">
-  <div class="sec-head"><h2>Surveys</h2><p>Fill out active surveys or review your past responses.</p></div>
-  <div class="sub-tabs">
-    <button class="sub-tab active" onclick="goSurveysTab('active',this)">Active Surveys</button>
-    <button class="sub-tab" onclick="goSurveysTab('my-responses',this)">My Survey Responses</button>
+  <div id="surveys-nav-area">
+    <div class="sec-head"><h2>Surveys</h2><p>Fill out active surveys or review your past responses.</p></div>
+    <div class="sub-tabs">
+      <button class="sub-tab active" id="surveys-tab-btn-active" onclick="goSurveysTab('active',this)">Active Surveys</button>
+      <button class="sub-tab" id="surveys-tab-btn-my-responses" onclick="goSurveysTab('my-responses',this)">My Survey Responses</button>
+    </div>
   </div>
   <div id="surveys-sub-active">
     <div id="surveys-member-area"></div>
@@ -291,6 +293,9 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       <div id="sr-lookup-msg"></div>
     </div>
     <div id="surveys-my-responses-main" style="display:none;"></div>
+  </div>
+  <div id="surveys-sub-detail" style="display:none;">
+    <div id="surveys-detail-area"></div>
   </div>
 </div>
 
@@ -1006,6 +1011,11 @@ function buildIdentityMap() {
   getBooks().map(normBook).forEach(b => b.suggesters.forEach(s => upsert(s.discord, s.email, Date.now())));
   Object.values(getVotes()).forEach(vd => upsert(vd.discord, vd.email, vd.ts));
   Object.values(getReviews()).forEach(entries => (entries||[]).forEach(r => upsert(r.discord, r.email, r.ts)));
+  // Survey responses: use discord field (populated by new submissions) falling back to name
+  Object.values(getSurveyResponses()).forEach(resps => (resps||[]).forEach(r => {
+    const d = r.discord || r.name || '';
+    if (d || r.email) upsert(d, r.email, r.ts);
+  }));
 
   return map;
 }
@@ -1452,19 +1462,78 @@ function renderResults() {
 function renderMemberSurveys() {
   const surveys = getSurveys().filter(s => s.active);
   const area = document.getElementById('surveys-member-area');
-  if (!surveys.length) { area.innerHTML = '<div class="empty"><div class="icon">📋</div><p>No active surveys right now.</p></div>'; return; }
-  area.innerHTML = surveys.map(s => `
-    <div class="card" id="scard-${s.id}">
-      <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:1rem;">${esc(s.title)}</h3>
-      <div class="grid2" style="margin-bottom:.75rem;">
-        <div class="f-group"><label>Your Name / Discord *</label><input type="text" id="sr-name-${s.id}" placeholder="user#0000"></div>
-        <div class="f-group"><label>Email *</label><input type="email" id="sr-email-${s.id}" placeholder="you@email.com"></div>
-      </div>
-      ${renderSurveyQuestions(s)}
-      <div style="margin-top:1rem;"><button class="btn btn-primary" onclick="submitSurveyResponse('${s.id}')">Submit Response</button></div>
-      <div id="sr-msg-${s.id}"></div>
-    </div>`).join('');
+  if (!surveys.length) {
+    area.innerHTML = '<div class="empty"><div class="icon">📋</div><p>No active surveys right now.</p></div>';
+    return;
+  }
+  if (surveys.length === 1) {
+    // Single survey — render inline as before
+    const s = surveys[0];
+    area.innerHTML = `
+      <div class="card" id="scard-${s.id}">
+        <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:1rem;">${esc(s.title)}</h3>
+        <div class="grid2" style="margin-bottom:.75rem;">
+          <div class="f-group"><label>Email *</label><input type="email" id="sr-email-${s.id}" placeholder="you@email.com"></div>
+          <div class="f-group"><label>Discord Username *</label><input type="text" id="sr-name-${s.id}" placeholder="user#0000"></div>
+        </div>
+        ${renderSurveyQuestions(s)}
+        <div style="margin-top:1rem;"><button class="btn btn-primary" onclick="submitSurveyResponse('${s.id}')">Submit Response</button></div>
+        <div id="sr-msg-${s.id}"></div>
+      </div>`;
+  } else {
+    // Multiple surveys — show a list; members click through to each individually
+    area.innerHTML = `
+      <p style="font-size:.85rem;color:var(--soft);margin-bottom:1.25rem;">${surveys.length} surveys are currently open. Select one to begin.</p>
+      ${surveys.map(s => `
+        <div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.1rem 1.5rem;cursor:pointer;" onclick="openSurveyDetail('${s.id}')">
+          <div>
+            <div style="font-family:'Playfair Display',serif;font-size:1rem;font-weight:600;">${esc(s.title)}</div>
+            <div style="font-size:.78rem;color:var(--soft);margin-top:.2rem;">${s.questions.length} question${s.questions.length !== 1 ? 's' : ''}</div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();openSurveyDetail('${s.id}')">Take Survey →</button>
+        </div>`).join('')}`;
+  }
 }
+
+function openSurveyDetail(sid) {
+  const survey = getSurveys().find(s => s.id === sid);
+  if (!survey) return;
+  // Hide the main sub-tabs nav and active/my-responses panels; show detail panel
+  ['active','my-responses'].forEach(id => {
+    const el = document.getElementById('surveys-sub-' + id);
+    if (el) el.style.display = 'none';
+  });
+  document.getElementById('surveys-nav-area').style.display = 'none';
+  const detail = document.getElementById('surveys-sub-detail');
+  detail.style.display = '';
+  document.getElementById('surveys-detail-area').innerHTML = `
+    <div style="margin-bottom:1.25rem;">
+      <button class="btn btn-secondary btn-sm" onclick="closeSurveyDetail()" style="display:inline-flex;align-items:center;gap:.4rem;">← Back to Surveys</button>
+    </div>
+    <div class="card" id="scard-${survey.id}">
+      <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:1rem;">${esc(survey.title)}</h3>
+      <div class="grid2" style="margin-bottom:.75rem;">
+        <div class="f-group"><label>Email *</label><input type="email" id="sr-email-${survey.id}" placeholder="you@email.com"></div>
+        <div class="f-group"><label>Discord Username *</label><input type="text" id="sr-name-${survey.id}" placeholder="user#0000"></div>
+      </div>
+      ${renderSurveyQuestions(survey)}
+      <div style="margin-top:1rem;"><button class="btn btn-primary" onclick="submitSurveyResponse('${survey.id}')">Submit Response</button></div>
+      <div id="sr-msg-${survey.id}"></div>
+    </div>`;
+}
+window.openSurveyDetail = openSurveyDetail;
+
+function closeSurveyDetail() {
+  document.getElementById('surveys-sub-detail').style.display = 'none';
+  document.getElementById('surveys-nav-area').style.display = '';
+  // Restore active surveys sub-tab
+  document.getElementById('surveys-sub-active').style.display = '';
+  document.querySelectorAll('#tab-surveys .sub-tab').forEach(b => b.classList.remove('active'));
+  const activeBtn = document.getElementById('surveys-tab-btn-active');
+  if (activeBtn) activeBtn.classList.add('active');
+  renderMemberSurveys();
+}
+window.closeSurveyDetail = closeSurveyDetail;
 function renderSurveyQuestions(s) {
   return s.questions.map((q, i) => `
     <div class="survey-q">
@@ -1513,10 +1582,20 @@ async function submitSurveyResponse(sid) {
   showMsg(`sr-msg-${sid}`, '✓ Response submitted!', 'ok');
   document.getElementById(`scard-${sid}`).querySelectorAll('input,textarea').forEach(el => { if (el.type === 'radio' || el.type === 'checkbox') el.checked = false; else el.value = ''; });
   document.querySelectorAll('[id^="star-"]').forEach(el => el.classList.remove('on'));
+  // If we're in the detail view (multi-survey), return to the list after a short delay
+  const detailPanel = document.getElementById('surveys-sub-detail');
+  if (detailPanel && detailPanel.style.display !== 'none') {
+    setTimeout(() => closeSurveyDetail(), 1800);
+  }
 }
 window.submitSurveyResponse = submitSurveyResponse;
 
 function goSurveysTab(id, btn) {
+  // Always close detail view when switching main sub-tabs
+  const detail = document.getElementById('surveys-sub-detail');
+  if (detail) detail.style.display = 'none';
+  const navArea = document.getElementById('surveys-nav-area');
+  if (navArea) navArea.style.display = '';
   ['active','my-responses'].forEach(s => {
     const el = document.getElementById('surveys-sub-' + s);
     if (el) el.style.display = s === id ? '' : 'none';
@@ -1551,13 +1630,19 @@ function renderMySurveyResponses() {
   const allSurveys = getSurveys();
   const allResps   = getSurveyResponses();
 
-  // Find every survey this member has responded to
+  // Find every survey this member has responded to.
+  // Mirrors the badge check: email exact match first, then resolved identity name.
   const participated = allSurveys.map(s => {
     const resps = allResps[s.id] || [];
     const mine  = resps.filter(r => {
-      const rName  = resolveId(r.name || r.discord || '', r.email || '', idMap);
       const rEmail = normEmail(r.email || '');
-      return (myName && rName === myName) || (myEmail && rEmail === myEmail);
+      if (myEmail && rEmail && rEmail === myEmail) return true;
+      const rDiscord = r.discord || r.name || '';
+      if (rDiscord) {
+        const rResolved = resolveId(rDiscord, r.email || '', idMap);
+        if (myName && rResolved === myName) return true;
+      }
+      return false;
     });
     return mine.length ? { survey: s, responses: mine } : null;
   }).filter(Boolean);
@@ -3859,11 +3944,23 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
   const glassHalfFull = glassHalfFullValid && glassHalfFullRatings >= 5;
 
   // ── Survey completions ──
+  // Match on: (1) email exact match, (2) resolved identity name match via discord/name field.
+  // Handles legacy responses (no identity fields), new responses (discord + email), and
+  // members whose only club data is survey responses (now in the identity map via buildIdentityMap).
+  const myNormEmail = normEmail(email);
   allSurveys.forEach(s => {
     const responses = allSurveyResps[s.id]||[];
-    if (responses.some(r => resolveId(r.name, r.email, idMap)===myName || normEmail(r.email)===normEmail(email))) {
-      surveysCompleted++;
-    }
+    const iMine = responses.some(r => {
+      const rEmail = normEmail(r.email || '');
+      if (myNormEmail && rEmail && rEmail === myNormEmail) return true;
+      const rDiscord = r.discord || r.name || '';
+      if (rDiscord) {
+        const rResolved = resolveId(rDiscord, r.email || '', idMap);
+        if (myName && rResolved === myName) return true;
+      }
+      return false;
+    });
+    if (iMine) surveysCompleted++;
   });
 
   return {
