@@ -273,8 +273,25 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 
 <!-- ══════════════ SURVEYS ══════════════ -->
 <div id="tab-surveys" class="section">
-  <div class="sec-head"><h2>Surveys</h2><p>Fill out any active surveys from the club admin.</p></div>
-  <div id="surveys-member-area"></div>
+  <div class="sec-head"><h2>Surveys</h2><p>Fill out active surveys or review your past responses.</p></div>
+  <div class="sub-tabs">
+    <button class="sub-tab active" onclick="goSurveysTab('active',this)">Active Surveys</button>
+    <button class="sub-tab" onclick="goSurveysTab('my-responses',this)">My Survey Responses</button>
+  </div>
+  <div id="surveys-sub-active">
+    <div id="surveys-member-area"></div>
+  </div>
+  <div id="surveys-sub-my-responses" style="display:none;">
+    <div class="card" id="surveys-identity-card">
+      <div class="grid2">
+        <div class="f-group"><label>Email *</label><input type="email" id="sr-lookup-email" placeholder="you@email.com"></div>
+        <div class="f-group"><label>Discord Username *</label><input type="text" id="sr-lookup-discord" placeholder="user#0000"></div>
+      </div>
+      <button class="btn btn-primary" onclick="loadMySurveyResponses()">Show My Responses</button>
+      <div id="sr-lookup-msg"></div>
+    </div>
+    <div id="surveys-my-responses-main" style="display:none;"></div>
+  </div>
 </div>
 
 <!-- ══════════════ REVIEW ══════════════ -->
@@ -851,7 +868,7 @@ function _doRefreshActiveTab() {
   else if (id === 'results') renderResults();
   else if (id === 'review')    renderReview();
   else if (id === 'rankings')  renderRankings();
-  else if (id === 'surveys')   renderMemberSurveys();
+  else if (id === 'surveys')   { renderMemberSurveys(); renderMySurveyResponses(); }
   else if (id === 'analysis') renderAnalysis();
   else if (id === 'progress') renderProgressTab();
   else if (id === 'badges') renderBadgesTab();
@@ -891,7 +908,7 @@ function goTab(id, btn) {
   else if (id === 'results')  renderResults();
   else if (id === 'review')   renderReview();
   else if (id === 'rankings') renderRankings();
-  else if (id === 'surveys')  renderMemberSurveys();
+  else if (id === 'surveys')  { renderMemberSurveys(); renderMySurveyResponses(); }
   else if (id === 'analysis') renderAnalysis();
   else if (id === 'progress') renderProgressTab();
   else if (id === 'badges')   renderBadgesTab();
@@ -1439,6 +1456,10 @@ function renderMemberSurveys() {
   area.innerHTML = surveys.map(s => `
     <div class="card" id="scard-${s.id}">
       <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:1rem;">${esc(s.title)}</h3>
+      <div class="grid2" style="margin-bottom:.75rem;">
+        <div class="f-group"><label>Your Name / Discord *</label><input type="text" id="sr-name-${s.id}" placeholder="user#0000"></div>
+        <div class="f-group"><label>Email *</label><input type="email" id="sr-email-${s.id}" placeholder="you@email.com"></div>
+      </div>
       ${renderSurveyQuestions(s)}
       <div style="margin-top:1rem;"><button class="btn btn-primary" onclick="submitSurveyResponse('${s.id}')">Submit Response</button></div>
       <div id="sr-msg-${s.id}"></div>
@@ -1470,6 +1491,12 @@ window.setStar = setStar;
 
 async function submitSurveyResponse(sid) {
   const surveys = getSurveys(), survey = surveys.find(s => s.id === sid); if (!survey) return;
+  const nameEl  = document.getElementById(`sr-name-${sid}`);
+  const emailEl = document.getElementById(`sr-email-${sid}`);
+  const name    = nameEl  ? nameEl.value.trim()  : '';
+  const email   = emailEl ? emailEl.value.trim() : '';
+  if (!name)  { showMsg(`sr-msg-${sid}`, 'Please enter your name or Discord username.', 'err'); return; }
+  if (!email) { showMsg(`sr-msg-${sid}`, 'Please enter your email address.', 'err'); return; }
   const answers = {};
   survey.questions.forEach(q => {
     const uid = `${sid}_${q.id}`;
@@ -1480,7 +1507,7 @@ async function submitSurveyResponse(sid) {
   const responses = getSurveyResponses();
   if (!responses[sid]) responses[sid] = [];
   showLoading('Submitting response…');
-  responses[sid].push({ answers, ts: Date.now() });
+  responses[sid].push({ name, email, discord: name, answers, ts: Date.now() });
   await fbSet(SRESP_REF, { map: responses });
   hideLoading();
   showMsg(`sr-msg-${sid}`, '✓ Response submitted!', 'ok');
@@ -1488,6 +1515,120 @@ async function submitSurveyResponse(sid) {
   document.querySelectorAll('[id^="star-"]').forEach(el => el.classList.remove('on'));
 }
 window.submitSurveyResponse = submitSurveyResponse;
+
+function goSurveysTab(id, btn) {
+  ['active','my-responses'].forEach(s => {
+    const el = document.getElementById('surveys-sub-' + s);
+    if (el) el.style.display = s === id ? '' : 'none';
+  });
+  document.querySelectorAll('#tab-surveys .sub-tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
+window.goSurveysTab = goSurveysTab;
+
+let _srIdentity = null;
+
+function loadMySurveyResponses() {
+  const email   = document.getElementById('sr-lookup-email').value.trim();
+  const discord = document.getElementById('sr-lookup-discord').value.trim();
+  if (!email && !discord) { showMsg('sr-lookup-msg', 'Please enter your email and Discord username.', 'err'); return; }
+  if (!email)   { showMsg('sr-lookup-msg', 'Please enter your email address.', 'err'); return; }
+  if (!discord) { showMsg('sr-lookup-msg', 'Please enter your Discord username.', 'err'); return; }
+  _srIdentity = { email, discord };
+  document.getElementById('surveys-my-responses-main').style.display = '';
+  renderMySurveyResponses();
+}
+window.loadMySurveyResponses = loadMySurveyResponses;
+
+function renderMySurveyResponses() {
+  const main = document.getElementById('surveys-my-responses-main');
+  if (!main || main.style.display === 'none') return;
+  if (!_srIdentity) return;
+  const { email, discord } = _srIdentity;
+  const idMap      = buildIdentityMap();
+  const myName     = resolveId(discord, email, idMap);
+  const myEmail    = normEmail(email);
+  const allSurveys = getSurveys();
+  const allResps   = getSurveyResponses();
+
+  // Find every survey this member has responded to
+  const participated = allSurveys.map(s => {
+    const resps = allResps[s.id] || [];
+    const mine  = resps.filter(r => {
+      const rName  = resolveId(r.name || r.discord || '', r.email || '', idMap);
+      const rEmail = normEmail(r.email || '');
+      return (myName && rName === myName) || (myEmail && rEmail === myEmail);
+    });
+    return mine.length ? { survey: s, responses: mine } : null;
+  }).filter(Boolean);
+
+  const totalSurveys = allSurveys.length;
+  const completedCount = participated.length;
+
+  // Summary card
+  let summaryHtml = `
+    <div class="card" style="margin-bottom:1.25rem;">
+      <div style="display:flex;align-items:center;gap:1.25rem;flex-wrap:wrap;">
+        <div style="font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;color:var(--gold);">${completedCount}</div>
+        <div>
+          <div style="font-weight:500;font-size:.95rem;">Survey${completedCount!==1?'s':''} Completed</div>
+          <div style="font-size:.8rem;color:var(--soft);">${completedCount} of ${totalSurveys} published survey${totalSurveys!==1?'s':''}</div>
+        </div>
+        ${completedCount === 0 ? '' : `<div style="margin-left:auto;font-size:.82rem;color:var(--soft);">
+          ${completedCount >= totalSurveys && totalSurveys >= 3 ? '<span class="pill pill-open">All surveys complete 📊</span>' :
+            completedCount >= 3 ? '<span class="pill pill-open">Voice of the Club 🎤</span>' :
+            completedCount >= 1 ? '<span class="pill pill-open">Heard 📋</span>' : ''}
+        </div>`}
+      </div>
+    </div>`;
+
+  if (!participated.length) {
+    main.innerHTML = summaryHtml + `<div class="empty"><div class="icon">📋</div><p>No survey responses found for this account.</p><p style="margin-top:.4rem;font-size:.78rem;">Make sure your email and Discord match what you used when submitting.</p></div>`;
+    return;
+  }
+
+  const responseCards = participated.map(({ survey: s, responses }) => {
+    const responseDivs = responses.map((r, ri) => {
+      const dateStr = r.ts ? new Date(r.ts).toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' }) : 'Unknown date';
+      const answerRows = s.questions.map(q => {
+        const ans = r.answers ? r.answers[q.id] : undefined;
+        let displayAns = '';
+        if (ans === undefined || ans === '' || ans === null) {
+          displayAns = '<span style="color:var(--soft);font-style:italic;">No answer</span>';
+        } else if (q.type === 'rating') {
+          const max = q.max || 5;
+          const stars = '★'.repeat(+ans) + '☆'.repeat(Math.max(0, max - +ans));
+          displayAns = `<span style="color:var(--gold);letter-spacing:.05em;">${stars}</span> <span style="color:var(--soft);font-size:.8rem;">${ans} / ${max}</span>`;
+        } else {
+          displayAns = `<span style="color:var(--ink);">${esc(String(ans))}</span>`;
+        }
+        return `<div style="padding:.6rem 0;border-bottom:1px solid var(--border);">
+          <div style="font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);margin-bottom:.25rem;">${esc(q.prompt)}</div>
+          <div style="font-size:.9rem;">${displayAns}</div>
+        </div>`;
+      }).join('');
+      return `<div style="${ri > 0 ? 'margin-top:1rem;padding-top:1rem;border-top:2px dashed var(--border);' : ''}">
+        <div style="font-size:.72rem;color:var(--soft);margin-bottom:.5rem;letter-spacing:.04em;">Submitted ${dateStr}</div>
+        ${answerRows}
+      </div>`;
+    }).join('');
+
+    const statusPill = s.active
+      ? '<span class="pill pill-open">Active</span>'
+      : '<span class="pill pill-closed">Closed</span>';
+
+    return `<div class="card" style="margin-bottom:1.25rem;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem;margin-bottom:1rem;">
+        <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;">${esc(s.title)}</h3>
+        <div style="display:flex;gap:.5rem;align-items:center;flex-shrink:0;">${statusPill}</div>
+      </div>
+      ${responseDivs}
+    </div>`;
+  }).join('');
+
+  main.innerHTML = summaryHtml + responseCards;
+}
+window.renderMySurveyResponses = renderMySurveyResponses;
 
 // ════════════════════════════════════════════════════════
 // SURVEY BUILDER
