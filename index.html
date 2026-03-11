@@ -2697,7 +2697,7 @@ function renderProgressTab() {
             </div>
             <div style="display:flex;flex-wrap:wrap;gap:.45rem;">
               ${statuses.map(st => `
-                <button class="progress-btn ${cur===st.key ? 'active-'+st.key : ''}"
+                <button class="progress-btn ${cur===st.key ? 'active-'+st.key.replace(/-/g,'') : ''}"
                   onclick="setProgress('${b.id}','${st.key}',this)">
                   ${st.emoji} ${st.label}
                 </button>`).join('')}
@@ -2717,7 +2717,7 @@ async function setProgress(bookId, status, btn) {
   const card = btn.closest('.card');
   card.querySelectorAll('.progress-btn').forEach(b => {
     b.className = 'progress-btn';
-    if (b.getAttribute('onclick').includes(`'${status}'`)) b.classList.add('active-'+status);
+    if (b.getAttribute('onclick').includes(`'${status}'`)) b.classList.add('active-'+status.replace(/-/g,''));
   });
   await fbSet(PROGRESS_REF, { map: progress });
 }
