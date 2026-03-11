@@ -3720,7 +3720,7 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
   // ── Survey completions ──
   allSurveys.forEach(s => {
     const responses = allSurveyResps[s.id]||[];
-    if (responses.some(r => resolveId(r.name,'',idMap)===myName || normEmail(r.email)===normEmail(email))) {
+    if (responses.some(r => resolveId(r.name, r.email, idMap)===myName || normEmail(r.email)===normEmail(email))) {
       surveysCompleted++;
     }
   });
