@@ -132,7 +132,8 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 .progress-btn.active-reading{border-color:#1565c0;background:#e3f2fd;color:#1565c0;}
 .progress-btn.active-finished{border-color:var(--green);background:#e8f5e9;color:var(--green);}
 .progress-btn.active-dnf{border-color:var(--red);background:#fce4ec;color:var(--red);}
-.progress-btn:hover:not(.active-reading):not(.active-finished):not(.active-dnf):not(.active-notstarted){border-color:var(--gold);}
+.progress-btn.active-chosenottoread{border-color:#7b5ea7;background:#f3e8ff;color:#7b5ea7;}
+.progress-btn:hover:not(.active-reading):not(.active-finished):not(.active-dnf):not(.active-notstarted):not(.active-chosenottoread){border-color:var(--gold);}
 /* badges */
 .badge-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.75rem;margin-bottom:1.5rem;}
 .badge-card{background:var(--card);border:1.5px solid var(--border);border-radius:10px;padding:1rem;text-align:center;transition:border-color .2s;}
@@ -286,7 +287,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
         <label>1. Did you start this book?</label>
         <div class="radio-group" style="margin-top:.4rem;">
           <label class="radio-opt"><input type="radio" name="rv-read" value="Yes" onchange="updateReviewForm()"> Yes</label>
-          <label class="radio-opt"><input type="radio" name="rv-read" value="No"  onchange="updateReviewForm()"> No</label>
+          <label class="radio-opt"><input type="radio" name="rv-read" value="No"  onchange="updateReviewForm()"> No — Chose Not to Start</label>
         </div>
       </div>
 
@@ -1435,7 +1436,7 @@ function updateReviewForm() {
     show('rv-q6');
     // Update Q3 label to make sense for non-readers
     const q3label = document.querySelector('#rv-q3 label');
-    if (q3label) q3label.textContent = '3. Why didn\'t you start it?';
+    if (q3label) q3label.textContent = '3. Why did you choose not to start this book?';
     const q5label = document.querySelector('#rv-q5 label');
     if (q5label) q5label.textContent = '4. Any other thoughts on the book?';
     return;
@@ -2677,10 +2678,11 @@ function renderProgressTab() {
   const myProgress = progress[_pgIdentity.key] || {};
 
   const statuses = [
-    { key: 'not-started', label: 'Not Started', emoji: '📋' },
-    { key: 'reading',     label: 'Reading',     emoji: '👀' },
-    { key: 'finished',    label: 'Finished',     emoji: '✅' },
-    { key: 'dnf',         label: 'DNF',          emoji: '❌' },
+    { key: 'not-started',       label: 'Not Started',       emoji: '📋' },
+    { key: 'reading',           label: 'Reading',           emoji: '👀' },
+    { key: 'finished',          label: 'Finished',          emoji: '✅' },
+    { key: 'dnf',               label: 'DNF',               emoji: '❌' },
+    { key: 'chose-not-to-read', label: 'Chose Not to Read', emoji: '🚫' },
   ];
 
   area.innerHTML = `
@@ -2749,7 +2751,7 @@ function renderProgressLeaderboard(winnerEntries) {
     Object.values(a.votes || {}).forEach(vd => {
       const name = resolveId(vd.discord, vd.email, idMap);
       const key = normEmail(vd.email) || normId(vd.discord);
-      if (!memberMap.has(key)) memberMap.set(key, { name, finished: 0, reading: 0, dnf: 0 });
+      if (!memberMap.has(key)) memberMap.set(key, { name, finished: 0, reading: 0, dnf: 0, choseNotToRead: 0 });
     });
   });
 
@@ -2762,21 +2764,22 @@ function renderProgressLeaderboard(winnerEntries) {
         name = e.displayName; break;
       }
     }
-    if (!memberMap.has(memberKey)) memberMap.set(memberKey, { name, finished: 0, reading: 0, dnf: 0 });
+    if (!memberMap.has(memberKey)) memberMap.set(memberKey, { name, finished: 0, reading: 0, dnf: 0, choseNotToRead: 0 });
     const entry = memberMap.get(memberKey);
     entry.name = name; // update in case we found a better display name
 
     allWinnerBooks.forEach(b => {
       const status = bookStatuses[b.id];
-      if (status === 'finished')    entry.finished++;
-      else if (status === 'reading') entry.reading++;
-      else if (status === 'dnf')     entry.dnf++;
+      if (status === 'finished')           entry.finished++;
+      else if (status === 'reading')        entry.reading++;
+      else if (status === 'dnf')            entry.dnf++;
+      else if (status === 'chose-not-to-read') entry.choseNotToRead++;
     });
   });
 
   // Filter to members who have set at least one status, sort by finished desc then reading
   const rows = [...memberMap.values()]
-    .filter(m => m.finished + m.reading + m.dnf > 0)
+    .filter(m => m.finished + m.reading + m.dnf + m.choseNotToRead > 0)
     .sort((a, b) => b.finished - a.finished || b.reading - a.reading || a.dnf - b.dnf);
 
   if (!rows.length) {
@@ -2800,9 +2803,10 @@ function renderProgressLeaderboard(winnerEntries) {
           </div>
         </div>
         <div style="display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;">
-          ${statusPip(m.finished, 'finished', '✅')}
-          ${statusPip(m.reading,  'reading',  '👀')}
-          ${statusPip(m.dnf,      'dnf',      '❌')}
+          ${statusPip(m.finished,        'finished',        '✅')}
+          ${statusPip(m.reading,         'reading',         '👀')}
+          ${statusPip(m.dnf,             'dnf',             '❌')}
+          ${statusPip(m.choseNotToRead,  'choseNotToRead',  '🚫')}
           <span style="font-size:.72rem;color:var(--soft);margin-left:.2rem;">${m.finished}/${totalBooks} finished</span>
         </div>
       </div>
