@@ -1591,6 +1591,19 @@ async function loadDraftSurvey() {
 window.loadDraftSurvey = loadDraftSurvey;
 
 async function publishSurvey() {
+  // Flush any live DOM values into the questions array before reading them
+  const c = document.getElementById('question-builder');
+  questions.forEach((q, i) => {
+    const promptEl = c.querySelector(`#qblock-${q.id} .q-prompt-input`);
+    if (promptEl) q.prompt = promptEl.value;
+    if (q.type === 'mc') {
+      c.querySelectorAll(`#opts-${q.id} .opt-input`).forEach((el, oi) => { q.options[oi] = el.value; });
+    }
+    if (q.type === 'rating') {
+      const sel = c.querySelector(`#qblock-${q.id} .rating-max-select`);
+      if (sel) q.max = +sel.value;
+    }
+  });
   const title = v('survey-title');
   if (!title) { showMsg('survey-builder-msg', 'Please add a survey title.', 'err'); return; }
   if (!questions.length) { showMsg('survey-builder-msg', 'Add at least one question.', 'err'); return; }
