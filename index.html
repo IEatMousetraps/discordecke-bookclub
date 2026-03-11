@@ -2996,9 +2996,12 @@ function downloadSurveyCSV(sid) {
   if (!responses.length) { alert('No responses yet.'); return; }
   const rows = [];
   rows.push([`Survey: ${survey.title}`]);
-  rows.push(['Respondent', ...survey.questions.map(q => q.prompt), 'Date']);
+  rows.push(['Respondent', 'Email', ...survey.questions.map(q => q.prompt), 'Date', 'Time']);
   responses.forEach(r => {
-    rows.push([r.name||'', ...survey.questions.map(q => r.answers[q.id]??''), r.ts ? new Date(r.ts).toLocaleDateString() : '']);
+    const d = r.ts ? new Date(r.ts) : null;
+    const dateStr = d ? d.toLocaleDateString('en-US', {year:'numeric',month:'2-digit',day:'2-digit'}) : '';
+    const timeStr = d ? d.toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true}) : '';
+    rows.push([r.name||'', r.email||'', ...survey.questions.map(q => r.answers[q.id]??''), dateStr, timeStr]);
   });
   const slug = survey.title.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40);
   const filename = `survey_${slug}.csv`;
@@ -4820,8 +4823,13 @@ function downloadCSV(type) {
     const surveys = getSurveys(), responses = getSurveyResponses();
     surveys.forEach(s => {
       rows.push([`Survey: ${s.title}`]);
-      rows.push(['Respondent', ...s.questions.map(q => q.prompt), 'Date']);
-      (responses[s.id]||[]).forEach(r => { rows.push([r.name, ...s.questions.map(q => r.answers[q.id]??''), new Date(r.ts).toLocaleDateString()]); });
+      rows.push(['Respondent', 'Email', ...s.questions.map(q => q.prompt), 'Date', 'Time']);
+      (responses[s.id]||[]).forEach(r => {
+        const d = r.ts ? new Date(r.ts) : null;
+        const dateStr = d ? d.toLocaleDateString('en-US', {year:'numeric',month:'2-digit',day:'2-digit'}) : '';
+        const timeStr = d ? d.toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true}) : '';
+        rows.push([r.name||'', r.email||'', ...s.questions.map(q => r.answers[q.id]??''), dateStr, timeStr]);
+      });
       rows.push([]);
     });
   } else if (type === 'reviews') {
