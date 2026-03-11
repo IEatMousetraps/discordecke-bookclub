@@ -52,7 +52,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 .msg{padding:.65rem 1rem;border-radius:4px;font-size:.85rem;margin-top:.65rem;}
 .msg-ok{background:#e8f5e9;color:var(--green);} .msg-err{background:#fce4ec;color:var(--red);}
 .pill{display:inline-block;padding:.18rem .65rem;border-radius:20px;font-size:.72rem;font-weight:500;}
-.pill-open{background:#e8f5e9;color:var(--green);} .pill-closed{background:#fce4ec;color:var(--red);}
+.pill-open{background:#e8f5e9;color:var(--green);} .pill-closed{background:#fce4ec;color:var(--red);} .pill-paused{background:#fff8e1;color:#f57f17;}
 .pill-pending{background:#fff3e0;color:#e65100;}
 .empty{text-align:center;padding:3rem 1rem;color:var(--soft);}
 .empty .icon{font-size:2.2rem;margin-bottom:.5rem;}
@@ -1466,9 +1466,15 @@ function renderMemberSurveys() {
     area.innerHTML = '<div class="empty"><div class="icon">📋</div><p>No active surveys right now.</p></div>';
     return;
   }
-  if (surveys.length === 1) {
+  const openSurveys = surveys.filter(s => !s.paused);
+  const pausedSurveys = surveys.filter(s => s.paused);
+  if (openSurveys.length === 0 && pausedSurveys.length > 0) {
+    area.innerHTML = '<div class="empty"><div class="icon">⏸️</div><p>Surveys are temporarily paused. Check back soon!</p></div>';
+    return;
+  }
+  if (openSurveys.length === 1 && pausedSurveys.length === 0) {
     // Single survey — render inline as before
-    const s = surveys[0];
+    const s = openSurveys[0];
     area.innerHTML = `
       <div class="card" id="scard-${s.id}">
         <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:1rem;">${esc(s.title)}</h3>
@@ -1483,15 +1489,15 @@ function renderMemberSurveys() {
   } else {
     // Multiple surveys — show a list; members click through to each individually
     area.innerHTML = `
-      <p style="font-size:.85rem;color:var(--soft);margin-bottom:1.25rem;">${surveys.length} surveys are currently open. Select one to begin.</p>
-      ${surveys.map(s => `
+      <p style="font-size:.85rem;color:var(--soft);margin-bottom:1.25rem;">${openSurveys.length} survey${openSurveys.length!==1?'s are':' is'} currently open. Select one to begin.</p>
+      ${openSurveys.map(s => `
         <div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.1rem 1.5rem;cursor:pointer;" onclick="openSurveyDetail('${s.id}')">
           <div>
             <div style="font-family:'Playfair Display',serif;font-size:1rem;font-weight:600;">${esc(s.title)}</div>
             <div style="font-size:.78rem;color:var(--soft);margin-top:.2rem;">${s.questions.length} question${s.questions.length !== 1 ? 's' : ''}</div>
           </div>
           <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();openSurveyDetail('${s.id}')">Take Survey →</button>
-        </div>`).join('')}`;
+        </div>`).join('')}`;\
   }
 }
 
@@ -1517,7 +1523,9 @@ function openSurveyDetail(sid) {
         <div class="f-group"><label>Discord Username *</label><input type="text" id="sr-name-${survey.id}" placeholder="user#0000"></div>
       </div>
       ${renderSurveyQuestions(survey)}
-      <div style="margin-top:1rem;"><button class="btn btn-primary" onclick="submitSurveyResponse('${survey.id}')">Submit Response</button></div>
+      ${survey.paused
+        ? `<div style="margin-top:1rem;padding:.75rem 1rem;background:#fff8e1;border-radius:.5rem;color:#f57f17;font-size:.88rem;">⏸️ This survey is temporarily paused — new responses are not being accepted right now.</div>`
+        : `<div style="margin-top:1rem;"><button class="btn btn-primary" onclick="submitSurveyResponse('${survey.id}')">Submit Response</button></div>`}
       <div id="sr-msg-${survey.id}"></div>
     </div>`;
 }
@@ -1560,6 +1568,7 @@ window.setStar = setStar;
 
 async function submitSurveyResponse(sid) {
   const surveys = getSurveys(), survey = surveys.find(s => s.id === sid); if (!survey) return;
+  if (survey.paused) { showMsg(`sr-msg-${sid}`, 'This survey is temporarily paused. Please check back soon.', 'err'); return; }
   const nameEl  = document.getElementById(`sr-name-${sid}`);
   const emailEl = document.getElementById(`sr-email-${sid}`);
   const name    = nameEl  ? nameEl.value.trim()  : '';
@@ -2740,15 +2749,18 @@ function renderAdmin() {
   document.getElementById('admin-surveys-list').innerHTML = surveys.length ? surveys.map((s, i) => {
     const rCount = (_surveyResps[s.id]||[]).length;
     return `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:.6rem 0;border-bottom:1px solid var(--border);">
-      <div><div style="font-size:.9rem;">${esc(s.title)}</div><div style="font-size:.75rem;color:var(--soft);">${s.questions.length} question${s.questions.length!==1?'s':''} · ${rCount} response${rCount!==1?'s':''}</div></div>
-      <div style="display:flex;gap:.4rem;align-items:center;">
-        <span class="pill ${s.active?'pill-open':'pill-closed'}">${s.active?'Active':'Closed'}</span>
-        <button class="btn btn-secondary btn-sm" onclick="toggleSurvey(${i})">${s.active?'Close':'Open'}</button>
-        <button class="btn btn-secondary btn-sm" onclick="editSurvey(${i})">Edit</button>
-        ${rCount > 0 ? `<button class="btn btn-secondary btn-sm" onclick="downloadSurveyCSV('${s.id}')">⬇ CSV</button>` : ''}
-        ${rCount > 0 ? `<button class="btn btn-danger btn-sm" onclick="wipeSurveyResponses('${s.id}')">Wipe Responses</button>` : ''}
-        <button class="btn btn-danger btn-sm" onclick="deleteSurvey(${i})">Delete</button>
+    <div style="padding:.6rem 0;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;flex-wrap:wrap;">
+        <div><div style="font-size:.9rem;">${esc(s.title)}</div><div style="font-size:.75rem;color:var(--soft);">${s.questions.length} question${s.questions.length!==1?'s':''} · ${rCount} response${rCount!==1?'s':''}</div></div>
+        <div style="display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;">
+          <span class="pill ${s.paused?'pill-paused':s.active?'pill-open':'pill-closed'}">${s.paused?'Paused':s.active?'Active':'Closed'}</span>
+          <button class="btn btn-secondary btn-sm" onclick="toggleSurvey(${i})">${s.active?'Close':'Open'}</button>
+          ${s.active ? `<button class="btn btn-secondary btn-sm" onclick="pauseSurvey(${i})">${s.paused?'Resume':'Pause'}</button>` : ''}
+          <button class="btn btn-secondary btn-sm" onclick="editSurvey(${i})">Edit</button>
+          ${rCount > 0 ? `<button class="btn btn-secondary btn-sm" onclick="downloadSurveyCSV('${s.id}')">⬇ CSV</button>` : ''}
+          ${rCount > 0 ? `<button class="btn btn-danger btn-sm" onclick="wipeSurveyResponses('${s.id}')">Wipe Responses</button>` : ''}
+          <button class="btn btn-danger btn-sm" onclick="deleteSurvey(${i})">Delete</button>
+        </div>
       </div>
     </div>`;
   }).join('') : '<p style="font-size:.85rem;color:var(--soft);">No surveys yet.</p>';
@@ -3017,7 +3029,8 @@ async function toggleSetting(key) {
 }
 window.toggleSetting = toggleSetting;
 
-async function toggleSurvey(i) { const sv = getSurveys(); sv[i].active = !sv[i].active; await fbSet(SURVEYS_REF, {list:sv}); renderAdmin(); }
+async function toggleSurvey(i) { const sv = getSurveys(); sv[i].active = !sv[i].active; if (!sv[i].active) sv[i].paused = false; await fbSet(SURVEYS_REF, {list:sv}); renderAdmin(); }
+async function pauseSurvey(i) { const sv = getSurveys(); sv[i].paused = !sv[i].paused; await fbSet(SURVEYS_REF, {list:sv}); renderAdmin(); }
 async function deleteSurvey(i) { if (!confirm('Delete this survey?')) return; const sv = getSurveys(); sv.splice(i,1); await fbSet(SURVEYS_REF, {list:sv}); renderAdmin(); }
 function downloadSurveyCSV(sid) {
   const survey = getSurveys().find(s => s.id === sid);
@@ -3039,7 +3052,7 @@ function downloadSurveyCSV(sid) {
   const blob = new Blob([csv], {type:'text/csv'}), url = URL.createObjectURL(blob), a = document.createElement('a');
   a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url);
 }
-window.toggleSurvey=toggleSurvey; window.deleteSurvey=deleteSurvey; window.downloadSurveyCSV=downloadSurveyCSV;
+window.toggleSurvey=toggleSurvey; window.pauseSurvey=pauseSurvey; window.deleteSurvey=deleteSurvey; window.downloadSurveyCSV=downloadSurveyCSV;
 
 async function wipeSurveyResponses(sid) {
   const survey = getSurveys().find(s => s.id === sid);
