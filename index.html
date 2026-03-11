@@ -2356,7 +2356,7 @@ function renderAnalysisMembers(_idMapM) {
     chartBlock('Suggested a Winning Book', 'Members whose suggestions went on to be chosen as the monthly read.',
       topWinnerSuggesters, ([k])=>k, ([,c])=>c/maxWins*100, ([k,c])=>`${c} win${c!==1?'s':''}`, 'var(--gold)') +
 
-    chartBlock('Highest Finish Rate', 'Of the winning books they reviewed, how many did they finish? Minimum 2 reviews to appear.',
+    chartBlock('Highest Finish Rate', 'Of the winning books they reviewed, how many did they finish? Minimum 2 reviews to appear. · Note: this data is based solely on reviews submitted on the Review tab — it does not reflect reading progress logged under My Progress.',
       topFinishers, ([k])=>k, ([,pct])=>pct, ([k,pct,f,t])=>`${pct}% (${f}/${t})`, '#6a1b9a') +
 
     chartBlock('Average Star Rating Given', 'How generously each member rates books on average. Minimum 2 ratings to appear.',
