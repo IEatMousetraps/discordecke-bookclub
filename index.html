@@ -100,10 +100,26 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 .month-tabs{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.25rem;}
 .month-tab{font-size:.75rem;padding:.3rem .8rem;border-radius:20px;border:1px solid var(--border);background:var(--cream);cursor:pointer;transition:all .2s;}
 .month-tab.active{background:var(--gold);color:var(--black);border-color:var(--gold);font-weight:600;}
+/* survey builder */
+.q-block{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1.25rem;margin-bottom:.75rem;}
+.q-block-header{display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem;}
+.q-num{font-family:'Playfair Display',serif;font-size:1rem;color:var(--gold);min-width:1.5rem;}
+.q-type-badge{font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);background:var(--cream);padding:.15rem .5rem;border-radius:3px;}
+.option-row{display:flex;gap:.5rem;margin-bottom:.4rem;align-items:center;}
+.option-row input{flex:1;}
 /* voter row */
 .voter-row{display:flex;align-items:center;justify-content:space-between;padding:.45rem 0;border-bottom:1px solid var(--border);font-size:.85rem;}
 .voter-row:last-child{border-bottom:none;}
 .voter-meta{font-size:.72rem;color:var(--soft);}
+/* survey response */
+.survey-q{margin-bottom:1.5rem;}
+.survey-q .q-label{font-weight:500;margin-bottom:.6rem;font-size:.95rem;}
+.star-row{display:flex;gap:.35rem;}
+.star{font-size:1.4rem;cursor:pointer;opacity:.3;transition:opacity .15s;}
+.star.on{opacity:1;}
+.radio-group{display:flex;flex-direction:column;gap:.4rem;}
+.radio-opt{display:flex;align-items:center;gap:.6rem;cursor:pointer;font-size:.9rem;}
+.radio-opt input{cursor:pointer;accent-color:var(--gold);}
 /* sub-tabs */
 .sub-tabs{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.5rem;border-bottom:2px solid var(--border);padding-bottom:.75rem;}
 .sub-tab{font-family:'DM Sans',sans-serif;font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;padding:.45rem 1.1rem;background:none;border:1px solid var(--border);border-radius:20px;cursor:pointer;color:var(--soft);transition:all .2s;}
@@ -185,7 +201,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   <button data-tab="vote" onclick="goTab('vote',this)">Vote</button>
   <button data-tab="results" onclick="goTab('results',this)">Results</button>
   <button data-tab="review" onclick="goTab('review',this)">Review</button>
-
+  <button data-tab="surveys" onclick="goTab('surveys',this)">Surveys</button>
   <button data-tab="progress" onclick="goTab('progress',this)">📖 My Progress</button>
   <button data-tab="badges" onclick="goTab('badges',this)">🏅 Badges</button>
   <button data-tab="rankings" onclick="goTab('rankings',this)">2026 Book Rankings</button>
@@ -253,6 +269,12 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 <div id="tab-results" class="section">
   <div class="sec-head"><h2>Results</h2><p id="res-subtitle">Borda count · votes submitted</p></div>
   <div id="results-area"></div>
+</div>
+
+<!-- ══════════════ SURVEYS ══════════════ -->
+<div id="tab-surveys" class="section">
+  <div class="sec-head"><h2>Surveys</h2><p>Fill out any active surveys from the club admin.</p></div>
+  <div id="surveys-member-area"></div>
 </div>
 
 <!-- ══════════════ REVIEW ══════════════ -->
@@ -501,6 +523,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
         <button class="btn btn-secondary" onclick="downloadCSV('current')">⬇ Current Month CSV</button>
         <button class="btn btn-secondary" onclick="downloadCSV('all')">⬇ All Archives CSV</button>
         <button class="btn btn-secondary" onclick="downloadCSV('members')">⬇ Members List CSV</button>
+        <button class="btn btn-secondary" onclick="downloadCSV('surveys')">⬇ Survey Responses CSV</button>
         <button class="btn btn-secondary" onclick="downloadCSV('reviews')">⬇ Book Reviews CSV</button>
         <button class="btn btn-secondary" onclick="downloadCSV('rankings')">⬇ Book Rankings CSV</button>
       </div>
@@ -527,6 +550,30 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
     <div class="card">
       <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Current Books</h3>
       <div id="admin-book-list"></div>
+    </div>
+
+    <!-- Survey builder -->
+    <div class="card">
+      <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Survey Builder</h3>
+      <div class="f-group"><label>Survey Title</label><input type="text" id="survey-title" placeholder="e.g. Reading Preferences 2025"></div>
+      <div id="question-builder"></div>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.75rem;">
+        <button class="btn btn-secondary btn-sm" onclick="addQ('text')">+ Free Text</button>
+        <button class="btn btn-secondary btn-sm" onclick="addQ('mc')">+ Multiple Choice</button>
+        <button class="btn btn-secondary btn-sm" onclick="addQ('rating')">+ Rating Scale</button>
+        <button class="btn btn-secondary btn-sm" onclick="addQ('yesno')">+ Yes / No</button>
+      </div>
+      <div style="margin-top:1rem;display:flex;gap:.75rem;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="publishSurvey()">Publish Survey</button>
+        <button class="btn btn-secondary" onclick="loadDraftSurvey()">Load Draft</button>
+      </div>
+      <div id="survey-builder-msg"></div>
+    </div>
+
+    <!-- Surveys list -->
+    <div class="card">
+      <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Published Surveys</h3>
+      <div id="admin-surveys-list"></div>
     </div>
 
     <!-- Danger zone -->
@@ -653,6 +700,8 @@ const SETTINGS_REF = doc(db, 'club', 'settings');
 const BOOKS_REF    = doc(db, 'club', 'books');
 const VOTES_REF    = doc(db, 'club', 'votes');
 const ARCHIVES_REF = doc(db, 'club', 'archives');
+const SURVEYS_REF  = doc(db, 'club', 'surveys');
+const SRESP_REF    = doc(db, 'club', 'surveyResponses');
 const REVIEWS_REF  = doc(db, 'club', 'reviews');
 const PROGRESS_REF = doc(db, 'club', 'readingProgress');
 const MEETING_REF      = doc(db, 'club', 'meetingInfo');
@@ -661,7 +710,7 @@ const BADGE_CONFIG_REF = doc(db, 'club', 'badgeConfig');
 // ── In-memory cache kept fresh by real-time listeners ──
 let CACHE = {
   settings: {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,reviewsOpen:false,password:'bookclub123'},
-  books: [], votes: {}, archives: [], reviews: {},
+  books: [], votes: {}, archives: [], surveys: [], surveyResponses: {}, reviews: {},
   readingProgress: {}, meetingInfo: {},
   badgeConfig: { disabled:{}, hidden:{}, organic:{}, customBadges:[], overrides:{} }
 };
@@ -757,6 +806,14 @@ function startListeners() {
     CACHE.archives = snap.exists() ? (snap.data().list || []) : [];
     refreshActiveTab();
   });
+  onSnapshot(SURVEYS_REF, snap => {
+    CACHE.surveys = snap.exists() ? (snap.data().list || []) : [];
+    refreshActiveTab();
+  });
+  onSnapshot(SRESP_REF, snap => {
+    CACHE.surveyResponses = snap.exists() ? (snap.data().map || {}) : {};
+    refreshActiveTab();
+  });
   onSnapshot(REVIEWS_REF, snap => {
     CACHE.reviews = snap.exists() ? (snap.data().map || {}) : {};
     refreshActiveTab();
@@ -792,6 +849,7 @@ function _doRefreshActiveTab() {
   else if (id === 'results') renderResults();
   else if (id === 'review')    renderReview();
   else if (id === 'rankings')  renderRankings();
+  else if (id === 'surveys')   renderMemberSurveys();
   else if (id === 'analysis') renderAnalysis();
   else if (id === 'progress') renderProgressTab();
   else if (id === 'badges') renderBadgesTab();
@@ -803,6 +861,8 @@ function getBooks()          { return CACHE.books || []; }
 function getVotes()          { return CACHE.votes || {}; }
 function getSettings()       { return CACHE.settings; }
 function getArchives()       { return CACHE.archives || []; }
+function getSurveys()        { return CACHE.surveys || []; }
+function getSurveyResponses(){ return CACHE.surveyResponses || {}; }
 function getReviews()        { return CACHE.reviews || {}; }
 function getReadingProgress(){ return CACHE.readingProgress || {}; }
 function getMeetingInfo()    { return CACHE.meetingInfo || {}; }
@@ -829,6 +889,7 @@ function goTab(id, btn) {
   else if (id === 'results')  renderResults();
   else if (id === 'review')   renderReview();
   else if (id === 'rankings') renderRankings();
+  else if (id === 'surveys')  renderMemberSurveys();
   else if (id === 'analysis') renderAnalysis();
   else if (id === 'progress') renderProgressTab();
   else if (id === 'badges')   renderBadgesTab();
@@ -1365,6 +1426,122 @@ function renderResults() {
     </div>`;
   }).join('');
 }
+
+// ════════════════════════════════════════════════════════
+// SURVEYS — MEMBER VIEW
+// ════════════════════════════════════════════════════════
+function renderMemberSurveys() {
+  const surveys = getSurveys().filter(s => s.active);
+  const area = document.getElementById('surveys-member-area');
+  if (!surveys.length) { area.innerHTML = '<div class="empty"><div class="icon">📋</div><p>No active surveys right now.</p></div>'; return; }
+  area.innerHTML = surveys.map(s => `
+    <div class="card" id="scard-${s.id}">
+      <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:1rem;">${esc(s.title)}</h3>
+      ${renderSurveyQuestions(s)}
+      <div style="margin-top:1rem;"><button class="btn btn-primary" onclick="submitSurveyResponse('${s.id}')">Submit Response</button></div>
+      <div id="sr-msg-${s.id}"></div>
+    </div>`).join('');
+}
+function renderSurveyQuestions(s) {
+  return s.questions.map((q, i) => `
+    <div class="survey-q">
+      <div class="q-label">${i+1}. ${esc(q.prompt)}</div>
+      ${renderQInput(q, s.id)}
+    </div>`).join('');
+}
+function renderQInput(q, sid) {
+  const uid = `${sid}_${q.id}`;
+  if (q.type === 'text')   return `<textarea id="qi-${uid}" placeholder="Your answer…" rows="3" style="width:100%;"></textarea>`;
+  if (q.type === 'yesno')  return `<div class="radio-group"><label class="radio-opt"><input type="radio" name="qi-${uid}" value="Yes"> Yes</label><label class="radio-opt"><input type="radio" name="qi-${uid}" value="No"> No</label></div>`;
+  if (q.type === 'mc')     return `<div class="radio-group">${(q.options||[]).map(opt=>`<label class="radio-opt"><input type="radio" name="qi-${uid}" value="${esc(opt)}"> ${esc(opt)}</label>`).join('')}</div>`;
+  if (q.type === 'rating') return `<div class="star-row" id="stars-${uid}" data-max="${q.max||5}" data-val="0">${Array.from({length:q.max||5},(_,i)=>`<span class="star" data-v="${i+1}" onclick="setStar('${uid}',${i+1})">★</span>`).join('')}<span style="font-size:.8rem;color:var(--soft);margin-left:.5rem;" id="star-lbl-${uid}">0 / ${q.max||5}</span></div>`;
+  return '';
+}
+function setStar(uid, val) {
+  const row = document.getElementById('stars-' + uid); if (!row) return;
+  row.dataset.val = val;
+  row.querySelectorAll('.star').forEach(s => s.classList.toggle('on', +s.dataset.v <= val));
+  const lbl = document.getElementById('star-lbl-' + uid);
+  if (lbl) lbl.textContent = `${val} / ${row.dataset.max}`;
+}
+window.setStar = setStar;
+
+async function submitSurveyResponse(sid) {
+  const surveys = getSurveys(), survey = surveys.find(s => s.id === sid); if (!survey) return;
+  const answers = {};
+  survey.questions.forEach(q => {
+    const uid = `${sid}_${q.id}`;
+    if (q.type === 'text')   { const el = document.getElementById(`qi-${uid}`); answers[q.id] = el ? el.value.trim() : ''; }
+    else if (q.type === 'rating') { const row = document.getElementById(`stars-${uid}`); answers[q.id] = row ? +row.dataset.val : 0; }
+    else { const sel = document.querySelector(`input[name="qi-${uid}"]:checked`); answers[q.id] = sel ? sel.value : ''; }
+  });
+  const responses = getSurveyResponses();
+  if (!responses[sid]) responses[sid] = [];
+  showLoading('Submitting response…');
+  responses[sid].push({ answers, ts: Date.now() });
+  await fbSet(SRESP_REF, { map: responses });
+  hideLoading();
+  showMsg(`sr-msg-${sid}`, '✓ Response submitted!', 'ok');
+  document.getElementById(`scard-${sid}`).querySelectorAll('input,textarea').forEach(el => { if (el.type === 'radio' || el.type === 'checkbox') el.checked = false; else el.value = ''; });
+  document.querySelectorAll('[id^="star-"]').forEach(el => el.classList.remove('on'));
+}
+window.submitSurveyResponse = submitSurveyResponse;
+
+// ════════════════════════════════════════════════════════
+// SURVEY BUILDER
+// ════════════════════════════════════════════════════════
+let questions = [];
+function addQ(type) {
+  questions.push({ id: 'q' + Date.now(), type, prompt: '', options: type === 'mc' ? ['',''] : [], max: 5 });
+  renderBuilder();
+}
+function renderBuilder() {
+  const c = document.getElementById('question-builder'); c.innerHTML = '';
+  questions.forEach((q, i) => {
+    const div = document.createElement('div'); div.className = 'q-block';
+    let extra = '';
+    if (q.type === 'mc') {
+      extra = `<div id="opts-${q.id}">${(q.options||[]).map((o,oi) => `<div class="option-row"><input type="text" value="${esc(o)}" placeholder="Option ${oi+1}" oninput="questions[${i}].options[${oi}]=this.value"><button class="btn btn-sm btn-danger" onclick="rmOpt(${i},${oi})">✕</button></div>`).join('')}</div><button class="btn btn-sm btn-secondary" style="margin-top:.4rem;" onclick="addOpt(${i})">+ Option</button>`;
+    }
+    if (q.type === 'rating') {
+      extra = `<div style="margin-top:.5rem;display:flex;align-items:center;gap:.75rem;"><label style="margin:0;white-space:nowrap;">Max rating:</label><select onchange="questions[${i}].max=+this.value" style="width:90px;padding:.4rem;"><option value="5" ${q.max===5?'selected':''}>1–5</option><option value="10" ${q.max===10?'selected':''}>1–10</option></select></div>`;
+    }
+    div.innerHTML = `<div class="q-block-header"><div class="q-num">${i+1}</div><div style="flex:1;"><input type="text" value="${esc(q.prompt)}" placeholder="Question prompt…" oninput="questions[${i}].prompt=this.value"></div><div class="q-type-badge">${q.type}</div><button class="btn btn-sm btn-danger" onclick="rmQ(${i})">✕</button></div>${extra}`;
+    c.appendChild(div);
+  });
+  fbSet(DRAFT_REF, { title: v('survey-title'), questions });
+}
+function rmQ(i)        { questions.splice(i, 1); renderBuilder(); }
+function addOpt(qi)    { questions[qi].options.push(''); renderBuilder(); }
+function rmOpt(qi, oi) { questions[qi].options.splice(oi, 1); renderBuilder(); }
+window.addQ = addQ; window.rmQ = rmQ; window.addOpt = addOpt; window.rmOpt = rmOpt;
+
+async function loadDraftSurvey() {
+  const snap = await getDoc(DRAFT_REF);
+  if (!snap.exists()) { showMsg('survey-builder-msg', 'No draft found.', 'err'); return; }
+  const d = snap.data();
+  document.getElementById('survey-title').value = d.title || '';
+  questions = d.questions || [];
+  renderBuilder();
+}
+window.loadDraftSurvey = loadDraftSurvey;
+
+async function publishSurvey() {
+  const title = v('survey-title');
+  if (!title) { showMsg('survey-builder-msg', 'Please add a survey title.', 'err'); return; }
+  if (!questions.length) { showMsg('survey-builder-msg', 'Add at least one question.', 'err'); return; }
+  showLoading('Publishing survey…');
+  const surveys = getSurveys();
+  surveys.push({ id: 's' + Date.now(), title, questions: questions.map(q => ({...q, options: [...(q.options||[])]})), active: true, created: Date.now() });
+  await fbSet(SURVEYS_REF, { list: surveys });
+  hideLoading();
+  questions = [];
+  document.getElementById('survey-title').value = '';
+  document.getElementById('question-builder').innerHTML = '';
+  showMsg('survey-builder-msg', '✓ Survey published!', 'ok');
+  renderAdmin();
+}
+window.publishSurvey = publishSurvey;
 
 // ════════════════════════════════════════════════════════
 // REVIEW
@@ -2188,7 +2365,7 @@ function adminLogin() {
 window.adminLogin = adminLogin;
 
 function renderAdmin() {
-  const s = getSettings(), votes = getVotes(), books = getBooks();
+  const s = getSettings(), votes = getVotes(), books = getBooks(), surveys = getSurveys();
   // Populate meeting fields
   const mi = getMeetingInfo();
   if (mi.title)   { const el = document.getElementById('meeting-title-input'); if (el) el.value = mi.title; }
@@ -2210,6 +2387,19 @@ function renderAdmin() {
       <div class="book-info"><div class="book-title">${esc(b.title)}</div><div class="book-sub">${esc(b.author)} &middot; ${normBook(b).suggesters.map(s=>esc(s.discord)).join(', ')}</div></div>
       <button class="btn btn-danger btn-sm" onclick="deleteBook(${b.id})">Remove</button>
     </div>`).join('') : '<p style="font-size:.85rem;color:var(--soft);">No books.</p>';
+  const _surveyResps = getSurveyResponses();
+  document.getElementById('admin-surveys-list').innerHTML = surveys.length ? surveys.map((s, i) => {
+    const rCount = (_surveyResps[s.id]||[]).length;
+    return `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:.6rem 0;border-bottom:1px solid var(--border);">
+      <div><div style="font-size:.9rem;">${esc(s.title)}</div><div style="font-size:.75rem;color:var(--soft);">${s.questions.length} question${s.questions.length!==1?'s':''} · ${rCount} response${rCount!==1?'s':''}</div></div>
+      <div style="display:flex;gap:.4rem;align-items:center;">
+        <span class="pill ${s.active?'pill-open':'pill-closed'}">${s.active?'Active':'Closed'}</span>
+        <button class="btn btn-secondary btn-sm" onclick="toggleSurvey(${i})">${s.active?'Close':'Open'}</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteSurvey(${i})">Delete</button>
+      </div>
+    </div>`;
+  }).join('') : '<p style="font-size:.85rem;color:var(--soft);">No surveys yet.</p>';
 }
 
 function goAdminTab(id, btn) {
@@ -2475,6 +2665,9 @@ async function toggleSetting(key) {
 }
 window.toggleSetting = toggleSetting;
 
+async function toggleSurvey(i) { const sv = getSurveys(); sv[i].active = !sv[i].active; await fbSet(SURVEYS_REF, {list:sv}); renderAdmin(); }
+async function deleteSurvey(i) { if (!confirm('Delete this survey?')) return; const sv = getSurveys(); sv.splice(i,1); await fbSet(SURVEYS_REF, {list:sv}); renderAdmin(); }
+window.toggleSurvey=toggleSurvey; window.deleteSurvey=deleteSurvey;
 async function deleteVote(name) { if (!confirm(`Remove vote for "${name}"?`)) return; showLoading('Removing…'); const v = getVotes(); delete v[name]; await fbSet(VOTES_REF, {map:v}); hideLoading(); }
 async function deleteBook(id)   { if (!confirm('Remove this book?')) return; showLoading('Removing…'); await fbSet(BOOKS_REF, {list:getBooks().filter(b=>b.id!==id)}); hideLoading(); }
 async function clearVotes()     { if (!confirm('Clear ALL votes?')) return; showLoading('Clearing…'); await fbSet(VOTES_REF, {map:{}}); hideLoading(); renderAdmin(); }
@@ -2851,6 +3044,11 @@ const BADGE_DEFS = [
   { id:'read-streak-3',     name:'Page Turner',         emoji:'🎯',  tier:'silver', desc:'Finish 3 winning books in a row',                           check:p=>p.longestReadStreak>=3 },
   { id:'read-streak-6',     name:'Insatiable',          emoji:'🦁',  tier:'gold',   desc:'Finish 6 winning books in a row',                           check:p=>p.longestReadStreak>=6 },
 
+  // ── Survey participation ──────────────────────────────────────────────────
+  { id:'first-survey',      name:'Heard',               emoji:'📋',  tier:null,     desc:'Complete your first club survey',                           check:p=>p.surveysCompleted>=1 },
+  { id:'three-surveys',     name:'Voice of the Club',   emoji:'🎤',  tier:null,     desc:'Complete 3 or more surveys',                                check:p=>p.surveysCompleted>=3 },
+  { id:'all-surveys',       name:'Census Taker',        emoji:'📊',  tier:null,     desc:'Complete every published survey (min 3)',                   check:p=>p.totalSurveys>=3&&p.surveysCompleted>=p.totalSurveys },
+
   // ── Book-specific ─────────────────────────────────────────────────────────
   { id:'winner-picker',     name:'Taste-Maker',         emoji:'👑',  tier:null,     desc:'Suggest a book that wins',                                  check:p=>p.pickedWinner>=1 },
   { id:'top3-suggest',      name:'Almost There',        emoji:'🎰',  tier:null,     desc:'Suggest a book that finishes in the top 3',                 check:p=>p.suggestedTop3>=1 },
@@ -2962,6 +3160,8 @@ function getArchiveWinners() {
 function computeMemberProfile(discord, email, _prebuilt = {}) {
   const archives        = getArchives();
   const allReviews      = getReviews();
+  const allSurveys      = getSurveys();
+  const allSurveyResps  = getSurveyResponses();
   const allProgress     = getReadingProgress();
   const idMap           = _prebuilt.idMap || buildIdentityMap();
   const archiveWinnersCache = _prebuilt.archiveWinners || null;
@@ -2969,11 +3169,12 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
   const myKey           = normEmail(email) || normId(discord);
 
   let voted=0, suggestedMonths=0, reviewed=0, pickedWinner=0, suggestedTop3=0;
-  let dnfCount=0, reviewsWithRating=0;
+  let dnfCount=0, reviewsWithRating=0, surveysCompleted=0;
   let nightOwlCount=0, earlyBird=0, top1WinCount=0, top1VoteCount=0;
   let oneStarCount=0, genreLoyalist=false, speedFinishCount=0, lastMinuteCount=0;
   const dnfBookIds = new Set(); // track DNF book IDs from progress to avoid double-counting
   const totalMonths  = archives.length;
+  const totalSurveys = allSurveys.length;
 
   // Track genres suggested by this member — split on / for accurate per-genre counts
   const genresSuggestedSet = new Set();
@@ -3390,9 +3591,17 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
   });
   const glassHalfFull = glassHalfFullValid && glassHalfFullRatings >= 5;
 
+  // ── Survey completions ──
+  allSurveys.forEach(s => {
+    const responses = allSurveyResps[s.id]||[];
+    if (responses.some(r => resolveId(r.name,'',idMap)===myName || normEmail(r.email)===normEmail(email))) {
+      surveysCompleted++;
+    }
+  });
+
   return {
     voted, suggestedMonths, reviewed, pickedWinner, suggestedTop3,
-    dnfCount, reviewsWithRating,
+    dnfCount, reviewsWithRating, surveysCompleted, totalSurveys,
     nightOwlCount, earlyBird, top1WinCount, top1VoteCount,
     oneStarCount, genreLoyalist, speedFinishCount, lastMinuteCount,
     genresSuggested: genresSuggestedSet.size,
@@ -3427,6 +3636,7 @@ const BADGE_CATEGORIES = [
   { id:'participation', label:'🎯 Participation',      emoji:'🎯' },
   { id:'streaks',       label:'🔥 Streaks',             emoji:'🔥' },
   { id:'reading',       label:'📖 Reading',             emoji:'📖' },
+  { id:'surveys',       label:'📋 Surveys',             emoji:'📋' },
   { id:'books',         label:'📚 Books & Suggestions', emoji:'📚' },
   { id:'genre',         label:'🎭 Genre',               emoji:'🎭' },
   { id:'fun',           label:'😄 Fun & Personality',   emoji:'😄' },
@@ -3448,6 +3658,8 @@ const BADGE_CATEGORY_MAP = {
   'page-turner-speed':'reading','just-in-time':'reading',
   'dnf-1':'reading','dnf-3':'reading','rated-all':'reading',
   'cover-to-cover':'reading',
+  // Surveys
+  'first-survey':'surveys','three-surveys':'surveys','all-surveys':'surveys',
   // Books & Suggestions — recommending and winning
   'winner-picker':'books','top3-suggest':'books',
   'try-try-again':'books','chefs-kiss':'books',
@@ -3525,7 +3737,7 @@ function renderBadgesTab() {
       </div>
       <div style="flex:1;min-width:180px;">
         <div style="font-weight:500;margin-bottom:.3rem;">${earnedBadges.map(b=>b.iconDataUrl?'🖼️':b.emoji).join(' ')||'—'}</div>
-        <div style="font-size:.82rem;color:var(--soft);">${profile.voted} months voted · ${profile.suggestedMonths} months suggested · ${profile.reviewed} reviews · ${profile.pickedWinner} winning pick${profile.pickedWinner!==1?'s':''}</div>
+        <div style="font-size:.82rem;color:var(--soft);">${profile.voted} months voted · ${profile.suggestedMonths} months suggested · ${profile.reviewed} reviews · ${profile.surveysCompleted} surveys · ${profile.pickedWinner} winning pick${profile.pickedWinner!==1?'s':''}</div>
         <div style="font-size:.78rem;color:var(--soft);margin-top:.2rem;">Longest vote streak: ${profile.longestVoteStreak} · Longest read streak: ${profile.longestReadStreak}</div>
         ${recentBadgeHtml}
       </div>
@@ -4239,6 +4451,15 @@ function downloadCSV(type) {
       (a.books||[]).map(normBook).forEach(b => b.suggesters.forEach(s => addMember(s.discord,s.email,s.discord,'suggestion (archived)',null)));
       Object.entries(a.votes||{}).forEach(([name,vd]) => addMember(name,vd.email||'',vd.discord||'','vote (archived)',vd.ts));
     });
+  } else if (type === 'surveys') {
+    filename = 'bookclub_survey_responses.csv';
+    const surveys = getSurveys(), responses = getSurveyResponses();
+    surveys.forEach(s => {
+      rows.push([`Survey: ${s.title}`]);
+      rows.push(['Respondent', ...s.questions.map(q => q.prompt), 'Date']);
+      (responses[s.id]||[]).forEach(r => { rows.push([r.name, ...s.questions.map(q => r.answers[q.id]??''), new Date(r.ts).toLocaleDateString()]); });
+      rows.push([]);
+    });
   } else if (type === 'reviews') {
     filename = 'bookclub_reviews.csv';
     const reviews = getReviews();
@@ -4292,7 +4513,7 @@ function setPill(id, cond, tLabel, fLabel, tCls, fCls) {
 // Show the app immediately — Firebase listeners will update data as they arrive
 hideLoading();
 const _initTab = location.hash.replace('#', '');
-const _validTabs = ['suggest','vote','results','review','rankings','analysis','progress','badges','admin'];
+const _validTabs = ['suggest','vote','results','review','surveys','rankings','analysis','progress','badges','admin'];
 if (_initTab && _validTabs.includes(_initTab)) {
   const _btn = document.querySelector(`nav button[data-tab="${_initTab}"]`) || document.getElementById('admin-nav-btn');
   goTab(_initTab, _btn);
