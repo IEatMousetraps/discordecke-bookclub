@@ -554,7 +554,8 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 
     <!-- Survey builder -->
     <div class="card">
-      <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Survey Builder</h3>
+      <h3 id="survey-builder-heading" style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Survey Builder</h3>
+      <div id="survey-edit-banner" style="display:none;background:#fffbef;border-left:3px solid var(--gold);padding:.6rem 1rem;font-size:.82rem;color:var(--soft);margin-bottom:.75rem;border-radius:0 4px 4px 0;">Editing a published survey. Existing responses are preserved.</div>
       <div class="f-group"><label>Survey Title</label><input type="text" id="survey-title" placeholder="e.g. Reading Preferences 2025"></div>
       <div id="question-builder"></div>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.75rem;">
@@ -564,8 +565,9 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
         <button class="btn btn-secondary btn-sm" onclick="addQ('yesno')">+ Yes / No</button>
       </div>
       <div style="margin-top:1rem;display:flex;gap:.75rem;flex-wrap:wrap;">
-        <button class="btn btn-primary" onclick="publishSurvey()">Publish Survey</button>
-        <button class="btn btn-secondary" onclick="loadDraftSurvey()">Load Draft</button>
+        <button id="survey-publish-btn" class="btn btn-primary" onclick="publishSurvey()">Publish Survey</button>
+        <button id="survey-cancel-edit-btn" class="btn btn-secondary" style="display:none;" onclick="cancelEditSurvey()">Cancel Edit</button>
+        <button id="survey-load-draft-btn" class="btn btn-secondary" onclick="loadDraftSurvey()">Load Draft</button>
       </div>
       <div id="survey-builder-msg"></div>
     </div>
@@ -1491,6 +1493,30 @@ window.submitSurveyResponse = submitSurveyResponse;
 // SURVEY BUILDER
 // ════════════════════════════════════════════════════════
 let questions = [];
+let _editingSurveyIndex = null; // null = new survey, number = editing existing
+
+function _setSurveyBuilderMode(editMode) {
+  const heading   = document.getElementById('survey-builder-heading');
+  const banner    = document.getElementById('survey-edit-banner');
+  const publishBtn= document.getElementById('survey-publish-btn');
+  const cancelBtn = document.getElementById('survey-cancel-edit-btn');
+  const draftBtn  = document.getElementById('survey-load-draft-btn');
+  if (!heading) return;
+  if (editMode) {
+    heading.textContent = 'Edit Survey';
+    banner.style.display = '';
+    publishBtn.textContent = 'Save Changes';
+    cancelBtn.style.display = '';
+    draftBtn.style.display = 'none';
+  } else {
+    heading.textContent = 'Survey Builder';
+    banner.style.display = 'none';
+    publishBtn.textContent = 'Publish Survey';
+    cancelBtn.style.display = 'none';
+    draftBtn.style.display = '';
+  }
+}
+
 function addQ(type) {
   questions.push({ id: 'q' + Date.now(), type, prompt: '', options: type === 'mc' ? ['',''] : [], max: 5 });
   renderBuilder();
@@ -1509,12 +1535,37 @@ function renderBuilder() {
     div.innerHTML = `<div class="q-block-header"><div class="q-num">${i+1}</div><div style="flex:1;"><input type="text" value="${esc(q.prompt)}" placeholder="Question prompt…" oninput="questions[${i}].prompt=this.value"></div><div class="q-type-badge">${q.type}</div><button class="btn btn-sm btn-danger" onclick="rmQ(${i})">✕</button></div>${extra}`;
     c.appendChild(div);
   });
-  fbSet(DRAFT_REF, { title: v('survey-title'), questions });
+  if (_editingSurveyIndex === null) fbSet(DRAFT_REF, { title: v('survey-title'), questions });
 }
 function rmQ(i)        { questions.splice(i, 1); renderBuilder(); }
 function addOpt(qi)    { questions[qi].options.push(''); renderBuilder(); }
 function rmOpt(qi, oi) { questions[qi].options.splice(oi, 1); renderBuilder(); }
 window.addQ = addQ; window.rmQ = rmQ; window.addOpt = addOpt; window.rmOpt = rmOpt;
+
+function editSurvey(i) {
+  const survey = getSurveys()[i];
+  if (!survey) return;
+  _editingSurveyIndex = i;
+  document.getElementById('survey-title').value = survey.title || '';
+  questions = survey.questions.map(q => ({...q, options: [...(q.options||[])]}));
+  renderBuilder();
+  _setSurveyBuilderMode(true);
+  // Scroll the builder into view
+  const builderEl = document.getElementById('survey-builder-heading');
+  if (builderEl) builderEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  showMsg('survey-builder-msg', `Editing: "${esc(survey.title)}"`, 'ok');
+}
+window.editSurvey = editSurvey;
+
+function cancelEditSurvey() {
+  _editingSurveyIndex = null;
+  questions = [];
+  document.getElementById('survey-title').value = '';
+  document.getElementById('question-builder').innerHTML = '';
+  document.getElementById('survey-builder-msg').innerHTML = '';
+  _setSurveyBuilderMode(false);
+}
+window.cancelEditSurvey = cancelEditSurvey;
 
 async function loadDraftSurvey() {
   const snap = await getDoc(DRAFT_REF);
@@ -1530,15 +1581,31 @@ async function publishSurvey() {
   const title = v('survey-title');
   if (!title) { showMsg('survey-builder-msg', 'Please add a survey title.', 'err'); return; }
   if (!questions.length) { showMsg('survey-builder-msg', 'Add at least one question.', 'err'); return; }
-  showLoading('Publishing survey…');
   const surveys = getSurveys();
-  surveys.push({ id: 's' + Date.now(), title, questions: questions.map(q => ({...q, options: [...(q.options||[])]})), active: true, created: Date.now() });
-  await fbSet(SURVEYS_REF, { list: surveys });
-  hideLoading();
-  questions = [];
-  document.getElementById('survey-title').value = '';
-  document.getElementById('question-builder').innerHTML = '';
-  showMsg('survey-builder-msg', '✓ Survey published!', 'ok');
+  if (_editingSurveyIndex !== null) {
+    // Save edits to existing survey — preserve id, active state, created date, and existing responses
+    const existing = surveys[_editingSurveyIndex];
+    surveys[_editingSurveyIndex] = {
+      ...existing,
+      title,
+      questions: questions.map(q => ({...q, options: [...(q.options||[])]})),
+    };
+    showLoading('Saving changes…');
+    await fbSet(SURVEYS_REF, { list: surveys });
+    hideLoading();
+    showMsg('survey-builder-msg', '✓ Survey updated!', 'ok');
+    cancelEditSurvey();
+  } else {
+    // New survey
+    surveys.push({ id: 's' + Date.now(), title, questions: questions.map(q => ({...q, options: [...(q.options||[])]})), active: true, created: Date.now() });
+    showLoading('Publishing survey…');
+    await fbSet(SURVEYS_REF, { list: surveys });
+    hideLoading();
+    questions = [];
+    document.getElementById('survey-title').value = '';
+    document.getElementById('question-builder').innerHTML = '';
+    showMsg('survey-builder-msg', '✓ Survey published!', 'ok');
+  }
   renderAdmin();
 }
 window.publishSurvey = publishSurvey;
@@ -2396,6 +2463,7 @@ function renderAdmin() {
       <div style="display:flex;gap:.4rem;align-items:center;">
         <span class="pill ${s.active?'pill-open':'pill-closed'}">${s.active?'Active':'Closed'}</span>
         <button class="btn btn-secondary btn-sm" onclick="toggleSurvey(${i})">${s.active?'Close':'Open'}</button>
+        <button class="btn btn-secondary btn-sm" onclick="editSurvey(${i})">Edit</button>
         <button class="btn btn-danger btn-sm" onclick="deleteSurvey(${i})">Delete</button>
       </div>
     </div>`;
