@@ -1522,17 +1522,30 @@ function addQ(type) {
   renderBuilder();
 }
 function renderBuilder() {
-  const c = document.getElementById('question-builder'); c.innerHTML = '';
+  const c = document.getElementById('question-builder');
+  // Flush any live DOM values into the questions array before wiping the DOM
   questions.forEach((q, i) => {
-    const div = document.createElement('div'); div.className = 'q-block';
-    let extra = '';
+    const promptEl = c.querySelector(`#qblock-${q.id} .q-prompt-input`);
+    if (promptEl) q.prompt = promptEl.value;
     if (q.type === 'mc') {
-      extra = `<div id="opts-${q.id}">${(q.options||[]).map((o,oi) => `<div class="option-row"><input type="text" value="${esc(o)}" placeholder="Option ${oi+1}" oninput="questions[${i}].options[${oi}]=this.value"><button class="btn btn-sm btn-danger" onclick="rmOpt(${i},${oi})">✕</button></div>`).join('')}</div><button class="btn btn-sm btn-secondary" style="margin-top:.4rem;" onclick="addOpt(${i})">+ Option</button>`;
+      c.querySelectorAll(`#opts-${q.id} .opt-input`).forEach((el, oi) => { q.options[oi] = el.value; });
     }
     if (q.type === 'rating') {
-      extra = `<div style="margin-top:.5rem;display:flex;align-items:center;gap:.75rem;"><label style="margin:0;white-space:nowrap;">Max rating:</label><select onchange="questions[${i}].max=+this.value" style="width:90px;padding:.4rem;"><option value="5" ${q.max===5?'selected':''}>1–5</option><option value="10" ${q.max===10?'selected':''}>1–10</option></select></div>`;
+      const sel = c.querySelector(`#qblock-${q.id} .rating-max-select`);
+      if (sel) q.max = +sel.value;
     }
-    div.innerHTML = `<div class="q-block-header"><div class="q-num">${i+1}</div><div style="flex:1;"><input type="text" value="${esc(q.prompt)}" placeholder="Question prompt…" oninput="questions[${i}].prompt=this.value"></div><div class="q-type-badge">${q.type}</div><button class="btn btn-sm btn-danger" onclick="rmQ(${i})">✕</button></div>${extra}`;
+  });
+  c.innerHTML = '';
+  questions.forEach((q, i) => {
+    const div = document.createElement('div'); div.className = 'q-block'; div.id = `qblock-${q.id}`;
+    let extra = '';
+    if (q.type === 'mc') {
+      extra = `<div id="opts-${q.id}">${(q.options||[]).map((o,oi) => `<div class="option-row"><input type="text" class="opt-input" value="${esc(o)}" placeholder="Option ${oi+1}" oninput="questions[${i}].options[${oi}]=this.value"><button class="btn btn-sm btn-danger" onclick="rmOpt(${i},${oi})">✕</button></div>`).join('')}</div><button class="btn btn-sm btn-secondary" style="margin-top:.4rem;" onclick="addOpt(${i})">+ Option</button>`;
+    }
+    if (q.type === 'rating') {
+      extra = `<div style="margin-top:.5rem;display:flex;align-items:center;gap:.75rem;"><label style="margin:0;white-space:nowrap;">Max rating:</label><select class="rating-max-select" onchange="questions[${i}].max=+this.value" style="width:90px;padding:.4rem;"><option value="5" ${q.max===5?'selected':''}>1–5</option><option value="10" ${q.max===10?'selected':''}>1–10</option></select></div>`;
+    }
+    div.innerHTML = `<div class="q-block-header"><div class="q-num">${i+1}</div><div style="flex:1;"><input type="text" class="q-prompt-input" value="${esc(q.prompt)}" placeholder="Question prompt…" oninput="questions[${i}].prompt=this.value"></div><div class="q-type-badge">${q.type}</div><button class="btn btn-sm btn-danger" onclick="rmQ(${i})">✕</button></div>${extra}`;
     c.appendChild(div);
   });
   if (_editingSurveyIndex === null) fbSet(DRAFT_REF, { title: v('survey-title'), questions });
@@ -2464,6 +2477,8 @@ function renderAdmin() {
         <span class="pill ${s.active?'pill-open':'pill-closed'}">${s.active?'Active':'Closed'}</span>
         <button class="btn btn-secondary btn-sm" onclick="toggleSurvey(${i})">${s.active?'Close':'Open'}</button>
         <button class="btn btn-secondary btn-sm" onclick="editSurvey(${i})">Edit</button>
+        ${rCount > 0 ? `<button class="btn btn-secondary btn-sm" onclick="downloadSurveyCSV('${s.id}')">⬇ CSV</button>` : ''}
+        ${rCount > 0 ? `<button class="btn btn-danger btn-sm" onclick="wipeSurveyResponses('${s.id}')">Wipe Responses</button>` : ''}
         <button class="btn btn-danger btn-sm" onclick="deleteSurvey(${i})">Delete</button>
       </div>
     </div>`;
@@ -2735,7 +2750,37 @@ window.toggleSetting = toggleSetting;
 
 async function toggleSurvey(i) { const sv = getSurveys(); sv[i].active = !sv[i].active; await fbSet(SURVEYS_REF, {list:sv}); renderAdmin(); }
 async function deleteSurvey(i) { if (!confirm('Delete this survey?')) return; const sv = getSurveys(); sv.splice(i,1); await fbSet(SURVEYS_REF, {list:sv}); renderAdmin(); }
-window.toggleSurvey=toggleSurvey; window.deleteSurvey=deleteSurvey;
+function downloadSurveyCSV(sid) {
+  const survey = getSurveys().find(s => s.id === sid);
+  if (!survey) return;
+  const responses = (getSurveyResponses()[sid] || []);
+  if (!responses.length) { alert('No responses yet.'); return; }
+  const rows = [];
+  rows.push([`Survey: ${survey.title}`]);
+  rows.push(['Respondent', ...survey.questions.map(q => q.prompt), 'Date']);
+  responses.forEach(r => {
+    rows.push([r.name||'', ...survey.questions.map(q => r.answers[q.id]??''), r.ts ? new Date(r.ts).toLocaleDateString() : '']);
+  });
+  const slug = survey.title.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40);
+  const filename = `survey_${slug}.csv`;
+  const csv = rows.map(r => r.map(c => `"${String(c??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'}), url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url);
+}
+window.toggleSurvey=toggleSurvey; window.deleteSurvey=deleteSurvey; window.downloadSurveyCSV=downloadSurveyCSV;
+
+async function wipeSurveyResponses(sid) {
+  const survey = getSurveys().find(s => s.id === sid);
+  if (!survey) return;
+  if (!confirm(`Wipe all responses for "${survey.title}"? This cannot be undone.`)) return;
+  showLoading('Wiping responses…');
+  const responses = getSurveyResponses();
+  delete responses[sid];
+  await fbSet(SRESP_REF, { map: responses });
+  hideLoading();
+  renderAdmin();
+}
+window.wipeSurveyResponses = wipeSurveyResponses;
 async function deleteVote(name) { if (!confirm(`Remove vote for "${name}"?`)) return; showLoading('Removing…'); const v = getVotes(); delete v[name]; await fbSet(VOTES_REF, {map:v}); hideLoading(); }
 async function deleteBook(id)   { if (!confirm('Remove this book?')) return; showLoading('Removing…'); await fbSet(BOOKS_REF, {list:getBooks().filter(b=>b.id!==id)}); hideLoading(); }
 async function clearVotes()     { if (!confirm('Clear ALL votes?')) return; showLoading('Clearing…'); await fbSet(VOTES_REF, {map:{}}); hideLoading(); renderAdmin(); }
