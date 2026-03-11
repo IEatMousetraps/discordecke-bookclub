@@ -3426,13 +3426,13 @@ const BADGE_DEFS = [
 
   // ── Reading streaks ───────────────────────────────────────────────────────
   { id:'read-streak-2',     name:'Back to Back',        emoji:'📖',  tier:'bronze', desc:'Finish 2 winning books in a row',                           check:p=>p.longestReadStreak>=2 },
-  { id:'read-streak-3',     name:'Page Turner',         emoji:'🎯',  tier:'silver', desc:'Finish 3 winning books in a row',                           check:p=>p.longestReadStreak>=3 },
+  { id:'read-streak-3',     name:'Page Turner',         emoji:'🎯',  tier:'silver', desc:'Finish 4 winning books in a row',                           check:p=>p.longestReadStreak>=4 },
   { id:'read-streak-6',     name:'Insatiable',          emoji:'🦁',  tier:'gold',   desc:'Finish 6 winning books in a row',                           check:p=>p.longestReadStreak>=6 },
 
   // ── Survey participation ──────────────────────────────────────────────────
   { id:'first-survey',      name:'Heard',               emoji:'📋',  tier:null,     desc:'Complete your first club survey',                           check:p=>p.surveysCompleted>=1 },
   { id:'three-surveys',     name:'Voice of the Club',   emoji:'🎤',  tier:null,     desc:'Complete 3 or more surveys',                                check:p=>p.surveysCompleted>=3 },
-  { id:'all-surveys',       name:'Census Taker',        emoji:'📊',  tier:null,     desc:'Complete every published survey (min 3)',                   check:p=>p.totalSurveys>=3&&p.surveysCompleted>=p.totalSurveys },
+  { id:'all-surveys',       name:'Census Taker',        emoji:'📊',  tier:null,     desc:'Complete 10 or more club surveys',                         check:p=>p.surveysCompleted>=10 },
 
   // ── Book-specific ─────────────────────────────────────────────────────────
   { id:'winner-picker',     name:'Taste-Maker',         emoji:'👑',  tier:null,     desc:'Suggest a book that wins',                                  check:p=>p.pickedWinner>=1 },
@@ -3443,6 +3443,10 @@ const BADGE_DEFS = [
   // ── DNF (tiered) ─────────────────────────────────────────────────────────
   { id:'dnf-1',             name:'Honest Reader',       emoji:'🏳️',  tier:'bronze', desc:'Mark a book as DNF — honesty is a virtue',                  check:p=>p.dnfCount>=1 },
   { id:'dnf-3',             name:'Life\'s Too Short',   emoji:'🏳️',  tier:'silver', desc:'DNF 3 books — you know what you like',                      check:p=>p.dnfCount>=3 },
+  { id:'dnf-5',             name:'No Regrets',          emoji:'🏳️',  tier:'gold',   desc:'DNF 5 books — your time is precious and you own it',        check:p=>p.dnfCount>=5 },
+  { id:'dns-1',             name:'Hard Pass',           emoji:'🚫',  tier:'bronze', desc:'Mark 1 winning book as Chose Not to Read',                  check:p=>p.dnsCount>=1 },
+  { id:'dns-3',             name:'Selective Reader',    emoji:'🚫',  tier:'silver', desc:'Mark 3 winning books as Chose Not to Read — you know your taste', check:p=>p.dnsCount>=3 },
+  { id:'dns-5',             name:'Unapologetic',        emoji:'🚫',  tier:'gold',   desc:'Mark 5 winning books as Chose Not to Read — zero peer pressure', check:p=>p.dnsCount>=5 },
 
   // ── Ratings ───────────────────────────────────────────────────────────────
   { id:'rated-all',         name:'Full Score',          emoji:'⭐',  tier:null,     desc:'Leave a star rating on every review you submit',            check:p=>p.reviewed>=1&&p.reviewsWithRating>=p.reviewed },
@@ -3474,7 +3478,7 @@ const BADGE_DEFS = [
   { id:'pen-pal',           name:'Pen Pal',             emoji:'✉️',  tier:null,     desc:'Leave written thoughts on 5 or more reviews',              check:p=>p.penPalCount>=5 },
   { id:'essayist',          name:'The Essayist',        emoji:'🖊️',  tier:null,     desc:'Write a review with 100 or more words',                    check:p=>p.essayistCount>=1 },
   { id:'try-try-again',     name:'Try, Try Again',      emoji:'🔄',  tier:null,     desc:'Suggest the same book in 3 or more different months',      check:p=>p.tryTryAgain },
-  { id:'chefs-kiss',        name:"Chef's Kiss",         emoji:'🤌',  tier:null,     desc:'Suggest a book that earns an average rating of 4.5★ or higher (min 2 reviews)', check:p=>p.chefsKiss },
+  { id:'chefs-kiss',        name:"Chef's Kiss",         emoji:'🤌',  tier:null,     desc:'Suggest a book that earns an average rating of 4.5★ or higher (min 4 reviews)', check:p=>p.chefsKiss },
   { id:'cover-to-cover',    name:'Cover to Cover',      emoji:'📕',  tier:null,     desc:'Finish every winning book across a full calendar year (min 10 books)', check:p=>p.coverToCover },
   { id:'hot-take',          name:'Hot Take',            emoji:'🌶️',  tier:null,     desc:'Give a rating that is 2 or more stars away from the group average', check:p=>p.hotTake },
   { id:'unanimous',         name:'Unanimous',           emoji:'🤝',  tier:null,     desc:'Give the exact same star rating as every other reviewer in a month (min 2 reviewers)', check:p=>p.unanimous },
@@ -3554,7 +3558,7 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
   const myKey           = normEmail(email) || normId(discord);
 
   let voted=0, suggestedMonths=0, reviewed=0, pickedWinner=0, suggestedTop3=0;
-  let dnfCount=0, reviewsWithRating=0, surveysCompleted=0;
+  let dnfCount=0, dnsCount=0, reviewsWithRating=0, surveysCompleted=0;
   let nightOwlCount=0, earlyBird=0, top1WinCount=0, top1VoteCount=0;
   let oneStarCount=0, genreLoyalist=false, speedFinishCount=0, lastMinuteCount=0;
   const dnfBookIds = new Set(); // track DNF book IDs from progress to avoid double-counting
@@ -3658,6 +3662,7 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
         }
         // Count DNF from progress tracker; store book IDs to avoid double-counting with reviews
         if (status==='dnf') { dnfCount++; dnfBookIds.add(String(b.id)); }
+        if (status==='chose-not-to-read') { dnsCount++; }
       });
     }
 
@@ -3885,7 +3890,7 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
       if (!isMine) return;
       const monthEntries = allReviews[a.label]||[];
       const ratings = monthEntries.map(r=>+r.rating).filter(r=>r>=1&&r<=5);
-      if (ratings.length >= 2) {
+      if (ratings.length >= 4) {
         const avg = ratings.reduce((a,b)=>a+b,0)/ratings.length;
         if (avg >= 4.5) chefsKiss = true;
       }
@@ -3998,7 +4003,7 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
 
   return {
     voted, suggestedMonths, reviewed, pickedWinner, suggestedTop3,
-    dnfCount, reviewsWithRating, surveysCompleted, totalSurveys,
+    dnfCount, dnsCount, reviewsWithRating, surveysCompleted, totalSurveys,
     nightOwlCount, earlyBird, top1WinCount, top1VoteCount,
     oneStarCount, genreLoyalist, speedFinishCount, lastMinuteCount,
     genresSuggested: genresSuggestedSet.size,
@@ -4053,7 +4058,8 @@ const BADGE_CATEGORY_MAP = {
   // Reading — finishing, timing, and review habits
   'read-streak-2':'reading','read-streak-3':'reading','read-streak-6':'reading',
   'page-turner-speed':'reading','just-in-time':'reading',
-  'dnf-1':'reading','dnf-3':'reading','rated-all':'reading',
+  'dnf-1':'reading','dnf-3':'reading','dnf-5':'reading',
+  'dns-1':'reading','dns-3':'reading','dns-5':'reading','rated-all':'reading',
   'cover-to-cover':'reading',
   // Surveys
   'first-survey':'surveys','three-surveys':'surveys','all-surveys':'surveys',
@@ -4098,7 +4104,7 @@ function renderBadgesTab() {
     // Walk BADGE_DEFS order in reverse so the last-defined earned badge acts as tie-break
     const marginProfile = { ...profile };
     const numericKeys = ['voted','suggestedMonths','reviewed','pickedWinner','suggestedTop3',
-      'dnfCount','reviewsWithRating','nightOwlCount','earlyBird',
+      'dnfCount','dnsCount','reviewsWithRating','nightOwlCount','earlyBird',
       'speedFinishCount','lastMinuteCount','oneStarCount','penPalCount','essayistCount',
       'earlyToRise','longestVoteStreak','longestReadStreak','longestAllRounderStreak',
       'whyNotBoth','genresSuggested'];
