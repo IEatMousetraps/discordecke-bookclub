@@ -1564,7 +1564,7 @@ async function submitSurveyResponse(sid) {
   const emailEl = document.getElementById(`sr-email-${sid}`);
   const name    = nameEl  ? nameEl.value.trim()  : '';
   const email   = emailEl ? emailEl.value.trim() : '';
-  if (!name)  { showMsg(`sr-msg-${sid}`, 'Please enter your name or Discord username.', 'err'); return; }
+  if (!name)  { showMsg(`sr-msg-${sid}`, 'Please enter your Discord username.', 'err'); return; }
   if (!email) { showMsg(`sr-msg-${sid}`, 'Please enter your email address.', 'err'); return; }
   const answers = {};
   survey.questions.forEach(q => {
@@ -1573,10 +1573,47 @@ async function submitSurveyResponse(sid) {
     else if (q.type === 'rating') { const row = document.getElementById(`stars-${uid}`); answers[q.id] = row ? +row.dataset.val : 0; }
     else { const sel = document.querySelector(`input[name="qi-${uid}"]:checked`); answers[q.id] = sel ? sel.value : ''; }
   });
+  const entry = { name, email, discord: name, answers, ts: Date.now() };
   const responses = getSurveyResponses();
   if (!responses[sid]) responses[sid] = [];
+
+  // Duplicate detection — mirrors book review logic
+  const idMap = buildIdentityMap();
+  const resolvedMe = resolveId(name, email, idMap);
+  const myNormEmail = normEmail(email);
+  const existingIdx = responses[sid].findIndex(r => {
+    const rEmail = normEmail(r.email || '');
+    if (myNormEmail && rEmail && rEmail === myNormEmail) return true;
+    const rDiscord = r.discord || r.name || '';
+    if (rDiscord) return resolveId(rDiscord, r.email || '', idMap) === resolvedMe;
+    return false;
+  });
+
+  if (existingIdx >= 0) {
+    const prev = responses[sid][existingIdx];
+    const prevDate = prev.ts ? new Date(prev.ts).toLocaleString('en-US', {month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'}) : 'unknown date';
+    // Build a readable summary of their previous answers
+    const prevLines = survey.questions.map(q => {
+      const ans = prev.answers ? prev.answers[q.id] : undefined;
+      if (ans === undefined || ans === null || ans === '') return null;
+      const display = q.type === 'rating' ? `${'★'.repeat(+ans)}${'☆'.repeat(Math.max(0,(q.max||5)-(+ans)))} (${ans}/${q.max||5})` : String(ans);
+      return `${q.prompt}: ${display}`;
+    }).filter(Boolean);
+    const prevSummary = prevLines.length ? prevLines.join('
+') : '(no answers recorded)';
+    if (!confirm(`You've already submitted a response to this survey (${prevDate}).
+
+Your previous answers:
+
+${prevSummary}
+
+Submitting will replace your existing response. Continue?`)) return;
+    responses[sid][existingIdx] = entry;
+  } else {
+    responses[sid].push(entry);
+  }
+
   showLoading('Submitting response…');
-  responses[sid].push({ name, email, discord: name, answers, ts: Date.now() });
   await fbSet(SRESP_REF, { map: responses });
   hideLoading();
   showMsg(`sr-msg-${sid}`, '✓ Response submitted!', 'ok');
