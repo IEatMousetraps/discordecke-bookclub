@@ -454,6 +454,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
     <div class="sub-tabs" style="margin-bottom:1.5rem;">
       <button class="sub-tab active" onclick="goAdminTab('manage',this)">Manage</button>
       <button class="sub-tab" onclick="goAdminTab('compare',this)">Member Comparison</button>
+      <button class="sub-tab" onclick="goAdminTab('reading-progress-admin',this)">📖 Reading Progress</button>
       <button class="sub-tab" onclick="goAdminTab('badges-admin',this)">🏅 Badge Manager</button>
       <button class="sub-tab" onclick="goAdminTab('edit-books',this)">✏️ Edit Books</button>
     </div>
@@ -615,6 +616,26 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 
     <div id="admin-sub-compare" style="display:none;">
       <div id="member-compare-area"><p style="font-size:.85rem;color:var(--soft);">Loading…</p></div>
+    </div>
+
+    <div id="admin-sub-reading-progress-admin" style="display:none;">
+      <div class="card">
+        <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.25rem;">Member Reading Progress</h3>
+        <p style="font-size:.85rem;color:var(--soft);margin-bottom:1rem;">See every member's self-reported progress on each winning book.</p>
+        <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem;">
+          <input type="text" id="admin-pg-search" placeholder="Search member…" oninput="filterAdminProgress()" style="max-width:220px;">
+          <select id="admin-pg-book-filter" onchange="filterAdminProgress()" style="max-width:240px;"><option value="">All books</option></select>
+          <select id="admin-pg-status-filter" onchange="filterAdminProgress()" style="max-width:180px;">
+            <option value="">All statuses</option>
+            <option value="finished">✅ Finished</option>
+            <option value="reading">👀 Reading</option>
+            <option value="not-started">📋 Not Started</option>
+            <option value="dnf">❌ DNF</option>
+            <option value="chose-not-to-read">🚫 Chose Not to Read</option>
+          </select>
+        </div>
+        <div id="admin-reading-progress-area"></div>
+      </div>
     </div>
 
     <div id="admin-sub-badges-admin" style="display:none;">
@@ -2767,16 +2788,216 @@ function renderAdmin() {
 }
 
 function goAdminTab(id, btn) {
-  ['manage','compare','badges-admin','edit-books'].forEach(s => {
+  ['manage','compare','reading-progress-admin','badges-admin','edit-books'].forEach(s => {
     document.getElementById('admin-sub-'+s).style.display = s === id ? '' : 'none';
   });
   document.querySelectorAll('#admin-panel .sub-tab').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
-  if      (id === 'compare')      renderMemberCompare();
-  else if (id === 'badges-admin') renderAdminBadgeManager();
-  else if (id === 'edit-books')   renderEditBooksTab();
+  if      (id === 'compare')                   renderMemberCompare();
+  else if (id === 'reading-progress-admin')    renderAdminReadingProgress();
+  else if (id === 'badges-admin')              renderAdminBadgeManager();
+  else if (id === 'edit-books')                renderEditBooksTab();
 }
 window.goAdminTab = goAdminTab;
+
+// ════════════════════════════════════════════════════════
+// ADMIN — READING PROGRESS VIEW
+// ════════════════════════════════════════════════════════
+let _adminPgRows = []; // all rows, used for filtering
+
+function renderAdminReadingProgress() {
+  const archives = getArchives();
+  const progress = getReadingProgress();
+  const idMap    = buildIdentityMap();
+  const area     = document.getElementById('admin-reading-progress-area');
+  const bookSel  = document.getElementById('admin-pg-book-filter');
+
+  if (!archives.length) {
+    area.innerHTML = '<div class="empty"><div class="icon">📚</div><p>No archived months yet.</p></div>';
+    return;
+  }
+
+  // Collect all winner books across archives
+  const winnerBooks = []; // { bookId, title, author, month }
+  archives.forEach(a => {
+    const dualIds = a.dualWinners || [];
+    const nb = (a.books || []).length;
+    let winners;
+    if (dualIds.length) {
+      winners = (a.books || []).filter(b => dualIds.includes(String(b.id)));
+    } else {
+      const scores = {};
+      (a.books || []).forEach(b => scores[b.id] = 0);
+      Object.values(a.votes || {}).forEach(vd => {
+        (vd.ranking || vd).forEach((id, idx) => { if (scores[id] !== undefined) scores[id] += (nb - idx); });
+      });
+      const sorted = [...(a.books || [])].sort((x, y) => scores[y.id] - scores[x.id]);
+      winners = sorted.length ? [sorted[0]] : [];
+    }
+    winners.forEach(b => winnerBooks.push({ bookId: String(b.id), title: b.title, author: b.author || '', month: a.label }));
+  });
+
+  // Populate book filter dropdown
+  const existingVals = new Set([...bookSel.options].map(o => o.value));
+  winnerBooks.forEach(wb => {
+    if (!existingVals.has(wb.bookId)) {
+      const opt = document.createElement('option');
+      opt.value = wb.bookId;
+      opt.textContent = `${wb.month} — ${wb.title}`;
+      bookSel.appendChild(opt);
+      existingVals.add(wb.bookId);
+    }
+  });
+
+  // Collect all known members from progress + votes
+  const memberKeys = new Set();
+  Object.keys(progress).forEach(k => memberKeys.add(k));
+  archives.forEach(a => Object.values(a.votes || {}).forEach(vd => {
+    const key = normEmail(vd.email) || normId(vd.discord);
+    if (key) memberKeys.add(key);
+  }));
+
+  const statusMeta = {
+    'finished':           { label: 'Finished',          emoji: '✅', color: '#e8f5e9', text: '#2d7a3a' },
+    'reading':            { label: 'Reading',            emoji: '👀', color: '#e3f2fd', text: '#1565c0' },
+    'not-started':        { label: 'Not Started',        emoji: '📋', color: '#f5f5f5', text: '#555' },
+    'dnf':                { label: 'DNF',                emoji: '❌', color: '#fce4ec', text: '#c0392b' },
+    'chose-not-to-read':  { label: 'Chose Not to Read',  emoji: '🚫', color: '#f3e8ff', text: '#7b5ea7' },
+  };
+
+  // Build flat rows: one row per member
+  _adminPgRows = [];
+  memberKeys.forEach(key => {
+    // Resolve display name
+    let displayName = key;
+    for (const [, e] of idMap) {
+      if ((e.email && normEmail(e.email) === key) || e.normIds.has(key)) {
+        displayName = e.displayName; break;
+      }
+    }
+    const memberProgress = progress[key] || {};
+    const bookStatuses = winnerBooks.map(wb => ({
+      ...wb,
+      status: memberProgress[wb.bookId] || 'not-started',
+    }));
+    const finished = bookStatuses.filter(b => b.status === 'finished').length;
+    _adminPgRows.push({ key, displayName, bookStatuses, finished, total: winnerBooks.length });
+  });
+
+  // Sort by finished desc, then name asc
+  _adminPgRows.sort((a, b) => b.finished - a.finished || a.displayName.localeCompare(b.displayName));
+
+  // Store winner books for filter use
+  window._adminPgWinnerBooks = winnerBooks;
+  window._adminPgStatusMeta  = statusMeta;
+
+  filterAdminProgress();
+}
+window.renderAdminReadingProgress = renderAdminReadingProgress;
+
+function filterAdminProgress() {
+  const area     = document.getElementById('admin-reading-progress-area');
+  const search   = (document.getElementById('admin-pg-search')?.value || '').trim().toLowerCase();
+  const bookId   = document.getElementById('admin-pg-book-filter')?.value || '';
+  const statusF  = document.getElementById('admin-pg-status-filter')?.value || '';
+  const winnerBooks = window._adminPgWinnerBooks || [];
+  const statusMeta  = window._adminPgStatusMeta  || {};
+
+  if (!_adminPgRows.length) {
+    area.innerHTML = '<div class="empty"><div class="icon">📖</div><p>No progress data yet.</p></div>';
+    return;
+  }
+
+  let rows = _adminPgRows;
+  if (search)  rows = rows.filter(r => r.displayName.toLowerCase().includes(search));
+  if (bookId)  rows = rows.filter(r => r.bookStatuses.some(b => b.bookId === bookId && (!statusF || b.status === statusF)));
+  if (statusF && !bookId) rows = rows.filter(r => r.bookStatuses.some(b => b.status === statusF));
+
+  if (!rows.length) {
+    area.innerHTML = '<div class="empty"><div class="icon">🔍</div><p>No members match this filter.</p></div>';
+    return;
+  }
+
+  // If filtering by a single book, show compact list
+  if (bookId) {
+    const wb = winnerBooks.find(w => w.bookId === bookId);
+    const filtered = rows.map(r => {
+      const bs = r.bookStatuses.find(b => b.bookId === bookId);
+      return { displayName: r.displayName, status: bs ? bs.status : 'not-started' };
+    }).filter(r => !statusF || r.status === statusF)
+      .sort((a, b) => {
+        const order = ['finished','reading','not-started','dnf','chose-not-to-read'];
+        return order.indexOf(a.status) - order.indexOf(b.status) || a.displayName.localeCompare(b.displayName);
+      });
+
+    const statusCounts = {};
+    filtered.forEach(r => { statusCounts[r.status] = (statusCounts[r.status] || 0) + 1; });
+
+    area.innerHTML = `
+      <div style="margin-bottom:1rem;">
+        ${wb ? `<div style="font-weight:500;font-size:.95rem;margin-bottom:.35rem;">👑 ${esc(wb.month)} — <em>${esc(wb.title)}</em></div>` : ''}
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;font-size:.78rem;margin-bottom:.75rem;">
+          ${Object.entries(statusMeta).map(([k, sm]) => statusCounts[k] ? `<span style="padding:.15rem .55rem;border-radius:12px;background:${sm.color};color:${sm.text};border:1px solid ${sm.text}33;">${sm.emoji} ${sm.label}: <strong>${statusCounts[k]}</strong></span>` : '').join('')}
+        </div>
+      </div>
+      ${filtered.map(r => {
+        const sm = statusMeta[r.status] || statusMeta['not-started'];
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:.5rem .75rem;border-radius:6px;margin-bottom:.35rem;background:${sm.color};border:1px solid ${sm.text}22;">
+          <span style="font-size:.88rem;font-weight:500;">${esc(r.displayName)}</span>
+          <span style="font-size:.78rem;color:${sm.text};font-weight:600;">${sm.emoji} ${sm.label}</span>
+        </div>`;
+      }).join('')}`;
+    return;
+  }
+
+  // Full table view — one column per winner book
+  const visibleBooks = winnerBooks;
+  const colW = Math.max(80, Math.floor(560 / Math.max(visibleBooks.length, 1)));
+
+  area.innerHTML = `
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:.8rem;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border);">
+            <th style="text-align:left;padding:.5rem .75rem;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);min-width:140px;">Member</th>
+            <th style="text-align:center;padding:.5rem .4rem;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);min-width:60px;">Done</th>
+            ${visibleBooks.map(wb => `<th style="text-align:center;padding:.4rem .3rem;min-width:${colW}px;max-width:${colW}px;" title="${esc(wb.title)} (${esc(wb.month)})">
+              <div style="font-size:.65rem;color:var(--gold);letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(wb.month)}</div>
+              <div style="font-size:.72rem;color:var(--ink);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(wb.title)}">${esc(wb.title.length > 12 ? wb.title.slice(0,11)+'…' : wb.title)}</div>
+            </th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((r, ri) => {
+            const pct = r.total > 0 ? Math.round(r.finished / r.total * 100) : 0;
+            return `<tr style="border-bottom:1px solid var(--border);${ri % 2 === 0 ? '' : 'background:#fafaf8;'}">
+              <td style="padding:.55rem .75rem;">
+                <div style="font-weight:500;font-size:.85rem;">${esc(r.displayName)}</div>
+                <div style="height:4px;background:var(--border);border-radius:2px;margin-top:.3rem;overflow:hidden;max-width:120px;">
+                  <div style="height:100%;width:${pct}%;background:var(--green);border-radius:2px;"></div>
+                </div>
+                <div style="font-size:.68rem;color:var(--soft);margin-top:.15rem;">${r.finished}/${r.total} finished</div>
+              </td>
+              <td style="text-align:center;padding:.55rem .4rem;">
+                <span style="font-family:'Playfair Display',serif;font-size:1rem;font-weight:700;color:${r.finished===r.total&&r.total>0?'var(--green)':'var(--soft)'};">${r.finished}</span>
+              </td>
+              ${r.bookStatuses.map(bs => {
+                const sm = statusMeta[bs.status] || statusMeta['not-started'];
+                const show = !statusF || bs.status === statusF;
+                return `<td style="text-align:center;padding:.4rem .2rem;" title="${sm.label}">
+                  <span style="display:inline-block;padding:.15rem .3rem;border-radius:6px;background:${show ? sm.color : 'transparent'};font-size:.85rem;" title="${sm.label}">${show ? sm.emoji : '<span style=\'opacity:.2\'>·</span>'}</span>
+                </td>`;
+              }).join('')}
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:.75rem;font-size:.72rem;color:var(--soft);display:flex;flex-wrap:wrap;gap:.75rem;">
+      ${Object.entries(statusMeta).map(([, sm]) => `<span>${sm.emoji} ${sm.label}</span>`).join('')}
+    </div>`;
+}
+window.filterAdminProgress = filterAdminProgress;
 
 function renderMemberCompare() {
   const archives   = getArchives();
