@@ -2793,17 +2793,17 @@ function goAdminTab(id, btn) {
   });
   document.querySelectorAll('#admin-panel .sub-tab').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
-  if      (id === 'compare')                   renderMemberCompare();
-  else if (id === 'reading-progress-admin')    renderAdminReadingProgress();
-  else if (id === 'badges-admin')              renderAdminBadgeManager();
-  else if (id === 'edit-books')                renderEditBooksTab();
+  if      (id === 'compare')                renderMemberCompare();
+  else if (id === 'reading-progress-admin') renderAdminReadingProgress();
+  else if (id === 'badges-admin')           renderAdminBadgeManager();
+  else if (id === 'edit-books')             renderEditBooksTab();
 }
 window.goAdminTab = goAdminTab;
 
 // ════════════════════════════════════════════════════════
 // ADMIN — READING PROGRESS VIEW
 // ════════════════════════════════════════════════════════
-let _adminPgRows = []; // all rows, used for filtering
+let _adminPgRows = [];
 
 function renderAdminReadingProgress() {
   const archives = getArchives();
@@ -2818,7 +2818,7 @@ function renderAdminReadingProgress() {
   }
 
   // Collect all winner books across archives
-  const winnerBooks = []; // { bookId, title, author, month }
+  const winnerBooks = [];
   archives.forEach(a => {
     const dualIds = a.dualWinners || [];
     const nb = (a.books || []).length;
@@ -2837,25 +2837,51 @@ function renderAdminReadingProgress() {
     winners.forEach(b => winnerBooks.push({ bookId: String(b.id), title: b.title, author: b.author || '', month: a.label }));
   });
 
-  // Populate book filter dropdown
-  const existingVals = new Set([...bookSel.options].map(o => o.value));
+  // Populate book filter dropdown (reset first to avoid dupes on re-render)
+  bookSel.innerHTML = '<option value="">All books</option>';
   winnerBooks.forEach(wb => {
-    if (!existingVals.has(wb.bookId)) {
-      const opt = document.createElement('option');
-      opt.value = wb.bookId;
-      opt.textContent = `${wb.month} — ${wb.title}`;
-      bookSel.appendChild(opt);
-      existingVals.add(wb.bookId);
+    const opt = document.createElement('option');
+    opt.value = wb.bookId;
+    opt.textContent = `${wb.month} — ${wb.title}`;
+    bookSel.appendChild(opt);
+  });
+
+  // Collect all known members from: progress entries + archive votes + reviews
+  // Using a Map keyed by canonical key (normEmail || normId)
+  const memberKeys = new Map(); // key → displayName
+
+  // 1. From reading progress entries
+  Object.keys(progress).forEach(k => {
+    if (!memberKeys.has(k)) {
+      let name = k;
+      for (const [, e] of idMap) {
+        if ((e.email && normEmail(e.email) === k) || e.normIds.has(k)) { name = e.displayName; break; }
+      }
+      memberKeys.set(k, name);
     }
   });
 
-  // Collect all known members from progress + votes
-  const memberKeys = new Set();
-  Object.keys(progress).forEach(k => memberKeys.add(k));
-  archives.forEach(a => Object.values(a.votes || {}).forEach(vd => {
-    const key = normEmail(vd.email) || normId(vd.discord);
-    if (key) memberKeys.add(key);
-  }));
+  // 2. From archive votes
+  archives.forEach(a => {
+    Object.values(a.votes || {}).forEach(vd => {
+      const key = normEmail(vd.email) || normId(vd.discord);
+      if (key && !memberKeys.has(key)) {
+        memberKeys.set(key, resolveId(vd.discord, vd.email, idMap) || vd.discord || key);
+      }
+    });
+  });
+
+  // 3. From reviews — this is the fix: members who only reviewed (like alexofohio)
+  //    were previously invisible here because they never voted.
+  const allReviews = getReviews();
+  Object.values(allReviews).forEach(entries => {
+    (entries || []).forEach(r => {
+      const key = normEmail(r.email) || normId(r.discord);
+      if (key && !memberKeys.has(key)) {
+        memberKeys.set(key, resolveId(r.discord || '', r.email || '', idMap) || r.discord || key);
+      }
+    });
+  });
 
   const statusMeta = {
     'finished':           { label: 'Finished',          emoji: '✅', color: '#e8f5e9', text: '#2d7a3a' },
@@ -2865,16 +2891,8 @@ function renderAdminReadingProgress() {
     'chose-not-to-read':  { label: 'Chose Not to Read',  emoji: '🚫', color: '#f3e8ff', text: '#7b5ea7' },
   };
 
-  // Build flat rows: one row per member
   _adminPgRows = [];
-  memberKeys.forEach(key => {
-    // Resolve display name
-    let displayName = key;
-    for (const [, e] of idMap) {
-      if ((e.email && normEmail(e.email) === key) || e.normIds.has(key)) {
-        displayName = e.displayName; break;
-      }
-    }
+  memberKeys.forEach((displayName, key) => {
     const memberProgress = progress[key] || {};
     const bookStatuses = winnerBooks.map(wb => ({
       ...wb,
@@ -2884,10 +2902,8 @@ function renderAdminReadingProgress() {
     _adminPgRows.push({ key, displayName, bookStatuses, finished, total: winnerBooks.length });
   });
 
-  // Sort by finished desc, then name asc
   _adminPgRows.sort((a, b) => b.finished - a.finished || a.displayName.localeCompare(b.displayName));
 
-  // Store winner books for filter use
   window._adminPgWinnerBooks = winnerBooks;
   window._adminPgStatusMeta  = statusMeta;
 
@@ -2896,10 +2912,10 @@ function renderAdminReadingProgress() {
 window.renderAdminReadingProgress = renderAdminReadingProgress;
 
 function filterAdminProgress() {
-  const area     = document.getElementById('admin-reading-progress-area');
-  const search   = (document.getElementById('admin-pg-search')?.value || '').trim().toLowerCase();
-  const bookId   = document.getElementById('admin-pg-book-filter')?.value || '';
-  const statusF  = document.getElementById('admin-pg-status-filter')?.value || '';
+  const area       = document.getElementById('admin-reading-progress-area');
+  const search     = (document.getElementById('admin-pg-search')?.value || '').trim().toLowerCase();
+  const bookId     = document.getElementById('admin-pg-book-filter')?.value || '';
+  const statusF    = document.getElementById('admin-pg-status-filter')?.value || '';
   const winnerBooks = window._adminPgWinnerBooks || [];
   const statusMeta  = window._adminPgStatusMeta  || {};
 
@@ -2918,7 +2934,6 @@ function filterAdminProgress() {
     return;
   }
 
-  // If filtering by a single book, show compact list
   if (bookId) {
     const wb = winnerBooks.find(w => w.bookId === bookId);
     const filtered = rows.map(r => {
@@ -2950,7 +2965,6 @@ function filterAdminProgress() {
     return;
   }
 
-  // Full table view — one column per winner book
   const visibleBooks = winnerBooks;
   const colW = Math.max(80, Math.floor(560 / Math.max(visibleBooks.length, 1)));
 
@@ -2961,7 +2975,7 @@ function filterAdminProgress() {
           <tr style="border-bottom:2px solid var(--border);">
             <th style="text-align:left;padding:.5rem .75rem;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);min-width:140px;">Member</th>
             <th style="text-align:center;padding:.5rem .4rem;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);min-width:60px;">Done</th>
-            ${visibleBooks.map(wb => `<th style="text-align:center;padding:.4rem .3rem;min-width:${colW}px;max-width:${colW}px;" title="${esc(wb.title)} (${esc(wb.month)})">
+            ${visibleBooks.map(wb => `<th style="text-align:center;padding:.4rem .3rem;min-width:${colW}px;max-width:${colW}px;">
               <div style="font-size:.65rem;color:var(--gold);letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(wb.month)}</div>
               <div style="font-size:.72rem;color:var(--ink);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(wb.title)}">${esc(wb.title.length > 12 ? wb.title.slice(0,11)+'…' : wb.title)}</div>
             </th>`).join('')}
@@ -2985,7 +2999,7 @@ function filterAdminProgress() {
                 const sm = statusMeta[bs.status] || statusMeta['not-started'];
                 const show = !statusF || bs.status === statusF;
                 return `<td style="text-align:center;padding:.4rem .2rem;" title="${sm.label}">
-                  <span style="display:inline-block;padding:.15rem .3rem;border-radius:6px;background:${show ? sm.color : 'transparent'};font-size:.85rem;" title="${sm.label}">${show ? sm.emoji : '<span style=\'opacity:.2\'>·</span>'}</span>
+                  <span style="display:inline-block;padding:.15rem .3rem;border-radius:6px;background:${show ? sm.color : 'transparent'};font-size:.85rem;">${show ? sm.emoji : '<span style=\'opacity:.2\'>·</span>'}</span>
                 </td>`;
               }).join('')}
             </tr>`;
@@ -3558,11 +3572,22 @@ function renderProgressLeaderboard(winnerEntries) {
   const idMap = buildIdentityMap();
   const memberMap = new Map(); // key → { name, finished, reading, dnf, notStarted, total }
 
-  // Seed known members from archives
+  // Seed known members from archives (votes)
   archives.forEach(a => {
     Object.values(a.votes || {}).forEach(vd => {
       const name = resolveId(vd.discord, vd.email, idMap);
       const key = normEmail(vd.email) || normId(vd.discord);
+      if (!memberMap.has(key)) memberMap.set(key, { name, finished: 0, reading: 0, dnf: 0, choseNotToRead: 0 });
+    });
+  });
+
+  // Also seed from reviews — catches members who reviewed but never voted
+  const allReviewsForSeed = getReviews();
+  Object.values(allReviewsForSeed).forEach(entries => {
+    (entries || []).forEach(r => {
+      const key = normEmail(r.email) || normId(r.discord);
+      if (!key) return;
+      const name = resolveId(r.discord || '', r.email || '', idMap) || r.discord || key;
       if (!memberMap.has(key)) memberMap.set(key, { name, finished: 0, reading: 0, dnf: 0, choseNotToRead: 0 });
     });
   });
