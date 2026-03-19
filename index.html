@@ -984,12 +984,6 @@ const BINGO_BOARDS_REF = doc(db, 'club', 'bingoBoards');  // Parent doc for all 
 };
 
 // ── In-memory cache kept fresh by real-time listeners ──
-let CACHE = {
-  settings: {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,reviewsOpen:false,password:'bookclub123'},
-  books: [], votes: {}, archives: [], surveys: [], surveyResponses: {}, reviews: {},
-  readingProgress: {}, meetingInfo: {},
-  badgeConfig: { disabled:{}, hidden:{}, organic:{}, customBadges:[], overrides:{} }
-};
 
 // ── Single source of truth for all genres ─────────────────────────────────
 // Each entry: { name, bg, text, border }
