@@ -3816,8 +3816,10 @@ const BADGE_DEFS = [
   { id:'twelve-votes',      name:'Lifer',               emoji:'🎖️',  tier:null,     desc:'Vote in 12 or more months',                                 check:p=>p.voted>=12 },
   { id:'three-suggests',    name:'Curator',             emoji:'🔖',  tier:null,     desc:'Suggest books in 3 or more months',                         check:p=>p.suggestedMonths>=3 },
   { id:'three-reviews',     name:'Reviewer',            emoji:'📝',  tier:null,     desc:'Submit reviews in 3 or more months',                        check:p=>p.reviewed>=3 },
-  { id:'consistent',        name:'The Backbone',        emoji:'💎',  tier:null,     desc:'Vote in every single archived month without missing one (min 3)', check:p=>p.totalMonths>=3&&p.voted>=p.totalMonths&&p.voted>0 },
-  { id:'steady-eddie',      name:'Steady Eddie',        emoji:'🪨',  tier:null,     desc:'Vote in all but 1 month across any stretch of 6+ archived months', check:p=>p.steadyEddie },
+  { id:'consistent',        name:'The Backbone',        emoji:'💎',  tier:null,     desc:'Vote in every single archived month without missing one (min 9). Note: this badge reflects your live record — if you miss a future month it will disappear, but it comes back once your record is clean again.', check:p=>p.totalMonths>=9&&p.voted>=p.totalMonths&&p.voted>0 },
+  { id:'dependable',        name:'Dependable',          emoji:'⚙️',  tier:'bronze', desc:'Vote in all but 1 month across any stretch of 4 or more consecutive archived months',  check:p=>p.dependable },
+  { id:'dead-reliable',     name:'Dead Reliable',       emoji:'🪨',  tier:'silver', desc:'Vote in all but 1 month across any stretch of 6 or more consecutive archived months',  check:p=>p.deadReliable },
+  { id:'steady-eddie',      name:'Steady Eddie',        emoji:'🪨',  tier:'gold',   desc:'Vote in all but 1 month across any stretch of 12 or more consecutive archived months', check:p=>p.steadyEddie },
 
   // ── Voting streaks (tiered) ───────────────────────────────────────────────
   { id:'streak-3',          name:'Hat Trick',           emoji:'🔥',  tier:'bronze', desc:'Vote 3 months in a row',                                    check:p=>p.longestVoteStreak>=3 },
@@ -4152,18 +4154,22 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
     return longest;
   }
 
-  // ── Steady Eddie: voted in all but 1 month across any window of 6+ months ──
-  // O(n) sliding window: expand right, shrink left when misses > 1
-  let steadyEddie = false;
-  if (monthVoted.length >= 6) {
+  // ── Dependable / Dead Reliable / Steady Eddie: tiered consistency badges ──
+  // All use the same sliding window logic: find the longest window of N+ months
+  // where at most 1 month was missed. O(n) per tier.
+  function hasConsistencyWindow(arr, minLen) {
+    if (arr.length < minLen) return false;
     let misses = 0, left = 0;
-    for (let right = 0; right < monthVoted.length; right++) {
-      if (!monthVoted[right]) misses++;
-      // Shrink window from left while misses > 1
-      while (misses > 1) { if (!monthVoted[left]) misses--; left++; }
-      if (right - left + 1 >= 6) { steadyEddie = true; break; }
+    for (let right = 0; right < arr.length; right++) {
+      if (!arr[right]) misses++;
+      while (misses > 1) { if (!arr[left]) misses--; left++; }
+      if (right - left + 1 >= minLen) return true;
     }
+    return false;
   }
+  const dependable  = hasConsistencyWindow(monthVoted,  4);
+  const deadReliable = hasConsistencyWindow(monthVoted, 6);
+  const steadyEddie  = hasConsistencyWindow(monthVoted, 12);
 
   // ── Broken Clock: #1 pick finally won after missing 5+ times in a row ──
   let brokenClock = false;
@@ -4413,7 +4419,7 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
     genresSuggested: genresSuggestedSet.size,
     genreChampion, genreSpecialist, genreDevotee, comfortZone, againstType,
     genresRated: genresRatedSet.size,
-    whyNotBoth, steadyEddie, brokenClock,
+    whyNotBoth, dependable, deadReliable, steadyEddie, brokenClock,
     penPalCount, essayistCount, tryTryAgain, chefsKiss, coverToCover,
     hotTake, unanimous, earlyToRise, mirrorMirror, mirrorMatchName, mirrorMatchMonth,
     glassHalfFull,
@@ -4456,7 +4462,7 @@ const BADGE_CATEGORY_MAP = {
   'first-vote':'participation','first-suggest':'participation','first-review':'participation',
   'all-rounder':'participation','why-not-both':'participation','three-votes':'participation','six-votes':'participation',
   'twelve-votes':'participation','three-suggests':'participation','three-reviews':'participation',
-  'consistent':'participation','steady-eddie':'participation',
+  'consistent':'participation','dependable':'participation','dead-reliable':'participation','steady-eddie':'participation',
   // Streaks — consecutive or sustained patterns
   'streak-3':'streaks','streak-6':'streaks','streak-12':'streaks',
   'completionist-3':'streaks',
@@ -4511,7 +4517,7 @@ function renderBadgesTab() {
     // whose check() can never pass organically (i.e. always returns false)
     const ov = _badgeCfg.overrides?.[myKey];
     if (ov && ov[b.id] === true && b.check) {
-      try { return b.check({ voted:999,suggestedMonths:999,reviewed:999,longestVoteStreak:999,longestReadStreak:999,longestAllRounderStreak:999,pickedWinner:999,suggestedTop3:999,dnfCount:999,dnsCount:999,whyNotBoth:999,genresSuggested:999,totalMonths:999,surveysCompleted:999,steadyEddie:true }) === false; }
+      try { return b.check({ voted:999,suggestedMonths:999,reviewed:999,longestVoteStreak:999,longestReadStreak:999,longestAllRounderStreak:999,pickedWinner:999,suggestedTop3:999,dnfCount:999,dnsCount:999,whyNotBoth:999,genresSuggested:999,totalMonths:999,surveysCompleted:999,steadyEddie:true,dependable:true,deadReliable:true }) === false; }
       catch { return true; }
     }
     return false;
