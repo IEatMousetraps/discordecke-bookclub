@@ -1676,6 +1676,7 @@ function loadMySurveyResponses() {
   if (!email)   { showMsg('sr-lookup-msg', 'Please enter your email address.', 'err'); return; }
   if (!discord) { showMsg('sr-lookup-msg', 'Please enter your Discord username.', 'err'); return; }
   _srIdentity = { email, discord };
+  saveIdentityCookie(email, discord);
   document.getElementById('surveys-my-responses-main').style.display = '';
   renderMySurveyResponses();
 }
@@ -3562,6 +3563,7 @@ async function loadProgress() {
   const discord = document.getElementById('pg-discord').value.trim();
   if (!email && !discord) { showMsg('pg-identity-msg', 'Please enter your email or Discord username.', 'err'); return; }
   _pgIdentity = { email, discord, key: pgKey(email, discord) };
+  saveIdentityCookie(email, discord);
   document.getElementById('progress-main').style.display = '';
   renderProgressTab();
 }
@@ -4393,6 +4395,7 @@ async function loadBadges() {
   if (!email) { showMsg('bg-identity-msg', 'Please enter your email address.', 'err'); return; }
   if (!discord) { showMsg('bg-identity-msg', 'Please enter your Discord username.', 'err'); return; }
   _bgIdentity = { email, discord };
+  saveIdentityCookie(email, discord);
   document.getElementById('badges-main').style.display = '';
   renderBadgesTab();
 }
@@ -5281,6 +5284,84 @@ function setPill(id, cond, tLabel, fLabel, tCls, fCls) {
 }
 
 // ════════════════════════════════════════════════════════
+// REMEMBERED IDENTITY (cookie-based, no login)
+// ════════════════════════════════════════════════════════
+const IDENTITY_COOKIE = 'dbc_identity';
+const IDENTITY_DAYS   = 365;
+
+function saveIdentityCookie(email, discord) {
+  const val = encodeURIComponent(JSON.stringify({ email: email.trim(), discord: discord.trim() }));
+  const exp = new Date(Date.now() + IDENTITY_DAYS * 864e5).toUTCString();
+  document.cookie = `${IDENTITY_COOKIE}=${val};expires=${exp};path=/;SameSite=Lax`;
+}
+
+function loadIdentityCookie() {
+  const match = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith(IDENTITY_COOKIE + '='));
+  if (!match) return null;
+  try { return JSON.parse(decodeURIComponent(match.split('=').slice(1).join('='))); } catch { return null; }
+}
+
+function clearIdentityCookie() {
+  document.cookie = `${IDENTITY_COOKIE}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;SameSite=Lax`;
+}
+
+// Renders a "Remembered as X · Not you?" bar and returns its HTML
+function rememberedBannerHtml(email, discord) {
+  const name = discord || email;
+  return `<div id="remembered-banner" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;background:#fffbef;border:1px solid var(--gold);border-radius:6px;padding:.55rem 1rem;font-size:.82rem;margin-bottom:.75rem;">
+    <span>👋 Remembered as <strong>${esc(name)}</strong></span>
+    <button onclick="forgetIdentity()" style="background:none;border:none;cursor:pointer;font-size:.75rem;color:var(--soft);text-decoration:underline;font-family:'DM Sans',sans-serif;padding:0;">Not you? Forget me</button>
+  </div>`;
+}
+
+function forgetIdentity() {
+  clearIdentityCookie();
+  // Reset all three identity forms and hide their main sections
+  ['pg-email','pg-discord','sr-lookup-email','sr-lookup-discord','bg-email','bg-discord'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  // Remove all remembered banners
+  document.querySelectorAll('#remembered-banner').forEach(el => el.remove());
+  // Show identity cards, hide main sections
+  const show = ['progress-identity-card','surveys-identity-card','badges-identity-card'];
+  show.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = ''; });
+  const hide = ['progress-main','surveys-my-responses-main','badges-main'];
+  hide.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  // Reset in-memory identities
+  _pgIdentity  = null;
+  _bgIdentity  = null;
+  if (typeof _srIdentity !== 'undefined') window._srIdentity = null;
+}
+window.forgetIdentity = forgetIdentity;
+
+// Pre-fills all identity forms and auto-submits if cookie is present
+function applyIdentityCookieToForms() {
+  const saved = loadIdentityCookie();
+  if (!saved || (!saved.email && !saved.discord)) return;
+  const { email, discord } = saved;
+
+  // Fill all inputs
+  const fill = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+  fill('pg-email',         email);   fill('pg-discord',         discord);
+  fill('sr-lookup-email',  email);   fill('sr-lookup-discord',  discord);
+  fill('bg-email',         email);   fill('bg-discord',         discord);
+
+  // Insert "Remembered as" banners above each identity card's button
+  const insertBanner = (cardId) => {
+    const card = document.getElementById(cardId);
+    if (!card) return;
+    // Avoid duplicate banners
+    if (card.querySelector('#remembered-banner')) return;
+    const banner = document.createElement('div');
+    banner.innerHTML = rememberedBannerHtml(email, discord);
+    card.insertBefore(banner.firstElementChild, card.querySelector('button'));
+  };
+  insertBanner('progress-identity-card');
+  insertBanner('surveys-identity-card');
+  insertBanner('badges-identity-card');
+}
+
+// ════════════════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════════════════
 // Show the app immediately — Firebase listeners will update data as they arrive
@@ -5294,6 +5375,7 @@ if (_initTab && _validTabs.includes(_initTab)) {
   renderSuggest();
 }
 startListeners();
+applyIdentityCookieToForms();
 
 </script>
 </body>
