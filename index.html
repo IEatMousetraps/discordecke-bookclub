@@ -2770,21 +2770,33 @@ function renderRankings() {
       </div>`;
     }
 
-    // Single book card (original layout)
+    // Single book card — may be a true single-winner month, or a dual month where only one book has reviews yet
     const {rankKey, d, rank} = group.cards[0];
     const meta          = rankKeyMeta[rankKey] || {};
+    const isSingleOfDual = meta.isDual; // dual month but only one book has reviews
     const reviewToggleId = `rkrev_${rankKey.replace(/[^a-z0-9]/gi,'_')}`;
     const recommenders  = recommenderMap[rankKey] || [];
     const recommenderHtml = recommenders.length
       ? `<div style="font-size:.72rem;color:var(--soft);margin-bottom:.75rem;">📌 Recommended by: <strong style="color:var(--ink);">${recommenders.map(r=>esc(r)).join(', ')}</strong></div>`
       : '';
+    // Header: for dual months show "March 2026" label + book title on next line; for single months show month label as before
+    const headerHtml = isSingleOfDual
+      ? `<div style="display:flex;align-items:baseline;gap:.75rem;margin-bottom:.35rem;">
+          <span style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--gold);">${rank}.</span>
+          <span style="font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:600;">${esc(meta.bookTitle)}</span>
+          ${meta.genre ? genrePillsHtml(meta.genre) : ''}
+        </div>
+        <div style="font-size:.72rem;color:var(--soft);margin-bottom:.85rem;padding-left:2.1rem;">
+          👑 ${esc(cleanMonthLabel)} · <em style="font-style:italic;">Co-winner month</em>
+        </div>`
+      : `<div style="display:flex;align-items:baseline;gap:.75rem;margin-bottom:.85rem;">
+          <span style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--gold);">${rank}.</span>
+          <span style="font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:600;">${esc(monthLabel)}</span>
+          ${meta.genre ? genrePillsHtml(meta.genre) : ''}
+        </div>`;
     return `
     <div class="chart-wrap" style="margin-bottom:1rem;">
-      <div style="display:flex;align-items:baseline;gap:.75rem;margin-bottom:.85rem;">
-        <span style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--gold);">${rank}.</span>
-        <span style="font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:600;">${esc(monthLabel)}</span>
-        ${meta.genre ? genrePillsHtml(meta.genre) : ''}
-      </div>
+      ${headerHtml}
       ${recommenderHtml}
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.6rem;margin-bottom:.75rem;">
         <div style="background:var(--cream);border-radius:6px;padding:.65rem;text-align:center;">
