@@ -2538,35 +2538,72 @@ function renderRankings() {
     return;
   }
 
-  // Build a genre lookup from archives using shared helper
-  const monthGenreMap = {};
-  getArchiveWinners().forEach(({archive:a, winnerBooks}) => {
-    const winnerWithGenre = winnerBooks.find(b=>b.genre) || winnerBooks[0];
-    if (winnerWithGenre && winnerWithGenre.genre) monthGenreMap[a.label] = winnerWithGenre.genre;
-  });
+  const idMap = buildIdentityMap();
 
-  // Aggregate per book title across all months
-  const bookData = {};
-  Object.entries(reviews).forEach(([month, entries]) => {
-    (entries||[]).forEach(r => {
-      const title = month;
-      if (!bookData[title]) bookData[title] = { ratings:[], started:0, finished:0, liked:0, total:0, genre: monthGenreMap[month]||'' };
-      bookData[title].total++;
-      if (r.read === 'Yes') bookData[title].started++;
-      if (r.finished === 'Yes') bookData[title].finished++;
-      if (r.liked === 'Yes') bookData[title].liked++;
-      const rating = +r.rating;
-      if (rating >= 1 && rating <= 5) bookData[title].ratings.push(rating);
+  // Build archive metadata: dual-winner info, genres, suggesters per book
+  const archiveLookup = {}; // month → { dual, winnerBooks: [{id, title, author, genre}] }
+  const recommenderMap = {}; // rankKey → [names]  (rankKey = month for single, month+'::'+bookId for dual)
+  getArchiveWinners().forEach(({archive:a, winnerBooks}) => {
+    if (!winnerBooks.length) return;
+    const isDual = (a.dualWinners||[]).length > 0;
+    archiveLookup[a.label] = { dual: isDual, winnerBooks };
+    winnerBooks.forEach(b => {
+      const rankKey = isDual ? (a.label + '::' + String(b.id)) : a.label;
+      const names = [];
+      normBook(b).suggesters.forEach(s => {
+        const n = resolveId(s.discord, s.email, idMap) || s.discord || '';
+        if (n && !names.includes(n)) names.push(n);
+      });
+      if (names.length) recommenderMap[rankKey] = names.sort((x,y) => x.localeCompare(y));
     });
   });
 
-  // Sort by average rating descending, then by started% as tiebreaker
-  const sorted = Object.entries(bookData).map(([month, d]) => {
-    const avgRating = d.ratings.length ? d.ratings.reduce((a,b)=>a+b,0)/d.ratings.length : 0;
-    const startedPct = d.total > 0 ? (d.started/d.total*100) : 0;
+  // Build per-rankKey stats. For dual months each book gets its own key (month::bookId).
+  // For single months the key is just the month label.
+  const bookData = {}; // rankKey → stats
+  const rankKeyMeta = {}; // rankKey → { month, bookTitle, bookId, genre, isDual }
+
+  Object.entries(reviews).forEach(([month, entries]) => {
+    const archMeta = archiveLookup[month] || {};
+    const isDual = archMeta.dual || false;
+
+    (entries||[]).forEach(r => {
+      let rankKey, bookTitle, bookId, genre;
+      if (isDual && r.bookId) {
+        bookId    = String(r.bookId);
+        bookTitle = r.bookTitle || bookId;
+        rankKey   = month + '::' + bookId;
+        // pull genre from the matching winner book
+        const wb  = (archMeta.winnerBooks||[]).find(b => String(b.id) === bookId);
+        genre     = wb?.genre || '';
+      } else {
+        rankKey   = month;
+        bookTitle = '';
+        bookId    = '';
+        const wb  = (archMeta.winnerBooks||[])[0];
+        genre     = wb?.genre || '';
+      }
+
+      if (!bookData[rankKey]) {
+        bookData[rankKey] = { ratings:[], started:0, finished:0, liked:0, total:0 };
+        rankKeyMeta[rankKey] = { month, bookTitle, bookId, genre, isDual };
+      }
+      bookData[rankKey].total++;
+      if (r.read === 'Yes') bookData[rankKey].started++;
+      if (r.finished === 'Yes') bookData[rankKey].finished++;
+      if (r.liked === 'Yes') bookData[rankKey].liked++;
+      const rating = +r.rating;
+      if (rating >= 1 && rating <= 5) bookData[rankKey].ratings.push(rating);
+    });
+  });
+
+  // Sort by average rating desc, then started% as tiebreaker
+  const sorted = Object.entries(bookData).map(([rankKey, d]) => {
+    const avgRating   = d.ratings.length ? d.ratings.reduce((a,b)=>a+b,0)/d.ratings.length : 0;
+    const startedPct  = d.total > 0 ? (d.started/d.total*100) : 0;
     const finishedPct = d.total > 0 ? (d.finished/d.total*100) : 0;
-    const likedPct = d.started > 0 ? (d.liked/d.started*100) : 0;
-    return [month, { ...d, avgRating, startedPct, finishedPct, likedPct }];
+    const likedPct    = d.started > 0 ? (d.liked/d.started*100) : 0;
+    return [rankKey, { ...d, avgRating, startedPct, finishedPct, likedPct }];
   }).sort((a,b) => b[1].avgRating - a[1].avgRating || b[1].startedPct - a[1].startedPct);
 
   const starDisplay = avg => {
@@ -2575,28 +2612,6 @@ function renderRankings() {
     return '⭐'.repeat(full) + (half?'½':'') + ` <span style="font-size:.8rem;color:var(--soft);">${avg.toFixed(1)}/5</span>`;
   };
 
-  // Build member review cards for a given month (mirrors renderAnalysisReviews style)
-  const idMap = buildIdentityMap();
-  const archiveLookup = {};
-  const recommenderMap = {}; // month label → array of suggester names
-  getArchiveWinners().forEach(({archive:a, winnerBooks}) => {
-    const wb = winnerBooks[0];
-    if (!wb) return;
-    archiveLookup[a.label] = {
-      dual:     (a.dualWinners||[]).length > 0,
-      coTitles: winnerBooks.map(b=>b.title),
-    };
-    // Collect suggesters for each winner book
-    const names = [];
-    winnerBooks.forEach(b => {
-      normBook(b).suggesters.forEach(s => {
-        const n = resolveId(s.discord, s.email, idMap) || s.discord || '';
-        if (n && !names.includes(n)) names.push(n);
-      });
-    });
-    if (names.length) recommenderMap[a.label] = names.sort((a,b) => a.localeCompare(b));
-  });
-
   const starHtml = val => {
     const n = +val;
     if (!n || n < 1 || n > 5) return '<span style="color:var(--soft);font-size:.75rem;">No rating</span>';
@@ -2604,16 +2619,18 @@ function renderRankings() {
            `<span style="font-size:.72rem;color:var(--soft);margin-left:.25rem;">${n}/5</span>`;
   };
 
-  function buildReviewCards(month) {
-    const entries = reviews[month] || [];
+  // Build review cards for a given rankKey
+  function buildReviewCards(rankKey) {
+    const meta    = rankKeyMeta[rankKey] || {};
+    const { month, bookId, isDual } = meta;
+    const entries = (reviews[month] || []).filter(r =>
+      isDual && bookId ? String(r.bookId) === bookId : true
+    );
     if (!entries.length) return '<p style="font-size:.82rem;color:var(--soft);padding:.5rem 0;">No reviews submitted yet.</p>';
-    const meta = archiveLookup[month] || {};
-    const isDual = meta.dual;
-    const monthId = month.replace(/[^a-z0-9]/gi, '_');
+    const safeId = rankKey.replace(/[^a-z0-9]/gi, '_');
 
     return entries.map((r, ri) => {
       const name = resolveId(r.discord||'', r.email||'', idMap) || r.discord || 'Anonymous';
-      const bookLine = isDual && r.bookTitle ? `<span style="font-size:.72rem;color:var(--soft);font-style:italic;">${esc(r.bookTitle)}</span>` : '';
       const statusPills = [
         r.read === 'Yes'
           ? '<span style="background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;font-size:.65rem;padding:.1rem .45rem;border-radius:20px;">Started</span>'
@@ -2625,17 +2642,15 @@ function renderRankings() {
       ].filter(Boolean).join(' ');
 
       const hasThoughts = !!(r.why || (r.dnfWhy && r.finished !== 'Yes'));
-      const toggleId = `rk_thoughts_${monthId}_${ri}`;
-      const quoteHtml = r.why ? `<div style="font-size:.82rem;color:var(--ink);font-style:italic;padding:.5rem .75rem;background:var(--paper);border-left:2px solid var(--gold);border-radius:0 4px 4px 0;line-height:1.55;">"${esc(r.why)}"</div>` : '';
-      const dnfHtml = r.dnfWhy && r.finished !== 'Yes' ? `<div style="font-size:.78rem;color:var(--soft);font-style:italic;">${r.read === 'No' ? 'Why DNS' : 'Why DNF'}: ${esc(r.dnfWhy)}</div>` : '';
+      const toggleId    = `rk_thoughts_${safeId}_${ri}`;
+      const quoteHtml   = r.why ? `<div style="font-size:.82rem;color:var(--ink);font-style:italic;padding:.5rem .75rem;background:var(--paper);border-left:2px solid var(--gold);border-radius:0 4px 4px 0;line-height:1.55;">"${esc(r.why)}"</div>` : '';
+      const dnfHtml     = r.dnfWhy && r.finished !== 'Yes' ? `<div style="font-size:.78rem;color:var(--soft);font-style:italic;">${r.read === 'No' ? 'Why DNS' : 'Why DNF'}: ${esc(r.dnfWhy)}</div>` : '';
       const thoughtsBlock = hasThoughts ? `<div id="${toggleId}" style="display:none;margin-top:.45rem;">${quoteHtml}${dnfHtml}</div>` : '';
-      const toggleBtn = hasThoughts ? `<button onclick="toggleThoughts('${toggleId}',this)" style="background:none;border:none;cursor:pointer;font-size:.72rem;color:var(--soft);padding:.1rem 0;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:.25rem;margin-top:.3rem;"><span style="font-size:.65rem;">▶</span> Show thoughts</button>` : '';
+      const toggleBtn   = hasThoughts ? `<button onclick="toggleThoughts('${toggleId}',this)" style="background:none;border:none;cursor:pointer;font-size:.72rem;color:var(--soft);padding:.1rem 0;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:.25rem;margin-top:.3rem;"><span style="font-size:.65rem;">▶</span> Show thoughts</button>` : '';
 
       return `<div style="padding:.75rem 0;border-bottom:1px solid var(--border);">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.4rem;margin-bottom:.3rem;">
-          <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
-            <span style="font-weight:500;font-size:.88rem;">${esc(name)}</span>${bookLine}
-          </div>
+          <span style="font-weight:500;font-size:.88rem;">${esc(name)}</span>
           <div>${starHtml(r.rating)}</div>
         </div>
         <div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.1rem;">${statusPills}</div>
@@ -2644,20 +2659,105 @@ function renderRankings() {
     }).join('');
   }
 
+  // Group sorted entries by month so dual-winner siblings render together
+  // Each group: { month, cards: [ {rankKey, d, rank} ] }
+  const groups = [];
+  const monthOrder = []; // track insertion order
+  const monthGroupMap = {};
+  let globalRank = 0;
+  sorted.forEach(([rankKey, d]) => {
+    globalRank++;
+    const meta = rankKeyMeta[rankKey] || {};
+    const month = meta.month || rankKey;
+    if (!monthGroupMap[month]) {
+      monthGroupMap[month] = { month, cards: [] };
+      monthOrder.push(month);
+      groups.push(monthGroupMap[month]);
+    }
+    monthGroupMap[month].cards.push({ rankKey, d, rank: globalRank });
+  });
+
   area.innerHTML = `
   <p style="font-size:.78rem;color:var(--soft);margin-bottom:1.5rem;">Rankings are based on member reviews submitted through the Rank A Book page. Sorted by average star rating. Click <strong>Member Reviews</strong> on any book to see individual responses.</p>
-  ${sorted.map(([month, d], i) => {
-    const reviewToggleId = `rkrev_${month.replace(/[^a-z0-9]/gi,'_')}`;
-    const recommenders = recommenderMap[month] || [];
+  ${groups.map(group => {
+    const isDualGroup = group.cards.length > 1 || (rankKeyMeta[group.cards[0]?.rankKey]?.isDual);
+    const monthLabel  = group.month;
+
+    // For dual groups: wrap both book cards in a shared month container
+    if (isDualGroup && group.cards.length > 1) {
+      const innerCards = group.cards.map(({rankKey, d, rank}) => {
+        const meta          = rankKeyMeta[rankKey] || {};
+        const reviewToggleId = `rkrev_${rankKey.replace(/[^a-z0-9]/gi,'_')}`;
+        const recommenders  = recommenderMap[rankKey] || [];
+        const recommenderHtml = recommenders.length
+          ? `<div style="font-size:.72rem;color:var(--soft);margin-bottom:.65rem;">📌 Recommended by: <strong style="color:var(--ink);">${recommenders.map(r=>esc(r)).join(', ')}</strong></div>`
+          : '';
+        return `
+        <div style="background:var(--paper);border:1px solid var(--border);border-radius:6px;padding:1rem 1.1rem;margin-bottom:.5rem;">
+          <div style="display:flex;align-items:baseline;gap:.65rem;margin-bottom:.65rem;">
+            <span style="font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:700;color:var(--gold);">${rank}.</span>
+            <span style="font-family:'Playfair Display',serif;font-size:.98rem;font-weight:600;">${esc(meta.bookTitle)}</span>
+            ${meta.genre ? genrePillsHtml(meta.genre) : ''}
+          </div>
+          ${recommenderHtml}
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:.5rem;margin-bottom:.65rem;">
+            <div style="background:var(--cream);border-radius:6px;padding:.55rem;text-align:center;">
+              <div style="font-size:.95rem;margin-bottom:.2rem;">${starDisplay(d.avgRating)}</div>
+              <div style="font-size:.65rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Avg Rating</div>
+            </div>
+            <div style="background:var(--cream);border-radius:6px;padding:.55rem;text-align:center;">
+              <div style="font-family:'Playfair Display',serif;font-size:1.25rem;font-weight:700;color:var(--gold);">${d.startedPct.toFixed(0)}%</div>
+              <div style="font-size:.65rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Started</div>
+            </div>
+            <div style="background:var(--cream);border-radius:6px;padding:.55rem;text-align:center;">
+              <div style="font-family:'Playfair Display',serif;font-size:1.25rem;font-weight:700;color:var(--gold);">${d.finishedPct.toFixed(0)}%</div>
+              <div style="font-size:.65rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Finished</div>
+            </div>
+            <div style="background:var(--cream);border-radius:6px;padding:.55rem;text-align:center;">
+              <div style="font-family:'Playfair Display',serif;font-size:1.25rem;font-weight:700;color:var(--gold);">${d.likedPct.toFixed(0)}%</div>
+              <div style="font-size:.65rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Liked It</div>
+            </div>
+            <div style="background:var(--cream);border-radius:6px;padding:.55rem;text-align:center;">
+              <div style="font-family:'Playfair Display',serif;font-size:1.25rem;font-weight:700;color:var(--gold);">${d.total}</div>
+              <div style="font-size:.65rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Reviews</div>
+            </div>
+          </div>
+          <button onclick="toggleRankingReviews('${reviewToggleId}', this)"
+            style="background:none;border:1px solid var(--border);border-radius:20px;cursor:pointer;font-size:.75rem;color:var(--soft);padding:.3rem .85rem;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:.35rem;transition:all .2s;"
+            onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--ink)';"
+            onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--soft)';">
+            <span style="font-size:.65rem;">▶</span> Member Reviews (${d.total})
+          </button>
+          <div id="${reviewToggleId}" style="display:none;margin-top:.75rem;border-top:1px solid var(--border);padding-top:.5rem;">
+            ${buildReviewCards(rankKey)}
+          </div>
+        </div>`;
+      }).join('');
+
+      return `
+      <div class="chart-wrap" style="margin-bottom:1rem;">
+        <div style="display:flex;align-items:center;gap:.65rem;margin-bottom:1rem;padding-bottom:.75rem;border-bottom:1px solid var(--border);">
+          <span style="font-size:.8rem;background:linear-gradient(135deg,#fffdf5,#fff8e0);border:1px solid var(--gold);border-radius:20px;padding:.2rem .7rem;color:var(--gold);font-weight:600;letter-spacing:.04em;">👑 ${esc(monthLabel)}</span>
+          <span style="font-size:.72rem;color:var(--soft);font-style:italic;">Co-winner month · 2 books</span>
+        </div>
+        ${innerCards}
+      </div>`;
+    }
+
+    // Single book card (original layout)
+    const {rankKey, d, rank} = group.cards[0];
+    const meta          = rankKeyMeta[rankKey] || {};
+    const reviewToggleId = `rkrev_${rankKey.replace(/[^a-z0-9]/gi,'_')}`;
+    const recommenders  = recommenderMap[rankKey] || [];
     const recommenderHtml = recommenders.length
       ? `<div style="font-size:.72rem;color:var(--soft);margin-bottom:.75rem;">📌 Recommended by: <strong style="color:var(--ink);">${recommenders.map(r=>esc(r)).join(', ')}</strong></div>`
       : '';
     return `
     <div class="chart-wrap" style="margin-bottom:1rem;">
       <div style="display:flex;align-items:baseline;gap:.75rem;margin-bottom:.85rem;">
-        <span style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--gold);">${i+1}.</span>
-        <span style="font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:600;">${esc(month)}</span>
-        ${d.genre ? genrePillsHtml(d.genre) : ''}
+        <span style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--gold);">${rank}.</span>
+        <span style="font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:600;">${esc(monthLabel)}</span>
+        ${meta.genre ? genrePillsHtml(meta.genre) : ''}
       </div>
       ${recommenderHtml}
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.6rem;margin-bottom:.75rem;">
@@ -2689,7 +2789,7 @@ function renderRankings() {
         <span style="font-size:.65rem;">▶</span> Member Reviews (${d.total})
       </button>
       <div id="${reviewToggleId}" style="display:none;margin-top:.75rem;border-top:1px solid var(--border);padding-top:.5rem;">
-        ${buildReviewCards(month)}
+        ${buildReviewCards(rankKey)}
       </div>
     </div>`;
   }).join('')}`;
