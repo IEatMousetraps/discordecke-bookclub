@@ -1509,6 +1509,7 @@ function renderMemberSurveys() {
         <div style="margin-top:1rem;"><button class="btn btn-primary" onclick="submitSurveyResponse('${s.id}')">Submit Response</button></div>
         <div id="sr-msg-${s.id}"></div>
       </div>`;
+    applyIdentityCookieToSurveyForm(s.id);
   } else {
     // Multiple surveys — show a list; members click through to each individually
     area.innerHTML = `
@@ -1551,6 +1552,7 @@ function openSurveyDetail(sid) {
         : `<div style="margin-top:1rem;"><button class="btn btn-primary" onclick="submitSurveyResponse('${survey.id}')">Submit Response</button></div>`}
       <div id="sr-msg-${survey.id}"></div>
     </div>`;
+  applyIdentityCookieToSurveyForm(survey.id);
 }
 window.openSurveyDetail = openSurveyDetail;
 
@@ -1642,8 +1644,11 @@ async function submitSurveyResponse(sid) {
   await fbSet(SRESP_REF, { map: responses });
   hideLoading();
   showMsg(`sr-msg-${sid}`, '✓ Response submitted!', 'ok');
+  saveIdentityCookie(email, name);
   document.getElementById(`scard-${sid}`).querySelectorAll('input,textarea').forEach(el => { if (el.type === 'radio' || el.type === 'checkbox') el.checked = false; else el.value = ''; });
   document.querySelectorAll('[id^="star-"]').forEach(el => el.classList.remove('on'));
+  // Re-apply remembered identity to survey fields after reset
+  applyIdentityCookieToSurveyForm(sid);
   // If we're in the detail view (multi-survey), return to the list after a short delay
   const detailPanel = document.getElementById('surveys-sub-detail');
   if (detailPanel && detailPanel.style.display !== 'none') {
