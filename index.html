@@ -234,6 +234,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       </div>
       <div class="f-group"><label>Why are you recommending this book? <span style="font-size:.7rem;color:var(--soft);text-transform:none;letter-spacing:0;">(optional)</span></label><textarea id="s-reason" placeholder="Tell the club why they should read this…" rows="3"></textarea></div>
       <label class="receipt-check"><input type="checkbox" id="s-receipt"> Download a copy of my submission (PDF)</label>
+      <div id="suggest-identity-banner"></div>
       <button class="btn btn-primary" onclick="suggestBook()">Submit Suggestion</button>
       <div id="suggest-msg"></div>
     </div>
@@ -249,13 +250,14 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   <div class="sec-head"><h2>Cast Your Vote</h2><p>Drag books to rank them. #1 is your top choice.</p></div>
   <div id="vote-closed-banner" style="display:none;"><div class="msg msg-err" style="margin-bottom:1rem;">Voting is currently closed.</div></div>
   <div id="vote-content">
-    <div class="card" style="padding:1.25rem;">
+    <div class="card" style="padding:1.25rem;" id="vote-identity-card">
       <div class="grid3">
         <div class="f-group"><label>Email *</label><input type="email" id="v-email" placeholder="you@email.com"></div>
       </div>
       <div class="grid2">
         <div class="f-group"><label>Discord Username *</label><input type="text" id="v-discord" placeholder="user#0000"></div>
       </div>
+      <div id="vote-identity-banner"></div>
     </div>
     <div id="already-voted-banner" style="display:none;"></div>
     <div class="drag-hint">↑ ↓ Use the arrow buttons to rank your books — #1 is your top choice</div>
@@ -307,11 +309,12 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
     <div class="pending-box"><div class="icon">📖</div><h3>Reviews Closed</h3><p>The admin has closed reviews for now.<br>Check back soon!</p></div>
   </div>
   <div id="review-form-content">
-    <div class="card">
+    <div class="card" id="review-identity-card">
       <div class="grid2">
         <div class="f-group"><label>Email *</label><input type="email" id="rv-email" placeholder="you@email.com"></div>
         <div class="f-group"><label>Discord Username *</label><input type="text" id="rv-discord" placeholder="user#0000"></div>
       </div>
+      <div id="review-identity-banner"></div>
       <div class="f-group">
         <label>Which month's book are you reviewing? *</label>
         <select id="rv-month" onchange="updateBookSelector();updateReviewForm()"><option value="">— Select a month —</option></select>
@@ -5312,7 +5315,7 @@ const IDENTITY_COOKIE = 'dbc_identity';
 const IDENTITY_DAYS   = 365;
 
 function saveIdentityCookie(email, discord) {
-  const val = encodeURIComponent(JSON.stringify({ email: email.trim(), discord: discord.trim() }));
+  const val = encodeURIComponent(JSON.stringify({ email: (email||'').trim(), discord: (discord||'').trim() }));
   const exp = new Date(Date.now() + IDENTITY_DAYS * 864e5).toUTCString();
   document.cookie = `${IDENTITY_COOKIE}=${val};expires=${exp};path=/;SameSite=Lax`;
 }
@@ -5327,61 +5330,104 @@ function clearIdentityCookie() {
   document.cookie = `${IDENTITY_COOKIE}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;SameSite=Lax`;
 }
 
-// Renders a "Remembered as X · Not you?" bar and returns its HTML
-function rememberedBannerHtml(email, discord) {
-  const name = discord || email;
-  return `<div id="remembered-banner" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;background:#fffbef;border:1px solid var(--gold);border-radius:6px;padding:.55rem 1rem;font-size:.82rem;margin-bottom:.75rem;">
-    <span>👋 Remembered as <strong>${esc(name)}</strong></span>
+// Two banner styles:
+// 'gate'    — gold box shown on pages that gate content behind identity (Progress, Badges, My Responses)
+// 'prefill' — small inline note on submission forms where fields stay visible (Suggest, Vote, Review, Surveys)
+function rememberedBannerHtml(email, discord, mode) {
+  const name = esc(discord || email);
+  if (mode === 'prefill') {
+    return `<div class="remembered-banner" style="font-size:.76rem;color:var(--soft);margin:.4rem 0 .65rem;">
+      👋 Remembered as <strong style="color:var(--ink);">${name}</strong> &mdash;
+      <button onclick="forgetIdentity()" style="background:none;border:none;cursor:pointer;font-size:.76rem;color:var(--soft);text-decoration:underline;font-family:'DM Sans',sans-serif;padding:0;">not you?</button>
+    </div>`;
+  }
+  return `<div class="remembered-banner" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;background:#fffbef;border:1px solid var(--gold);border-radius:6px;padding:.55rem 1rem;font-size:.82rem;margin-bottom:.75rem;">
+    <span>👋 Remembered as <strong>${name}</strong></span>
     <button onclick="forgetIdentity()" style="background:none;border:none;cursor:pointer;font-size:.75rem;color:var(--soft);text-decoration:underline;font-family:'DM Sans',sans-serif;padding:0;">Not you? Forget me</button>
   </div>`;
 }
 
 function forgetIdentity() {
   clearIdentityCookie();
-  // Reset all three identity forms and hide their main sections
-  ['pg-email','pg-discord','sr-lookup-email','sr-lookup-discord','bg-email','bg-discord'].forEach(id => {
+  // Clear every identity field across all pages
+  ['pg-email','pg-discord','sr-lookup-email','sr-lookup-discord','bg-email','bg-discord',
+   's-email','s-discord','v-email','v-discord','rv-email','rv-discord'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
-  // Remove all remembered banners
-  document.querySelectorAll('#remembered-banner').forEach(el => el.remove());
-  // Show identity cards, hide main sections
-  const show = ['progress-identity-card','surveys-identity-card','badges-identity-card'];
-  show.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = ''; });
-  const hide = ['progress-main','surveys-my-responses-main','badges-main'];
-  hide.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  // Remove all banners (both styles share the class)
+  document.querySelectorAll('.remembered-banner').forEach(el => el.remove());
+  // Gate pages: restore identity cards, hide main content
+  ['progress-identity-card','surveys-identity-card','badges-identity-card'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = '';
+  });
+  ['progress-main','surveys-my-responses-main','badges-main'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = 'none';
+  });
   // Reset in-memory identities
-  _pgIdentity  = null;
-  _bgIdentity  = null;
+  _pgIdentity = null;
+  _bgIdentity = null;
   if (typeof _srIdentity !== 'undefined') window._srIdentity = null;
 }
 window.forgetIdentity = forgetIdentity;
 
-// Pre-fills all identity forms and auto-submits if cookie is present
+// Insert a prefill banner into a named placeholder div
+function injectPrefillBanner(placeholderId, email, discord) {
+  const el = document.getElementById(placeholderId);
+  if (!el || el.querySelector('.remembered-banner')) return;
+  el.innerHTML = rememberedBannerHtml(email, discord, 'prefill');
+}
+
+// Pre-fills all identity fields from cookie and shows banners everywhere
 function applyIdentityCookieToForms() {
   const saved = loadIdentityCookie();
   if (!saved || (!saved.email && !saved.discord)) return;
   const { email, discord } = saved;
 
-  // Fill all inputs
-  const fill = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
-  fill('pg-email',         email);   fill('pg-discord',         discord);
-  fill('sr-lookup-email',  email);   fill('sr-lookup-discord',  discord);
-  fill('bg-email',         email);   fill('bg-discord',         discord);
+  const fill = (id, val) => { const el = document.getElementById(id); if (el && !el.value) el.value = val || ''; };
 
-  // Insert "Remembered as" banners above each identity card's button
-  const insertBanner = (cardId) => {
+  // ── Gate pages ──
+  fill('pg-email', email);        fill('pg-discord', discord);
+  fill('sr-lookup-email', email); fill('sr-lookup-discord', discord);
+  fill('bg-email', email);        fill('bg-discord', discord);
+
+  const insertGateBanner = (cardId) => {
     const card = document.getElementById(cardId);
-    if (!card) return;
-    // Avoid duplicate banners
-    if (card.querySelector('#remembered-banner')) return;
-    const banner = document.createElement('div');
-    banner.innerHTML = rememberedBannerHtml(email, discord);
-    card.insertBefore(banner.firstElementChild, card.querySelector('button'));
+    if (!card || card.querySelector('.remembered-banner')) return;
+    const wrap = document.createElement('div');
+    wrap.innerHTML = rememberedBannerHtml(email, discord, 'gate');
+    card.insertBefore(wrap.firstElementChild, card.querySelector('button'));
   };
-  insertBanner('progress-identity-card');
-  insertBanner('surveys-identity-card');
-  insertBanner('badges-identity-card');
+  insertGateBanner('progress-identity-card');
+  insertGateBanner('surveys-identity-card');
+  insertGateBanner('badges-identity-card');
+
+  // ── Submission pages ──
+  fill('s-email', email);  fill('s-discord', discord);
+  fill('v-email', email);  fill('v-discord', discord);
+  fill('rv-email', email); fill('rv-discord', discord);
+
+  injectPrefillBanner('suggest-identity-banner', email, discord);
+  injectPrefillBanner('vote-identity-banner',    email, discord);
+  injectPrefillBanner('review-identity-banner',  email, discord);
 }
+
+// Called after survey forms are dynamically rendered into the DOM
+function applyIdentityCookieToSurveyForm(sid) {
+  const saved = loadIdentityCookie();
+  if (!saved || (!saved.email && !saved.discord)) return;
+  const { email, discord } = saved;
+  const fill = (id, val) => { const el = document.getElementById(id); if (el && !el.value) el.value = val || ''; };
+  fill(`sr-email-${sid}`, email);
+  fill(`sr-name-${sid}`, discord);
+  const card = document.getElementById(`scard-${sid}`);
+  if (!card || card.querySelector('.remembered-banner')) return;
+  const submitBtn = card.querySelector('button.btn-primary');
+  if (!submitBtn) return;
+  const wrap = document.createElement('div');
+  wrap.innerHTML = rememberedBannerHtml(email, discord, 'prefill');
+  submitBtn.parentElement.insertBefore(wrap.firstElementChild, submitBtn);
+}
+window.applyIdentityCookieToSurveyForm = applyIdentityCookieToSurveyForm;
 
 // ════════════════════════════════════════════════════════
 // INIT
