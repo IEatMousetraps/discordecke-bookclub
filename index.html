@@ -2547,7 +2547,23 @@ function renderRankings() {
   getArchiveWinners().forEach(({archive:a, winnerBooks}) => {
     if (!winnerBooks.length) return;
     const isDual = (a.dualWinners||[]).length > 0;
-    archiveLookup[a.label] = { dual: isDual, winnerBooks };
+    // For dual months, derive a clean month-only label by stripping book titles.
+    // Admins often enter labels like "March 2026 - Beartown & Born to Run".
+    // We strip everything after the first " - " separator; if no separator exists,
+    // fall back to removing each winner book title from the label.
+    let cleanLabel = a.label;
+    if (isDual) {
+      const dashIdx = a.label.indexOf(' - ');
+      if (dashIdx !== -1) {
+        cleanLabel = a.label.slice(0, dashIdx).trim();
+      } else {
+        // Try removing book titles
+        let s = a.label;
+        winnerBooks.forEach(b => { s = s.replace(b.title, '').replace(/\s*[&,]\s*$/, '').replace(/^\s*[&,]\s*/, '').trim(); });
+        if (s) cleanLabel = s;
+      }
+    }
+    archiveLookup[a.label] = { dual: isDual, winnerBooks, cleanLabel };
     winnerBooks.forEach(b => {
       const rankKey = isDual ? (a.label + '::' + String(b.id)) : a.label;
       const names = [];
@@ -2683,6 +2699,7 @@ function renderRankings() {
   ${groups.map(group => {
     const isDualGroup = group.cards.length > 1 || (rankKeyMeta[group.cards[0]?.rankKey]?.isDual);
     const monthLabel  = group.month;
+    const cleanMonthLabel = (archiveLookup[monthLabel]?.cleanLabel) || monthLabel;
 
     // For dual groups: wrap both book cards in a shared month container
     if (isDualGroup && group.cards.length > 1) {
@@ -2738,7 +2755,7 @@ function renderRankings() {
       return `
       <div class="chart-wrap" style="margin-bottom:1rem;">
         <div style="display:flex;align-items:center;gap:.65rem;margin-bottom:1rem;padding-bottom:.75rem;border-bottom:1px solid var(--border);">
-          <span style="font-size:.8rem;background:linear-gradient(135deg,#fffdf5,#fff8e0);border:1px solid var(--gold);border-radius:20px;padding:.2rem .7rem;color:var(--gold);font-weight:600;letter-spacing:.04em;">👑 ${esc(monthLabel)}</span>
+          <span style="font-size:.8rem;background:linear-gradient(135deg,#fffdf5,#fff8e0);border:1px solid var(--gold);border-radius:20px;padding:.2rem .7rem;color:var(--gold);font-weight:600;letter-spacing:.04em;">👑 ${esc(cleanMonthLabel)}</span>
           <span style="font-size:.72rem;color:var(--soft);font-style:italic;">Co-winner month · 2 books</span>
         </div>
         ${innerCards}
