@@ -4500,22 +4500,35 @@ function renderBadgesTab() {
 
   // Find the most recently earned badge by checking which badge the member earned last.
   // Strategy: for threshold-based badges, the "latest" is the one whose threshold they most
-  // recently crossed. We approximate this cheaply by finding the badge whose check predicate
-  // is satisfied by the current profile but would NOT be satisfied if each key stat were 1 less.
-  // For non-numeric / boolean badges we treat them as equally "recent" and pick by BADGE_DEFS order.
+  // recently crossed. We approximate by finding the badge whose check predicate is satisfied
+  // now but would NOT be satisfied if each key stat were decremented by 1.
+  // Admin-only and manually-overridden badges (check always returns false) are excluded —
+  // they have no meaningful earn order and would otherwise dominate the fallback.
+  const _badgeCfg = getBadgeConfig();
+  const _isAdminGranted = (b) => {
+    if (b.adminOnly) return true;
+    // Also treat as admin-granted if the member has an explicit true override for a badge
+    // whose check() can never pass organically (i.e. always returns false)
+    const ov = _badgeCfg.overrides?.[myKey];
+    if (ov && ov[b.id] === true && b.check) {
+      try { return b.check({ voted:999,suggestedMonths:999,reviewed:999,longestVoteStreak:999,longestReadStreak:999,longestAllRounderStreak:999,pickedWinner:999,suggestedTop3:999,dnfCount:999,dnsCount:999,whyNotBoth:999,genresSuggested:999,totalMonths:999,surveysCompleted:999,steadyEddie:true }) === false; }
+      catch { return true; }
+    }
+    return false;
+  };
+
   let mostRecentBadge = null;
   if (earnedBadges.length) {
-    // Pick the last badge in earned list whose check barely passes (margin-of-1 heuristic)
-    // Walk BADGE_DEFS order in reverse so the last-defined earned badge acts as tie-break
-    const marginProfile = { ...profile };
+    const organicEarned = earnedBadges.filter(b => !_isAdminGranted(b));
+    const candidates = organicEarned.length ? organicEarned : earnedBadges;
+
     const numericKeys = ['voted','suggestedMonths','reviewed','pickedWinner','suggestedTop3',
       'dnfCount','dnsCount','reviewsWithRating','nightOwlCount','earlyBird',
       'speedFinishCount','lastMinuteCount','oneStarCount','penPalCount','essayistCount',
       'earlyToRise','longestVoteStreak','longestReadStreak','longestAllRounderStreak',
       'whyNotBoth','genresSuggested'];
-    for (const b of [...earnedBadges].reverse()) {
+    for (const b of [...candidates].reverse()) {
       if (!b.check) continue;
-      // Check if reducing each numeric stat by 1 would un-earn this badge
       let wouldLose = false;
       for (const k of numericKeys) {
         if (typeof profile[k] === 'number' && profile[k] > 0) {
@@ -4525,8 +4538,8 @@ function renderBadgesTab() {
       }
       if (wouldLose) { mostRecentBadge = b; break; }
     }
-    // Fallback: most recent earned badge in definition order
-    if (!mostRecentBadge) mostRecentBadge = earnedBadges[earnedBadges.length - 1];
+    // Fallback: last earned organic badge in definition order
+    if (!mostRecentBadge) mostRecentBadge = candidates[candidates.length - 1];
   }
 
   const recentBadgeHtml = mostRecentBadge
