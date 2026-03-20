@@ -3684,6 +3684,17 @@ async function setProgress(bookId, status, btn) {
   const progress = JSON.parse(JSON.stringify(getReadingProgress()));
   if (!progress[_pgIdentity.key]) progress[_pgIdentity.key] = {};
   progress[_pgIdentity.key][bookId] = status;
+  // Write a finish timestamp the first time a book is marked finished.
+  // Only set if not already present — prevents re-toggling from resetting the clock,
+  // which would allow replaying the Speed Reader / Just In Time windows.
+  if (status === 'finished' && !progress[_pgIdentity.key][bookId + '_ts']) {
+    progress[_pgIdentity.key][bookId + '_ts'] = Date.now();
+  }
+  // Clear the timestamp if the member un-marks finished (moves to any other status)
+  if (status !== 'finished') {
+    delete progress[_pgIdentity.key][bookId + '_ts'];
+  }
+  progress[_pgIdentity.key][bookId] = status;
   // Optimistic UI update
   const card = btn.closest('.card');
   card.querySelectorAll('.progress-btn').forEach(b => {
@@ -4244,7 +4255,7 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
   const suggestedGenres = new Set(Object.keys(genreSuggestCounts).map(g=>g.toLowerCase()));
   const againstType = suggestedMonths >= 6 && Object.keys(genreFinishCounts).some(g => !suggestedGenres.has(g.toLowerCase()));
 
-  // ── Adventurous Reader: rated books across 6+ different genres ──
+  // ── Adventurous Reader: rated books across 8+ different genres ──
   const genresRatedSet = new Set();
   Object.entries(allReviews).forEach(([monthLabel, entries]) => {
     const aw2 = archiveWinners.find(w=>w.archive.label===monthLabel);
