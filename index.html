@@ -646,8 +646,6 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   <div id="badges-main" style="display:none;">
     <div id="badges-summary" class="card" style="margin-bottom:1.25rem;"></div>
     <div id="badges-area"></div>
-    <div class="sec-head" style="margin-top:2rem;"><h2>Club Leaderboard</h2><p>Most badges earned by any member.</p></div>
-    <div id="badges-leaderboard"></div>
   </div>
 </div>
 
@@ -4892,6 +4890,7 @@ const BADGE_CATEGORIES = [
   { id:'surveys',       label:'📋 Surveys',             emoji:'📋' },
   { id:'books',         label:'📚 Books & Suggestions', emoji:'📚' },
   { id:'genre',         label:'🎭 Genre',               emoji:'🎭' },
+  { id:'quarterly',     label:'⚽ Quarterly Challenges', emoji:'⚽' },
   { id:'fun',           label:'😄 Fun & Personality',   emoji:'😄' },
   { id:'admin',         label:'⭐ Special Awards',      emoji:'⭐' },
 ];
@@ -5049,62 +5048,6 @@ function renderBadgesTab() {
   }).join('');
 
   document.getElementById('badges-area').innerHTML = html || '<p style="font-size:.85rem;color:var(--soft);">No badges available yet.</p>';
-  renderBadgesLeaderboard();
-}
-
-function renderBadgesLeaderboard() {
-  const archives   = getArchives();
-  const allReviews = getReviews();
-  const idMap      = buildIdentityMap();
-  const el         = document.getElementById('badges-leaderboard');
-  if (!el) return;
-  if (!archives.length) {
-    el.innerHTML = '<div class="empty"><div class="icon">🏅</div><p>No data yet.</p></div>';
-    return;
-  }
-  const members = new Map();
-  archives.forEach(a => {
-    Object.values(a.votes||{}).forEach(vd => {
-      const name = resolveId(vd.discord,vd.email,idMap);
-      if (!members.has(name)) members.set(name,{discord:vd.discord,email:vd.email,key:normEmail(vd.email)||normId(vd.discord)});
-    });
-    (a.books||[]).map(normBook).forEach(b=>b.suggesters.forEach(s=>{
-      const name = resolveId(s.discord,s.email,idMap);
-      if (!members.has(name)) members.set(name,{discord:s.discord,email:s.email,key:normEmail(s.email)||normId(s.discord)});
-    }));
-  });
-  Object.values(allReviews).forEach(entries=>(entries||[]).forEach(r=>{
-    const name = resolveId(r.discord,r.email,idMap);
-    if (!members.has(name)) members.set(name,{discord:r.discord,email:r.email,key:normEmail(r.email)||normId(r.discord)});
-  }));
-
-  const visibleBadges = getAllBadges();
-  const _sharedAW    = getArchiveWinners();
-  const leaderboard = [...members.entries()].map(([name,info])=>{
-    const p = computeMemberProfile(info.discord,info.email,{idMap,archiveWinners:_sharedAW});
-    const earned = visibleBadges.filter(b=>hasBadge(b.id,p,info.key));
-    return { name, earnedCount:earned.length, earnedBadges:earned };
-  }).filter(m=>m.earnedCount>0).sort((a,b)=>b.earnedCount-a.earnedCount).slice(0,10);
-
-  if (!leaderboard.length) {
-    el.innerHTML = '<div class="empty"><div class="icon">🏅</div><p>No badges earned yet.</p></div>';
-    return;
-  }
-  el.innerHTML = leaderboard.map((m,i)=>`
-    <div class="card" style="padding:.8rem 1.25rem;margin-bottom:.5rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
-      <div style="font-family:'Playfair Display',serif;font-size:1.3rem;color:var(--gold);min-width:2rem;text-align:center;">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</div>
-      <div style="flex:1;min-width:120px;">
-        <div style="font-weight:500;margin-bottom:.25rem;">${esc(m.name)}</div>
-        <div style="display:flex;flex-wrap:wrap;gap:.25rem;">
-          ${m.earnedBadges.slice(0,8).map(b=>`<span title="${esc(b.name)}: ${esc(typeof b.desc === 'function' ? b.desc(null) : b.desc)}" style="font-size:1rem;cursor:default;">${b.iconDataUrl?'🖼️':b.emoji}</span>`).join('')}
-          ${m.earnedBadges.length>8?`<span style="font-size:.72rem;color:var(--soft);align-self:center;">+${m.earnedBadges.length-8} more</span>`:''}
-        </div>
-      </div>
-      <div style="text-align:right;">
-        <div style="font-family:'Playfair Display',serif;font-size:1.2rem;font-weight:700;color:var(--gold);">${m.earnedCount}</div>
-        <div style="font-size:.68rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">badges</div>
-      </div>
-    </div>`).join('');
 }
 
 // ════════════════════════════════════════════════════════
@@ -5203,7 +5146,7 @@ async function adminToggleBadge(memberKey, badgeId, grant) {
     // Clean up empty override objects
     if (!Object.keys(cfg.overrides[memberKey]).length) delete cfg.overrides[memberKey];
   }
-  await fbSet(BADGE_CONFIG_REF, cfg);
+  await fbSetFull(BADGE_CONFIG_REF, cfg);
   hideLoading();
   renderAdminBadgeMembers();
 }
@@ -5257,7 +5200,8 @@ async function adminToggleBadgeSetting(setting, badgeId, val) {
   if (!cfg[setting]) cfg[setting] = {};
   if (val) cfg[setting][badgeId] = true;
   else delete cfg[setting][badgeId];
-  await fbSet(BADGE_CONFIG_REF, cfg);
+  // Must use full replace (no merge) so deleted keys are actually removed in Firestore
+  await fbSetFull(BADGE_CONFIG_REF, cfg);
   hideLoading();
   renderAdminBadgeControls();
   renderAdminBadgeMembers();
