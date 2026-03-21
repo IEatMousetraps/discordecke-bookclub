@@ -6291,10 +6291,9 @@ async function qaPersistCard(patch, msgId) {
     updatedAt: Date.now()
   });
   const newMap = Object.assign({}, cards, { [key]: updated });
-  console.log('[qaPersistCard] key:', key, 'patch:', patch, 'updated.books:', updated.books);
+  console.log('[qaPersistCard] key:', key, 'patch keys:', Object.keys(patch));
   try {
     await fbSet(QUARTERLY_CARDS_REF, { map: newMap });
-    console.log('[qaPersistCard] Firestore write SUCCESS');
     delete _qaPendingBooks[key];
     if (msgId) showMsg(msgId, 'Saved!', 'ok');
   } catch(e) {
@@ -6391,20 +6390,31 @@ window.qaClaimStamp = function(idx) {
 window.qaUnclaim = function(idx) {
   const s = _qaGetState(); if (!s) return;
   _qaOpenDrawer = null;
+  const sidx = String(idx);
   let updatedCard;
   if (s.cfg.mode === 'bingo') {
     if (idx === FREE_INDEX) return;
     const claimed = [...(s.card.claimed || Array(25).fill(false).map((_,i)=>i===FREE_INDEX))];
     claimed[idx] = false;
-    updatedCard = Object.assign({}, s.card, { claimed });
-    qaPersistCard({ claimed }, null);
+    // Wipe the book entry for this slot so the member gets a clean slate
+    const books = Object.assign({}, s.card.books || {});
+    delete books[sidx];
+    delete books[idx];
+    if (_qaPendingBooks[s.key]) delete _qaPendingBooks[s.key][sidx];
+    updatedCard = Object.assign({}, s.card, { claimed, books });
+    qaPersistCard({ claimed, books }, null);
     if (s.main) renderBingoCard(s.main, s.cfg, updatedCard, s.key);
   } else {
     const claimed = [...(s.card.claimed || Array(8).fill(false))];
     claimed[idx] = false;
     const claimOrder = (s.card.claimOrder || []).filter(i => i !== idx);
-    updatedCard = Object.assign({}, s.card, { claimed, claimOrder });
-    qaPersistCard({ claimed, claimOrder }, null);
+    // Wipe the book entry for this slot
+    const books = Object.assign({}, s.card.books || {});
+    delete books[sidx];
+    delete books[idx];
+    if (_qaPendingBooks[s.key]) delete _qaPendingBooks[s.key][sidx];
+    updatedCard = Object.assign({}, s.card, { claimed, claimOrder, books });
+    qaPersistCard({ claimed, claimOrder, books }, null);
     if (s.main) renderPassportCard(s.main, s.cfg, updatedCard, s.key);
   }
 };
@@ -6420,9 +6430,7 @@ window.qaCloseDrawer = function() {
 window.qaSaveBook = async function(idx) {
   const title  = (document.getElementById('qa-bk-title')?.value || '').trim();
   const author = (document.getElementById('qa-bk-author')?.value || '').trim();
-  console.log('[qaSaveBook] idx:', idx, 'title:', title, 'author:', author);
-  const s = _qaGetState();
-  console.log('[qaSaveBook] state:', s ? { key: s.key, cardBooks: s.card.books } : 'NULL - no identity!');
+  const s = _qaGetState(); if (!s) return;
   if (!s) return;
   const sidx = String(idx);
   if (!_qaPendingBooks[s.key]) _qaPendingBooks[s.key] = {};
