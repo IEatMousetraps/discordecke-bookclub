@@ -6031,7 +6031,7 @@ function renderBingoCard(container, cfg, card, memberKey) {
   // Open drawer if any
   if (_qaOpenDrawer !== null && _qaOpenDrawer !== FREE_INDEX && !isSubmitted) {
     const cell = board[_qaOpenDrawer];
-    const bk = books[_qaOpenDrawer] || {};
+    const bk = bkGet(books, _qaOpenDrawer) || {};
     const hasBook = !!(bk.title && bk.title.trim() && bk.author && bk.author.trim());
     html += `<div class="qa-book-drawer" id="qa-drawer">
       <div class="qa-drawer-title">📖 Book for: <em>${esc(cell.prompt)}</em></div>
@@ -6075,7 +6075,7 @@ function renderBingoCard(container, cfg, card, memberKey) {
     for (let i = 0; i < 25; i++) {
       if (i === FREE_INDEX) continue;
       if (!claimed[i]) continue;
-      const bk = books[i];
+      const bk = bkGet(books, i);
       logEntries.push({
         idx: i,
         prompt: board[i] ? board[i].prompt : '',
@@ -6191,7 +6191,7 @@ function renderPassportCard(container, cfg, card, memberKey) {
     const stamp = stamps[i] || { name: `Stamp ${i+1}`, description: '', icon: '📖' };
     const isClaimedSlot = claimed[i];
     const isBonus = isClaimedSlot && bonusSet.has(i);
-    const bk = books[i] || {};
+    const bk = bkGet(books, i) || {};
     let cls = 'passport-stamp';
     if (isClaimedSlot) cls += ' stamp-claimed';
     if (isBonus) cls += ' stamp-bonus';
@@ -6211,7 +6211,7 @@ function renderPassportCard(container, cfg, card, memberKey) {
   // Open stamp drawer
   if (_qaOpenDrawer !== null && !isSubmitted) {
     const stamp = stamps[_qaOpenDrawer] || { name: `Stamp ${_qaOpenDrawer+1}` };
-    const bk = books[_qaOpenDrawer] || {};
+    const bk = bkGet(books, _qaOpenDrawer) || {};
     const isClaimed = claimed[_qaOpenDrawer];
     const hasBook = !!(bk.title && bk.title.trim() && bk.author && bk.author.trim());
     html += `<div class="qa-book-drawer" id="qa-drawer">
@@ -6265,7 +6265,13 @@ window.loadQuarterlyCard = loadQuarterlyCard;
 
 // ── Persist card ───────────────────────────────────────
 // Local overlay for book entries — survives cache re-renders until Firestore catches up
-const _qaPendingBooks = {}; // memberKey -> { idx: { title, author } }
+const _qaPendingBooks = {}; // memberKey -> { "idx": { title, author } }  (string keys)
+
+// Firestore stores object keys as strings; always look up by both string and number
+function bkGet(books, idx) {
+  if (!books) return null;
+  return books[String(idx)] || books[idx] || null;
+}
 
 function _qaMergedCard(card, memberKey) {
   const pending = _qaPendingBooks[memberKey];
@@ -6395,10 +6401,12 @@ window.qaSaveBook = function(idx) {
   const title  = (document.getElementById('qa-bk-title')?.value || '').trim();
   const author = (document.getElementById('qa-bk-author')?.value || '').trim();
   const s = _qaGetState(); if (!s) return;
+  const sidx = String(idx); // Firestore serialises object keys as strings — be consistent
   // Write to pending overlay immediately so re-renders from cache don't lose it
   if (!_qaPendingBooks[s.key]) _qaPendingBooks[s.key] = {};
-  _qaPendingBooks[s.key][idx] = { title, author };
-  const books = Object.assign({}, s.card.books || {}, { [idx]: { title, author } });
+  _qaPendingBooks[s.key][sidx] = { title, author };
+  // Build books with string keys to match what Firestore returns
+  const books = Object.assign({}, s.card.books || {}, { [sidx]: { title, author } });
   const updatedCard = Object.assign({}, s.card, { books });
   qaPersistCard({ books }, null);
   showMsg('qa-drawer-msg', 'Saved!', 'ok');
@@ -6431,7 +6439,7 @@ function qaCheckBingoDuplicates() {
   const titleEntries = {}; // normTitle -> [{ idx, prompt }]
   for (let i = 0; i < 25; i++) {
     if (i === FREE_INDEX) continue;
-    const bk = books[i];
+    const bk = bkGet(books, i);
     if (!bk || !bk.title || !bk.title.trim()) continue;
     const key = bk.title.trim().toLowerCase();
     if (!titleEntries[key]) titleEntries[key] = { title: bk.title.trim(), squares: [] };
@@ -6890,7 +6898,7 @@ function _renderAdminCardView() {
     for (let i = 0; i < 25; i++) {
       const cell = board[i];
       const isClaimed = i === FREE_INDEX ? true : claimed[i];
-      const bk = books[i];
+      const bk = bkGet(books, i);
       const isOpen = _qaAdminOpenIdx === i;
       let cls = 'bingo-cell';
       if (cell.isFree) { cls += ' cell-free cell-locked'; }
@@ -6908,7 +6916,7 @@ function _renderAdminCardView() {
 
     if (_qaAdminOpenIdx !== null && _qaAdminOpenIdx !== FREE_INDEX) {
       const cell = board[_qaAdminOpenIdx];
-      const bk = books[_qaAdminOpenIdx] || {};
+      const bk = bkGet(books, _qaAdminOpenIdx) || {};
       const isClaimed = claimed[_qaAdminOpenIdx];
       html += `<div class="qa-book-drawer" style="margin-top:.5rem;">
         <div class="qa-drawer-title" style="margin-bottom:.35rem;">
@@ -6932,7 +6940,7 @@ function _renderAdminCardView() {
     html += `<div class="passport-grid">`;
     for (let i = 0; i < 8; i++) {
       const s = stamps[i] || { name:`Stamp ${i+1}`, icon:'📖' };
-      const bk = books[i];
+      const bk = bkGet(books, i);
       const isClaimed = claimed[i];
       const isBonus = isClaimed && bonusSet.has(i);
       const isOpen = _qaAdminOpenIdx === i;
@@ -6949,7 +6957,7 @@ function _renderAdminCardView() {
 
     if (_qaAdminOpenIdx !== null) {
       const s = stamps[_qaAdminOpenIdx] || { name:`Stamp ${_qaAdminOpenIdx+1}` };
-      const bk = books[_qaAdminOpenIdx] || {};
+      const bk = bkGet(books, _qaAdminOpenIdx) || {};
       const isClaimed = claimed[_qaAdminOpenIdx];
       html += `<div class="qa-book-drawer" style="margin-top:.5rem;">
         <div class="qa-drawer-title" style="margin-bottom:.35rem;">
@@ -6998,8 +7006,8 @@ function qaGenerateQuarterCSV(archiveEntry) {
       const fullClaimed = claimed.map((c,i)=>i===FREE_INDEX||c);
       const rowCount = countBingoRows(fullClaimed);
       const prompts = board.map(c=>c?c.prompt:'');
-      const bookTitles = Array.from({length:25},(_,i)=>i===FREE_INDEX?'':(card.books&&card.books[i]?card.books[i].title:''));
-      const bookAuthors = Array.from({length:25},(_,i)=>i===FREE_INDEX?'':(card.books&&card.books[i]?card.books[i].author:''));
+      const bookTitles = Array.from({length:25},(_,i)=>i===FREE_INDEX?'':(card.books&&bkGet(card.books,i)?bkGet(card.books,i).title:''));
+      const bookAuthors = Array.from({length:25},(_,i)=>i===FREE_INDEX?'':(card.books&&bkGet(card.books,i)?bkGet(card.books,i).author:''));
       rows.push([name, card.discord||'', card.email||'', card.submitted?'Yes':'No', card.approved?'Yes':'No', rowCount, rowCount, claimed.filter(Boolean).length, ...prompts, ...bookTitles, ...bookAuthors]);
     });
   } else {
@@ -7017,8 +7025,8 @@ function qaGenerateQuarterCSV(archiveEntry) {
       const claimedCount = claimed.filter(Boolean).length;
       const bonusStamps = claimOrder.slice(6).map(i=>stampNames[i]||`Stamp ${i+1}`);
       const claimedFlags = claimed.map(Boolean);
-      const bookTitles = Array.from({length:8},(_,i)=>card.books&&card.books[i]?card.books[i].title:'');
-      const bookAuthors = Array.from({length:8},(_,i)=>card.books&&card.books[i]?card.books[i].author:'');
+      const bookTitles = Array.from({length:8},(_,i)=>card.books&&bkGet(card.books,i)?bkGet(card.books,i).title:'');
+      const bookAuthors = Array.from({length:8},(_,i)=>card.books&&bkGet(card.books,i)?bkGet(card.books,i).author:'');
       rows.push([name, card.discord||'', card.email||'', card.submitted?'Yes':'No', card.approved?'Yes':'No',
         claimedCount, claimedCount>=6?'Yes':'No',
         ...claimedFlags.map(b=>b?'Yes':'No'),
