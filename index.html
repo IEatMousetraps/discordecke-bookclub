@@ -6034,6 +6034,12 @@ function renderBingoCard(container, cfg, card, memberKey) {
 
   html += `<div id="qa-save-msg" style="margin-top:.5rem;"></div>`;
 
+  // Print buttons
+  html += `<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.65rem;">
+    <button class="btn btn-secondary btn-sm" onclick="qaPrintBingo(false)">🖨️ Print Blank Card</button>
+    <button class="btn btn-secondary btn-sm" onclick="qaPrintBingo(true)">🖨️ Print Pre-filled Card</button>
+  </div>`;
+
   // ── Book assignment log (always visible for non-submitted cards) ──────────
   if (!isSubmitted) {
     const logEntries = [];
@@ -6211,6 +6217,13 @@ function renderPassportCard(container, cfg, card, memberKey) {
   }
 
   html += `<div id="qa-save-msg" style="margin-top:.5rem;"></div>`;
+
+  // Print buttons
+  html += `<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.65rem;">
+    <button class="btn btn-secondary btn-sm" onclick="qaPrintPassport(false)">🖨️ Print Blank Passport</button>
+    <button class="btn btn-secondary btn-sm" onclick="qaPrintPassport(true)">🖨️ Print Pre-filled Passport</button>
+  </div>`;
+
   container.innerHTML = html;
 }
 
@@ -6226,6 +6239,185 @@ function loadQuarterlyCard() {
   main.style.display = '';
   renderQuarterlyTab();
 }
+// ── Print helpers ──────────────────────────────────────
+
+function _qaEscHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function _qaPrintOpen(titleText, bodyHtml) {
+  const w = window.open('', '_blank', 'width=850,height=1100');
+  if (!w) { alert('Pop-up blocked — please allow pop-ups for this page and try again.'); return; }
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>${_qaEscHtml(titleText)}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:Georgia,serif;background:#fff;color:#111;padding:18px 22px;font-size:12px;}
+  h1{font-size:18px;font-weight:bold;margin-bottom:2px;}
+  .sub{font-size:11px;color:#555;margin-bottom:10px;}
+  .club{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#777;margin-bottom:3px;}
+  .member-row{display:flex;gap:24px;margin-bottom:12px;}
+  .mf{flex:1;}
+  .mf label{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:#777;display:block;margin-bottom:2px;}
+  .mf .ml{border-bottom:1px solid #aaa;height:20px;}
+  .rule{font-size:10px;color:#555;text-align:center;margin-bottom:10px;line-height:1.5;}
+  /* Bingo grid */
+  .bgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:10px;}
+  .bcell{border:1.5px solid #999;padding:5px 4px 4px;min-height:90px;display:flex;flex-direction:column;page-break-inside:avoid;}
+  .bcell.free{border:2px solid #bbb;background:#fffde7;}
+  .cn{font-size:8px;color:#aaa;margin-bottom:3px;}
+  .cp{font-size:10px;line-height:1.3;flex:1;}
+  .free .cp{font-size:13px;font-weight:bold;text-align:center;display:flex;align-items:center;justify-content:center;height:100%;}
+  .bk{margin-top:5px;border-top:1px solid #ddd;padding-top:4px;}
+  .bkl{font-size:8px;color:#aaa;letter-spacing:.05em;text-transform:uppercase;margin-bottom:1px;}
+  .bkline{border-bottom:0.5px solid #ccc;height:13px;margin-bottom:3px;}
+  .chk{display:flex;justify-content:flex-end;margin-top:3px;}
+  .chkbox{width:12px;height:12px;border:1.5px solid #999;display:inline-block;}
+  /* Tally */
+  .tally{border:1px solid #ccc;border-radius:4px;padding:8px 10px;margin-bottom:10px;}
+  .tally-head{font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:#777;margin-bottom:5px;}
+  .tally-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;}
+  .tbox{border:1.5px solid #999;border-radius:2px;height:20px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#aaa;}
+  /* Passport stamps */
+  .sgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+  .stamp{border:1.5px solid #999;border-radius:6px;padding:8px 10px;page-break-inside:avoid;}
+  .stamp.bonus{border-style:dashed;}
+  .sh{display:flex;align-items:center;gap:6px;margin-bottom:4px;}
+  .sn{font-size:9px;color:#aaa;}
+  .btag{font-size:8px;letter-spacing:.05em;text-transform:uppercase;border:0.5px solid #aaa;border-radius:2px;padding:1px 4px;margin-left:auto;color:#777;}
+  .stamp-name{font-size:12px;font-weight:bold;margin-bottom:2px;}
+  .stamp-desc{font-size:10px;color:#555;line-height:1.35;margin-bottom:7px;}
+  .sfields{border-top:0.5px solid #ddd;padding-top:6px;}
+  .sf{margin-bottom:5px;}
+  .sf label{font-size:8px;letter-spacing:.06em;text-transform:uppercase;color:#aaa;display:block;margin-bottom:1px;}
+  .sf .sl{border-bottom:0.5px solid #bbb;height:15px;}
+  .sfooter{display:flex;align-items:center;justify-content:space-between;margin-top:5px;}
+  .sfooter span{font-size:9px;letter-spacing:.05em;text-transform:uppercase;color:#aaa;}
+  .prog{border:1px solid #ccc;border-radius:4px;padding:8px 10px;margin-bottom:10px;}
+  .prog-head{font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:#777;margin-bottom:5px;}
+  .prog-track{display:flex;gap:4px;}
+  .ppip{width:30px;height:20px;border:1.5px solid #999;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#aaa;}
+  .ppip.bonus{border-style:dashed;}
+  .footer{text-align:center;font-size:9px;color:#aaa;margin-top:6px;border-top:0.5px solid #ddd;padding-top:5px;}
+  @media print{body{padding:10px 14px;}@page{margin:.5in;}}
+</style>
+</head><body>${bodyHtml}
+<script>window.onload=function(){window.print();}<\/script>
+</body></html>`);
+  w.document.close();
+}
+
+window.qaPrintBingo = function(prefill) {
+  if (!_qaIdentity) return;
+  const cfg   = getQuarterlyConfig();
+  const cards = getQuarterlyCards();
+  const key   = qaKey(_qaIdentity.email, _qaIdentity.discord);
+  const card  = _qaMergedCard(cards[key] || {}, key);
+  const board = card.board || buildMemberBoard(cfg, key);
+  const claimed = card.claimed || Array(25).fill(false).map((_,i)=>i===FREE_INDEX);
+  const books   = card.books || {};
+  const discord = _qaIdentity.discord || '';
+  const email   = _qaIdentity.email || '';
+  const qName   = cfg.quarterName || 'Quarterly Bingo Challenge';
+  const dateRange = (cfg.startDate && cfg.endDate) ? `${cfg.startDate} – ${cfg.endDate}` : '';
+
+  let cells = '';
+  for (let i = 0; i < 25; i++) {
+    const cell = board[i];
+    if (cell.isFree) {
+      cells += `<div class="bcell free"><div class="cp">FREE</div></div>`;
+    } else {
+      const bk = prefill ? (bkGet(books, i) || {}) : {};
+      cells += `<div class="bcell">
+        <div class="cn">${i+1}</div>
+        <div class="cp">${_qaEscHtml(cell.prompt)}</div>
+        <div class="bk">
+          <div class="bkl">Book</div><div class="bkline">${prefill && bk.title ? _qaEscHtml(bk.title) : ''}</div>
+          <div class="bkl">Author</div><div class="bkline">${prefill && bk.author ? _qaEscHtml(bk.author) : ''}</div>
+        </div>
+        <div class="chk"><div class="chkbox">${prefill && claimed[i] ? '&#10003;' : ''}</div></div>
+      </div>`;
+    }
+  }
+
+  const tallyBoxes = Array.from({length:12},(_,i)=>`<div class="tbox">${i+1}</div>`).join('');
+
+  const body = `
+    <div class="club">Discordecke Book Club</div>
+    <h1>${_qaEscHtml(qName)}</h1>
+    <div class="sub">${_qaEscHtml(dateRange)}${dateRange?' &nbsp;·&nbsp; ':''}Complete rows, columns, or diagonals · Max 12 rows · Each row = 1 prize drawing entry</div>
+    <div class="member-row">
+      <div class="mf"><label>Name / Discord</label><div class="ml">${_qaEscHtml(discord)}</div></div>
+      <div class="mf"><label>Email</label><div class="ml">${_qaEscHtml(email)}</div></div>
+    </div>
+    <div class="bgrid">${cells}</div>
+    <div class="rule">A book may be used on up to 2 squares maximum.</div>
+    <div class="tally">
+      <div class="tally-head">Row tally &mdash; circle each row as you complete it (rows, columns &amp; diagonals all count)</div>
+      <div class="tally-grid">${tallyBoxes}</div>
+    </div>
+    <div class="footer">discordecke-bookclub.github.io &nbsp;·&nbsp; Remember to log your progress in the app too!</div>`;
+
+  _qaPrintOpen(qName, body);
+};
+window.qaPrintBingo = window.qaPrintBingo;
+
+window.qaPrintPassport = function(prefill) {
+  if (!_qaIdentity) return;
+  const cfg    = getQuarterlyConfig();
+  const cards  = getQuarterlyCards();
+  const key    = qaKey(_qaIdentity.email, _qaIdentity.discord);
+  const card   = _qaMergedCard(cards[key] || {}, key);
+  const stamps = cfg.passportStamps || [];
+  const claimed = card.claimed || Array(8).fill(false);
+  const books   = card.books || {};
+  const claimOrder = card.claimOrder || [];
+  const bonusSet = new Set(claimOrder.slice(6));
+  const discord = _qaIdentity.discord || '';
+  const email   = _qaIdentity.email || '';
+  const qName   = cfg.quarterName || 'Quarterly Reading Passport';
+  const dateRange = (cfg.startDate && cfg.endDate) ? `${cfg.startDate} – ${cfg.endDate}` : '';
+
+  let stampCards = '';
+  for (let i = 0; i < 8; i++) {
+    const s = stamps[i] || { name:`Stamp ${i+1}`, description:'', icon:'' };
+    const isBonus = prefill ? (claimed[i] && bonusSet.has(i)) : (i >= 6);
+    const bk = prefill ? (bkGet(books, i) || {}) : {};
+    const isClaimed = prefill && claimed[i];
+    stampCards += `<div class="stamp${isBonus?' bonus':''}">
+      <div class="sh"><span class="sn">Stamp ${i+1}</span>${isBonus?'<span class="btag">Bonus</span>':''}</div>
+      <div class="stamp-name">${_qaEscHtml(s.name)}</div>
+      ${s.description ? `<div class="stamp-desc">${_qaEscHtml(s.description)}</div>` : ''}
+      <div class="sfields">
+        <div class="sf"><label>Book title</label><div class="sl">${prefill && bk.title ? _qaEscHtml(bk.title) : ''}</div></div>
+        <div class="sf"><label>Author</label><div class="sl">${prefill && bk.author ? _qaEscHtml(bk.author) : ''}</div></div>
+      </div>
+      <div class="sfooter"><span>Claimed</span><div class="chkbox">${isClaimed ? '&#10003;' : ''}</div></div>
+    </div>`;
+  }
+
+  const pips = Array.from({length:6},(_,i)=>`<div class="ppip">${i+1}</div>`).join('') +
+    `<div class="ppip bonus">+1</div><div class="ppip bonus">+2</div>`;
+
+  const body = `
+    <div class="club">Discordecke Book Club</div>
+    <h1>${_qaEscHtml(qName)}</h1>
+    <div class="sub">${_qaEscHtml(dateRange)}${dateRange?' &nbsp;·&nbsp; ':''}Collect any 6 stamps to complete · Your 7th &amp; 8th become bonus stamps</div>
+    <div class="member-row">
+      <div class="mf"><label>Name / Discord</label><div class="ml">${_qaEscHtml(discord)}</div></div>
+      <div class="mf"><label>Email</label><div class="ml">${_qaEscHtml(email)}</div></div>
+    </div>
+    <div class="sgrid">${stampCards}</div>
+    <div class="prog">
+      <div class="prog-head">Stamps collected &mdash; shade each box as you go</div>
+      <div class="prog-track">${pips}</div>
+    </div>
+    <div class="footer">discordecke-bookclub.github.io &nbsp;·&nbsp; Remember to log your progress in the app too!</div>`;
+
+  _qaPrintOpen(qName, body);
+};
+window.qaPrintPassport = window.qaPrintPassport;
+
 window.loadQuarterlyCard = loadQuarterlyCard;
 
 // ── Persist card ───────────────────────────────────────
