@@ -167,6 +167,231 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 .badge-card.earned.tier-silver .badge-earned-label{color:#888;}
 
 .receipt-check input{accent-color:var(--accent);width:1rem;height:1rem;cursor:pointer;}
+
+/* ── Quarterly Activities ─────────────────────────────── */
+.qa-mode-bingo { --qa-accent: #2e7d32; --qa-accent-light: #e8f5e9; }
+.qa-mode-passport { --qa-accent: #1565c0; --qa-accent-light: #e3f2fd; }
+
+/* Bingo grid */
+.bingo-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-bottom: 1.5rem;
+}
+.bingo-cell {
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  min-height: 90px;
+  padding: .5rem .4rem .4rem;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: border-color .18s, background .18s, transform .12s;
+  position: relative;
+  overflow: hidden;
+}
+.bingo-cell:hover:not(.cell-locked):not(.cell-free) { border-color: var(--gold); transform: translateY(-1px); }
+.bingo-cell.cell-claimed { border-color: var(--green); background: #f0faf0; }
+.bingo-cell.cell-free { border-color: var(--gold); background: linear-gradient(135deg,#fffdf5,#fff8d6); cursor: default; }
+.bingo-cell.cell-locked { cursor: default; opacity: .9; }
+.bingo-cell-prompt {
+  font-size: .68rem;
+  line-height: 1.3;
+  color: var(--ink);
+  flex: 1;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.bingo-cell.cell-free .bingo-cell-prompt { font-family: 'Playfair Display', serif; font-size: .85rem; color: var(--gold); font-weight: 700; }
+.bingo-cell-check {
+  font-size: .95rem;
+  text-align: center;
+  margin-top: 3px;
+  line-height: 1;
+}
+.bingo-cell.cell-claimed .bingo-cell-check::after { content: '✓'; color: var(--green); font-weight: 700; }
+.bingo-cell:not(.cell-claimed):not(.cell-free) .bingo-cell-check::after { content: '○'; color: var(--border); }
+.bingo-row-counter {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+  padding: .65rem 1rem;
+  background: #fffbef;
+  border: 1px solid var(--gold);
+  border-radius: 6px;
+  font-size: .85rem;
+}
+.bingo-row-badge {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--gold);
+  min-width: 2rem;
+}
+
+/* Passport grid */
+.passport-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 1.5rem;
+}
+.passport-stamp {
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  min-height: 110px;
+  padding: .65rem .5rem .5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .18s, background .18s, transform .12s;
+  position: relative;
+}
+.passport-stamp:hover:not(.stamp-locked) { border-color: var(--gold); transform: translateY(-1px); }
+.passport-stamp.stamp-claimed {
+  border-style: solid;
+  border-color: var(--gold);
+  background: linear-gradient(135deg,#fffdf5,#fff8d6);
+}
+.passport-stamp.stamp-bonus { border-color: #ab47bc; }
+.passport-stamp.stamp-bonus.stamp-claimed { border-color: #ab47bc; background: linear-gradient(135deg,#fdf4ff,#f3e5f5); }
+.passport-stamp.stamp-locked { cursor: default; }
+.stamp-icon { font-size: 1.6rem; margin-bottom: .3rem; line-height: 1; }
+.stamp-name { font-size: .72rem; font-weight: 600; color: var(--ink); line-height: 1.2; margin-bottom: .2rem; }
+.stamp-desc { font-size: .62rem; color: var(--soft); line-height: 1.25; flex: 1; }
+.stamp-check { font-size: .85rem; margin-top: .3rem; }
+.stamp-claimed .stamp-check::after { content: '✦ Stamped'; color: var(--gold); font-size: .65rem; font-weight: 700; letter-spacing: .04em; }
+.passport-stamp:not(.stamp-claimed) .stamp-check::after { content: 'Tap to claim'; color: var(--border); font-size: .6rem; }
+.stamp-bonus-label {
+  position: absolute;
+  top: 4px; right: 4px;
+  font-size: .55rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  background: #ab47bc;
+  color: #fff;
+  padding: .1rem .35rem;
+  border-radius: 3px;
+  font-weight: 600;
+}
+.passport-progress-bar {
+  height: 8px;
+  background: var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: .3rem;
+}
+.passport-progress-fill { height: 100%; background: var(--gold); border-radius: 4px; transition: width .4s ease; }
+.passport-status-line { font-size: .82rem; color: var(--soft); margin-bottom: 1rem; }
+
+/* Book detail modal / inline form */
+.qa-book-drawer {
+  border: 1px solid var(--gold);
+  border-radius: 8px;
+  background: #fffbef;
+  padding: 1rem;
+  margin-bottom: 1.25rem;
+  animation: slideDown .15s ease;
+}
+@keyframes slideDown { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+.qa-drawer-title {
+  font-family: 'Playfair Display', serif;
+  font-size: .95rem;
+  margin-bottom: .65rem;
+  color: var(--black);
+}
+.qa-drawer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin-bottom: .65rem; }
+.qa-drawer-actions { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+
+/* Submitted state */
+.qa-submitted-banner {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .75rem 1rem;
+  background: linear-gradient(135deg,#e8f5e9,#f1f8e9);
+  border: 1.5px solid var(--green);
+  border-radius: 8px;
+  margin-bottom: 1.25rem;
+  font-size: .85rem;
+}
+.qa-submitted-banner .icon { font-size: 1.4rem; }
+
+/* Admin quarterly panel */
+.qa-admin-member-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .55rem .75rem;
+  border-bottom: 1px solid var(--border);
+  font-size: .84rem;
+  flex-wrap: wrap;
+  gap: .4rem;
+}
+.qa-admin-member-row:last-child { border-bottom: none; }
+.qa-member-stats { font-size: .72rem; color: var(--soft); }
+.qa-member-badge { display: inline-block; padding: .15rem .5rem; border-radius: 20px; font-size: .7rem; font-weight: 600; }
+.qa-badge-submitted { background: #e8f5e9; color: var(--green); }
+.qa-badge-inprogress { background: #fff8e1; color: #e65100; }
+.qa-badge-approved { background: linear-gradient(135deg,#fffdf5,#fff3b0); color: #b8880f; border: 1px solid var(--gold); }
+
+/* Bingo highlight rows */
+.bingo-cell.row-highlight { background: linear-gradient(135deg,#fffbe6,#fff3b0) !important; border-color: var(--gold) !important; border-width: 2px !important; box-shadow: 0 0 0 1px rgba(240,180,41,.25) !important; }
+.bingo-cell.row-highlight .bingo-cell-check::after { content: '✦' !important; color: var(--gold) !important; font-weight: 700; }
+.bingo-cell.row-highlight .bingo-cell-prompt { color: #7a5800 !important; font-weight: 500; }
+.admin-cell-open.bingo-cell { border-color: var(--accent) !important; border-width: 2px !important; background: #fef3f3 !important; box-shadow: 0 0 0 2px rgba(192,57,43,.15) !important; }
+.admin-cell-open.passport-stamp { border-color: var(--accent) !important; border-style: solid !important; border-width: 2px !important; background: #fef3f3 !important; }
+
+/* Admin board builder */
+.qa-builder-cell {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--card);
+  padding: .3rem .35rem;
+  position: relative;
+}
+.qa-builder-cell input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-family: 'DM Sans', sans-serif;
+  font-size: .72rem;
+  color: var(--ink);
+  padding: 0;
+  outline: none;
+  resize: none;
+  min-height: 52px;
+}
+.qa-builder-cell.free-cell {
+  background: linear-gradient(135deg,#fffdf5,#fff3b0);
+  border-color: var(--gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.qa-builder-cell.free-cell span { font-family: 'Playfair Display',serif; font-size: .8rem; color: var(--gold); font-weight: 700; }
+.qa-bingo-grid-builder {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
+  margin-bottom: .75rem;
+}
+@media(max-width:520px){
+  .bingo-grid { grid-template-columns: repeat(5,1fr); gap:3px; }
+  .bingo-cell { min-height:64px; padding:.3rem .25rem; }
+  .bingo-cell-prompt { font-size:.6rem; }
+  .passport-grid { grid-template-columns: repeat(2,1fr); }
+}
+
 </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
@@ -207,6 +432,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   <button data-tab="badges" onclick="goTab('badges',this)">🏅 Badges</button>
   <button data-tab="rankings" onclick="goTab('rankings',this)">2026 Book Rankings</button>
   <button data-tab="analysis" onclick="goTab('analysis',this)">Book Club Metrics</button>
+  <button data-tab="quarterly" id="quarterly-nav-btn" onclick="goTab('quarterly',this)" style="display:none;">🎯 Quarterly Activity</button>
 </nav>
 
 <main id="app-main">
@@ -444,6 +670,28 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 </div>
 
 <!-- ══════════════ ADMIN ══════════════ -->
+<!-- ══════════════ QUARTERLY ACTIVITY ══════════════ -->
+<div id="tab-quarterly" class="section">
+  <div class="sec-head">
+    <h2 id="quarterly-tab-title">🎯 Quarterly Activity</h2>
+    <p id="quarterly-tab-desc">Participate in this quarter's reading challenge.</p>
+  </div>
+
+  <!-- Identity gate -->
+  <div id="quarterly-identity-card" class="card">
+    <p style="font-size:.85rem;color:var(--soft);margin-bottom:.75rem;">Enter your details to load or create your activity card.</p>
+    <div class="grid2">
+      <div class="f-group"><label>Email *</label><input type="email" id="qa-email" placeholder="you@email.com"></div>
+      <div class="f-group"><label>Discord Username *</label><input type="text" id="qa-discord" placeholder="user#0000"></div>
+    </div>
+    <button class="btn btn-primary" onclick="loadQuarterlyCard()">Load My Card</button>
+    <div id="qa-identity-msg"></div>
+  </div>
+
+  <!-- Main activity area (shown after identity confirmed) -->
+  <div id="quarterly-main" style="display:none;"></div>
+</div>
+
 <div id="tab-admin" class="section">
   <div class="sec-head"><h2>Admin Panel</h2><p>Manage everything from here.</p></div>
   <div id="admin-login-area">
@@ -461,6 +709,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       <button class="sub-tab" onclick="goAdminTab('reading-progress-admin',this)">📖 Reading Progress</button>
       <button class="sub-tab" onclick="goAdminTab('badges-admin',this)">🏅 Badge Manager</button>
       <button class="sub-tab" onclick="goAdminTab('edit-books',this)">✏️ Edit Books</button>
+      <button class="sub-tab" onclick="goAdminTab('quarterly-admin',this)">🎯 Quarterly</button>
     </div>
 
     <div id="admin-sub-manage">
@@ -718,12 +967,14 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
         <div id="edit-archive-books-area"></div>
       </div>
 
+    </div><!-- /admin-sub-edit-books -->
+
+    <div id="admin-sub-quarterly-admin" style="display:none;">
+      <div id="quarterly-admin-area"></div>
     </div>
 
-  </div>
-</div>
-
-</main>
+  </div><!-- /admin-panel -->
+</div><!-- /tab-admin -->
 
 <script type="module">
 // ════════════════════════════════════════════════════════
@@ -756,13 +1007,17 @@ const REVIEWS_REF  = doc(db, 'club', 'reviews');
 const PROGRESS_REF = doc(db, 'club', 'readingProgress');
 const MEETING_REF      = doc(db, 'club', 'meetingInfo');
 const BADGE_CONFIG_REF = doc(db, 'club', 'badgeConfig');
+const QUARTERLY_CONFIG_REF = doc(db, 'club', 'quarterlyConfig');
+const QUARTERLY_CARDS_REF  = doc(db, 'club', 'quarterlyCards');
 
 // ── In-memory cache kept fresh by real-time listeners ──
 let CACHE = {
   settings: {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,reviewsOpen:false,password:'bookclub123'},
   books: [], votes: {}, archives: [], surveys: [], surveyResponses: {}, reviews: {},
   readingProgress: {}, meetingInfo: {},
-  badgeConfig: { disabled:{}, hidden:{}, organic:{}, customBadges:[], overrides:{} }
+  badgeConfig: { disabled:{}, hidden:{}, organic:{}, customBadges:[], overrides:{} },
+  quarterlyConfig: { mode:'bingo', active:false, hidden:true, staticBoard:false, prompts:[], passportStamps:[] },
+  quarterlyCards: {}
 };
 
 // ── Single source of truth for all genres ─────────────────────────────────
@@ -883,6 +1138,20 @@ function startListeners() {
     );
     refreshActiveTab();
   });
+  onSnapshot(QUARTERLY_CONFIG_REF, snap => {
+    CACHE.quarterlyConfig = Object.assign(
+      { mode:'bingo', active:false, hidden:true, staticBoard:false, prompts:[], passportStamps:[] },
+      snap.exists() ? snap.data() : {}
+    );
+    // Show/hide quarterly nav button
+    const qBtn = document.getElementById('quarterly-nav-btn');
+    if (qBtn) qBtn.style.display = (CACHE.quarterlyConfig.active && !CACHE.quarterlyConfig.hidden) ? '' : 'none';
+    refreshActiveTab();
+  });
+  onSnapshot(QUARTERLY_CARDS_REF, snap => {
+    CACHE.quarterlyCards = snap.exists() ? (snap.data().map || {}) : {};
+    refreshActiveTab();
+  });
 }
 
 let _refreshDebounce = null;
@@ -903,6 +1172,7 @@ function _doRefreshActiveTab() {
   else if (id === 'analysis') renderAnalysis();
   else if (id === 'progress') renderProgressTab();
   else if (id === 'badges') renderBadgesTab();
+  else if (id === 'quarterly') renderQuarterlyTab();
   else if (id === 'admin' && document.getElementById('admin-panel').style.display !== 'none') renderAdmin();
 }
 
@@ -917,6 +1187,8 @@ function getReviews()        { return CACHE.reviews || {}; }
 function getReadingProgress(){ return CACHE.readingProgress || {}; }
 function getMeetingInfo()    { return CACHE.meetingInfo || {}; }
 function getBadgeConfig()    { return CACHE.badgeConfig || { disabled:{}, hidden:{}, organic:{}, customBadges:[], overrides:{} }; }
+function getQuarterlyConfig(){ return CACHE.quarterlyConfig || { mode:'bingo', active:false, hidden:true, staticBoard:false, prompts:[], passportStamps:[] }; }
+function getQuarterlyCards() { return CACHE.quarterlyCards || {}; }
 
 // ════════════════════════════════════════════════════════
 // NAV
@@ -943,6 +1215,7 @@ function goTab(id, btn) {
   else if (id === 'analysis') renderAnalysis();
   else if (id === 'progress') renderProgressTab();
   else if (id === 'badges')   renderBadgesTab();
+  else if (id === 'quarterly') renderQuarterlyTab();
   else if (id === 'admin' && document.getElementById('admin-panel').style.display !== 'none') renderAdmin();
 }
 window.goTab = goTab;
@@ -2928,7 +3201,7 @@ function renderAdmin() {
 }
 
 function goAdminTab(id, btn) {
-  ['manage','compare','reading-progress-admin','badges-admin','edit-books'].forEach(s => {
+  ['manage','compare','reading-progress-admin','badges-admin','edit-books','quarterly-admin'].forEach(s => {
     document.getElementById('admin-sub-'+s).style.display = s === id ? '' : 'none';
   });
   document.querySelectorAll('#admin-panel .sub-tab').forEach(b => b.classList.remove('active'));
@@ -2937,6 +3210,7 @@ function goAdminTab(id, btn) {
   else if (id === 'reading-progress-admin') renderAdminReadingProgress();
   else if (id === 'badges-admin')           renderAdminBadgeManager();
   else if (id === 'edit-books')             renderEditBooksTab();
+  else if (id === 'quarterly-admin')        renderQuarterlyAdmin();
 }
 window.goAdminTab = goAdminTab;
 
@@ -3905,6 +4179,33 @@ const BADGE_DEFS = [
 
   // ── Admin-only ────────────────────────────────────────────────────────────
   { id:'founding-reader',   name:'1st Edition',         emoji:'🏛️',  tier:null,     desc:'Member during the inaugural year — admin awarded only',     check:()=>false, adminOnly:true },
+
+  // ── Quarterly Activity — Bingo (tiered families) ──────────────────────────
+  { id:'q-first-touch',     name:'First Touch',          emoji:'⚽',  tier:'bronze', category:'quarterly', desc:'Earn your first bingo row on an approved card',                                    check:p=>p.qBingoMaxRows>=1 },
+  { id:'q-top-of-table',    name:'Top of the Table',     emoji:'🏆',  tier:'silver', category:'quarterly', desc:'Earn 5 bingo rows on a single approved card',                                     check:p=>p.qBingoMaxRows>=5 },
+  { id:'q-full-kit-wanker', name:'Full Kit Wanker',      emoji:'🥇',  tier:'gold',   category:'quarterly', desc:'Complete all 12 bingo rows on a single approved card',                            check:p=>p.qBingoMaxRows>=12 },
+
+  { id:'q-solo-run',        name:'Solo Run',             emoji:'🏃',  tier:'bronze', category:'quarterly', desc:'Earn a bingo row without using the free square, on an approved card',              check:p=>p.qBingoMaxNoFreeRows>=1 },
+  { id:'q-upper-ninety',    name:'Upper Ninety',         emoji:'🎯',  tier:'silver', category:'quarterly', desc:'Earn 4 bingo rows without using the free square, on an approved card',             check:p=>p.qBingoMaxNoFreeRows>=4 },
+  { id:'q-park-the-bus',    name:'Park the Bus',         emoji:'🚌',  tier:'gold',   category:'quarterly', desc:'Fill columns 2 & 4 and rows 2 & 4 on an approved bingo card — defending the free square from all sides', check:p=>p.qParkTheBus },
+
+  // ── Quarterly Activity — Bingo standalone ────────────────────────────────
+  { id:'q-on-the-pitch',    name:'On the Pitch',         emoji:'🟢',  tier:null,     category:'quarterly', desc:'Have a bingo card approved',                                                      check:p=>p.qBingoApproved>=1 },
+  { id:'q-corner-kick',     name:'Corner Kick',          emoji:'🚩',  tier:null,     category:'quarterly', desc:'Fill any 2 corners of a bingo card on an approved submission',                    check:p=>p.qCornerKick },
+  { id:'q-four-corners',    name:'Four Corners',         emoji:'🔲',  tier:null,     category:'quarterly', desc:'Fill all 4 corners of a bingo card on an approved submission',                    check:p=>p.qFourCorners },
+  { id:'q-four-four-two',   name:'Four-Four-Two',        emoji:'📐',  tier:null,     category:'quarterly', desc:'Complete a bingo row, column, and both diagonals on an approved card',             check:p=>p.qFourFourTwo },
+
+  // ── Quarterly Activity — Passport (tiered) ────────────────────────────────
+  { id:'q-earned-a-cap',    name:'Earned a Cap',         emoji:'🧢',  tier:'bronze', category:'quarterly', desc:'Complete your first approved passport (6 of 8 stamps)',                           check:p=>p.qPassportApproved>=1 },
+  { id:'q-stoppage-time',   name:'Stoppage Time',        emoji:'⏱️',  tier:'silver', category:'quarterly', desc:'Complete an approved passport with 1 bonus stamp',                                check:p=>p.qPassportMaxBonus>=1 },
+  { id:'q-extra-time',      name:'Extra Time',           emoji:'🌟',  tier:'gold',   category:'quarterly', desc:'Complete an approved passport with both bonus stamps',                             check:p=>p.qPassportMaxBonus>=2 },
+
+  // ── Quarterly Activity — Passport standalone ─────────────────────────────
+  { id:'q-boots-on',        name:'Boots On',             emoji:'👟',  tier:null,     category:'quarterly', desc:'Have a passport approved',                                                        check:p=>p.qPassportApproved>=1 },
+
+  // ── Quarterly Activity — Cross-quarter loyalty (tiered) ───────────────────
+  { id:'q-in-form',         name:'In Form',              emoji:'📈',  tier:'bronze', category:'quarterly', desc:'Get approved in 2 consecutive quarters',                                          check:p=>p.qConsecutiveApprovals>=2 },
+  { id:'q-club-legend',     name:'Club Legend',          emoji:'🌠',  tier:'gold',   category:'quarterly', desc:'Get approved in 4 or more quarters total',                                       check:p=>p.qTotalApprovals>=4 },
 ];
 
 // Returns all BADGE_DEFS + custom badges, respecting disabled/hidden for members
@@ -4422,6 +4723,125 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
     if (iMine) surveysCompleted++;
   });
 
+  // ── Quarterly Activity badges ─────────────────────────────────────────────
+  // Pull approved cards from all archived quarters + the live active quarter
+  const qCfg          = getQuarterlyConfig();
+  const qArchives     = qCfg.archives || [];
+  const qLiveCards    = getQuarterlyCards();
+
+  // Gather every approved card belonging to this member across all sources
+  function _getApprovedCards() {
+    const results = [];
+    // Live active cards
+    Object.entries(qLiveCards).forEach(([k, c]) => {
+      if (!c.approved) return;
+      const cardEmail   = normEmail(c.email || '');
+      const cardDiscord = normId(c.discord || '');
+      if ((myNormEmail && cardEmail && cardEmail === myNormEmail) ||
+          (cardDiscord && myName && resolveId(c.discord||'', c.email||'', idMap) === myName)) {
+        results.push({ card: c, mode: qCfg.mode || 'bingo', cfg: qCfg });
+      }
+    });
+    // Archived quarters
+    qArchives.forEach(a => {
+      Object.entries(a.cards || {}).forEach(([k, c]) => {
+        if (!c.approved) return;
+        const cardEmail   = normEmail(c.email || '');
+        const cardDiscord = normId(c.discord || '');
+        if ((myNormEmail && cardEmail && cardEmail === myNormEmail) ||
+            (cardDiscord && myName && resolveId(c.discord||'', c.email||'', idMap) === myName)) {
+          results.push({ card: c, mode: a.mode || 'bingo', cfg: a.cfg || {} });
+        }
+      });
+    });
+    return results;
+  }
+
+  const approvedCards = _getApprovedCards();
+  const approvedBingo    = approvedCards.filter(e => e.mode === 'bingo');
+  const approvedPassport = approvedCards.filter(e => e.mode === 'passport');
+
+  // Bingo stats — per-card maximums
+  let qBingoMaxRows      = 0;
+  let qBingoMaxNoFreeRows = 0;
+  let qParkTheBus        = false;
+  let qCornerKick        = false;
+  let qFourCorners       = false;
+  let qFourFourTwo       = false;
+
+  approvedBingo.forEach(({ card, cfg: bCfg }) => {
+    const claimed = card.claimed || Array(25).fill(false).map((_,i)=>i===FREE_INDEX);
+    // claimed array indexed 0-24; FREE_INDEX=12 (row3, col3, 0-based)
+    const fullClaimed = claimed.map((c,i) => i === FREE_INDEX ? true : c);
+
+    // Total bingo rows (including free)
+    const rows = countBingoRows(fullClaimed);
+    if (rows > qBingoMaxRows) qBingoMaxRows = rows;
+
+    // Rows without using the free square — only count lines that don't include index 12
+    const noFreeLines = getBingoWinLines(fullClaimed).filter(line => !line.includes(FREE_INDEX));
+    if (noFreeLines.length > qBingoMaxNoFreeRows) qBingoMaxNoFreeRows = noFreeLines.length;
+
+    // Park the Bus: col2 (indices 1,6,11,16,21), col4 (3,8,13,18,23),
+    //               row2 (indices 5,6,7,8,9), row4 (15,16,17,18,19)
+    const col2 = [1,6,11,16,21].every(i => fullClaimed[i]);
+    const col4 = [3,8,13,18,23].every(i => fullClaimed[i]);
+    const row2 = [5,6,7,8,9].every(i => fullClaimed[i]);
+    const row4 = [15,16,17,18,19].every(i => fullClaimed[i]);
+    if (col2 && col4 && row2 && row4) qParkTheBus = true;
+
+    // Corners: indices 0, 4, 20, 24
+    const corners = [0, 4, 20, 24];
+    const filledCorners = corners.filter(i => fullClaimed[i]);
+    if (filledCorners.length >= 2) qCornerKick = true;
+    if (filledCorners.length === 4) qFourCorners = true;
+
+    // Four-Four-Two: at least one row, one column, and both diagonals
+    const winLines = getBingoWinLines(fullClaimed);
+    const hasRow  = winLines.some(l => l[1] === l[0]+1); // consecutive indices = horizontal
+    const hasCol  = winLines.some(l => l[1] === l[0]+5); // +5 apart = vertical
+    const hasDiag1 = winLines.some(l => JSON.stringify(l) === JSON.stringify([0,6,12,18,24]));
+    const hasDiag2 = winLines.some(l => JSON.stringify(l) === JSON.stringify([4,8,12,16,20]));
+    if (hasRow && hasCol && hasDiag1 && hasDiag2) qFourFourTwo = true;
+  });
+
+  // Passport stats
+  let qPassportMaxBonus = 0;
+  approvedPassport.forEach(({ card }) => {
+    const claimOrder = card.claimOrder || [];
+    const bonusCount = Math.max(0, claimOrder.length - 6);
+    if (bonusCount > qPassportMaxBonus) qPassportMaxBonus = bonusCount;
+  });
+
+  const qBingoApproved    = approvedBingo.length;
+  const qPassportApproved = approvedPassport.length;
+  const qTotalApprovals   = approvedCards.length;
+
+  // Consecutive approval quarters — need chronological order
+  // Gather all quarter identifiers (name + archivedAt) for this member
+  const memberQuarterApprovals = new Set();
+  approvedCards.forEach(({ card }) => {
+    if (card.submittedAt) memberQuarterApprovals.add(card.submittedAt);
+  });
+  // For consecutive: use archived quarter order
+  let qConsecutiveApprovals = 0;
+  let curConsec = 0;
+  const allQuartersSorted = [
+    ...qArchives.map((a, i) => ({ i, hasApproval: Object.entries(a.cards||{}).some(([,c]) => {
+      if (!c.approved) return false;
+      const cardEmail   = normEmail(c.email || '');
+      const cardDiscord = normId(c.discord || '');
+      return (myNormEmail && cardEmail && cardEmail === myNormEmail) ||
+             (cardDiscord && myName && resolveId(c.discord||'', c.email||'', idMap) === myName);
+    })})),
+    // Live quarter counts as the most recent
+    { i: qArchives.length, hasApproval: approvedBingo.some(e=>e.cfg===qCfg)||approvedPassport.some(e=>e.cfg===qCfg) }
+  ];
+  allQuartersSorted.forEach(({ hasApproval }) => {
+    if (hasApproval) { curConsec++; if (curConsec > qConsecutiveApprovals) qConsecutiveApprovals = curConsec; }
+    else curConsec = 0;
+  });
+
   return {
     voted, suggestedMonths, reviewed, pickedWinner, suggestedTop3,
     dnfCount, dnsCount, reviewsWithRating, surveysCompleted, totalSurveys,
@@ -4438,6 +4858,10 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
     longestVoteStreak:       longestStreak(monthVoted),
     longestReadStreak:       longestStreak(monthReadFinished),
     longestAllRounderStreak: longestStreak(monthAllRounder),
+    // Quarterly activity
+    qBingoApproved, qPassportApproved, qTotalApprovals,
+    qBingoMaxRows, qBingoMaxNoFreeRows, qPassportMaxBonus,
+    qParkTheBus, qCornerKick, qFourCorners, qFourFourTwo, qConsecutiveApprovals,
   };
 }
 
@@ -5393,24 +5817,1136 @@ function forgetIdentity() {
   clearIdentityCookie();
   // Clear every identity field across all pages
   ['pg-email','pg-discord','sr-lookup-email','sr-lookup-discord','bg-email','bg-discord',
-   's-email','s-discord','v-email','v-discord','rv-email','rv-discord'].forEach(id => {
+   's-email','s-discord','v-email','v-discord','rv-email','rv-discord','qa-email','qa-discord'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   // Remove all banners (both styles share the class)
   document.querySelectorAll('.remembered-banner').forEach(el => el.remove());
   // Gate pages: restore identity cards, hide main content
-  ['progress-identity-card','surveys-identity-card','badges-identity-card'].forEach(id => {
+  ['progress-identity-card','surveys-identity-card','badges-identity-card','quarterly-identity-card'].forEach(id => {
     const el = document.getElementById(id); if (el) el.style.display = '';
   });
-  ['progress-main','surveys-my-responses-main','badges-main'].forEach(id => {
+  ['progress-main','surveys-my-responses-main','badges-main','quarterly-main'].forEach(id => {
     const el = document.getElementById(id); if (el) el.style.display = 'none';
   });
   // Reset in-memory identities
   _pgIdentity = null;
   _bgIdentity = null;
   if (typeof _srIdentity !== 'undefined') window._srIdentity = null;
+  _qaIdentity = null;
 }
 window.forgetIdentity = forgetIdentity;
+
+// ════════════════════════════════════════════════════════
+// QUARTERLY ACTIVITIES
+// ════════════════════════════════════════════════════════
+
+let _qaIdentity = null; // { email, discord }
+let _qaOpenDrawer = null; // index of currently open book drawer
+
+// ── Key helpers ────────────────────────────────────────
+function qaKey(email, discord) {
+  return (email.trim().toLowerCase() + ':' + discord.trim().toLowerCase()).replace(/[^a-z0-9:._@#-]/g,'_');
+}
+
+// ── Bingo logic ────────────────────────────────────────
+const BINGO_SIZE = 5;
+const FREE_INDEX = 12; // center of 5x5
+
+function countBingoRows(claimed) {
+  // claimed: array of 25 booleans (index 12 = FREE always true)
+  let rows = 0;
+  // 5 rows
+  for (let r = 0; r < 5; r++) {
+    if ([0,1,2,3,4].every(c => claimed[r*5+c])) rows++;
+  }
+  // 5 cols
+  for (let c = 0; c < 5; c++) {
+    if ([0,1,2,3,4].every(r => claimed[r*5+c])) rows++;
+  }
+  // 2 diagonals
+  if ([0,6,12,18,24].every(i => claimed[i])) rows++;
+  if ([4,8,12,16,20].every(i => claimed[i])) rows++;
+  return rows;
+}
+
+function getBingoWinLines(claimed) {
+  const lines = [];
+  for (let r = 0; r < 5; r++) {
+    const idxs = [0,1,2,3,4].map(c => r*5+c);
+    if (idxs.every(i => claimed[i])) lines.push(idxs);
+  }
+  for (let c = 0; c < 5; c++) {
+    const idxs = [0,1,2,3,4].map(r => r*5+c);
+    if (idxs.every(i => claimed[i])) lines.push(idxs);
+  }
+  if ([0,6,12,18,24].every(i => claimed[i])) lines.push([0,6,12,18,24]);
+  if ([4,8,12,16,20].every(i => claimed[i])) lines.push([4,8,12,16,20]);
+  return lines;
+}
+
+function shufflePrompts(prompts, seed) {
+  // Seeded shuffle so member's card is always reproducible from their key
+  const arr = [...prompts];
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) { h = Math.imul(31, h) + seed.charCodeAt(i) | 0; }
+  let s = Math.abs(h);
+  for (let i = arr.length - 1; i > 0; i--) {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    const j = s % (i + 1);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// Build the 25-slot board (index 12 = FREE)
+function buildMemberBoard(cfg, memberKey) {
+  const rawPrompts = (cfg.prompts || []).slice(0, 24);
+  while (rawPrompts.length < 24) rawPrompts.push('');
+  let arranged;
+  if (cfg.staticBoard) {
+    arranged = rawPrompts;
+  } else {
+    arranged = shufflePrompts(rawPrompts, memberKey);
+  }
+  // Insert FREE at center (index 12)
+  const board = [];
+  let pi = 0;
+  for (let i = 0; i < 25; i++) {
+    if (i === FREE_INDEX) board.push({ prompt: 'FREE', isFree: true });
+    else board.push({ prompt: arranged[pi++] || '', isFree: false });
+  }
+  return board;
+}
+
+// Live-enable the claim button once both fields have content
+window.qaDrawerCheck = function() {
+  const title  = document.getElementById('qa-bk-title')?.value.trim() || '';
+  const author = document.getElementById('qa-bk-author')?.value.trim() || '';
+  const btn = document.getElementById('qa-claim-btn');
+  if (!btn) return;
+  const ok = !!(title && author);
+  btn.disabled = !ok;
+  btn.style.opacity = ok ? '1' : '0.4';
+  btn.style.cursor  = ok ? 'pointer' : 'not-allowed';
+};
+
+// ── Cookie auto-load for quarterly tab ────────────────
+function renderQuarterlyTab() {
+  const cfg = getQuarterlyConfig();
+  const titleEl = document.getElementById('quarterly-tab-title');
+  const descEl  = document.getElementById('quarterly-tab-desc');
+  if (titleEl) titleEl.textContent = cfg.mode === 'passport' ? '🗺️ Quarterly Passport' : '🎯 Bingo Challenge';
+  if (descEl)  descEl.textContent  = cfg.mode === 'passport'
+    ? 'Collect stamps by reading books that match each category.'
+    : 'Complete rows, columns, or diagonals for prize drawing entries.';
+
+  // Auto-load from cookie if identity not yet set
+  if (!_qaIdentity) {
+    const saved = loadIdentityCookie();
+    if (saved && saved.email && saved.discord) {
+      _qaIdentity = { email: saved.email, discord: saved.discord };
+      const identCard = document.getElementById('quarterly-identity-card');
+      const main = document.getElementById('quarterly-main');
+      if (identCard) identCard.style.display = 'none';
+      if (main) main.style.display = '';
+    } else {
+      return; // gate shown, nothing to render
+    }
+  }
+
+  const key = qaKey(_qaIdentity.email, _qaIdentity.discord);
+  const cards = getQuarterlyCards();
+  const card  = cards[key] || null;
+  const main  = document.getElementById('quarterly-main');
+  if (!main) return;
+
+  if (!cfg.active) {
+    main.innerHTML = `<div class="pending-box"><div class="icon">📅</div><h3>No Active Quarter</h3><p>Check back when the next quarterly activity is announced!</p></div>`;
+    return;
+  }
+
+  if (cfg.mode === 'bingo') renderBingoCard(main, cfg, card, key);
+  else renderPassportCard(main, cfg, card, key);
+}
+
+// ── BINGO CARD render ──────────────────────────────────
+function renderBingoCard(container, cfg, card, memberKey) {
+  const isSubmitted = card && card.submitted;
+  const board = card && card.board ? card.board : buildMemberBoard(cfg, memberKey);
+  const claimed = card && card.claimed ? card.claimed : Array(25).fill(false).map((_,i)=>i===FREE_INDEX);
+  const books   = card && card.books   ? card.books   : {};
+  const winLines = getBingoWinLines(claimed);
+  const winSet   = new Set(winLines.flat());
+  const rowCount = countBingoRows(claimed);
+
+  let html = '';
+
+  if (isSubmitted) {
+    const approved = card.approved;
+    const rowMsg = rowCount === 0
+      ? 'No complete bingo rows yet.'
+      : rowCount === 12
+        ? '🎉 Maximum 12 rows — perfect card!'
+        : `${rowCount} bingo row${rowCount !== 1 ? 's' : ''} = <strong>${rowCount} drawing entr${rowCount !== 1 ? 'ies' : 'y'}</strong> in the prize drawing.`;
+    html += `<div class="qa-submitted-banner">
+      <span class="icon">${approved ? '🏆' : '✅'}</span>
+      <div style="flex:1;">
+        <strong style="font-size:.95rem;">${approved ? 'Approved!' : 'Card Submitted & Locked'}</strong>
+        <div style="font-size:.82rem;color:var(--soft);margin-top:.2rem;">
+          ${approved ? 'Your card has been reviewed and approved by admin.' : 'Your card is locked in and awaiting admin review.'}
+        </div>
+        <div style="margin-top:.45rem;padding:.4rem .65rem;background:rgba(240,180,41,.12);border-radius:5px;border:1px solid rgba(240,180,41,.3);font-size:.85rem;">${rowMsg}</div>
+      </div>
+    </div>`;
+  }
+
+  // Row counter
+  html += `<div class="bingo-row-counter">
+    <span class="bingo-row-badge">${rowCount}</span>
+    <span>bingo row${rowCount !== 1 ? 's' : ''} &mdash; <span style="color:var(--soft);">${rowCount} drawing entr${rowCount !== 1 ? 'ies' : 'y'} earned</span></span>
+    <span style="margin-left:auto;font-size:.75rem;color:var(--soft);">Max 12 rows possible</span>
+  </div>`;
+
+  // Grid
+  html += `<div class="bingo-grid" id="bingo-grid-render">`;
+  for (let i = 0; i < 25; i++) {
+    const cell = board[i];
+    const isClaimed = i === FREE_INDEX ? true : claimed[i];
+    const isWin = winSet.has(i);
+    let cls = 'bingo-cell';
+    if (cell.isFree) cls += ' cell-free';
+    else if (isClaimed) cls += ' cell-claimed';
+    if (isWin && isClaimed) cls += ' row-highlight';
+    if (isSubmitted) cls += ' cell-locked';
+    const clickAttr = (!cell.isFree && !isSubmitted)
+      ? `onclick="qaToggleCell(${i})"` : '';
+    html += `<div class="${cls}" ${clickAttr} data-idx="${i}">
+      <div class="bingo-cell-prompt">${esc(cell.prompt)}</div>
+      <div class="bingo-cell-check"></div>
+    </div>`;
+  }
+  html += `</div>`;
+
+  // Open drawer if any
+  if (_qaOpenDrawer !== null && _qaOpenDrawer !== FREE_INDEX && !isSubmitted) {
+    const cell = board[_qaOpenDrawer];
+    const bk = books[_qaOpenDrawer] || {};
+    const hasBook = !!(bk.title && bk.title.trim() && bk.author && bk.author.trim());
+    html += `<div class="qa-book-drawer" id="qa-drawer">
+      <div class="qa-drawer-title">📖 Book for: <em>${esc(cell.prompt)}</em></div>
+      <p style="font-size:.75rem;color:var(--soft);margin-bottom:.6rem;">A title and author are required before marking this square complete.</p>
+      <div class="qa-drawer-grid">
+        <div class="f-group"><label>Book Title <span style="color:var(--red);">*</span></label>
+          <input type="text" id="qa-bk-title" value="${esc(bk.title||'')}" placeholder="Title…" oninput="qaDrawerCheck()">
+        </div>
+        <div class="f-group"><label>Author <span style="color:var(--red);">*</span></label>
+          <input type="text" id="qa-bk-author" value="${esc(bk.author||'')}" placeholder="Author…" oninput="qaDrawerCheck()">
+        </div>
+      </div>
+      <div class="qa-drawer-actions">
+        <button class="btn btn-primary btn-sm" onclick="qaSaveBook(${_qaOpenDrawer})">Save</button>
+        ${claimed[_qaOpenDrawer]
+          ? `<button class="btn btn-secondary btn-sm" onclick="qaUnclaim(${_qaOpenDrawer})">↩ Undo Claim</button>`
+          : `<button class="btn btn-primary btn-sm" id="qa-claim-btn" onclick="qaClaimCell(${_qaOpenDrawer})" ${hasBook ? '' : 'disabled style="opacity:.4;cursor:not-allowed;"'}>✓ Mark Complete</button>`}
+        <button class="btn btn-secondary btn-sm" onclick="qaCloseDrawer()">✕ Close</button>
+        ${bk.title ? `<span style="font-size:.75rem;color:var(--green);margin-left:auto;">📚 ${esc(bk.title)}</span>` : ''}
+      </div>
+      <div id="qa-drawer-msg"></div>
+    </div>`;
+  } else if (_qaOpenDrawer !== null && !isSubmitted) {
+    _qaOpenDrawer = null;
+  }
+
+  // Save / Submit actions
+  if (!isSubmitted) {
+    html += `<div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;margin-top:.5rem;">
+      <button class="btn btn-secondary" onclick="qaSaveDraft()">💾 Save Progress</button>
+      <button class="btn btn-primary" onclick="qaSubmitCard()" style="background:var(--green);color:#fff;">🔒 Lock In & Submit Card</button>
+      <span style="font-size:.75rem;color:var(--soft);">Submitting is final — no changes after.</span>
+    </div>`;
+  }
+
+  html += `<div id="qa-save-msg" style="margin-top:.5rem;"></div>`;
+  container.innerHTML = html;
+}
+
+// ── PASSPORT CARD render ───────────────────────────────
+function renderPassportCard(container, cfg, card, memberKey) {
+  const isSubmitted = card && card.submitted;
+  const stamps     = cfg.passportStamps || [];
+  const claimed    = card && card.claimed ? card.claimed : Array(8).fill(false);
+  const books      = card && card.books   ? card.books   : {};
+  const claimedCount = claimed.filter(Boolean).length;
+  const required = 6, total = 8;
+  const pct = Math.round((claimedCount / required) * 100);
+  const isComplete = claimedCount >= required;
+
+  let html = '';
+
+  if (isSubmitted) {
+    const approved = card.approved;
+    html += `<div class="qa-submitted-banner">
+      <span class="icon">${approved ? '🏆' : '✅'}</span>
+      <div>
+        <strong>${approved ? 'Approved!' : 'Passport Submitted'}</strong>
+        <div style="font-size:.78rem;color:var(--soft);">
+          ${approved ? 'Your passport has been approved by admin.' : 'Your passport is locked and awaiting review.'}
+          &nbsp; <strong style="color:var(--ink);">${claimedCount} / ${total} stamps</strong>
+          ${claimedCount >= required ? ' — <span style="color:var(--green);">Completed! ✓</span>' : ''}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // Progress bar
+  const displayPct = Math.min(100, Math.round((claimedCount / required) * 100));
+  html += `<div style="margin-bottom:1.25rem;">
+    <div class="passport-progress-bar"><div class="passport-progress-fill" style="width:${displayPct}%;"></div></div>
+    <div class="passport-status-line">${claimedCount} of ${required} stamps collected
+      ${claimedCount > required ? ` + <strong style="color:#ab47bc;">${claimedCount - required} bonus</strong>` : ''}
+      ${isComplete ? ' — <strong style="color:var(--green);">Completed! ✓</strong>' : ` — ${required - claimedCount} more needed`}
+    </div>
+    <p style="font-size:.75rem;color:var(--soft);margin-top:.3rem;">Any 6 stamps complete the challenge. Your 7th and 8th claimed stamps automatically become bonus stamps.</p>
+  </div>`;
+
+  // Determine claim order to identify which are bonus (slots claimed after the 6th are bonus)
+  // Use card.claimOrder if available, else fall back to index order
+  const claimOrder = card && card.claimOrder ? card.claimOrder : [];
+  // claimOrder is an array of stamp indices in the order they were claimed
+  // Stamps in positions 7+ (index >= 6 in claimOrder) are bonus
+  const bonusSet = new Set(claimOrder.slice(6));
+
+  html += `<div class="passport-grid">`;
+  for (let i = 0; i < 8; i++) {
+    const stamp = stamps[i] || { name: `Stamp ${i+1}`, description: '', icon: '📖' };
+    const isClaimedSlot = claimed[i];
+    const isBonus = isClaimedSlot && bonusSet.has(i);
+    const bk = books[i] || {};
+    let cls = 'passport-stamp';
+    if (isClaimedSlot) cls += ' stamp-claimed';
+    if (isBonus) cls += ' stamp-bonus';
+    if (isSubmitted) cls += ' stamp-locked';
+    const clickAttr = !isSubmitted ? `onclick="qaToggleStamp(${i})"` : '';
+    html += `<div class="${cls}" ${clickAttr} data-idx="${i}">
+      ${isBonus ? '<span class="stamp-bonus-label">Bonus</span>' : ''}
+      <div class="stamp-icon">${esc(stamp.icon || '📖')}</div>
+      <div class="stamp-name">${esc(stamp.name)}</div>
+      <div class="stamp-desc">${esc(stamp.description || '')}</div>
+      ${bk.title ? `<div style="font-size:.6rem;color:var(--gold);margin-top:.2rem;line-height:1.2;">📚 ${esc(bk.title)}</div>` : ''}
+      <div class="stamp-check"></div>
+    </div>`;
+  }
+  html += `</div>`;
+
+  // Open stamp drawer
+  if (_qaOpenDrawer !== null && !isSubmitted) {
+    const stamp = stamps[_qaOpenDrawer] || { name: `Stamp ${_qaOpenDrawer+1}` };
+    const bk = books[_qaOpenDrawer] || {};
+    const isClaimed = claimed[_qaOpenDrawer];
+    const hasBook = !!(bk.title && bk.title.trim() && bk.author && bk.author.trim());
+    html += `<div class="qa-book-drawer" id="qa-drawer">
+      <div class="qa-drawer-title">📖 Book for: <em>${esc(stamp.name)}</em></div>
+      <p style="font-size:.75rem;color:var(--soft);margin-bottom:.6rem;">A title and author are required before collecting this stamp.</p>
+      <div class="qa-drawer-grid">
+        <div class="f-group"><label>Book Title <span style="color:var(--red);">*</span></label>
+          <input type="text" id="qa-bk-title" value="${esc(bk.title||'')}" placeholder="Title…" oninput="qaDrawerCheck()">
+        </div>
+        <div class="f-group"><label>Author <span style="color:var(--red);">*</span></label>
+          <input type="text" id="qa-bk-author" value="${esc(bk.author||'')}" placeholder="Author…" oninput="qaDrawerCheck()">
+        </div>
+      </div>
+      <div class="qa-drawer-actions">
+        <button class="btn btn-primary btn-sm" onclick="qaPassportSaveBook(${_qaOpenDrawer})">Save</button>
+        ${isClaimed
+          ? `<button class="btn btn-secondary btn-sm" onclick="qaUnclaim(${_qaOpenDrawer})">↩ Undo Stamp</button>`
+          : `<button class="btn btn-primary btn-sm" id="qa-claim-btn" onclick="qaClaimStamp(${_qaOpenDrawer})" ${hasBook ? '' : 'disabled style="opacity:.4;cursor:not-allowed;"'}>✦ Collect Stamp</button>`}
+        <button class="btn btn-secondary btn-sm" onclick="qaCloseDrawer()">✕ Close</button>
+        ${bk.title ? `<span style="font-size:.75rem;color:var(--green);margin-left:auto;">📚 ${esc(bk.title)}</span>` : ''}
+      </div>
+      <div id="qa-drawer-msg"></div>
+    </div>`;
+  }
+
+  if (!isSubmitted) {
+    html += `<div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;margin-top:.5rem;">
+      <button class="btn btn-secondary" onclick="qaSaveDraft()">💾 Save Progress</button>
+      <button class="btn btn-primary" onclick="qaSubmitCard()" style="background:var(--green);color:#fff;">🔒 Lock In & Submit Passport</button>
+      <span style="font-size:.75rem;color:var(--soft);">Submitting is final — no changes after.</span>
+    </div>`;
+  }
+
+  html += `<div id="qa-save-msg" style="margin-top:.5rem;"></div>`;
+  container.innerHTML = html;
+}
+
+// ── Identity / load ────────────────────────────────────
+function loadQuarterlyCard() {
+  const email   = (document.getElementById('qa-email')?.value || '').trim();
+  const discord = (document.getElementById('qa-discord')?.value || '').trim();
+  if (!email || !discord) { showMsg('qa-identity-msg','Please enter both email and Discord username.','err'); return; }
+  _qaIdentity = { email, discord };
+  saveIdentityCookie(email, discord);
+  document.getElementById('quarterly-identity-card').style.display = 'none';
+  const main = document.getElementById('quarterly-main');
+  main.style.display = '';
+  renderQuarterlyTab();
+}
+window.loadQuarterlyCard = loadQuarterlyCard;
+
+// ── Persist card ───────────────────────────────────────
+async function qaPersistCard(patch, msgId) {
+  if (!_qaIdentity) return;
+  const key   = qaKey(_qaIdentity.email, _qaIdentity.discord);
+  const cards = getQuarterlyCards();
+  const existing = cards[key] || {};
+  const updated = Object.assign({}, existing, patch, {
+    email: _qaIdentity.email,
+    discord: _qaIdentity.discord,
+    updatedAt: Date.now()
+  });
+  const newMap = Object.assign({}, cards, { [key]: updated });
+  try {
+    await fbSet(QUARTERLY_CARDS_REF, { map: newMap });
+    if (msgId) showMsg(msgId, 'Saved!', 'ok');
+  } catch(e) {
+    if (msgId) showMsg(msgId, 'Save failed — try again.', 'err');
+  }
+}
+
+// ── Interaction helpers (single canonical versions) ────
+
+function _qaGetState() {
+  if (!_qaIdentity) return null;
+  const cfg   = getQuarterlyConfig();
+  const cards = getQuarterlyCards();
+  const key   = qaKey(_qaIdentity.email, _qaIdentity.discord);
+  const card  = cards[key] || {};
+  const main  = document.getElementById('quarterly-main');
+  return { cfg, cards, key, card, main };
+}
+
+function _qaRerender(s) {
+  if (!s || !s.main) return;
+  const cards = getQuarterlyCards();
+  const card  = cards[s.key] || {};
+  if (s.cfg.mode === 'bingo') renderBingoCard(s.main, s.cfg, card, s.key);
+  else renderPassportCard(s.main, s.cfg, card, s.key);
+}
+
+// Open/close the book drawer for a bingo cell
+window.qaToggleCell = function(idx) {
+  if (idx === FREE_INDEX) return;
+  _qaOpenDrawer = (_qaOpenDrawer === idx) ? null : idx;
+  const s = _qaGetState(); if (!s) return;
+  const board = s.card.board || buildMemberBoard(s.cfg, s.key);
+  const claimed = s.card.claimed || Array(25).fill(false).map((_,i)=>i===FREE_INDEX);
+  renderBingoCard(s.main, s.cfg, Object.assign({}, s.card, {board, claimed}), s.key);
+};
+
+// Open/close the book drawer for a passport stamp
+window.qaToggleStamp = function(idx) {
+  _qaOpenDrawer = (_qaOpenDrawer === idx) ? null : idx;
+  const s = _qaGetState(); if (!s) return;
+  renderPassportCard(s.main, s.cfg, s.card, s.key);
+};
+
+// Mark a bingo cell as claimed
+window.qaClaimCell = function(idx) {
+  const s = _qaGetState(); if (!s) return;
+  const board   = s.card.board || buildMemberBoard(s.cfg, s.key);
+  const claimed = [...(s.card.claimed || Array(25).fill(false).map((_,i)=>i===FREE_INDEX))];
+  claimed[idx]  = true;
+  _qaOpenDrawer = null;
+  const updatedCard = Object.assign({}, s.card, { board, claimed });
+  qaPersistCard({ board, claimed }, null);
+  // Render optimistically with updated state — don't wait for Firestore snapshot
+  if (s.main) renderBingoCard(s.main, s.cfg, updatedCard, s.key);
+};
+
+// Mark a passport stamp as claimed
+window.qaClaimStamp = function(idx) {
+  const s = _qaGetState(); if (!s) return;
+  const claimed = [...(s.card.claimed || Array(8).fill(false))];
+  if (claimed[idx]) return;
+  claimed[idx]  = true;
+  const claimOrder = [...(s.card.claimOrder || [])];
+  if (!claimOrder.includes(idx)) claimOrder.push(idx);
+  _qaOpenDrawer = null;
+  const updatedCard = Object.assign({}, s.card, { claimed, claimOrder });
+  qaPersistCard({ claimed, claimOrder }, null);
+  if (s.main) renderPassportCard(s.main, s.cfg, updatedCard, s.key);
+};
+
+// Undo a claim (works for both modes)
+window.qaUnclaim = function(idx) {
+  const s = _qaGetState(); if (!s) return;
+  _qaOpenDrawer = null;
+  let updatedCard;
+  if (s.cfg.mode === 'bingo') {
+    if (idx === FREE_INDEX) return;
+    const claimed = [...(s.card.claimed || Array(25).fill(false).map((_,i)=>i===FREE_INDEX))];
+    claimed[idx] = false;
+    updatedCard = Object.assign({}, s.card, { claimed });
+    qaPersistCard({ claimed }, null);
+    if (s.main) renderBingoCard(s.main, s.cfg, updatedCard, s.key);
+  } else {
+    const claimed = [...(s.card.claimed || Array(8).fill(false))];
+    claimed[idx] = false;
+    const claimOrder = (s.card.claimOrder || []).filter(i => i !== idx);
+    updatedCard = Object.assign({}, s.card, { claimed, claimOrder });
+    qaPersistCard({ claimed, claimOrder }, null);
+    if (s.main) renderPassportCard(s.main, s.cfg, updatedCard, s.key);
+  }
+};
+
+// Close the drawer without making changes
+window.qaCloseDrawer = function() {
+  _qaOpenDrawer = null;
+  const s = _qaGetState(); if (!s) return;
+  _qaRerender(s);
+};
+
+// Save book for a bingo square
+window.qaSaveBook = function(idx) {
+  const title  = (document.getElementById('qa-bk-title')?.value || '').trim();
+  const author = (document.getElementById('qa-bk-author')?.value || '').trim();
+  const s = _qaGetState(); if (!s) return;
+  const books = Object.assign({}, s.card.books || {}, { [idx]: { title, author } });
+  const updatedCard = Object.assign({}, s.card, { books });
+  qaPersistCard({ books }, null);
+  showMsg('qa-drawer-msg', 'Saved!', 'ok');
+  // Re-render optimistically so the drawer reflects saved state immediately
+  if (s.main) {
+    if (s.cfg.mode === 'bingo') {
+      const board = s.card.board || buildMemberBoard(s.cfg, s.key);
+      const claimed = s.card.claimed || Array(25).fill(false).map((_,i)=>i===FREE_INDEX);
+      renderBingoCard(s.main, s.cfg, Object.assign({}, updatedCard, {board, claimed}), s.key);
+    } else {
+      renderPassportCard(s.main, s.cfg, updatedCard, s.key);
+    }
+  }
+};
+
+// Save book for a passport stamp
+window.qaPassportSaveBook = function(idx) {
+  window.qaSaveBook(idx); // identical logic
+};
+
+window.qaPassportUnclaim = function(idx) { window.qaUnclaim(idx); };
+
+async function qaSaveDraft() {
+  if (!_qaIdentity) return;
+  const cfg = getQuarterlyConfig();
+  const cards = getQuarterlyCards();
+  const key = qaKey(_qaIdentity.email, _qaIdentity.discord);
+  const card = cards[key] || {};
+  // For bingo: lock in board if not yet locked
+  if (cfg.mode === 'bingo' && !card.board) {
+    const board = buildMemberBoard(cfg, key);
+    await qaPersistCard({ board }, 'qa-save-msg');
+  } else {
+    await qaPersistCard({}, 'qa-save-msg');
+  }
+}
+window.qaSaveDraft = qaSaveDraft;
+
+async function qaSubmitCard() {
+  if (!_qaIdentity) return;
+  const cfg = getQuarterlyConfig();
+  const cards = getQuarterlyCards();
+  const key = qaKey(_qaIdentity.email, _qaIdentity.discord);
+  const card = cards[key] || {};
+  if (card.submitted) { showMsg('qa-save-msg','Already submitted!','ok'); return; }
+
+  let confirmMsg;
+  if (cfg.mode === 'bingo') {
+    const board = card.board || buildMemberBoard(cfg, key);
+    const claimed = card.claimed || Array(25).fill(false).map((_,i)=>i===FREE_INDEX);
+    const rowCount = countBingoRows(claimed);
+    const entryWord = rowCount !== 1 ? 'entries' : 'entry';
+    confirmMsg = rowCount === 0
+      ? `You have 0 complete bingo rows.\n\nYou can still submit, but you won't have any drawing entries yet.\n\nLock in your card? This cannot be undone.`
+      : `You have ${rowCount} bingo row${rowCount !== 1 ? 's' : ''} — that's ${rowCount} prize drawing ${entryWord}!\n\nLock in your card? This cannot be undone.`;
+  } else {
+    const claimed = card.claimed || Array(8).fill(false);
+    const count = claimed.filter(Boolean).length;
+    confirmMsg = count >= 6
+      ? `You have ${count}/8 stamps — passport completed! ✓\n\nLock in your passport? This cannot be undone.`
+      : `You have ${count}/8 stamps (6 needed to complete).\n\nLock in your passport? This cannot be undone.`;
+  }
+
+  if (!confirm(confirmMsg)) return;
+
+  const board = (cfg.mode === 'bingo' && !card.board) ? buildMemberBoard(cfg, key) : card.board;
+  const patch = { submitted: true, submittedAt: Date.now(), approved: false };
+  if (cfg.mode === 'bingo' && board) patch.board = board;
+  await qaPersistCard(patch, 'qa-save-msg');
+  _qaOpenDrawer = null;
+  const main = document.getElementById('quarterly-main');
+  const updatedCard = Object.assign({}, card, patch);
+  if (cfg.mode === 'bingo') renderBingoCard(main, cfg, updatedCard, key);
+  else renderPassportCard(main, cfg, updatedCard, key);
+}
+window.qaSubmitCard = qaSubmitCard;
+
+// ── ADMIN QUARTERLY PANEL ─────────────────────────────
+function renderQuarterlyAdmin() {
+  const area = document.getElementById('quarterly-admin-area');
+  if (!area) return;
+  const cfg = getQuarterlyConfig();
+  const cards = getQuarterlyCards();
+
+  const isActive = cfg.active;
+  const isHidden = cfg.hidden;
+  const mode = cfg.mode || 'bingo';
+
+  let html = `<div class="card">
+    <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:1rem;">Quarterly Activity Controls</h3>
+    <div style="display:flex;flex-wrap:wrap;gap:1.5rem;align-items:center;margin-bottom:1rem;">
+      <div>
+        <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.3rem;">Status</div>
+        <span id="qa-active-pill" class="pill ${isActive ? 'pill-open' : 'pill-closed'}">${isActive ? 'Active' : 'Inactive'}</span>
+      </div>
+      <div>
+        <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.3rem;">Visibility</div>
+        <span id="qa-hidden-pill" class="pill ${isHidden ? 'pill-closed' : 'pill-open'}">${isHidden ? 'Hidden from Members' : 'Visible to Members'}</span>
+      </div>
+      <div>
+        <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.3rem;">Mode</div>
+        <span class="pill pill-paused">${mode === 'passport' ? '🗺️ Passport' : '🎯 Bingo'}</span>
+      </div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:.5rem;">
+      <button class="btn btn-secondary btn-sm" onclick="qaAdminToggleActive()">${isActive ? 'Deactivate Quarter' : 'Activate Quarter'}</button>
+      <button class="btn btn-secondary btn-sm" onclick="qaAdminToggleHidden()">${isHidden ? 'Show to Members' : 'Hide from Members'}</button>
+      <button class="btn btn-secondary btn-sm" onclick="qaAdminToggleMode()">Switch to ${mode === 'bingo' ? 'Passport' : 'Bingo'} Mode</button>
+    </div>
+    <div id="qa-admin-ctrl-msg" style="margin-top:.5rem;"></div>
+  </div>`;
+
+  // Board builder
+  if (mode === 'bingo') {
+    html += renderBingoBoardBuilder(cfg);
+  } else {
+    html += renderPassportBuilder(cfg);
+  }
+
+  // Archive quarter card
+  const qArchives = cfg.archives || [];
+  html += `<div class="card">
+    <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.5rem;">Archive Quarter</h3>
+    <p style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">
+      Saves a snapshot of all member cards and downloads a CSV. Clears the active cards for a fresh quarter.
+      Past archives are listed below.
+    </p>
+    <div class="grid2" style="margin-bottom:.65rem;">
+      <div class="f-group" style="margin:0;">
+        <label>Quarter Name <span style="color:var(--red);">*</span></label>
+        <input type="text" id="qa-archive-name" placeholder="e.g. Q1 2025 Bingo">
+      </div>
+      <div class="f-group" style="margin:0;">
+        <label>Mode (auto-detected)</label>
+        <input type="text" id="qa-archive-mode-display" value="${mode === 'passport' ? 'Passport' : 'Bingo'}" disabled style="background:var(--cream);color:var(--soft);">
+      </div>
+    </div>
+    <div class="grid2" style="margin-bottom:.75rem;">
+      <div class="f-group" style="margin:0;">
+        <label>Start Date</label>
+        <input type="date" id="qa-archive-start">
+      </div>
+      <div class="f-group" style="margin:0;">
+        <label>End Date</label>
+        <input type="date" id="qa-archive-end">
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="qaAdminArchiveQuarter()" style="background:#c0392b;color:#fff;">📦 Archive &amp; Download CSV</button>
+    <div id="qa-archive-msg" style="margin-top:.5rem;"></div>
+    ${qArchives.length ? `
+    <div style="margin-top:1rem;padding-top:.75rem;border-top:1px solid var(--border);">
+      <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.5rem;">Past Archives</div>
+      ${qArchives.slice().reverse().map((a,ri) => {
+        const i = qArchives.length - 1 - ri;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:.4rem 0;border-bottom:1px solid var(--border);font-size:.83rem;flex-wrap:wrap;gap:.35rem;">
+          <div>
+            <span style="font-weight:500;">${esc(a.name)}</span>
+            <span style="color:var(--soft);font-size:.75rem;margin-left:.4rem;">${a.mode || 'bingo'} · ${a.startDate||'?'} – ${a.endDate||'?'} · ${Object.keys(a.cards||{}).length} cards</span>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="qaAdminRedownload(${i})">⬇ Re-download CSV</button>
+        </div>`;
+      }).join('')}
+    </div>` : ''}
+  </div>`;
+
+  // Member submissions
+  html += renderQAMemberList(cards, cfg);
+
+  area.innerHTML = html;
+}
+window.renderQuarterlyAdmin = renderQuarterlyAdmin;
+
+function renderBingoBoardBuilder(cfg) {
+  const prompts = (cfg.prompts || []).slice(0, 24);
+  while (prompts.length < 24) prompts.push('');
+  const isStatic = cfg.staticBoard || false;
+
+  let cells = '';
+  for (let i = 0; i < 25; i++) {
+    if (i === FREE_INDEX) {
+      cells += `<div class="qa-builder-cell free-cell"><span>FREE</span></div>`;
+    } else {
+      const pi = i < FREE_INDEX ? i : i - 1;
+      cells += `<div class="qa-builder-cell"><textarea id="qa-prompt-${pi}" placeholder="Prompt ${pi+1}…" rows="3">${esc(prompts[pi])}</textarea></div>`;
+    }
+  }
+
+  return `<div class="card">
+    <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.5rem;">Bingo Board Setup</h3>
+    <p style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">Enter 24 prompts. The FREE space is fixed at center. Toggle static to give all members the same layout.</p>
+    <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem;cursor:pointer;font-size:.85rem;">
+      <input type="checkbox" id="qa-static-toggle" ${isStatic ? 'checked' : ''} style="accent-color:var(--gold);width:1rem;height:1rem;">
+      Static board (same square order for everyone)
+    </label>
+    <div class="qa-bingo-grid-builder">${cells}</div>
+    <button class="btn btn-primary" onclick="qaAdminSaveBoard()">Save Bingo Board</button>
+    <div id="qa-board-msg" style="margin-top:.5rem;"></div>
+  </div>`;
+}
+
+function renderPassportBuilder(cfg) {
+  const stamps = (cfg.passportStamps || []);
+  const icons = ['📖','🌍','👥','🕰️','🔮','💀','⭐','🎭'];
+  let rows = '';
+  for (let i = 0; i < 8; i++) {
+    const s = stamps[i] || { name:'', description:'', icon: icons[i] };
+    const isBonus = i >= 6;
+    rows += `<div class="card" style="padding:1rem;margin-bottom:.5rem;">
+      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;">
+        <span style="font-family:'Playfair Display',serif;color:var(--gold);font-size:.9rem;">Stamp ${i+1}</span>
+      </div>
+      <div class="grid3" style="gap:.5rem;">
+        <div class="f-group" style="margin:0;"><label>Icon (emoji)</label><input type="text" id="qa-stamp-icon-${i}" value="${esc(s.icon||icons[i])}" maxlength="4" style="font-size:1.2rem;text-align:center;"></div>
+        <div class="f-group" style="margin:0;grid-column:span 2;"><label>Stamp Name</label><input type="text" id="qa-stamp-name-${i}" value="${esc(s.name)}" placeholder="e.g. Around the World"></div>
+      </div>
+      <div class="f-group" style="margin:.5rem 0 0;"><label>Description / Criteria</label><input type="text" id="qa-stamp-desc-${i}" value="${esc(s.description)}" placeholder="Read a book set in another country…"></div>
+    </div>`;
+  }
+  return `<div class="card">
+    <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.5rem;">Passport Stamp Setup</h3>
+    <p style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">Define 8 stamps. Members need any 6 to complete the challenge — their 7th and 8th claimed become bonus stamps.</p>
+    ${rows}
+    <button class="btn btn-primary" onclick="qaAdminSaveStamps()">Save Passport Stamps</button>
+    <div id="qa-stamps-msg" style="margin-top:.5rem;"></div>
+  </div>`;
+}
+
+function renderQAMemberList(cards, cfg) {
+  const entries = Object.entries(cards);
+  if (!entries.length) {
+    return `<div class="card"><div class="empty"><div class="icon">📋</div><p>No member cards yet.</p></div></div>`;
+  }
+
+  const submitted = entries.filter(([,c]) => c.submitted);
+  const inProgress = entries.filter(([,c]) => !c.submitted);
+
+  const rowHtml = (key, card) => {
+    const claimed = card.claimed || [];
+    let statLine = '';
+    if (cfg.mode === 'bingo') {
+      const full = Array(25).fill(false).map((_,i)=>i===FREE_INDEX||claimed[i]);
+      const rows = countBingoRows(full);
+      statLine = `${rows} bingo row${rows!==1?'s':''} · ${claimed.filter(Boolean).length} squares`;
+    } else {
+      const cnt = claimed.filter(Boolean).length;
+      statLine = `${cnt}/8 stamps${cnt>=6?' · ✓ Complete':''}`;
+    }
+    const statusBadge = card.approved
+      ? `<span class="qa-member-badge qa-badge-approved">Approved</span>`
+      : card.submitted
+        ? `<span class="qa-member-badge qa-badge-submitted">Submitted</span>`
+        : `<span class="qa-member-badge qa-badge-inprogress">In Progress</span>`;
+    return `<div class="qa-admin-member-row">
+      <div>
+        <div style="font-weight:500;">${esc(card.discord||key)}</div>
+        <div class="qa-member-stats">${esc(card.email||'')} &middot; ${statLine}</div>
+      </div>
+      <div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;">
+        ${statusBadge}
+        <button class="btn btn-secondary btn-sm" onclick="qaAdminViewCard('${esc(key)}')">View</button>
+        ${card.submitted && !card.approved ? `<button class="btn btn-primary btn-sm" onclick="qaAdminApprove('${esc(key)}')" style="background:var(--green);color:#fff;">Approve</button>` : ''}
+        ${card.approved ? `<button class="btn btn-secondary btn-sm" onclick="qaAdminUnapprove('${esc(key)}')">Revoke</button>` : ''}
+        <button class="btn btn-danger btn-sm" onclick="qaAdminDeleteCard('${esc(key)}')">Delete</button>
+      </div>
+    </div>`;
+  };
+
+  let html = `<div class="card">
+    <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Member Cards <span style="font-size:.82rem;color:var(--soft);font-weight:400;">(${entries.length} total · ${submitted.length} submitted)</span></h3>`;
+
+  if (submitted.length) {
+    html += `<div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.4rem;padding:0 .75rem;">Submitted</div>`;
+    html += submitted.map(([k,c])=>rowHtml(k,c)).join('');
+  }
+  if (inProgress.length) {
+    html += `<div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin:.75rem 0 .4rem;padding:0 .75rem;">In Progress</div>`;
+    html += inProgress.map(([k,c])=>rowHtml(k,c)).join('');
+  }
+
+  // Drawing helper for bingo
+  if (cfg.mode === 'bingo') {
+    const drawingEntries = submitted
+      .map(([k,c]) => {
+        const cl = c.claimed || [];
+        const full = Array(25).fill(false).map((_,i)=>i===FREE_INDEX||cl[i]);
+        const rows = countBingoRows(full);
+        return { name: c.discord || k, rows };
+      })
+      .filter(e => e.rows > 0)
+      .sort((a,b) => b.rows - a.rows);
+    if (drawingEntries.length) {
+      html += `<div style="margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--border);">
+        <div style="font-size:.8rem;font-weight:600;margin-bottom:.5rem;">🎲 Prize Drawing Entries</div>
+        ${drawingEntries.map(e=>`<div style="display:flex;justify-content:space-between;font-size:.82rem;padding:.3rem 0;border-bottom:1px solid var(--border);">
+          <span>${esc(e.name)}</span>
+          <span style="color:var(--gold);font-weight:600;">${e.rows} entr${e.rows!==1?'ies':'y'}</span>
+        </div>`).join('')}
+        <div style="font-size:.75rem;color:var(--soft);margin-top:.5rem;">Total entries: ${drawingEntries.reduce((s,e)=>s+e.rows,0)}</div>
+      </div>`;
+    }
+  }
+
+  html += `</div>`;
+
+  // Admin view modal area
+  html += `<div id="qa-admin-card-view"></div>`;
+  return html;
+}
+
+// ── Admin controls ─────────────────────────────────────
+async function qaAdminToggleActive() {
+  const cfg = getQuarterlyConfig();
+  await fbSet(QUARTERLY_CONFIG_REF, { active: !cfg.active });
+  showMsg('qa-admin-ctrl-msg', `Quarter ${!cfg.active ? 'activated' : 'deactivated'}.`, 'ok');
+}
+window.qaAdminToggleActive = qaAdminToggleActive;
+
+async function qaAdminToggleHidden() {
+  const cfg = getQuarterlyConfig();
+  await fbSet(QUARTERLY_CONFIG_REF, { hidden: !cfg.hidden });
+  showMsg('qa-admin-ctrl-msg', `Page ${!cfg.hidden ? 'hidden from' : 'shown to'} members.`, 'ok');
+}
+window.qaAdminToggleHidden = qaAdminToggleHidden;
+
+async function qaAdminToggleMode() {
+  const cfg = getQuarterlyConfig();
+  const newMode = cfg.mode === 'bingo' ? 'passport' : 'bingo';
+  await fbSet(QUARTERLY_CONFIG_REF, { mode: newMode });
+  showMsg('qa-admin-ctrl-msg', `Switched to ${newMode} mode.`, 'ok');
+  // Re-render the admin panel so the builder section updates immediately
+  setTimeout(renderQuarterlyAdmin, 150);
+}
+window.qaAdminToggleMode = qaAdminToggleMode;
+
+async function qaAdminSaveBoard() {
+  const prompts = [];
+  for (let i = 0; i < 24; i++) {
+    const el = document.getElementById(`qa-prompt-${i}`);
+    prompts.push(el ? el.value.trim() : '');
+  }
+  const staticBoard = document.getElementById('qa-static-toggle')?.checked || false;
+  await fbSet(QUARTERLY_CONFIG_REF, { prompts, staticBoard });
+  showMsg('qa-board-msg', 'Bingo board saved!', 'ok');
+}
+window.qaAdminSaveBoard = qaAdminSaveBoard;
+
+async function qaAdminSaveStamps() {
+  const stamps = [];
+  for (let i = 0; i < 8; i++) {
+    stamps.push({
+      icon:        (document.getElementById(`qa-stamp-icon-${i}`)?.value || '📖').trim(),
+      name:        (document.getElementById(`qa-stamp-name-${i}`)?.value || '').trim(),
+      description: (document.getElementById(`qa-stamp-desc-${i}`)?.value || '').trim(),
+    });
+  }
+  await fbSet(QUARTERLY_CONFIG_REF, { passportStamps: stamps });
+  showMsg('qa-stamps-msg', 'Passport stamps saved!', 'ok');
+}
+window.qaAdminSaveStamps = qaAdminSaveStamps;
+
+async function qaAdminApprove(key) {
+  const cards = getQuarterlyCards();
+  const card = cards[key];
+  if (!card) return;
+  const newMap = Object.assign({}, cards, { [key]: Object.assign({}, card, { approved: true }) });
+  await fbSet(QUARTERLY_CARDS_REF, { map: newMap });
+  showMsg('qa-admin-ctrl-msg', `Approved card for ${esc(card.discord || key)}.`, 'ok');
+}
+window.qaAdminApprove = qaAdminApprove;
+
+async function qaAdminUnapprove(key) {
+  const cards = getQuarterlyCards();
+  const card = cards[key];
+  if (!card) return;
+  const newMap = Object.assign({}, cards, { [key]: Object.assign({}, card, { approved: false }) });
+  await fbSet(QUARTERLY_CARDS_REF, { map: newMap });
+  showMsg('qa-admin-ctrl-msg', `Approval revoked for ${esc(card.discord || key)}.`, 'ok');
+}
+window.qaAdminUnapprove = qaAdminUnapprove;
+
+let _qaAdminViewKey = null;
+let _qaAdminOpenIdx = null;
+
+function qaAdminViewCard(key) {
+  _qaAdminViewKey = key;
+  _qaAdminOpenIdx = null;
+  _renderAdminCardView();
+}
+
+// Called from inline onclick - toggles the open cell index then re-renders
+window.qaAdminCellClick = function(i) {
+  _qaAdminOpenIdx = (_qaAdminOpenIdx === i) ? null : i;
+  _renderAdminCardView();
+};
+
+window.qaAdminCardClose = function() {
+  _qaAdminViewKey = null;
+  _qaAdminOpenIdx = null;
+  const el = document.getElementById('qa-admin-card-view');
+  if (el) el.innerHTML = '';
+};
+
+function _renderAdminCardView() {
+  const key = _qaAdminViewKey;
+  const cfg = getQuarterlyConfig();
+  const cards = getQuarterlyCards();
+  const card = cards[key];
+  const viewArea = document.getElementById('qa-admin-card-view');
+  if (!card || !viewArea) return;
+
+  let html = `<div class="card" style="border-color:var(--gold);margin-top:.5rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:.5rem;">
+      <h3 style="font-family:'Playfair Display',serif;font-size:1rem;">
+        ${esc(card.discord || key)}'s Card
+        <span style="font-size:.75rem;font-weight:400;color:var(--soft);">${card.submitted ? '· Submitted' : '· In Progress'}</span>
+      </h3>
+      <button class="btn btn-secondary btn-sm" onclick="qaAdminCardClose()">✕ Close</button>
+    </div>
+    <p style="font-size:.75rem;color:var(--soft);margin-bottom:.75rem;">Click any square or stamp to see the book assigned to it.</p>`;
+
+  if (cfg.mode === 'bingo') {
+    const board = card.board || buildMemberBoard(cfg, key);
+    const claimed = card.claimed || Array(25).fill(false).map((_,i)=>i===FREE_INDEX);
+    const books = card.books || {};
+    const winLines = getBingoWinLines(claimed);
+    const winSet = new Set(winLines.flat());
+    const rowCount = countBingoRows(claimed);
+    html += `<div style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">${rowCount} bingo row${rowCount!==1?'s':''} · ${claimed.filter(Boolean).length} squares claimed</div>`;
+    html += `<div class="bingo-grid">`;
+    for (let i = 0; i < 25; i++) {
+      const cell = board[i];
+      const isClaimed = i === FREE_INDEX ? true : claimed[i];
+      const bk = books[i];
+      const isOpen = _qaAdminOpenIdx === i;
+      let cls = 'bingo-cell';
+      if (cell.isFree) { cls += ' cell-free cell-locked'; }
+      else if (isClaimed) { cls += ' cell-claimed'; }
+      if (winSet.has(i) && isClaimed) cls += ' row-highlight';
+      if (isOpen) cls += ' admin-cell-open';
+      const clickAttr = cell.isFree ? '' : `onclick="qaAdminCellClick(${i})" style="cursor:pointer;"`;
+      html += `<div class="${cls}" ${clickAttr}>
+        <div class="bingo-cell-prompt">${esc(cell.prompt)}</div>
+        ${bk && bk.title ? `<div style="font-size:.6rem;color:var(--gold);text-align:center;margin-top:2px;">📚</div>` : ''}
+        <div class="bingo-cell-check"></div>
+      </div>`;
+    }
+    html += `</div>`;
+
+    if (_qaAdminOpenIdx !== null && _qaAdminOpenIdx !== FREE_INDEX) {
+      const cell = board[_qaAdminOpenIdx];
+      const bk = books[_qaAdminOpenIdx] || {};
+      const isClaimed = claimed[_qaAdminOpenIdx];
+      html += `<div class="qa-book-drawer" style="margin-top:.5rem;">
+        <div class="qa-drawer-title" style="margin-bottom:.35rem;">
+          ${isClaimed ? '✓' : '○'} <em>${esc(cell.prompt)}</em>
+        </div>
+        ${bk.title
+          ? `<div style="font-size:.9rem;"><strong>📚 ${esc(bk.title)}</strong>${bk.author ? `<span style="color:var(--soft);"> — ${esc(bk.author)}</span>` : ''}</div>`
+          : `<div style="font-size:.82rem;color:var(--soft);font-style:italic;">${isClaimed ? 'Claimed — no book logged yet.' : 'Not yet claimed.'}</div>`
+        }
+      </div>`;
+    }
+
+  } else {
+    const stamps = cfg.passportStamps || [];
+    const claimed = card.claimed || Array(8).fill(false);
+    const books = card.books || {};
+    const claimOrder = card.claimOrder || [];
+    const bonusSet = new Set(claimOrder.slice(6));
+    const count = claimed.filter(Boolean).length;
+    html += `<div style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">${count}/8 stamps · ${count>=6?'✓ Completed':'Incomplete'}${count>6?` · ${count-6} bonus`:''}</div>`;
+    html += `<div class="passport-grid">`;
+    for (let i = 0; i < 8; i++) {
+      const s = stamps[i] || { name:`Stamp ${i+1}`, icon:'📖' };
+      const bk = books[i];
+      const isClaimed = claimed[i];
+      const isBonus = isClaimed && bonusSet.has(i);
+      const isOpen = _qaAdminOpenIdx === i;
+      let cls = 'passport-stamp' + (isClaimed?' stamp-claimed':'') + (isBonus?' stamp-bonus':'') + (isOpen?' admin-cell-open':'');
+      html += `<div class="${cls}" onclick="qaAdminCellClick(${i})" style="cursor:pointer;">
+        ${isBonus ? '<span class="stamp-bonus-label">Bonus</span>' : ''}
+        <div class="stamp-icon">${esc(s.icon||'📖')}</div>
+        <div class="stamp-name">${esc(s.name)}</div>
+        ${bk && bk.title ? `<div style="font-size:.6rem;color:var(--gold);margin-top:.2rem;">📚</div>` : ''}
+        <div class="stamp-check"></div>
+      </div>`;
+    }
+    html += `</div>`;
+
+    if (_qaAdminOpenIdx !== null) {
+      const s = stamps[_qaAdminOpenIdx] || { name:`Stamp ${_qaAdminOpenIdx+1}` };
+      const bk = books[_qaAdminOpenIdx] || {};
+      const isClaimed = claimed[_qaAdminOpenIdx];
+      html += `<div class="qa-book-drawer" style="margin-top:.5rem;">
+        <div class="qa-drawer-title" style="margin-bottom:.35rem;">
+          ${isClaimed ? '✦' : '○'} <em>${esc(s.name)}</em>
+        </div>
+        ${bk.title
+          ? `<div style="font-size:.9rem;"><strong>📚 ${esc(bk.title)}</strong>${bk.author ? `<span style="color:var(--soft);"> — ${esc(bk.author)}</span>` : ''}</div>`
+          : `<div style="font-size:.82rem;color:var(--soft);font-style:italic;">${isClaimed ? 'Claimed — no book logged yet.' : 'Not yet claimed.'}</div>`
+        }
+      </div>`;
+    }
+  }
+
+  html += `</div>`;
+  viewArea.innerHTML = html;
+  if (_qaAdminOpenIdx === null) viewArea.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+window.qaAdminViewCard = qaAdminViewCard;
+window._renderAdminCardView = _renderAdminCardView;
+
+// ── Delete a member card ───────────────────────────────
+async function qaAdminDeleteCard(key) {
+  const cards = getQuarterlyCards();
+  const card = cards[key];
+  const name = card ? (card.discord || key) : key;
+  if (!confirm(`Delete ${name}'s card? This allows them to resubmit. This cannot be undone.`)) return;
+  const newMap = Object.assign({}, cards);
+  delete newMap[key];
+  await fbSet(QUARTERLY_CARDS_REF, { map: newMap });
+  showMsg('qa-admin-ctrl-msg', `Deleted card for ${esc(name)}.`, 'ok');
+  renderQuarterlyAdmin();
+}
+window.qaAdminDeleteCard = qaAdminDeleteCard;
+
+// ── CSV generator ──────────────────────────────────────
+function qaGenerateQuarterCSV(archiveEntry) {
+  const { name, mode, startDate, endDate, cards, cfg } = archiveEntry;
+  const rows = [];
+
+  if (mode === 'bingo') {
+    // Header row
+    rows.push(['Quarter', 'Discord', 'Email', 'Submitted', 'Approved', 'Bingo Rows', 'Drawing Entries', 'Squares Claimed', ...Array.from({length:25},(_,i)=>i===FREE_INDEX?'FREE':`Square ${i+1} Prompt`), ...Array.from({length:25},(_,i)=>i===FREE_INDEX?'':(`Square ${i+1} Book`)), ...Array.from({length:25},(_,i)=>i===FREE_INDEX?'':(`Square ${i+1} Author`))]);
+    Object.entries(cards).forEach(([key, card]) => {
+      const claimed = card.claimed || Array(25).fill(false).map((_,i)=>i===FREE_INDEX);
+      const board = card.board || [];
+      const fullClaimed = claimed.map((c,i)=>i===FREE_INDEX||c);
+      const rowCount = countBingoRows(fullClaimed);
+      const prompts = board.map(c=>c?c.prompt:'');
+      const bookTitles = Array.from({length:25},(_,i)=>i===FREE_INDEX?'':(card.books&&card.books[i]?card.books[i].title:''));
+      const bookAuthors = Array.from({length:25},(_,i)=>i===FREE_INDEX?'':(card.books&&card.books[i]?card.books[i].author:''));
+      rows.push([name, card.discord||'', card.email||'', card.submitted?'Yes':'No', card.approved?'Yes':'No', rowCount, rowCount, claimed.filter(Boolean).length, ...prompts, ...bookTitles, ...bookAuthors]);
+    });
+  } else {
+    const stamps = cfg.passportStamps || [];
+    const stampNames = stamps.map(s=>s?s.name:'');
+    rows.push(['Quarter', 'Discord', 'Email', 'Submitted', 'Approved', 'Stamps Claimed', 'Completed',
+      ...stampNames.map(n=>`${n} Claimed`),
+      ...stampNames.map(n=>`${n} Book`),
+      ...stampNames.map(n=>`${n} Author`),
+      'Bonus Stamp 1', 'Bonus Stamp 2']);
+    Object.entries(cards).forEach(([key, card]) => {
+      const claimed = card.claimed || Array(8).fill(false);
+      const claimOrder = card.claimOrder || [];
+      const bonusSet = new Set(claimOrder.slice(6));
+      const claimedCount = claimed.filter(Boolean).length;
+      const bonusStamps = claimOrder.slice(6).map(i=>stampNames[i]||`Stamp ${i+1}`);
+      const claimedFlags = claimed.map(Boolean);
+      const bookTitles = Array.from({length:8},(_,i)=>card.books&&card.books[i]?card.books[i].title:'');
+      const bookAuthors = Array.from({length:8},(_,i)=>card.books&&card.books[i]?card.books[i].author:'');
+      rows.push([name, card.discord||'', card.email||'', card.submitted?'Yes':'No', card.approved?'Yes':'No',
+        claimedCount, claimedCount>=6?'Yes':'No',
+        ...claimedFlags.map(b=>b?'Yes':'No'),
+        ...bookTitles,
+        ...bookAuthors,
+        bonusStamps[0]||'', bonusStamps[1]||'']);
+    });
+  }
+
+  return rows.map(r => r.map(c => `"${String(c??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+}
+
+// ── Archive quarter ────────────────────────────────────
+async function qaAdminArchiveQuarter() {
+  const name = (document.getElementById('qa-archive-name')?.value || '').trim();
+  if (!name) { showMsg('qa-archive-msg', 'Please enter a quarter name.', 'err'); return; }
+  const startDate = document.getElementById('qa-archive-start')?.value || '';
+  const endDate   = document.getElementById('qa-archive-end')?.value || '';
+  const cfg   = getQuarterlyConfig();
+  const cards = getQuarterlyCards();
+
+  const archiveEntry = {
+    name,
+    mode: cfg.mode,
+    startDate,
+    endDate,
+    archivedAt: Date.now(),
+    cards: JSON.parse(JSON.stringify(cards)),
+    cfg: { prompts: cfg.prompts || [], passportStamps: cfg.passportStamps || [], staticBoard: cfg.staticBoard || false }
+  };
+
+  // Download CSV immediately
+  const csv = qaGenerateQuarterCSV(archiveEntry);
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+  const filename = `${slug}.csv`;
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+
+  // Save archive to quarterlyConfig.archives and clear cards
+  showLoading('Archiving quarter…');
+  const archives = [...(cfg.archives || []), archiveEntry];
+  await fbSet(QUARTERLY_CONFIG_REF, { archives });
+  await fbSet(QUARTERLY_CARDS_REF, { map: {} });
+  hideLoading();
+
+  document.getElementById('qa-archive-name').value = '';
+  document.getElementById('qa-archive-start').value = '';
+  document.getElementById('qa-archive-end').value = '';
+  showMsg('qa-archive-msg', `✓ "${name}" archived and CSV downloaded. Cards cleared for next quarter.`, 'ok');
+  renderQuarterlyAdmin();
+}
+window.qaAdminArchiveQuarter = qaAdminArchiveQuarter;
+
+// ── Re-download a past archive as CSV ─────────────────
+function qaAdminRedownload(archiveIndex) {
+  const cfg = getQuarterlyConfig();
+  const archives = cfg.archives || [];
+  const archiveEntry = archives[archiveIndex];
+  if (!archiveEntry) return;
+  const csv = qaGenerateQuarterCSV(archiveEntry);
+  const slug = (archiveEntry.name||'archive').toLowerCase().replace(/[^a-z0-9]+/g,'_');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `${slug}.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
+window.qaAdminRedownload = qaAdminRedownload;
+
+
 
 // Insert a prefill banner into a named placeholder div
 function injectPrefillBanner(placeholderId, email, discord) {
@@ -5431,6 +6967,7 @@ function applyIdentityCookieToForms() {
   fill('pg-email', email);        fill('pg-discord', discord);
   fill('sr-lookup-email', email); fill('sr-lookup-discord', discord);
   fill('bg-email', email);        fill('bg-discord', discord);
+  fill('qa-email', email);        fill('qa-discord', discord);
 
   const insertGateBanner = (cardId) => {
     const card = document.getElementById(cardId);
@@ -5442,6 +6979,7 @@ function applyIdentityCookieToForms() {
   insertGateBanner('progress-identity-card');
   insertGateBanner('surveys-identity-card');
   insertGateBanner('badges-identity-card');
+  insertGateBanner('quarterly-identity-card');
 
   // ── Submission pages ──
   fill('s-email', email);  fill('s-discord', discord);
@@ -5477,7 +7015,7 @@ window.applyIdentityCookieToSurveyForm = applyIdentityCookieToSurveyForm;
 // Show the app immediately — Firebase listeners will update data as they arrive
 hideLoading();
 const _initTab = location.hash.replace('#', '');
-const _validTabs = ['suggest','vote','results','review','surveys','rankings','analysis','progress','badges','admin'];
+const _validTabs = ['suggest','vote','results','review','surveys','rankings','analysis','progress','badges','quarterly','admin'];
 if (_initTab && _validTabs.includes(_initTab)) {
   const _btn = document.querySelector(`nav button[data-tab="${_initTab}"]`) || document.getElementById('admin-nav-btn');
   goTab(_initTab, _btn);
