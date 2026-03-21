@@ -6068,6 +6068,53 @@ function renderBingoCard(container, cfg, card, memberKey) {
   }
 
   html += `<div id="qa-save-msg" style="margin-top:.5rem;"></div>`;
+
+  // ── Book assignment log ─────────────────────────────
+  // Build list of squares with book entries, detect duplicates (>2 uses of same title)
+  const logEntries = []; // { idx, prompt, title, author }
+  for (let i = 0; i < 25; i++) {
+    if (i === FREE_INDEX) continue;
+    const bk = books[i];
+    if (bk && bk.title && bk.title.trim()) {
+      logEntries.push({ idx: i, prompt: board[i] ? board[i].prompt : '', title: bk.title.trim(), author: (bk.author || '').trim() });
+    }
+  }
+
+  if (logEntries.length > 0) {
+    // Count uses per normalised title
+    const titleCount = {};
+    logEntries.forEach(e => {
+      const key = e.title.toLowerCase();
+      titleCount[key] = (titleCount[key] || 0) + 1;
+    });
+    const hasDupe = Object.values(titleCount).some(c => c > 2);
+
+    html += `<div style="margin-top:1.25rem;padding:1rem;background:var(--cream);border:1px solid var(--border);border-radius:8px;">
+      <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.6rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.4rem;">
+        <span>📋 Book Assignments (${logEntries.length} square${logEntries.length!==1?'s':''})</span>
+        <span style="font-weight:400;">A book may be used on up to 2 squares.</span>
+      </div>`;
+
+    if (hasDupe) {
+      html += `<div style="padding:.55rem .8rem;background:#fce4ec;border:2px solid var(--red);border-radius:6px;font-size:.82rem;color:var(--red);font-weight:700;margin-bottom:.65rem;">
+        ⚠️ One or more books are used on more than 2 squares — see below. You must fix this before saving or submitting.
+      </div>`;
+    }
+
+    html += `<div style="display:flex;flex-direction:column;gap:.3rem;">`;
+    logEntries.forEach(e => {
+      const key = e.title.toLowerCase();
+      const count = titleCount[key];
+      const isDupe = count > 2;
+      html += `<div style="display:flex;align-items:baseline;gap:.5rem;padding:.35rem .5rem;border-radius:5px;${isDupe ? 'background:#fce4ec;border:1.5px solid var(--red);' : 'background:var(--card);border:1px solid var(--border);'}">
+        <span style="font-size:.7rem;color:${isDupe?'var(--red)':'var(--soft)'};min-width:1.4rem;text-align:right;flex-shrink:0;">${e.idx+1}</span>
+        <span style="font-size:.72rem;color:${isDupe?'var(--red)':'var(--soft)'};flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(e.prompt)}">${esc(e.prompt)}</span>
+        <span style="font-size:.82rem;${isDupe?'color:var(--red);font-weight:700;':'color:var(--ink);'}">📚 ${esc(e.title)}${e.author?`<span style="font-weight:400;color:${isDupe?'#c0392b':'var(--soft)};"> — ${esc(e.author)}</span>`:''}</span>
+        ${isDupe ? `<span style="font-size:.7rem;font-weight:700;color:var(--red);flex-shrink:0;">× ${count} uses!</span>` : ''}
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
   container.innerHTML = html;
 }
 
@@ -6335,13 +6382,47 @@ window.qaPassportSaveBook = function(idx) {
 
 window.qaPassportUnclaim = function(idx) { window.qaUnclaim(idx); };
 
+// ── Check for duplicate book usage (bingo: max 2 squares per book) ───────
+function qaCheckBingoDuplicates() {
+  // Returns null if ok, or { message, violations } if over limit
+  const s = _qaGetState(); if (!s) return null;
+  if (s.cfg.mode !== 'bingo') return null;
+  const books = s.card.books || {};
+  const board = s.card.board || buildMemberBoard(s.cfg, s.key);
+
+  const titleEntries = {}; // normTitle -> [{ idx, prompt }]
+  for (let i = 0; i < 25; i++) {
+    if (i === FREE_INDEX) continue;
+    const bk = books[i];
+    if (!bk || !bk.title || !bk.title.trim()) continue;
+    const key = bk.title.trim().toLowerCase();
+    if (!titleEntries[key]) titleEntries[key] = { title: bk.title.trim(), squares: [] };
+    const prompt = board[i] ? board[i].prompt : `Square ${i+1}`;
+    titleEntries[key].squares.push({ idx: i, prompt });
+  }
+
+  const violations = Object.values(titleEntries).filter(e => e.squares.length > 2);
+  if (!violations.length) return null;
+
+  const lines = violations.map(v =>
+    `• "${v.title}" used on ${v.squares.length} squares: ${v.squares.map(s => `#${s.idx+1} (${s.prompt})`).join(', ')}`
+  );
+  return {
+    message: `A book may only be used on 2 squares maximum. Please fix the following before continuing:\n\n${lines.join('\n')}`,
+    violations
+  };
+}
+
 async function qaSaveDraft() {
   if (!_qaIdentity) return;
   const cfg = getQuarterlyConfig();
+  if (cfg.mode === 'bingo') {
+    const dupes = qaCheckBingoDuplicates();
+    if (dupes) { alert(dupes.message); return; }
+  }
   const cards = getQuarterlyCards();
   const key = qaKey(_qaIdentity.email, _qaIdentity.discord);
   const card = cards[key] || {};
-  // For bingo: lock in board if not yet locked
   if (cfg.mode === 'bingo' && !card.board) {
     const board = buildMemberBoard(cfg, key);
     await qaPersistCard({ board }, 'qa-save-msg');
@@ -6354,6 +6435,12 @@ window.qaSaveDraft = qaSaveDraft;
 async function qaSubmitCard() {
   if (!_qaIdentity) return;
   const cfg = getQuarterlyConfig();
+
+  // Block submission if any book is used on more than 2 bingo squares
+  if (cfg.mode === 'bingo') {
+    const dupes = qaCheckBingoDuplicates();
+    if (dupes) { alert(dupes.message); return; }
+  }
   const cards = getQuarterlyCards();
   const key = qaKey(_qaIdentity.email, _qaIdentity.discord);
   const card = cards[key] || {};
