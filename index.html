@@ -1085,6 +1085,8 @@ function hideLoading() {
 
 // ── Firestore helpers ──────────────────────────────────
 async function fbSet(ref, data) { await setDoc(ref, data, { merge: true }); }
+// Full replace — no merge — needed when deleting fields (merge:true can't remove keys)
+async function fbSetFull(ref, data) { await setDoc(ref, data); }
 
 // ── Real-time listeners ────────────────────────────────
 let _listenersStarted = false;
@@ -6291,9 +6293,8 @@ async function qaPersistCard(patch, msgId) {
     updatedAt: Date.now()
   });
   const newMap = Object.assign({}, cards, { [key]: updated });
-  console.log('[qaPersistCard] key:', key, 'patch keys:', Object.keys(patch));
   try {
-    await fbSet(QUARTERLY_CARDS_REF, { map: newMap });
+    await fbSetFull(QUARTERLY_CARDS_REF, { map: newMap });
     delete _qaPendingBooks[key];
     if (msgId) showMsg(msgId, 'Saved!', 'ok');
   } catch(e) {
