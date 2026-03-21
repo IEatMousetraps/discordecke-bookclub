@@ -5925,6 +5925,13 @@ function renderBingoCard(container, cfg, card, memberKey) {
   const board = card && card.board ? card.board : buildMemberBoard(cfg, memberKey);
   const claimed = card && card.claimed ? card.claimed : Array(25).fill(false).map((_,i)=>i===FREE_INDEX);
   const books   = card && card.books   ? card.books   : {};
+
+  // Lock the board on first view — persist it immediately so the shuffle is
+  // saved before any interaction, not just on first claim
+  if (!isSubmitted && !(card && card.board) && _qaIdentity && qaKey(_qaIdentity.email, _qaIdentity.discord) === memberKey) {
+    qaPersistCard({ board }, null);
+  }
+
   const winLines = getBingoWinLines(claimed);
   const winSet   = new Set(winLines.flat());
   const rowCount = countBingoRows(claimed);
