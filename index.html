@@ -6045,10 +6045,10 @@ function renderBingoCard(container, cfg, card, memberKey) {
         </div>
       </div>
       <div class="qa-drawer-actions">
-        <button class="btn btn-primary btn-sm" onclick="qaSaveBook(${_qaOpenDrawer})">Save</button>
         ${claimed[_qaOpenDrawer]
-          ? `<button class="btn btn-secondary btn-sm" onclick="qaUnclaim(${_qaOpenDrawer})">↩ Undo Claim</button>`
-          : `<button class="btn btn-primary btn-sm" id="qa-claim-btn" onclick="qaClaimCell(${_qaOpenDrawer})" ${hasBook ? '' : 'disabled style="opacity:.4;cursor:not-allowed;"'}>✓ Mark Complete</button>`}
+          ? `<button class="btn btn-primary btn-sm" onclick="qaSaveBook(${_qaOpenDrawer})">💾 Save Book</button>
+             <button class="btn btn-secondary btn-sm" onclick="qaUnclaim(${_qaOpenDrawer})">↩ Undo Claim</button>`
+          : `<button class="btn btn-primary btn-sm" id="qa-claim-btn" onclick="qaClaimCell(${_qaOpenDrawer})" ${hasBook ? '' : 'disabled style="opacity:.4;cursor:not-allowed;"'}>✓ Mark Complete & Save</button>`}
         <button class="btn btn-secondary btn-sm" onclick="qaCloseDrawer()">✕ Close</button>
         ${bk.title ? `<span style="font-size:.75rem;color:var(--green);margin-left:auto;">📚 ${esc(bk.title)}</span>` : ''}
       </div>
@@ -6226,10 +6226,10 @@ function renderPassportCard(container, cfg, card, memberKey) {
         </div>
       </div>
       <div class="qa-drawer-actions">
-        <button class="btn btn-primary btn-sm" onclick="qaPassportSaveBook(${_qaOpenDrawer})">Save</button>
         ${isClaimed
-          ? `<button class="btn btn-secondary btn-sm" onclick="qaUnclaim(${_qaOpenDrawer})">↩ Undo Stamp</button>`
-          : `<button class="btn btn-primary btn-sm" id="qa-claim-btn" onclick="qaClaimStamp(${_qaOpenDrawer})" ${hasBook ? '' : 'disabled style="opacity:.4;cursor:not-allowed;"'}>✦ Collect Stamp</button>`}
+          ? `<button class="btn btn-primary btn-sm" onclick="qaPassportSaveBook(${_qaOpenDrawer})">💾 Save Book</button>
+             <button class="btn btn-secondary btn-sm" onclick="qaUnclaim(${_qaOpenDrawer})">↩ Undo Stamp</button>`
+          : `<button class="btn btn-primary btn-sm" id="qa-claim-btn" onclick="qaClaimStamp(${_qaOpenDrawer})" ${hasBook ? '' : 'disabled style="opacity:.4;cursor:not-allowed;"'}>✦ Collect Stamp & Save</button>`}
         <button class="btn btn-secondary btn-sm" onclick="qaCloseDrawer()">✕ Close</button>
         ${bk.title ? `<span style="font-size:.75rem;color:var(--green);margin-left:auto;">📚 ${esc(bk.title)}</span>` : ''}
       </div>
@@ -6341,20 +6341,29 @@ window.qaToggleStamp = function(idx) {
   renderPassportCard(s.main, s.cfg, s.card, s.key);
 };
 
-// Mark a bingo cell as claimed
+// Mark a bingo cell as claimed — also saves book entry from the open drawer
 window.qaClaimCell = function(idx) {
   const s = _qaGetState(); if (!s) return;
   const board   = s.card.board || buildMemberBoard(s.cfg, s.key);
   const claimed = [...(s.card.claimed || Array(25).fill(false).map((_,i)=>i===FREE_INDEX))];
   claimed[idx]  = true;
+  // Grab book fields from the open drawer and save them at the same time
+  const title  = (document.getElementById('qa-bk-title')?.value || '').trim();
+  const author = (document.getElementById('qa-bk-author')?.value || '').trim();
+  const sidx = String(idx);
+  const books = Object.assign({}, s.card.books || {});
+  if (title || author) {
+    if (!_qaPendingBooks[s.key]) _qaPendingBooks[s.key] = {};
+    _qaPendingBooks[s.key][sidx] = { title, author };
+    books[sidx] = { title, author };
+  }
   _qaOpenDrawer = null;
-  const updatedCard = Object.assign({}, s.card, { board, claimed });
-  qaPersistCard({ board, claimed }, null);
-  // Render optimistically with updated state — don't wait for Firestore snapshot
+  const updatedCard = Object.assign({}, s.card, { board, claimed, books });
+  qaPersistCard({ board, claimed, books }, null);
   if (s.main) renderBingoCard(s.main, s.cfg, updatedCard, s.key);
 };
 
-// Mark a passport stamp as claimed
+// Mark a passport stamp as claimed — also saves book entry from the open drawer
 window.qaClaimStamp = function(idx) {
   const s = _qaGetState(); if (!s) return;
   const claimed = [...(s.card.claimed || Array(8).fill(false))];
@@ -6362,9 +6371,19 @@ window.qaClaimStamp = function(idx) {
   claimed[idx]  = true;
   const claimOrder = [...(s.card.claimOrder || [])];
   if (!claimOrder.includes(idx)) claimOrder.push(idx);
+  // Grab book fields from the open drawer and save them at the same time
+  const title  = (document.getElementById('qa-bk-title')?.value || '').trim();
+  const author = (document.getElementById('qa-bk-author')?.value || '').trim();
+  const sidx = String(idx);
+  const books = Object.assign({}, s.card.books || {});
+  if (title || author) {
+    if (!_qaPendingBooks[s.key]) _qaPendingBooks[s.key] = {};
+    _qaPendingBooks[s.key][sidx] = { title, author };
+    books[sidx] = { title, author };
+  }
   _qaOpenDrawer = null;
-  const updatedCard = Object.assign({}, s.card, { claimed, claimOrder });
-  qaPersistCard({ claimed, claimOrder }, null);
+  const updatedCard = Object.assign({}, s.card, { claimed, claimOrder, books });
+  qaPersistCard({ claimed, claimOrder, books }, null);
   if (s.main) renderPassportCard(s.main, s.cfg, updatedCard, s.key);
 };
 
