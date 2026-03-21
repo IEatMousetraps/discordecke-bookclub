@@ -6518,101 +6518,329 @@ async function qaSubmitCard() {
 window.qaSubmitCard = qaSubmitCard;
 
 // ── ADMIN QUARTERLY PANEL ─────────────────────────────
+let _qaAdminTab = 'controls'; // 'controls' | 'setup' | 'members' | 'archives'
+
 function renderQuarterlyAdmin() {
   const area = document.getElementById('quarterly-admin-area');
   if (!area) return;
-  const cfg = getQuarterlyConfig();
+  const cfg   = getQuarterlyConfig();
   const cards = getQuarterlyCards();
+  const mode  = cfg.mode || 'bingo';
 
-  const isActive = cfg.active;
-  const isHidden = cfg.hidden;
-  const mode = cfg.mode || 'bingo';
+  // Sub-tabs
+  const tabs = [
+    { id:'controls', label:'⚙️ Controls' },
+    { id:'setup',    label:'🔧 Setup' },
+    { id:'members',  label:'📋 Members' },
+    { id:'archives', label:'📦 Archives' },
+  ];
+  let html = `<div class="sub-tabs" style="margin-bottom:1.25rem;">` +
+    tabs.map(t => `<button class="sub-tab${_qaAdminTab===t.id?' active':''}" onclick="qaAdminGoTab('${t.id}')">${t.label}</button>`).join('') +
+    `</div>`;
 
-  let html = `<div class="card">
-    <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:1rem;">Quarterly Activity Controls</h3>
-    <div style="display:flex;flex-wrap:wrap;gap:1.5rem;align-items:center;margin-bottom:1rem;">
-      <div>
-        <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.3rem;">Status</div>
-        <span id="qa-active-pill" class="pill ${isActive ? 'pill-open' : 'pill-closed'}">${isActive ? 'Active' : 'Inactive'}</span>
+  if (_qaAdminTab === 'controls') {
+    const isActive = cfg.active;
+    const isHidden = cfg.hidden;
+    html += `<div class="card">
+      <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:1rem;">Quarterly Activity Controls</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:1.5rem;align-items:center;margin-bottom:1rem;">
+        <div>
+          <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.3rem;">Status</div>
+          <span class="pill ${isActive ? 'pill-open' : 'pill-closed'}">${isActive ? 'Active' : 'Inactive'}</span>
+        </div>
+        <div>
+          <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.3rem;">Visibility</div>
+          <span class="pill ${isHidden ? 'pill-closed' : 'pill-open'}">${isHidden ? 'Hidden from Members' : 'Visible to Members'}</span>
+        </div>
+        <div>
+          <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.3rem;">Mode</div>
+          <span class="pill pill-paused">${mode === 'passport' ? '🗺️ Passport' : '🎯 Bingo'}</span>
+        </div>
       </div>
-      <div>
-        <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.3rem;">Visibility</div>
-        <span id="qa-hidden-pill" class="pill ${isHidden ? 'pill-closed' : 'pill-open'}">${isHidden ? 'Hidden from Members' : 'Visible to Members'}</span>
+      <div style="display:flex;flex-wrap:wrap;gap:.5rem;">
+        <button class="btn btn-secondary btn-sm" onclick="qaAdminToggleActive()">${isActive ? 'Deactivate Quarter' : 'Activate Quarter'}</button>
+        <button class="btn btn-secondary btn-sm" onclick="qaAdminToggleHidden()">${isHidden ? 'Show to Members' : 'Hide from Members'}</button>
+        <button class="btn btn-secondary btn-sm" onclick="qaAdminToggleMode()">Switch to ${mode === 'bingo' ? 'Passport' : 'Bingo'} Mode</button>
       </div>
-      <div>
-        <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.3rem;">Mode</div>
-        <span class="pill pill-paused">${mode === 'passport' ? '🗺️ Passport' : '🎯 Bingo'}</span>
-      </div>
-    </div>
-    <div style="display:flex;flex-wrap:wrap;gap:.5rem;">
-      <button class="btn btn-secondary btn-sm" onclick="qaAdminToggleActive()">${isActive ? 'Deactivate Quarter' : 'Activate Quarter'}</button>
-      <button class="btn btn-secondary btn-sm" onclick="qaAdminToggleHidden()">${isHidden ? 'Show to Members' : 'Hide from Members'}</button>
-      <button class="btn btn-secondary btn-sm" onclick="qaAdminToggleMode()">Switch to ${mode === 'bingo' ? 'Passport' : 'Bingo'} Mode</button>
-    </div>
-    <div id="qa-admin-ctrl-msg" style="margin-top:.5rem;"></div>
-  </div>`;
+      <div id="qa-admin-ctrl-msg" style="margin-top:.5rem;"></div>
+    </div>`;
 
-  // Board builder
-  if (mode === 'bingo') {
-    html += renderBingoBoardBuilder(cfg);
-  } else {
-    html += renderPassportBuilder(cfg);
+    // Archive this quarter form
+    const qArchives = cfg.archives || [];
+    html += `<div class="card">
+      <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.5rem;">Archive Quarter</h3>
+      <p style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">Saves a snapshot of all current member cards and downloads a CSV. Clears active cards for a fresh quarter.</p>
+      <div class="grid2" style="margin-bottom:.65rem;">
+        <div class="f-group" style="margin:0;">
+          <label>Quarter Name <span style="color:var(--red);">*</span></label>
+          <input type="text" id="qa-archive-name" placeholder="e.g. Q1 2025 Bingo">
+        </div>
+        <div class="f-group" style="margin:0;">
+          <label>Mode (auto-detected)</label>
+          <input type="text" id="qa-archive-mode-display" value="${mode === 'passport' ? 'Passport' : 'Bingo'}" disabled style="background:var(--cream);color:var(--soft);">
+        </div>
+      </div>
+      <div class="grid2" style="margin-bottom:.75rem;">
+        <div class="f-group" style="margin:0;"><label>Start Date</label><input type="date" id="qa-archive-start"></div>
+        <div class="f-group" style="margin:0;"><label>End Date</label><input type="date" id="qa-archive-end"></div>
+      </div>
+      <button class="btn btn-primary" onclick="qaAdminArchiveQuarter()" style="background:#c0392b;color:#fff;">📦 Archive &amp; Download CSV</button>
+      <div id="qa-archive-msg" style="margin-top:.5rem;"></div>
+    </div>`;
   }
 
-  // Archive quarter card
-  const qArchives = cfg.archives || [];
-  html += `<div class="card">
-    <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.5rem;">Archive Quarter</h3>
-    <p style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">
-      Saves a snapshot of all member cards and downloads a CSV. Clears the active cards for a fresh quarter.
-      Past archives are listed below.
-    </p>
-    <div class="grid2" style="margin-bottom:.65rem;">
-      <div class="f-group" style="margin:0;">
-        <label>Quarter Name <span style="color:var(--red);">*</span></label>
-        <input type="text" id="qa-archive-name" placeholder="e.g. Q1 2025 Bingo">
-      </div>
-      <div class="f-group" style="margin:0;">
-        <label>Mode (auto-detected)</label>
-        <input type="text" id="qa-archive-mode-display" value="${mode === 'passport' ? 'Passport' : 'Bingo'}" disabled style="background:var(--cream);color:var(--soft);">
-      </div>
-    </div>
-    <div class="grid2" style="margin-bottom:.75rem;">
-      <div class="f-group" style="margin:0;">
-        <label>Start Date</label>
-        <input type="date" id="qa-archive-start">
-      </div>
-      <div class="f-group" style="margin:0;">
-        <label>End Date</label>
-        <input type="date" id="qa-archive-end">
-      </div>
-    </div>
-    <button class="btn btn-primary" onclick="qaAdminArchiveQuarter()" style="background:#c0392b;color:#fff;">📦 Archive &amp; Download CSV</button>
-    <div id="qa-archive-msg" style="margin-top:.5rem;"></div>
-    ${qArchives.length ? `
-    <div style="margin-top:1rem;padding-top:.75rem;border-top:1px solid var(--border);">
-      <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.5rem;">Past Archives</div>
-      ${qArchives.slice().reverse().map((a,ri) => {
-        const i = qArchives.length - 1 - ri;
-        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:.4rem 0;border-bottom:1px solid var(--border);font-size:.83rem;flex-wrap:wrap;gap:.35rem;">
-          <div>
-            <span style="font-weight:500;">${esc(a.name)}</span>
-            <span style="color:var(--soft);font-size:.75rem;margin-left:.4rem;">${a.mode || 'bingo'} · ${a.startDate||'?'} – ${a.endDate||'?'} · ${Object.keys(a.cards||{}).length} cards</span>
-          </div>
-          <button class="btn btn-secondary btn-sm" onclick="qaAdminRedownload(${i})">⬇ Re-download CSV</button>
-        </div>`;
-      }).join('')}
-    </div>` : ''}
-  </div>`;
+  else if (_qaAdminTab === 'setup') {
+    if (mode === 'bingo') html += renderBingoBoardBuilder(cfg);
+    else html += renderPassportBuilder(cfg);
+  }
 
-  // Member submissions
-  html += renderQAMemberList(cards, cfg);
+  else if (_qaAdminTab === 'members') {
+    html += renderQAMemberList(cards, cfg);
+  }
+
+  else if (_qaAdminTab === 'archives') {
+    html += renderQAArchivesTab(cfg);
+  }
 
   area.innerHTML = html;
-  // Attach delegated click handler so member list buttons work with raw keys
   _attachQAMemberListHandlers(area);
+  _attachQAArchiveHandlers(area);
 }
 window.renderQuarterlyAdmin = renderQuarterlyAdmin;
+
+window.qaAdminGoTab = function(tab) {
+  _qaAdminTab = tab;
+  _qaAdminOpenIdx = null;
+  renderQuarterlyAdmin();
+};
+
+// ── Quarterly Archives viewer ──────────────────────────
+let _qaArchiveSelected = null; // index into cfg.archives
+
+function renderQAArchivesTab(cfg) {
+  const archives = (cfg.archives || []).slice().reverse(); // newest first
+  const origIndices = (cfg.archives || []).map((_,i)=>i).reverse();
+
+  if (!archives.length) {
+    return `<div class="card"><div class="empty"><div class="icon">📦</div><p>No archived quarters yet. Use the Controls tab to archive the current quarter when it ends.</p></div></div>`;
+  }
+
+  let html = `<div class="card">
+    <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Archived Quarters</h3>
+    <div class="f-group" style="margin-bottom:1rem;">
+      <label>Select Quarter</label>
+      <select id="qa-archive-sel" onchange="qaAdminSelectArchive(this.value)" style="max-width:340px;">
+        <option value="">— choose a quarter —</option>
+        ${archives.map((a,i) => `<option value="${origIndices[i]}" ${_qaArchiveSelected===origIndices[i]?'selected':''}>${esc(a.name)} (${a.mode||'bingo'} · ${Object.keys(a.cards||{}).length} cards)</option>`).join('')}
+      </select>
+    </div>`;
+
+  if (_qaArchiveSelected !== null && cfg.archives && cfg.archives[_qaArchiveSelected]) {
+    const a = cfg.archives[_qaArchiveSelected];
+    const idx = _qaArchiveSelected;
+    const cards = a.cards || {};
+    const entries = Object.entries(cards);
+    const mode = a.mode || 'bingo';
+    const submitted = entries.filter(([,c])=>c.submitted);
+    const inProgress = entries.filter(([,c])=>!c.submitted);
+
+    html += `<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.75rem;padding:.65rem 1rem;background:var(--cream);border-radius:6px;border:1px solid var(--border);">
+      <div>
+        <strong>${esc(a.name)}</strong>
+        <span style="font-size:.78rem;color:var(--soft);margin-left:.5rem;">${mode} · ${a.startDate||'?'} – ${a.endDate||'?'} · ${entries.length} member${entries.length!==1?'s':''} · ${submitted.length} submitted</span>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="qaAdminRedownload(${idx})">⬇ Download CSV</button>
+    </div>`;
+
+    // Drawing entries for bingo archives
+    if (mode === 'bingo' && submitted.length) {
+      const drawingEntries = submitted.map(([k,c]) => {
+        const cl = c.claimed || [];
+        const full = Array(25).fill(false).map((_,i)=>i===FREE_INDEX||cl[i]);
+        const rows = countBingoRows(full);
+        return { name: c.discord||k, rows };
+      }).filter(e=>e.rows>0).sort((a,b)=>b.rows-a.rows);
+      if (drawingEntries.length) {
+        html += `<div style="margin-bottom:.75rem;padding:.65rem 1rem;background:#fffbef;border:1px solid var(--gold);border-radius:6px;">
+          <div style="font-size:.78rem;font-weight:600;margin-bottom:.4rem;">🎲 Prize Drawing Entries</div>
+          ${drawingEntries.map(e=>`<div style="display:flex;justify-content:space-between;font-size:.82rem;padding:.2rem 0;border-bottom:1px solid rgba(0,0,0,.05);">
+            <span>${esc(e.name)}</span>
+            <span style="color:var(--gold);font-weight:600;">${e.rows} entr${e.rows!==1?'ies':'y'}</span>
+          </div>`).join('')}
+          <div style="font-size:.72rem;color:var(--soft);margin-top:.3rem;">Total entries: ${drawingEntries.reduce((s,e)=>s+e.rows,0)}</div>
+        </div>`;
+      }
+    }
+
+    // Member rows
+    const rowHtml = (key, card) => {
+      const claimed = card.claimed || [];
+      let statLine = '';
+      if (mode === 'bingo') {
+        const full = Array(25).fill(false).map((_,i)=>i===FREE_INDEX||claimed[i]);
+        const rows = countBingoRows(full);
+        statLine = `${rows} row${rows!==1?'s':''} · ${claimed.filter(Boolean).length} squares`;
+      } else {
+        const cnt = claimed.filter(Boolean).length;
+        statLine = `${cnt}/8 stamps${cnt>=6?' · ✓ Complete':''}`;
+      }
+      const statusBadge = card.approved
+        ? `<span class="qa-member-badge qa-badge-approved">Approved</span>`
+        : card.submitted
+          ? `<span class="qa-member-badge qa-badge-submitted">Submitted</span>`
+          : `<span class="qa-member-badge qa-badge-inprogress">In Progress</span>`;
+      return `<div class="qa-admin-member-row">
+        <div>
+          <div style="font-weight:500;">${esc(card.discord||key)}</div>
+          <div class="qa-member-stats">${esc(card.email||'')} · ${statLine}</div>
+        </div>
+        <div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;">
+          ${statusBadge}
+          <button class="btn btn-secondary btn-sm qa-archive-view-btn" data-archiveidx="${idx}" data-key="${esc(key)}">View</button>
+        </div>
+      </div>`;
+    };
+
+    if (submitted.length) {
+      html += `<div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.4rem;">Submitted</div>`;
+      html += submitted.map(([k,c])=>rowHtml(k,c)).join('');
+    }
+    if (inProgress.length) {
+      html += `<div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin:.75rem 0 .4rem;">In Progress</div>`;
+      html += inProgress.map(([k,c])=>rowHtml(k,c)).join('');
+    }
+
+    html += `<div id="qa-archive-card-view" style="margin-top:.5rem;"></div>`;
+  }
+
+  html += `</div>`;
+  return html;
+}
+
+window.qaAdminSelectArchive = function(val) {
+  _qaArchiveSelected = val === '' ? null : Number(val);
+  _qaAdminOpenIdx = null;
+  renderQuarterlyAdmin();
+};
+
+// View a card from an archive (read-only, clickable)
+window.qaAdminViewArchiveCard = function(archiveIdx, key) {
+  _qaAdminOpenIdx = null;
+  const cfg = getQuarterlyConfig();
+  const archive = cfg.archives && cfg.archives[archiveIdx];
+  if (!archive) return;
+  const card = (archive.cards || {})[key];
+  if (!card) return;
+  const viewArea = document.getElementById('qa-archive-card-view');
+  if (!viewArea) return;
+
+  const mode = archive.mode || 'bingo';
+  const archiveCfg = archive.cfg || {};
+
+  let html = `<div class="card" style="border-color:var(--gold);margin-top:.5rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:.5rem;">
+      <h3 style="font-family:'Playfair Display',serif;font-size:1rem;">
+        ${esc(card.discord||key)}'s Card
+        <span style="font-size:.75rem;font-weight:400;color:var(--soft);">· ${archive.name} · ${card.submitted?'Submitted':'In Progress'}</span>
+      </h3>
+      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('qa-archive-card-view').innerHTML=''">✕ Close</button>
+    </div>
+    <p style="font-size:.75rem;color:var(--soft);margin-bottom:.75rem;">Click any square or stamp to see the book assigned to it.</p>`;
+
+  if (mode === 'bingo') {
+    const board = card.board || buildMemberBoard({prompts: archiveCfg.prompts||[], staticBoard: archiveCfg.staticBoard||false}, key);
+    const claimed = card.claimed || Array(25).fill(false).map((_,i)=>i===FREE_INDEX);
+    const books = card.books || {};
+    const winLines = getBingoWinLines(claimed);
+    const winSet = new Set(winLines.flat());
+    const rowCount = countBingoRows(claimed);
+    html += `<div style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">${rowCount} bingo row${rowCount!==1?'s':''} · ${claimed.filter(Boolean).length} squares claimed</div>`;
+    html += `<div class="bingo-grid">`;
+    for (let i = 0; i < 25; i++) {
+      const cell = board[i];
+      const isClaimed = i === FREE_INDEX ? true : claimed[i];
+      const bk = bkGet(books, i);
+      const isOpen = _qaAdminOpenIdx === i;
+      let cls = 'bingo-cell';
+      if (cell.isFree) cls += ' cell-free cell-locked';
+      else if (isClaimed) cls += ' cell-claimed';
+      if (winSet.has(i) && isClaimed) cls += ' row-highlight';
+      if (isOpen) cls += ' admin-cell-open';
+      const clickAttr = cell.isFree ? '' : `onclick="qaAdminViewArchiveCellClick(${archiveIdx},'${esc(key)}',${i})" style="cursor:pointer;"`;
+      html += `<div class="${cls}" ${clickAttr}>
+        <div class="bingo-cell-prompt">${esc(cell.prompt)}</div>
+        ${bk && bk.title ? `<div style="font-size:.6rem;color:var(--gold);text-align:center;margin-top:2px;">📚</div>` : ''}
+        <div class="bingo-cell-check"></div>
+      </div>`;
+    }
+    html += `</div>`;
+    if (_qaAdminOpenIdx !== null && _qaAdminOpenIdx !== FREE_INDEX) {
+      const cell = board[_qaAdminOpenIdx];
+      const bk = bkGet(books, _qaAdminOpenIdx) || {};
+      html += `<div class="qa-book-drawer" style="margin-top:.5rem;">
+        <div class="qa-drawer-title" style="margin-bottom:.35rem;">${claimed[_qaAdminOpenIdx]?'✓':'○'} <em>${esc(cell.prompt)}</em></div>
+        ${bk.title ? `<div style="font-size:.9rem;"><strong>📚 ${esc(bk.title)}</strong>${bk.author?`<span style="color:var(--soft);"> — ${esc(bk.author)}</span>`:''}</div>`
+                   : `<div style="font-size:.82rem;color:var(--soft);font-style:italic;">${claimed[_qaAdminOpenIdx]?'Claimed — no book logged.':'Not claimed.'}</div>`}
+      </div>`;
+    }
+  } else {
+    const stamps = archiveCfg.passportStamps || [];
+    const claimed = card.claimed || Array(8).fill(false);
+    const books = card.books || {};
+    const claimOrder = card.claimOrder || [];
+    const bonusSet = new Set(claimOrder.slice(6));
+    const count = claimed.filter(Boolean).length;
+    html += `<div style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">${count}/8 stamps · ${count>=6?'✓ Completed':'Incomplete'}${count>6?` · ${count-6} bonus`:''}</div>`;
+    html += `<div class="passport-grid">`;
+    for (let i = 0; i < 8; i++) {
+      const s = stamps[i] || { name:`Stamp ${i+1}`, icon:'📖' };
+      const bk = bkGet(books, i);
+      const isClaimed = claimed[i];
+      const isBonus = isClaimed && bonusSet.has(i);
+      const isOpen = _qaAdminOpenIdx === i;
+      let cls = 'passport-stamp' + (isClaimed?' stamp-claimed':'') + (isBonus?' stamp-bonus':'') + (isOpen?' admin-cell-open':'');
+      html += `<div class="${cls}" onclick="qaAdminViewArchiveCellClick(${archiveIdx},'${esc(key)}',${i})" style="cursor:pointer;">
+        ${isBonus ? '<span class="stamp-bonus-label">Bonus</span>' : ''}
+        <div class="stamp-icon">${esc(s.icon||'📖')}</div>
+        <div class="stamp-name">${esc(s.name)}</div>
+        ${bk && bk.title ? `<div style="font-size:.6rem;color:var(--gold);margin-top:.2rem;">📚</div>` : ''}
+        <div class="stamp-check"></div>
+      </div>`;
+    }
+    html += `</div>`;
+    if (_qaAdminOpenIdx !== null) {
+      const s = stamps[_qaAdminOpenIdx] || { name:`Stamp ${_qaAdminOpenIdx+1}` };
+      const bk = bkGet(books, _qaAdminOpenIdx) || {};
+      html += `<div class="qa-book-drawer" style="margin-top:.5rem;">
+        <div class="qa-drawer-title" style="margin-bottom:.35rem;">${claimed[_qaAdminOpenIdx]?'✦':'○'} <em>${esc(s.name)}</em></div>
+        ${bk.title ? `<div style="font-size:.9rem;"><strong>📚 ${esc(bk.title)}</strong>${bk.author?`<span style="color:var(--soft);"> — ${esc(bk.author)}</span>`:''}</div>`
+                   : `<div style="font-size:.82rem;color:var(--soft);font-style:italic;">${claimed[_qaAdminOpenIdx]?'Claimed — no book logged.':'Not claimed.'}</div>`}
+      </div>`;
+    }
+  }
+
+  html += `</div>`;
+  viewArea.innerHTML = html;
+  viewArea.scrollIntoView({ behavior:'smooth', block:'nearest' });
+};
+
+window.qaAdminViewArchiveCellClick = function(archiveIdx, key, i) {
+  _qaAdminOpenIdx = (_qaAdminOpenIdx === i) ? null : i;
+  qaAdminViewArchiveCard(archiveIdx, key);
+};
+
+// Attach delegated handler for archive view buttons
+function _attachQAArchiveHandlers(containerEl) {
+  if (!containerEl) return;
+  containerEl.addEventListener('click', function(e) {
+    const viewBtn = e.target.closest('.qa-archive-view-btn');
+    if (viewBtn) {
+      const k   = viewBtn.dataset.key;
+      const idx = Number(viewBtn.dataset.archiveidx);
+      if (k != null) qaAdminViewArchiveCard(idx, k);
+    }
+  });
+}
 
 function renderBingoBoardBuilder(cfg) {
   const prompts = (cfg.prompts || []).slice(0, 24);
