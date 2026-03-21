@@ -6264,12 +6264,23 @@ function loadQuarterlyCard() {
 window.loadQuarterlyCard = loadQuarterlyCard;
 
 // ── Persist card ───────────────────────────────────────
+// Local overlay for book entries — survives cache re-renders until Firestore catches up
+const _qaPendingBooks = {}; // memberKey -> { idx: { title, author } }
+
+function _qaMergedCard(card, memberKey) {
+  const pending = _qaPendingBooks[memberKey];
+  if (!pending) return card;
+  return Object.assign({}, card, { books: Object.assign({}, card.books || {}, pending) });
+}
+
 async function qaPersistCard(patch, msgId) {
   if (!_qaIdentity) return;
   const key   = qaKey(_qaIdentity.email, _qaIdentity.discord);
   const cards = getQuarterlyCards();
   const existing = cards[key] || {};
-  const updated = Object.assign({}, existing, patch, {
+  // Merge pending books overlay into existing so we don't lose unsnapshot'd saves
+  const mergedExisting = _qaMergedCard(existing, key);
+  const updated = Object.assign({}, mergedExisting, patch, {
     email: _qaIdentity.email,
     discord: _qaIdentity.discord,
     updatedAt: Date.now()
@@ -6277,6 +6288,8 @@ async function qaPersistCard(patch, msgId) {
   const newMap = Object.assign({}, cards, { [key]: updated });
   try {
     await fbSet(QUARTERLY_CARDS_REF, { map: newMap });
+    // Firestore confirmed — clear pending overlay for this member
+    delete _qaPendingBooks[key];
     if (msgId) showMsg(msgId, 'Saved!', 'ok');
   } catch(e) {
     if (msgId) showMsg(msgId, 'Save failed — try again.', 'err');
@@ -6290,7 +6303,8 @@ function _qaGetState() {
   const cfg   = getQuarterlyConfig();
   const cards = getQuarterlyCards();
   const key   = qaKey(_qaIdentity.email, _qaIdentity.discord);
-  const card  = cards[key] || {};
+  const rawCard = cards[key] || {};
+  const card  = _qaMergedCard(rawCard, key); // apply any pending book saves
   const main  = document.getElementById('quarterly-main');
   return { cfg, cards, key, card, main };
 }
@@ -6376,19 +6390,21 @@ window.qaCloseDrawer = function() {
   _qaRerender(s);
 };
 
-// Save book for a bingo square
+// Save book for a bingo square or passport stamp
 window.qaSaveBook = function(idx) {
   const title  = (document.getElementById('qa-bk-title')?.value || '').trim();
   const author = (document.getElementById('qa-bk-author')?.value || '').trim();
   const s = _qaGetState(); if (!s) return;
+  // Write to pending overlay immediately so re-renders from cache don't lose it
+  if (!_qaPendingBooks[s.key]) _qaPendingBooks[s.key] = {};
+  _qaPendingBooks[s.key][idx] = { title, author };
   const books = Object.assign({}, s.card.books || {}, { [idx]: { title, author } });
   const updatedCard = Object.assign({}, s.card, { books });
   qaPersistCard({ books }, null);
   showMsg('qa-drawer-msg', 'Saved!', 'ok');
-  // Re-render optimistically so the drawer reflects saved state immediately
   if (s.main) {
     if (s.cfg.mode === 'bingo') {
-      const board = s.card.board || buildMemberBoard(s.cfg, s.key);
+      const board   = s.card.board || buildMemberBoard(s.cfg, s.key);
       const claimed = s.card.claimed || Array(25).fill(false).map((_,i)=>i===FREE_INDEX);
       renderBingoCard(s.main, s.cfg, Object.assign({}, updatedCard, {board, claimed}), s.key);
     } else {
