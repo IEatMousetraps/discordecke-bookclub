@@ -6106,12 +6106,18 @@ function renderBingoCard(container, cfg, card, memberKey) {
       const key = e.title.toLowerCase();
       const count = titleCount[key];
       const isDupe = count > 2;
-      html += `<div style="display:flex;align-items:baseline;gap:.5rem;padding:.35rem .5rem;border-radius:5px;${isDupe ? 'background:#fce4ec;border:1.5px solid var(--red);' : 'background:var(--card);border:1px solid var(--border);'}">
-        <span style="font-size:.7rem;color:${isDupe?'var(--red)':'var(--soft)'};min-width:1.4rem;text-align:right;flex-shrink:0;">${e.idx+1}</span>
-        <span style="font-size:.72rem;color:${isDupe?'var(--red)':'var(--soft)'};flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(e.prompt)}">${esc(e.prompt)}</span>
-        <span style="font-size:.82rem;${isDupe?'color:var(--red);font-weight:700;':'color:var(--ink);'}">📚 ${esc(e.title)}${e.author?`<span style="font-weight:400;color:${isDupe?'#c0392b':'var(--soft)};"> — ${esc(e.author)}</span>`:''}</span>
-        ${isDupe ? `<span style="font-size:.7rem;font-weight:700;color:var(--red);flex-shrink:0;">× ${count} uses!</span>` : ''}
-      </div>`;
+      const rowBg     = isDupe ? 'background:#fce4ec;border:1.5px solid var(--red);' : 'background:var(--card);border:1px solid var(--border);';
+      const numClr    = isDupe ? 'color:var(--red);' : 'color:var(--soft);';
+      const bookClr   = isDupe ? 'color:var(--red);font-weight:700;' : 'color:var(--ink);';
+      const authorClr = isDupe ? 'color:#c0392b;' : 'color:var(--soft);';
+      const authorHtml = e.author ? '<span style="font-weight:400;' + authorClr + '"> — ' + esc(e.author) + '</span>' : '';
+      const dupeHtml   = isDupe ? '<span style="font-size:.7rem;font-weight:700;color:var(--red);flex-shrink:0;">× ' + count + ' uses!</span>' : '';
+      html += '<div style="display:flex;align-items:baseline;gap:.5rem;padding:.35rem .5rem;border-radius:5px;' + rowBg + '">' +
+        '<span style="font-size:.7rem;' + numClr + 'min-width:1.4rem;text-align:right;flex-shrink:0;">' + (e.idx+1) + '</span>' +
+        '<span style="font-size:.72rem;' + numClr + 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + esc(e.prompt) + '">' + esc(e.prompt) + '</span>' +
+        '<span style="font-size:.82rem;' + bookClr + '">📚 ' + esc(e.title) + authorHtml + '</span>' +
+        dupeHtml +
+        '</div>';
     });
     html += `</div></div>`;
   }
