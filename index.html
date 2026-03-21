@@ -6069,57 +6069,73 @@ function renderBingoCard(container, cfg, card, memberKey) {
 
   html += `<div id="qa-save-msg" style="margin-top:.5rem;"></div>`;
 
-  // ── Book assignment log ─────────────────────────────
-  // Build list of squares with book entries, detect duplicates (>2 uses of same title)
-  const logEntries = []; // { idx, prompt, title, author }
-  for (let i = 0; i < 25; i++) {
-    if (i === FREE_INDEX) continue;
-    const bk = books[i];
-    if (bk && bk.title && bk.title.trim()) {
-      logEntries.push({ idx: i, prompt: board[i] ? board[i].prompt : '', title: bk.title.trim(), author: (bk.author || '').trim() });
+  // ── Book assignment log (always visible for non-submitted cards) ──────────
+  if (!isSubmitted) {
+    const logEntries = [];
+    for (let i = 0; i < 25; i++) {
+      if (i === FREE_INDEX) continue;
+      if (!claimed[i]) continue;
+      const bk = books[i];
+      logEntries.push({
+        idx: i,
+        prompt: board[i] ? board[i].prompt : '',
+        title:  (bk && bk.title)  ? bk.title.trim()  : '',
+        author: (bk && bk.author) ? bk.author.trim() : ''
+      });
     }
-  }
-
-  if (logEntries.length > 0) {
-    // Count uses per normalised title
     const titleCount = {};
     logEntries.forEach(e => {
-      const key = e.title.toLowerCase();
-      titleCount[key] = (titleCount[key] || 0) + 1;
+      if (!e.title) return;
+      const k = e.title.toLowerCase();
+      titleCount[k] = (titleCount[k] || 0) + 1;
     });
-    const hasDupe = Object.values(titleCount).some(c => c > 2);
+    const hasDupe      = Object.values(titleCount).some(c => c > 2);
+    const claimedCount = logEntries.length;
+    const missingBook  = logEntries.filter(e => !e.title).length;
 
-    html += `<div style="margin-top:1.25rem;padding:1rem;background:var(--cream);border:1px solid var(--border);border-radius:8px;">
-      <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.6rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.4rem;">
-        <span>📋 Book Assignments (${logEntries.length} square${logEntries.length!==1?'s':''})</span>
-        <span style="font-weight:400;">A book may be used on up to 2 squares.</span>
-      </div>`;
+    html += '<div style="margin-top:1.25rem;padding:1rem;background:var(--cream);border:1px solid var(--border);border-radius:8px;">' +
+      '<div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.6rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.4rem;">' +
+        '<span>\u{1f4cb} Book Assignments \u2014 ' + claimedCount + ' claimed square' + (claimedCount !== 1 ? 's' : '') + '</span>' +
+        '<span style="font-weight:400;">Max 2 squares per book.</span>' +
+      '</div>';
 
-    if (hasDupe) {
-      html += `<div style="padding:.55rem .8rem;background:#fce4ec;border:2px solid var(--red);border-radius:6px;font-size:.82rem;color:var(--red);font-weight:700;margin-bottom:.65rem;">
-        ⚠️ One or more books are used on more than 2 squares — see below. You must fix this before saving or submitting.
-      </div>`;
+    if (claimedCount === 0) {
+      html += '<p style="font-size:.82rem;color:var(--soft);font-style:italic;">No squares claimed yet.</p>';
+    } else {
+      if (hasDupe) {
+        html += '<div style="padding:.55rem .8rem;background:#fce4ec;border:2px solid var(--red);border-radius:6px;font-size:.82rem;color:var(--red);font-weight:700;margin-bottom:.65rem;">' +
+          '\u26a0\ufe0f One or more books are used on more than 2 squares \u2014 see below. Fix this before saving or submitting.' +
+          '</div>';
+      }
+      if (missingBook > 0) {
+        html += '<div style="padding:.45rem .8rem;background:#fff8e1;border:1px solid #f0b429;border-radius:6px;font-size:.8rem;color:#7a5800;margin-bottom:.65rem;">' +
+          '\u{1f4d6} ' + missingBook + ' claimed square' + (missingBook !== 1 ? 's' : '') + ' still need' + (missingBook === 1 ? 's' : '') + ' a book entry.' +
+          '</div>';
+      }
+      html += '<div style="display:flex;flex-direction:column;gap:.3rem;">';
+      logEntries.forEach(e => {
+        const isDupe   = e.title && titleCount[e.title.toLowerCase()] > 2;
+        const missing  = !e.title;
+        const rowBg    = isDupe   ? 'background:#fce4ec;border:1.5px solid var(--red);'
+                       : missing  ? 'background:#fff8e1;border:1px solid #f0c040;'
+                       : 'background:var(--card);border:1px solid var(--border);';
+        const numClr   = isDupe ? 'color:var(--red);' : 'color:var(--soft);';
+        const bookClr  = isDupe   ? 'color:var(--red);font-weight:700;'
+                       : missing  ? 'color:#9a6a00;font-style:italic;'
+                       : 'color:var(--ink);';
+        const authClr  = isDupe ? 'color:#c0392b;' : 'color:var(--soft);';
+        const bookLabel = missing ? 'No book entered yet' : '\u{1f4da} ' + esc(e.title);
+        const authHtml  = (!missing && e.author) ? '<span style="font-weight:400;' + authClr + '"> \u2014 ' + esc(e.author) + '</span>' : '';
+        const dupeHtml  = isDupe ? '<span style="font-size:.7rem;font-weight:700;color:var(--red);flex-shrink:0;">\xd7 ' + titleCount[e.title.toLowerCase()] + ' uses!</span>' : '';
+        html += '<div style="display:flex;align-items:baseline;gap:.5rem;padding:.35rem .5rem;border-radius:5px;' + rowBg + '">' +
+          '<span style="font-size:.7rem;' + numClr + 'min-width:1.4rem;text-align:right;flex-shrink:0;">' + (e.idx + 1) + '</span>' +
+          '<span style="font-size:.72rem;color:var(--soft);flex:0 0 auto;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + esc(e.prompt) + '">' + esc(e.prompt) + '</span>' +
+          '<span style="font-size:.82rem;flex:1;' + bookClr + '">' + bookLabel + authHtml + '</span>' +
+          dupeHtml + '</div>';
+      });
+      html += '</div>';
     }
-
-    html += `<div style="display:flex;flex-direction:column;gap:.3rem;">`;
-    logEntries.forEach(e => {
-      const key = e.title.toLowerCase();
-      const count = titleCount[key];
-      const isDupe = count > 2;
-      const rowBg     = isDupe ? 'background:#fce4ec;border:1.5px solid var(--red);' : 'background:var(--card);border:1px solid var(--border);';
-      const numClr    = isDupe ? 'color:var(--red);' : 'color:var(--soft);';
-      const bookClr   = isDupe ? 'color:var(--red);font-weight:700;' : 'color:var(--ink);';
-      const authorClr = isDupe ? 'color:#c0392b;' : 'color:var(--soft);';
-      const authorHtml = e.author ? '<span style="font-weight:400;' + authorClr + '"> — ' + esc(e.author) + '</span>' : '';
-      const dupeHtml   = isDupe ? '<span style="font-size:.7rem;font-weight:700;color:var(--red);flex-shrink:0;">× ' + count + ' uses!</span>' : '';
-      html += '<div style="display:flex;align-items:baseline;gap:.5rem;padding:.35rem .5rem;border-radius:5px;' + rowBg + '">' +
-        '<span style="font-size:.7rem;' + numClr + 'min-width:1.4rem;text-align:right;flex-shrink:0;">' + (e.idx+1) + '</span>' +
-        '<span style="font-size:.72rem;' + numClr + 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + esc(e.prompt) + '">' + esc(e.prompt) + '</span>' +
-        '<span style="font-size:.82rem;' + bookClr + '">📚 ' + esc(e.title) + authorHtml + '</span>' +
-        dupeHtml +
-        '</div>';
-    });
-    html += `</div></div>`;
+    html += '</div>';
   }
   container.innerHTML = html;
 }
