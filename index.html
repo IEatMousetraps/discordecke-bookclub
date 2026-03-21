@@ -194,6 +194,9 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 }
 .bingo-cell:hover:not(.cell-locked):not(.cell-free) { border-color: var(--gold); transform: translateY(-1px); }
 .bingo-cell.cell-claimed { border-color: var(--green); background: #f0faf0; }
+.bingo-cell.cell-dupe-error { border-color: var(--red) !important; border-width: 2px !important; background: #fce4ec !important; }
+.bingo-cell.cell-dupe-error .bingo-cell-check::after { content: '⚠' !important; color: var(--red) !important; font-weight: 700; }
+.bingo-cell.cell-dupe-error .bingo-cell-prompt { color: var(--red) !important; font-weight: 500; }
 .bingo-cell.cell-free { border-color: var(--gold); background: linear-gradient(135deg,#fffdf5,#fff8d6); cursor: default; }
 .bingo-cell.cell-locked { cursor: default; opacity: .9; }
 .bingo-cell-prompt {
@@ -6010,16 +6013,32 @@ function renderBingoCard(container, cfg, card, memberKey) {
     <span style="margin-left:auto;font-size:.75rem;color:var(--soft);">Max 12 rows possible</span>
   </div>`;
 
+  // Build set of over-used book titles (used on >2 squares) for grid highlighting
+  const _titleCount = {};
+  for (let i = 0; i < 25; i++) {
+    if (i === FREE_INDEX) continue;
+    const bk = bkGet(books, i);
+    if (bk && bk.title && bk.title.trim()) {
+      const k = bk.title.trim().toLowerCase();
+      _titleCount[k] = (_titleCount[k] || 0) + 1;
+    }
+  }
+  const _dupeTitles = new Set(Object.keys(_titleCount).filter(k => _titleCount[k] > 2));
+
   // Grid
   html += `<div class="bingo-grid" id="bingo-grid-render">`;
   for (let i = 0; i < 25; i++) {
     const cell = board[i];
     const isClaimed = i === FREE_INDEX ? true : claimed[i];
     const isWin = winSet.has(i);
+    const bkCell = bkGet(books, i);
+    const isDupeCell = !cell.isFree && isClaimed && bkCell && bkCell.title &&
+                       _dupeTitles.has(bkCell.title.trim().toLowerCase());
     let cls = 'bingo-cell';
     if (cell.isFree) cls += ' cell-free';
+    else if (isDupeCell) cls += ' cell-dupe-error';
     else if (isClaimed) cls += ' cell-claimed';
-    if (isWin && isClaimed) cls += ' row-highlight';
+    if (isWin && isClaimed && !isDupeCell) cls += ' row-highlight';
     if (isSubmitted) cls += ' cell-locked';
     const clickAttr = (!cell.isFree && !isSubmitted)
       ? `onclick="qaToggleCell(${i})"` : '';
@@ -6091,13 +6110,13 @@ function renderBingoCard(container, cfg, card, memberKey) {
       const k = e.title.toLowerCase();
       titleCount[k] = (titleCount[k] || 0) + 1;
     });
-    const hasDupe      = Object.values(titleCount).some(c => c > 2);
+    const hasDupe = Object.values(titleCount).some(c => c > 2);
     const claimedCount = logEntries.length;
     const missingBook  = logEntries.filter(e => !e.title).length;
 
     html += '<div style="margin-top:1.25rem;padding:1rem;background:var(--cream);border:1px solid var(--border);border-radius:8px;">' +
       '<div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.6rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.4rem;">' +
-        '<span>\u{1f4cb} Book Assignments \u2014 ' + claimedCount + ' claimed square' + (claimedCount !== 1 ? 's' : '') + '</span>' +
+        '<span>📋 Book Assignments — ' + claimedCount + ' claimed square' + (claimedCount !== 1 ? 's' : '') + '</span>' +
         '<span style="font-weight:400;">Max 2 squares per book.</span>' +
       '</div>';
 
@@ -6106,12 +6125,12 @@ function renderBingoCard(container, cfg, card, memberKey) {
     } else {
       if (hasDupe) {
         html += '<div style="padding:.55rem .8rem;background:#fce4ec;border:2px solid var(--red);border-radius:6px;font-size:.82rem;color:var(--red);font-weight:700;margin-bottom:.65rem;">' +
-          '\u26a0\ufe0f One or more books are used on more than 2 squares \u2014 see below. Fix this before saving or submitting.' +
+          '⚠️ One or more books are used on more than 2 squares — see below. Fix this before saving or submitting.' +
           '</div>';
       }
       if (missingBook > 0) {
         html += '<div style="padding:.45rem .8rem;background:#fff8e1;border:1px solid #f0b429;border-radius:6px;font-size:.8rem;color:#7a5800;margin-bottom:.65rem;">' +
-          '\u{1f4d6} ' + missingBook + ' claimed square' + (missingBook !== 1 ? 's' : '') + ' still need' + (missingBook === 1 ? 's' : '') + ' a book entry.' +
+          '📖 ' + missingBook + ' claimed square' + (missingBook !== 1 ? 's' : '') + ' still need' + (missingBook === 1 ? 's' : '') + ' a book entry.' +
           '</div>';
       }
       html += '<div style="display:flex;flex-direction:column;gap:.3rem;">';
@@ -6467,7 +6486,7 @@ function qaCheckBingoDuplicates() {
   const books = s.card.books || {};
   const board = s.card.board || buildMemberBoard(s.cfg, s.key);
 
-  const titleEntries = {}; // normTitle -> [{ idx, prompt }]
+  const titleEntries = {}; // normTitle -> { title, squares: [{ idx, prompt, author }] }
   for (let i = 0; i < 25; i++) {
     if (i === FREE_INDEX) continue;
     const bk = bkGet(books, i);
