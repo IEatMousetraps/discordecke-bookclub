@@ -3854,7 +3854,7 @@ const BADGE_DEFS = [
   // ── Book-specific ─────────────────────────────────────────────────────────
   { id:'winner-picker',     name:'Taste-Maker',         emoji:'👑',  tier:null,     desc:'Suggest a book that wins',                                  check:p=>p.pickedWinner>=1 },
   { id:'top3-suggest',      name:'Almost There',        emoji:'🎰',  tier:null,     desc:'Suggest a book that finishes in the top 3',                 check:p=>p.suggestedTop3>=1 },
-  { id:'tough-crowd',       name:'Tough Crowd',         emoji:'😬',  tier:null,     desc:'Give a book a 1-star rating',                               check:p=>p.oneStarCount>=1 },
+  { id:'tough-crowd',       name:'Tough Crowd',         emoji:'😬',  tier:null,     desc:'Give a book a 1-star rating. Note: earning this badge permanently blocks Glass Half Full.',               check:p=>p.oneStarCount>=1 },
   { id:'genre-loyalist',    name:'Genre Loyalist',      emoji:'🎭',  tier:null,     desc:'Give high ratings (4–5★) to 3+ books in the same genre',    check:p=>p.genreLoyalist },
 
   // ── DNF (tiered) ─────────────────────────────────────────────────────────
@@ -3901,7 +3901,7 @@ const BADGE_DEFS = [
   { id:'unanimous',         name:'Unanimous',           emoji:'🤝',  tier:null,     desc:'Give the exact same star rating as every other reviewer in a month (min 2 reviewers)', check:p=>p.unanimous },
   { id:'early-to-rise',     name:'Early to Rise',       emoji:'🌅',  tier:null,     desc:'Submit a vote before 8am (from Mar 18, 2026)',             check:p=>p.earlyToRise>=1, cutoffGated:true },
   { id:'mirror-mirror',     name:'Mirror Mirror',       emoji:'🪞',  tier:null,     desc:p=>(p&&p.mirrorMirror&&p.mirrorMatchName)?`Voted identically to ${p.mirrorMatchName} in ${p.mirrorMatchMonth}`:'Vote with the exact same ranking order as another member in any month', check:p=>p.mirrorMirror },
-  { id:'glass-half-full',   name:'Glass Half Full',     emoji:'🥂',  tier:null,     desc:'Never give below 3 stars across 5 or more rated reviews',  check:p=>p.glassHalfFull },
+  { id:'glass-half-full',   name:'Glass Half Full',     emoji:'🥂',  tier:null,     desc:'Never give below 3 stars across 5 or more rated reviews. Note: earning Tough Crowd (any 1-star rating) permanently blocks this badge.',  check:p=>p.glassHalfFull },
 
   // ── Admin-only ────────────────────────────────────────────────────────────
   { id:'founding-reader',   name:'1st Edition',         emoji:'🏛️',  tier:null,     desc:'Member during the inaugural year — admin awarded only',     check:()=>false, adminOnly:true },
