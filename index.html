@@ -5957,7 +5957,7 @@ function renderQuarterlyTab() {
 
   const key = qaKey(_qaIdentity.email, _qaIdentity.discord);
   const cards = getQuarterlyCards();
-  const card  = cards[key] || null;
+  const card  = _qaMergedCard(cards[key] || {}, key) || null;
   const main  = document.getElementById('quarterly-main');
   if (!main) return;
 
@@ -6318,7 +6318,7 @@ function _qaGetState() {
 function _qaRerender(s) {
   if (!s || !s.main) return;
   const cards = getQuarterlyCards();
-  const card  = cards[s.key] || {};
+  const card  = _qaMergedCard(cards[s.key] || {}, s.key);
   if (s.cfg.mode === 'bingo') renderBingoCard(s.main, s.cfg, card, s.key);
   else renderPassportCard(s.main, s.cfg, card, s.key);
 }
@@ -6397,7 +6397,7 @@ window.qaCloseDrawer = function() {
 };
 
 // Save book for a bingo square or passport stamp
-window.qaSaveBook = function(idx) {
+window.qaSaveBook = async function(idx) {
   const title  = (document.getElementById('qa-bk-title')?.value || '').trim();
   const author = (document.getElementById('qa-bk-author')?.value || '').trim();
   const s = _qaGetState(); if (!s) return;
@@ -6408,8 +6408,7 @@ window.qaSaveBook = function(idx) {
   // Build books with string keys to match what Firestore returns
   const books = Object.assign({}, s.card.books || {}, { [sidx]: { title, author } });
   const updatedCard = Object.assign({}, s.card, { books });
-  qaPersistCard({ books }, null);
-  showMsg('qa-drawer-msg', 'Saved!', 'ok');
+  // Render optimistically first so UI feels instant
   if (s.main) {
     if (s.cfg.mode === 'bingo') {
       const board   = s.card.board || buildMemberBoard(s.cfg, s.key);
@@ -6419,6 +6418,8 @@ window.qaSaveBook = function(idx) {
       renderPassportCard(s.main, s.cfg, updatedCard, s.key);
     }
   }
+  // Now await the actual Firestore write — shows error in drawer if it fails
+  await qaPersistCard({ books }, 'qa-drawer-msg');
 };
 
 // Save book for a passport stamp
