@@ -6569,6 +6569,8 @@ function renderQuarterlyAdmin() {
   html += renderQAMemberList(cards, cfg);
 
   area.innerHTML = html;
+  // Attach delegated click handler so member list buttons work with raw keys
+  _attachQAMemberListHandlers(area);
 }
 window.renderQuarterlyAdmin = renderQuarterlyAdmin;
 
@@ -6652,6 +6654,7 @@ function renderQAMemberList(cards, cfg) {
       : card.submitted
         ? `<span class="qa-member-badge qa-badge-submitted">Submitted</span>`
         : `<span class="qa-member-badge qa-badge-inprogress">In Progress</span>`;
+    // Use data-key attribute + handler to avoid esc() mangling the key in onclick
     return `<div class="qa-admin-member-row">
       <div>
         <div style="font-weight:500;">${esc(card.discord||key)}</div>
@@ -6659,10 +6662,10 @@ function renderQAMemberList(cards, cfg) {
       </div>
       <div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;">
         ${statusBadge}
-        <button class="btn btn-secondary btn-sm" onclick="qaAdminViewCard('${esc(key)}')">View</button>
-        ${card.submitted && !card.approved ? `<button class="btn btn-primary btn-sm" onclick="qaAdminApprove('${esc(key)}')" style="background:var(--green);color:#fff;">Approve</button>` : ''}
-        ${card.approved ? `<button class="btn btn-secondary btn-sm" onclick="qaAdminUnapprove('${esc(key)}')">Revoke</button>` : ''}
-        <button class="btn btn-danger btn-sm" onclick="qaAdminDeleteCard('${esc(key)}')">Delete</button>
+        <button class="btn btn-secondary btn-sm qa-admin-view-btn" data-key="${esc(key)}">View</button>
+        ${card.submitted && !card.approved ? `<button class="btn btn-primary btn-sm qa-admin-approve-btn" data-key="${esc(key)}" style="background:var(--green);color:#fff;">Approve</button>` : ''}
+        ${card.approved ? `<button class="btn btn-secondary btn-sm qa-admin-unapprove-btn" data-key="${esc(key)}">Revoke</button>` : ''}
+        <button class="btn btn-danger btn-sm qa-admin-delete-btn" data-key="${esc(key)}">Delete</button>
       </div>
     </div>`;
   };
@@ -6706,7 +6709,24 @@ function renderQAMemberList(cards, cfg) {
 
   // Admin view modal area
   html += `<div id="qa-admin-card-view"></div>`;
+
+  // Return html — caller injects it; we attach a delegated listener after inject
   return html;
+}
+
+// Delegated handler for member list buttons — avoids key-escaping issues in onclick attrs
+function _attachQAMemberListHandlers(containerEl) {
+  if (!containerEl) return;
+  containerEl.addEventListener('click', function(e) {
+    const viewBtn     = e.target.closest('.qa-admin-view-btn');
+    const approveBtn  = e.target.closest('.qa-admin-approve-btn');
+    const unapproveBtn= e.target.closest('.qa-admin-unapprove-btn');
+    const deleteBtn   = e.target.closest('.qa-admin-delete-btn');
+    if (viewBtn)      { const k = viewBtn.dataset.key;      if (k) qaAdminViewCard(k); }
+    if (approveBtn)   { const k = approveBtn.dataset.key;   if (k) qaAdminApprove(k); }
+    if (unapproveBtn) { const k = unapproveBtn.dataset.key; if (k) qaAdminUnapprove(k); }
+    if (deleteBtn)    { const k = deleteBtn.dataset.key;    if (k) qaAdminDeleteCard(k); }
+  });
 }
 
 // ── Admin controls ─────────────────────────────────────
