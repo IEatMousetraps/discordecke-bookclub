@@ -1009,6 +1009,7 @@ const PROGRESS_REF = doc(db, 'club', 'readingProgress');
 const MEETING_REF      = doc(db, 'club', 'meetingInfo');
 const BADGE_CONFIG_REF = doc(db, 'club', 'badgeConfig');
 const QUARTERLY_CONFIG_REF = doc(db, 'club', 'quarterlyConfig');
+const QUARTERLY_DRAFT_REF  = doc(db, 'club', 'quarterlyConfigDraft');
 const QUARTERLY_CARDS_REF  = doc(db, 'club', 'quarterlyCards');
 
 // ── In-memory cache kept fresh by real-time listeners ──
@@ -1018,6 +1019,7 @@ let CACHE = {
   readingProgress: {}, meetingInfo: {},
   badgeConfig: { disabled:{}, hidden:{}, organic:{}, customBadges:[], overrides:{} },
   quarterlyConfig: { mode:'bingo', active:false, hidden:true, staticBoard:false, prompts:[], passportStamps:[] },
+  quarterlyDraft:  { mode:'bingo', staticBoard:false, prompts:[], passportStamps:[] },
   quarterlyCards: {}
 };
 
@@ -1151,6 +1153,13 @@ function startListeners() {
     if (qBtn) qBtn.style.display = (CACHE.quarterlyConfig.active && !CACHE.quarterlyConfig.hidden) ? '' : 'none';
     refreshActiveTab();
   });
+  onSnapshot(QUARTERLY_DRAFT_REF, snap => {
+    CACHE.quarterlyDraft = Object.assign(
+      { mode:'bingo', staticBoard:false, prompts:[], passportStamps:[] },
+      snap.exists() ? snap.data() : {}
+    );
+    refreshActiveTab();
+  });
   onSnapshot(QUARTERLY_CARDS_REF, snap => {
     CACHE.quarterlyCards = snap.exists() ? (snap.data().map || {}) : {};
     refreshActiveTab();
@@ -1191,6 +1200,7 @@ function getReadingProgress(){ return CACHE.readingProgress || {}; }
 function getMeetingInfo()    { return CACHE.meetingInfo || {}; }
 function getBadgeConfig()    { return CACHE.badgeConfig || { disabled:{}, hidden:{}, organic:{}, customBadges:[], overrides:{} }; }
 function getQuarterlyConfig(){ return CACHE.quarterlyConfig || { mode:'bingo', active:false, hidden:true, staticBoard:false, prompts:[], passportStamps:[] }; }
+function getQuarterlyDraft()  { return CACHE.quarterlyDraft  || { mode:'bingo', staticBoard:false, prompts:[], passportStamps:[] }; }
 function getQuarterlyCards() { return CACHE.quarterlyCards || {}; }
 
 // ════════════════════════════════════════════════════════
@@ -6718,6 +6728,7 @@ window.qaSubmitCard = qaSubmitCard;
 
 // ── ADMIN QUARTERLY PANEL ─────────────────────────────
 let _qaAdminTab = 'controls'; // 'controls' | 'setup' | 'members' | 'archives'
+let _qaSetupTab = 'live';     // 'live' | 'draft'
 
 function renderQuarterlyAdmin() {
   const area = document.getElementById('quarterly-admin-area');
@@ -6789,8 +6800,58 @@ function renderQuarterlyAdmin() {
   }
 
   else if (_qaAdminTab === 'setup') {
-    if (mode === 'bingo') html += renderBingoBoardBuilder(cfg);
-    else html += renderPassportBuilder(cfg);
+    const liveMode  = cfg.mode || 'bingo';
+    const draft     = getQuarterlyDraft();
+    const draftMode = draft.mode || 'bingo';
+
+    // Live vs Draft sub-tabs
+    html += `<div style="display:flex;gap:.5rem;margin-bottom:1rem;">
+      <button class="sub-tab${_qaSetupTab==='live'?' active':''}" onclick="qaAdminGoSetupTab('live')" style="font-size:.75rem;">📡 Live Setup</button>
+      <button class="sub-tab${_qaSetupTab==='draft'?' active':''}" onclick="qaAdminGoSetupTab('draft')" style="font-size:.75rem;">🔧 Draft Setup</button>
+    </div>`;
+
+    if (_qaSetupTab === 'live') {
+      html += `<div style="padding:.5rem .75rem;background:#e8f5e9;border:1px solid var(--green);border-radius:6px;font-size:.82rem;margin-bottom:.75rem;color:var(--green);">
+        <strong>Editing the live board.</strong> Changes here affect what members see immediately.
+      </div>`;
+      if (liveMode === 'bingo') html += renderBingoBoardBuilder(cfg, 'live');
+      else html += renderPassportBuilder(cfg, 'live');
+    } else {
+      html += `<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;padding:.5rem .75rem;background:#fff8e1;border:1px solid #f0b429;border-radius:6px;font-size:.82rem;margin-bottom:.75rem;">
+        <span style="color:#7a5800;"><strong>Draft mode</strong> — build next quarter here. Members can't see this.</span>
+        <div style="display:flex;gap:.4rem;">
+          <button class="btn btn-secondary btn-sm" onclick="qaAdminPreviewDraft()">👁 Preview Draft</button>
+          <button class="btn btn-primary btn-sm" onclick="qaAdminPromoteDraft()" style="background:var(--green);color:#fff;">⬆ Promote to Live</button>
+        </div>
+      </div>`;
+
+      // Draft mode toggle (independent from live)
+      html += `<div class="card" style="padding:.75rem 1rem;margin-bottom:.75rem;">
+        <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+          <span style="font-size:.85rem;">Draft mode: <strong>${draftMode === 'passport' ? '🗺️ Passport' : '🎯 Bingo'}</strong></span>
+          <button class="btn btn-secondary btn-sm" onclick="qaAdminToggleDraftMode()">Switch to ${draftMode === 'bingo' ? 'Passport' : 'Bingo'}</button>
+        </div>
+        <div id="qa-draft-mode-msg" style="margin-top:.4rem;"></div>
+      </div>`;
+
+      if (draftMode === 'bingo') html += renderBingoBoardBuilder(draft, 'draft');
+      else html += renderPassportBuilder(draft, 'draft');
+
+      // Draft quarter metadata
+      html += `<div class="card" style="margin-top:.75rem;">
+        <h3 style="font-family:'Playfair Display',serif;font-size:1rem;margin-bottom:.65rem;">Draft Quarter Details</h3>
+        <div class="grid2" style="margin-bottom:.5rem;">
+          <div class="f-group" style="margin:0;"><label>Quarter Name</label><input type="text" id="qa-draft-name" value="${esc(draft.quarterName||'')}" placeholder="e.g. Q2 2025 Bingo"></div>
+          <div class="f-group" style="margin:0;"><label>Mode (auto-detected)</label><input type="text" value="${draftMode==='passport'?'Passport':'Bingo'}" disabled style="background:var(--cream);color:var(--soft);"></div>
+        </div>
+        <div class="grid2" style="margin-bottom:.5rem;">
+          <div class="f-group" style="margin:0;"><label>Start Date</label><input type="date" id="qa-draft-start" value="${esc(draft.startDate||'')}"></div>
+          <div class="f-group" style="margin:0;"><label>End Date</label><input type="date" id="qa-draft-end" value="${esc(draft.endDate||'')}"></div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="qaAdminSaveDraftMeta()">Save Details</button>
+        <div id="qa-draft-meta-msg" style="margin-top:.4rem;"></div>
+      </div>`;
+    }
   }
 
   else if (_qaAdminTab === 'members') {
@@ -6810,6 +6871,11 @@ window.renderQuarterlyAdmin = renderQuarterlyAdmin;
 window.qaAdminGoTab = function(tab) {
   _qaAdminTab = tab;
   _qaAdminOpenIdx = null;
+  renderQuarterlyAdmin();
+};
+
+window.qaAdminGoSetupTab = function(tab) {
+  _qaSetupTab = tab;
   renderQuarterlyAdmin();
 };
 
@@ -7041,7 +7107,9 @@ function _attachQAArchiveHandlers(containerEl) {
   });
 }
 
-function renderBingoBoardBuilder(cfg) {
+function renderBingoBoardBuilder(cfg, target) {
+  // target: 'live' | 'draft' — determines which save function is called
+  const t = target || 'live';
   const prompts = (cfg.prompts || []).slice(0, 24);
   while (prompts.length < 24) prompts.push('');
   const isStatic = cfg.staticBoard || false;
@@ -7056,26 +7124,30 @@ function renderBingoBoardBuilder(cfg) {
     }
   }
 
+  const saveBtn = t === 'draft'
+    ? `<button class="btn btn-primary" onclick="qaAdminSaveDraftBoard()">Save Draft Board</button>`
+    : `<button class="btn btn-primary" onclick="qaAdminSaveBoard()">Save Bingo Board</button>`;
+
   return `<div class="card">
-    <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.5rem;">Bingo Board Setup</h3>
+    <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.5rem;">Bingo Board Setup${t==='draft'?' — Draft':''}</h3>
     <p style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">Enter 24 prompts. The FREE space is fixed at center. Toggle static to give all members the same layout.</p>
     <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem;cursor:pointer;font-size:.85rem;">
       <input type="checkbox" id="qa-static-toggle" ${isStatic ? 'checked' : ''} style="accent-color:var(--gold);width:1rem;height:1rem;">
       Static board (same square order for everyone)
     </label>
     <div class="qa-bingo-grid-builder">${cells}</div>
-    <button class="btn btn-primary" onclick="qaAdminSaveBoard()">Save Bingo Board</button>
+    ${saveBtn}
     <div id="qa-board-msg" style="margin-top:.5rem;"></div>
   </div>`;
 }
 
-function renderPassportBuilder(cfg) {
+function renderPassportBuilder(cfg, target) {
+  const t = target || 'live';
   const stamps = (cfg.passportStamps || []);
   const icons = ['📖','🌍','👥','🕰️','🔮','💀','⭐','🎭'];
   let rows = '';
   for (let i = 0; i < 8; i++) {
     const s = stamps[i] || { name:'', description:'', icon: icons[i] };
-    const isBonus = i >= 6;
     rows += `<div class="card" style="padding:1rem;margin-bottom:.5rem;">
       <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;">
         <span style="font-family:'Playfair Display',serif;color:var(--gold);font-size:.9rem;">Stamp ${i+1}</span>
@@ -7087,11 +7159,16 @@ function renderPassportBuilder(cfg) {
       <div class="f-group" style="margin:.5rem 0 0;"><label>Description / Criteria</label><input type="text" id="qa-stamp-desc-${i}" value="${esc(s.description)}" placeholder="Read a book set in another country…"></div>
     </div>`;
   }
+
+  const saveBtn = t === 'draft'
+    ? `<button class="btn btn-primary" onclick="qaAdminSaveDraftStamps()">Save Draft Stamps</button>`
+    : `<button class="btn btn-primary" onclick="qaAdminSaveStamps()">Save Passport Stamps</button>`;
+
   return `<div class="card">
-    <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.5rem;">Passport Stamp Setup</h3>
+    <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.5rem;">Passport Stamp Setup${t==='draft'?' — Draft':''}</h3>
     <p style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">Define 8 stamps. Members need any 6 to complete the challenge — their 7th and 8th claimed become bonus stamps.</p>
     ${rows}
-    <button class="btn btn-primary" onclick="qaAdminSaveStamps()">Save Passport Stamps</button>
+    ${saveBtn}
     <div id="qa-stamps-msg" style="margin-top:.5rem;"></div>
   </div>`;
 }
@@ -7246,6 +7323,221 @@ async function qaAdminSaveStamps() {
   showMsg('qa-stamps-msg', 'Passport stamps saved!', 'ok');
 }
 window.qaAdminSaveStamps = qaAdminSaveStamps;
+
+// ── Draft setup functions ──────────────────────────────
+async function qaAdminSaveDraftMeta() {
+  const name  = (document.getElementById('qa-draft-name')?.value  || '').trim();
+  const start = (document.getElementById('qa-draft-start')?.value || '').trim();
+  const end   = (document.getElementById('qa-draft-end')?.value   || '').trim();
+  await fbSet(QUARTERLY_DRAFT_REF, { quarterName: name, startDate: start, endDate: end });
+  showMsg('qa-draft-meta-msg', 'Draft details saved!', 'ok');
+}
+window.qaAdminSaveDraftMeta = qaAdminSaveDraftMeta;
+
+async function qaAdminSaveDraftBoard() {
+  const prompts = [];
+  for (let i = 0; i < 24; i++) {
+    const el = document.getElementById(`qa-prompt-${i}`);
+    prompts.push(el ? el.value.trim() : '');
+  }
+  const staticBoard = document.getElementById('qa-static-toggle')?.checked || false;
+  await fbSet(QUARTERLY_DRAFT_REF, { prompts, staticBoard });
+  showMsg('qa-board-msg', 'Draft saved!', 'ok');
+}
+window.qaAdminSaveDraftBoard = qaAdminSaveDraftBoard;
+
+async function qaAdminSaveDraftStamps() {
+  const stamps = [];
+  for (let i = 0; i < 8; i++) {
+    stamps.push({
+      icon:        (document.getElementById(`qa-stamp-icon-${i}`)?.value || '📖').trim(),
+      name:        (document.getElementById(`qa-stamp-name-${i}`)?.value || '').trim(),
+      description: (document.getElementById(`qa-stamp-desc-${i}`)?.value || '').trim(),
+    });
+  }
+  await fbSet(QUARTERLY_DRAFT_REF, { passportStamps: stamps });
+  showMsg('qa-stamps-msg', 'Draft saved!', 'ok');
+}
+window.qaAdminSaveDraftStamps = qaAdminSaveDraftStamps;
+
+async function qaAdminToggleDraftMode() {
+  const draft = getQuarterlyDraft();
+  const newMode = draft.mode === 'bingo' ? 'passport' : 'bingo';
+  await fbSet(QUARTERLY_DRAFT_REF, { mode: newMode });
+  showMsg('qa-draft-mode-msg', `Draft switched to ${newMode} mode.`, 'ok');
+  setTimeout(renderQuarterlyAdmin, 150);
+}
+window.qaAdminToggleDraftMode = qaAdminToggleDraftMode;
+
+async function qaAdminPromoteDraft() {
+  const draft = getQuarterlyDraft();
+  const cfg   = getQuarterlyConfig();
+  const draftMode = draft.mode || 'bingo';
+
+  const hasContent = draftMode === 'bingo'
+    ? (draft.prompts || []).some(p => p && p.trim())
+    : (draft.passportStamps || []).some(s => s.name && s.name.trim());
+
+  if (!hasContent) {
+    alert('The draft is empty — add some prompts or stamps before promoting.');
+    return;
+  }
+
+  const confirmed = confirm(
+    `Promote the draft ${draftMode} setup to live?\n\n` +
+    `This will replace the live ${cfg.mode} board configuration.\n` +
+    `Member cards and progress are NOT affected.\n\n` +
+    `This cannot be undone.`
+  );
+  if (!confirmed) return;
+
+  showLoading('Promoting draft…');
+  // Copy all draft fields into live config (preserving active/hidden/archives)
+  const patch = {
+    mode:           draft.mode || 'bingo',
+    prompts:        draft.prompts || [],
+    passportStamps: draft.passportStamps || [],
+    staticBoard:    draft.staticBoard || false,
+  };
+  if (draft.quarterName) patch.quarterName = draft.quarterName;
+  if (draft.startDate)   patch.startDate   = draft.startDate;
+  if (draft.endDate)     patch.endDate     = draft.endDate;
+
+  await fbSet(QUARTERLY_CONFIG_REF, patch);
+  // Clear the draft
+  await fbSetFull(QUARTERLY_DRAFT_REF, { mode:'bingo', staticBoard:false, prompts:[], passportStamps:[] });
+  hideLoading();
+  _qaSetupTab = 'live';
+  showMsg('qa-admin-ctrl-msg', '✓ Draft promoted to live. Member cards are untouched.', 'ok');
+  renderQuarterlyAdmin();
+}
+window.qaAdminPromoteDraft = qaAdminPromoteDraft;
+
+function qaAdminPreviewDraft() {
+  const draft = getQuarterlyDraft();
+  const mode  = draft.mode || 'bingo';
+  const w = window.open('', '_blank', 'width=780,height=900');
+  if (!w) { alert('Pop-up blocked — please allow pop-ups and try again.'); return; }
+
+  // Build a fake member key for the preview shuffle
+  const previewKey = 'admin_preview_member';
+
+  let bodyHtml = '';
+  if (mode === 'bingo') {
+    const board = buildMemberBoard(draft, previewKey);
+    const claimed = Array(25).fill(false).map((_,i)=>i===FREE_INDEX);
+    let cells = '';
+    for (let i = 0; i < 25; i++) {
+      const cell = board[i];
+      if (cell.isFree) {
+        cells += `<div class="bcell free"><div class="cp">FREE</div></div>`;
+      } else {
+        cells += `<div class="bcell">
+          <div class="cn">${i+1}</div>
+          <div class="cp">${_qaEscHtml(cell.prompt)}</div>
+          <div class="bk">
+            <div class="bkl">Book</div><div class="bkline"></div>
+            <div class="bkl">Author</div><div class="bkline"></div>
+          </div>
+          <div class="chk"><div class="chkbox"></div></div>
+        </div>`;
+      }
+    }
+    const tallyBoxes = Array.from({length:12},(_,i)=>`<div class="tbox">${i+1}</div>`).join('');
+    bodyHtml = `
+      <div style="background:#fff3cd;border:2px solid #f0ad4e;border-radius:6px;padding:8px 14px;margin-bottom:14px;font-size:12px;color:#7a5800;">
+        <strong>Admin Preview</strong> — This is how the draft bingo board will look to members (with example shuffle). Not yet live.
+      </div>
+      <div class="club">Discordecke Book Club — DRAFT PREVIEW</div>
+      <h1>${_qaEscHtml(draft.quarterName || 'Next Quarter Bingo Challenge')}</h1>
+      <div class="sub">${draft.startDate&&draft.endDate?`${draft.startDate} – ${draft.endDate} &nbsp;·&nbsp;`:''} Complete rows, columns, or diagonals · Max 12 rows</div>
+      <div class="bgrid">${cells}</div>
+      <div class="rule">A book may be used on up to 2 squares maximum.</div>
+      <div class="tally">
+        <div class="tally-head">Row tally</div>
+        <div class="tally-grid">${tallyBoxes}</div>
+      </div>`;
+  } else {
+    const stamps = draft.passportStamps || [];
+    let stampCards = '';
+    for (let i = 0; i < 8; i++) {
+      const s = stamps[i] || { name:`Stamp ${i+1}`, description:'', icon:'' };
+      const isBonus = i >= 6;
+      stampCards += `<div class="stamp${isBonus?' bonus':''}">
+        <div class="sh"><span class="sn">Stamp ${i+1}</span>${isBonus?'<span class="btag">Bonus</span>':''}</div>
+        <div class="stamp-name">${_qaEscHtml(s.name || `Stamp ${i+1}`)}</div>
+        ${s.description ? `<div class="stamp-desc">${_qaEscHtml(s.description)}</div>` : ''}
+        <div class="sfields">
+          <div class="sf"><label>Book title</label><div class="sl"></div></div>
+          <div class="sf"><label>Author</label><div class="sl"></div></div>
+        </div>
+        <div class="sfooter"><span>Claimed</span><div class="chkbox"></div></div>
+      </div>`;
+    }
+    const pips = Array.from({length:6},(_,i)=>`<div class="ppip">${i+1}</div>`).join('') +
+      `<div class="ppip bonus">+1</div><div class="ppip bonus">+2</div>`;
+    bodyHtml = `
+      <div style="background:#fff3cd;border:2px solid #f0ad4e;border-radius:6px;padding:8px 14px;margin-bottom:14px;font-size:12px;color:#7a5800;">
+        <strong>Admin Preview</strong> — This is how the draft passport will look to members. Not yet live.
+      </div>
+      <div class="club">Discordecke Book Club — DRAFT PREVIEW</div>
+      <h1>${_qaEscHtml(draft.quarterName || 'Next Quarter Reading Passport')}</h1>
+      <div class="sub">${draft.startDate&&draft.endDate?`${draft.startDate} – ${draft.endDate} &nbsp;·&nbsp;`:''} Collect any 6 stamps to complete</div>
+      <div class="sgrid">${stampCards}</div>
+      <div class="prog">
+        <div class="prog-head">Stamps collected</div>
+        <div class="prog-track">${pips}</div>
+      </div>`;
+  }
+
+  // Reuse the same print CSS from qaPrintBingo/qaPrintPassport
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Draft Preview</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:Georgia,serif;background:#fff;color:#111;padding:18px 22px;font-size:12px;}
+  h1{font-size:18px;font-weight:bold;margin-bottom:2px;}
+  .sub{font-size:11px;color:#555;margin-bottom:10px;}
+  .club{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#777;margin-bottom:3px;}
+  .rule{font-size:10px;color:#555;text-align:center;margin-bottom:10px;line-height:1.5;}
+  .bgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:10px;}
+  .bcell{border:1.5px solid #999;padding:5px 4px 4px;min-height:90px;display:flex;flex-direction:column;}
+  .bcell.free{border:2px solid #bbb;background:#fffde7;}
+  .cn{font-size:8px;color:#aaa;margin-bottom:3px;}
+  .cp{font-size:10px;line-height:1.3;flex:1;}
+  .free .cp{font-size:13px;font-weight:bold;text-align:center;display:flex;align-items:center;justify-content:center;height:100%;}
+  .bk{margin-top:5px;border-top:1px solid #ddd;padding-top:4px;}
+  .bkl{font-size:8px;color:#aaa;letter-spacing:.05em;text-transform:uppercase;margin-bottom:1px;}
+  .bkline{border-bottom:0.5px solid #ccc;height:13px;margin-bottom:3px;}
+  .chk{display:flex;justify-content:flex-end;margin-top:3px;}
+  .chkbox{width:12px;height:12px;border:1.5px solid #999;display:inline-block;}
+  .tally{border:1px solid #ccc;border-radius:4px;padding:8px 10px;margin-bottom:10px;}
+  .tally-head{font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:#777;margin-bottom:5px;}
+  .tally-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;}
+  .tbox{border:1.5px solid #999;border-radius:2px;height:20px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#aaa;}
+  .sgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+  .stamp{border:1.5px solid #999;border-radius:6px;padding:8px 10px;}
+  .stamp.bonus{border-style:dashed;}
+  .sh{display:flex;align-items:center;gap:6px;margin-bottom:4px;}
+  .sn{font-size:9px;color:#aaa;}
+  .btag{font-size:8px;letter-spacing:.05em;text-transform:uppercase;border:0.5px solid #aaa;border-radius:2px;padding:1px 4px;margin-left:auto;color:#777;}
+  .stamp-name{font-size:12px;font-weight:bold;margin-bottom:2px;}
+  .stamp-desc{font-size:10px;color:#555;line-height:1.35;margin-bottom:7px;}
+  .sfields{border-top:0.5px solid #ddd;padding-top:6px;}
+  .sf{margin-bottom:5px;}
+  .sf label{font-size:8px;letter-spacing:.06em;text-transform:uppercase;color:#aaa;display:block;margin-bottom:1px;}
+  .sf .sl{border-bottom:0.5px solid #bbb;height:15px;}
+  .sfooter{display:flex;align-items:center;justify-content:space-between;margin-top:5px;}
+  .sfooter span{font-size:9px;letter-spacing:.05em;text-transform:uppercase;color:#aaa;}
+  .prog{border:1px solid #ccc;border-radius:4px;padding:8px 10px;margin-bottom:10px;}
+  .prog-head{font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:#777;margin-bottom:5px;}
+  .prog-track{display:flex;gap:4px;}
+  .ppip{width:30px;height:20px;border:1.5px solid #999;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#aaa;}
+  .ppip.bonus{border-style:dashed;}
+</style>
+</head><body>${bodyHtml}</body></html>`);
+  w.document.close();
+}
+window.qaAdminPreviewDraft = qaAdminPreviewDraft;
 
 async function qaAdminApprove(key) {
   const cards = getQuarterlyCards();
