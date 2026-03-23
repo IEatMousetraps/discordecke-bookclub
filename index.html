@@ -4203,18 +4203,14 @@ const BADGE_DEFS = [
   { id:'q-park-the-bus',    name:'Park the Bus',         emoji:'🚌',  tier:'gold',   category:'quarterly', desc:'Fill columns 2 & 4 and rows 2 & 4 on an approved bingo card — defending the free square from all sides', check:p=>p.qParkTheBus },
 
   // ── Quarterly Activity — Bingo standalone ────────────────────────────────
-  { id:'q-on-the-pitch',    name:'On the Pitch',         emoji:'🟢',  tier:null,     category:'quarterly', desc:'Have a bingo card approved',                                                      check:p=>p.qBingoApproved>=1 },
   { id:'q-corner-kick',     name:'Corner Kick',          emoji:'🚩',  tier:null,     category:'quarterly', desc:'Fill any 2 corners of a bingo card on an approved submission',                    check:p=>p.qCornerKick },
   { id:'q-four-corners',    name:'Four Corners',         emoji:'🔲',  tier:null,     category:'quarterly', desc:'Fill all 4 corners of a bingo card on an approved submission',                    check:p=>p.qFourCorners },
   { id:'q-four-four-two',   name:'Four-Four-Two',        emoji:'📐',  tier:null,     category:'quarterly', desc:'Complete a bingo row, column, and both diagonals on an approved card',             check:p=>p.qFourFourTwo },
 
   // ── Quarterly Activity — Passport (tiered) ────────────────────────────────
-  { id:'q-earned-a-cap',    name:'Earned a Cap',         emoji:'🧢',  tier:'bronze', category:'quarterly', desc:'Complete your first approved passport (6 of 8 stamps)',                           check:p=>p.qPassportApproved>=1 },
-  { id:'q-stoppage-time',   name:'Stoppage Time',        emoji:'⏱️',  tier:'silver', category:'quarterly', desc:'Complete an approved passport with 1 bonus stamp',                                check:p=>p.qPassportMaxBonus>=1 },
-  { id:'q-extra-time',      name:'Extra Time',           emoji:'🌟',  tier:'gold',   category:'quarterly', desc:'Complete an approved passport with both bonus stamps',                             check:p=>p.qPassportMaxBonus>=2 },
-
-  // ── Quarterly Activity — Passport standalone ─────────────────────────────
-  { id:'q-boots-on',        name:'Boots On',             emoji:'👟',  tier:null,     category:'quarterly', desc:'Have a passport approved',                                                        check:p=>p.qPassportApproved>=1 },
+  { id:'q-earned-a-cap',    name:'On the Pitch',         emoji:'🟢',  tier:'bronze', category:'quarterly', desc:'Complete your first approved passport (reach the required stamp count)',           check:p=>p.qPassportCompleted>=1 },
+  { id:'q-stoppage-time',   name:'Stoppage Time',        emoji:'⏱️',  tier:'silver', category:'quarterly', desc:'Complete an approved passport with at least 1 bonus stamp',                       check:p=>p.qPassportMaxBonus>=1 },
+  { id:'q-extra-time',      name:'Extra Time',           emoji:'🌟',  tier:'gold',   category:'quarterly', desc:'Complete an approved passport with all available bonus stamps claimed',             check:p=>p.qPassportAllBonus },
 
   // ── Quarterly Activity — Cross-quarter loyalty (tiered) ───────────────────
   { id:'q-in-form',         name:'In Form',              emoji:'📈',  tier:'bronze', category:'quarterly', desc:'Get approved in 2 consecutive quarters',                                          check:p=>p.qConsecutiveApprovals>=2 },
@@ -4820,10 +4816,19 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
 
   // Passport stats
   let qPassportMaxBonus = 0;
-  approvedPassport.forEach(({ card }) => {
-    const claimOrder = card.claimOrder || [];
-    const bonusCount = Math.max(0, claimOrder.length - 6);
+  let qPassportCompleted = 0;
+  let qPassportAllBonus = false;
+  approvedPassport.forEach(({ card, cfg: eCfg }) => {
+    const claimOrder  = card.claimOrder || [];
+    const claimed     = card.claimed || [];
+    const passTotal   = eCfg.passportTotalStamps || 8;
+    const passBonus   = eCfg.passportBonusCount  || 2;
+    const passReq     = passTotal - passBonus;
+    const claimedCount = claimed.filter(Boolean).length;
+    const bonusCount  = Math.max(0, claimOrder.length - passReq);
     if (bonusCount > qPassportMaxBonus) qPassportMaxBonus = bonusCount;
+    if (claimedCount >= passReq) qPassportCompleted++;
+    if (bonusCount >= passBonus) qPassportAllBonus = true;
   });
 
   const qBingoApproved    = approvedBingo.length;
@@ -4874,6 +4879,7 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
     // Quarterly activity
     qBingoApproved, qPassportApproved, qTotalApprovals,
     qBingoMaxRows, qBingoMaxNoFreeRows, qPassportMaxBonus,
+    qPassportCompleted, qPassportAllBonus,
     qParkTheBus, qCornerKick, qFourCorners, qFourFourTwo, qConsecutiveApprovals,
   };
 }
@@ -6132,11 +6138,12 @@ function renderBingoCard(container, cfg, card, memberKey) {
 function renderPassportCard(container, cfg, card, memberKey) {
   const isSubmitted = card && card.submitted;
   const stamps     = cfg.passportStamps || [];
-  const claimed    = card && card.claimed ? card.claimed : Array(8).fill(false);
+  const totalStamps = cfg.passportTotalStamps || 8;
+  const bonusStamps = cfg.passportBonusCount  || 2;
+  const required    = totalStamps - bonusStamps;
+  const claimed    = card && card.claimed ? card.claimed : Array(totalStamps).fill(false);
   const books      = card && card.books   ? card.books   : {};
   const claimedCount = claimed.filter(Boolean).length;
-  const required = 6, total = 8;
-  const pct = Math.round((claimedCount / required) * 100);
   const isComplete = claimedCount >= required;
 
   let html = '';
@@ -6160,22 +6167,19 @@ function renderPassportCard(container, cfg, card, memberKey) {
   const displayPct = Math.min(100, Math.round((claimedCount / required) * 100));
   html += `<div style="margin-bottom:1.25rem;">
     <div class="passport-progress-bar"><div class="passport-progress-fill" style="width:${displayPct}%;"></div></div>
-    <div class="passport-status-line">${claimedCount} of ${required} stamps collected
+    <div class="passport-status-line">${claimedCount} of ${required} required stamps collected
       ${claimedCount > required ? ` + <strong style="color:#ab47bc;">${claimedCount - required} bonus</strong>` : ''}
       ${isComplete ? ' — <strong style="color:var(--green);">Completed! ✓</strong>' : ` — ${required - claimedCount} more needed`}
     </div>
-    <p style="font-size:.75rem;color:var(--soft);margin-top:.3rem;">Any 6 stamps complete the challenge. Your 7th and 8th claimed stamps automatically become bonus stamps.</p>
+    <p style="font-size:.75rem;color:var(--soft);margin-top:.3rem;">Any ${required} stamps complete the challenge. Your ${required+1}${required===1?'st':required===2?'nd':required===3?'rd':'th'} and beyond become bonus stamps.</p>
   </div>`;
 
-  // Determine claim order to identify which are bonus (slots claimed after the 6th are bonus)
-  // Use card.claimOrder if available, else fall back to index order
+  // Determine claim order to identify which are bonus (slots claimed after required count are bonus)
   const claimOrder = card && card.claimOrder ? card.claimOrder : [];
-  // claimOrder is an array of stamp indices in the order they were claimed
-  // Stamps in positions 7+ (index >= 6 in claimOrder) are bonus
-  const bonusSet = new Set(claimOrder.slice(6));
+  const bonusSet = new Set(claimOrder.slice(required));
 
   html += `<div class="passport-grid">`;
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < totalStamps; i++) {
     const stamp = stamps[i] || { name: `Stamp ${i+1}`, description: '', icon: '📖' };
     const isClaimedSlot = claimed[i];
     const isBonus = isClaimedSlot && bonusSet.has(i);
@@ -6386,19 +6390,22 @@ window.qaPrintPassport = function(prefill) {
   const key    = qaKey(_qaIdentity.email, _qaIdentity.discord);
   const card   = _qaMergedCard(cards[key] || {}, key);
   const stamps = cfg.passportStamps || [];
-  const claimed = card.claimed || Array(8).fill(false);
+  const _printTotal = cfg.passportTotalStamps || 8;
+  const _printBonus = cfg.passportBonusCount || 2;
+  const _printReq   = _printTotal - _printBonus;
+  const claimed = card.claimed || Array(_printTotal).fill(false);
   const books   = card.books || {};
   const claimOrder = card.claimOrder || [];
-  const bonusSet = new Set(claimOrder.slice(6));
+  const bonusSet = new Set(claimOrder.slice(_printReq));
   const discord = _qaIdentity.discord || '';
   const email   = _qaIdentity.email || '';
   const qName   = cfg.quarterName || 'Quarterly Reading Passport';
   const dateRange = (cfg.startDate && cfg.endDate) ? `${cfg.startDate} – ${cfg.endDate}` : '';
 
   let stampCards = '';
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < _printTotal; i++) {
     const s = stamps[i] || { name:`Stamp ${i+1}`, description:'', icon:'' };
-    const isBonus = prefill ? (claimed[i] && bonusSet.has(i)) : (i >= 6);
+    const isBonus = prefill ? (claimed[i] && bonusSet.has(i)) : (i >= _printReq);
     const bk = prefill ? (bkGet(books, i) || {}) : {};
     const isClaimed = prefill && claimed[i];
     stampCards += `<div class="stamp${isBonus?' bonus':''}">
@@ -6413,8 +6420,8 @@ window.qaPrintPassport = function(prefill) {
     </div>`;
   }
 
-  const pips = Array.from({length:6},(_,i)=>`<div class="ppip">${i+1}</div>`).join('') +
-    `<div class="ppip bonus">+1</div><div class="ppip bonus">+2</div>`;
+  const pips = Array.from({length:_printReq},(_,i)=>`<div class="ppip">${i+1}</div>`).join('') +
+    Array.from({length:_printBonus},(_,i)=>`<div class="ppip bonus">+${i+1}</div>`).join('');
 
   const body = `
     <div class="club">Discordecke Book Club</div>
@@ -6538,7 +6545,8 @@ window.qaClaimCell = function(idx) {
 // Mark a passport stamp as claimed — also saves book entry from the open drawer
 window.qaClaimStamp = function(idx) {
   const s = _qaGetState(); if (!s) return;
-  const claimed = [...(s.card.claimed || Array(8).fill(false))];
+  const _passTotal2 = s.cfg.passportTotalStamps || 8;
+  const claimed = [...(s.card.claimed || Array(_passTotal2).fill(false))];
   if (claimed[idx]) return;
   claimed[idx]  = true;
   const claimOrder = [...(s.card.claimOrder || [])];
@@ -6578,7 +6586,8 @@ window.qaUnclaim = function(idx) {
     qaPersistCard({ claimed, books }, null);
     if (s.main) renderBingoCard(s.main, s.cfg, updatedCard, s.key);
   } else {
-    const claimed = [...(s.card.claimed || Array(8).fill(false))];
+    const _passTotal = s.cfg.passportTotalStamps || 8;
+    const claimed = [...(s.card.claimed || Array(_passTotal).fill(false))];
     claimed[idx] = false;
     const claimOrder = (s.card.claimOrder || []).filter(i => i !== idx);
     // Wipe the book entry for this slot
@@ -6705,9 +6714,12 @@ async function qaSubmitCard() {
       ? `You have 0 complete bingo rows.\n\nYou can still submit, but you won't have any drawing entries yet.\n\nLock in your card? This cannot be undone.`
       : `You have ${rowCount} bingo row${rowCount !== 1 ? 's' : ''} — that's ${rowCount} prize drawing ${entryWord}!\n\nLock in your card? This cannot be undone.`;
   } else {
-    const claimed = card.claimed || Array(8).fill(false);
+    const _passTotal3 = cfg.passportTotalStamps || 8;
+    const _passBonus3 = cfg.passportBonusCount || 2;
+    const _passReq3 = _passTotal3 - _passBonus3;
+    const claimed = card.claimed || Array(_passTotal3).fill(false);
     const count = claimed.filter(Boolean).length;
-    confirmMsg = count >= 6
+    confirmMsg = count >= _passReq3
       ? `You have ${count}/8 stamps — passport completed! ✓\n\nLock in your passport? This cannot be undone.`
       : `You have ${count}/8 stamps (6 needed to complete).\n\nLock in your passport? This cannot be undone.`;
   }
@@ -7050,14 +7062,18 @@ window.qaAdminViewArchiveCard = function(archiveIdx, key) {
     }
   } else {
     const stamps = archiveCfg.passportStamps || [];
-    const claimed = card.claimed || Array(8).fill(false);
+    const _admTotal = cfg.passportTotalStamps || 8;
+    const _admBonus = cfg.passportBonusCount || 2;
+    const _admReq = _admTotal - _admBonus;
+    const claimed = card.claimed || Array(_admTotal).fill(false);
     const books = card.books || {};
     const claimOrder = card.claimOrder || [];
-    const bonusSet = new Set(claimOrder.slice(6));
+    const bonusSet = new Set(claimOrder.slice(_admReq));
     const count = claimed.filter(Boolean).length;
-    html += `<div style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">${count}/8 stamps · ${count>=6?'✓ Completed':'Incomplete'}${count>6?` · ${count-6} bonus`:''}</div>`;
+    const _admReqFull = _admTotal - _admBonus;
+    html += `<div style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">${count}/${_admTotal} stamps · ${count>=_admReqFull?'✓ Completed':'Incomplete'}${count>_admReqFull?` · ${count-_admReqFull} bonus`:''}</div>`;
     html += `<div class="passport-grid">`;
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < _admTotal; i++) {
       const s = stamps[i] || { name:`Stamp ${i+1}`, icon:'📖' };
       const bk = bkGet(books, i);
       const isClaimed = claimed[i];
@@ -7144,16 +7160,20 @@ function renderBingoBoardBuilder(cfg, target) {
 function renderPassportBuilder(cfg, target) {
   const t = target || 'live';
   const stamps = (cfg.passportStamps || []);
-  const icons = ['📖','🌍','👥','🕰️','🔮','💀','⭐','🎭'];
+  const totalStamps = cfg.passportTotalStamps || 8;
+  const bonusCount  = cfg.passportBonusCount  || 2;
+  const required    = totalStamps - bonusCount;
+  const icons = ['📖','🌍','👥','🕰️','🔮','💀','⭐','🎭','🏆','📝','🎪','🌟','🔥','🎯','🌈'];
   let rows = '';
-  for (let i = 0; i < 8; i++) {
-    const s = stamps[i] || { name:'', description:'', icon: icons[i] };
+  for (let i = 0; i < totalStamps; i++) {
+    const s = stamps[i] || { name:'', description:'', icon: icons[i] || '📖' };
+    const isBonus = i >= required;
     rows += `<div class="card" style="padding:1rem;margin-bottom:.5rem;">
       <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;">
-        <span style="font-family:'Playfair Display',serif;color:var(--gold);font-size:.9rem;">Stamp ${i+1}</span>
+        <span style="font-family:'Playfair Display',serif;color:var(--gold);font-size:.9rem;">Stamp ${i+1}${isBonus ? ' <span style="font-size:.7rem;color:#ab47bc;">(Bonus)</span>' : ''}</span>
       </div>
       <div class="grid3" style="gap:.5rem;">
-        <div class="f-group" style="margin:0;"><label>Icon (emoji)</label><input type="text" id="qa-stamp-icon-${i}" value="${esc(s.icon||icons[i])}" maxlength="4" style="font-size:1.2rem;text-align:center;"></div>
+        <div class="f-group" style="margin:0;"><label>Icon (emoji)</label><input type="text" id="qa-stamp-icon-${i}" value="${esc(s.icon||icons[i]||'📖')}" maxlength="4" style="font-size:1.2rem;text-align:center;"></div>
         <div class="f-group" style="margin:0;grid-column:span 2;"><label>Stamp Name</label><input type="text" id="qa-stamp-name-${i}" value="${esc(s.name)}" placeholder="e.g. Around the World"></div>
       </div>
       <div class="f-group" style="margin:.5rem 0 0;"><label>Description / Criteria</label><input type="text" id="qa-stamp-desc-${i}" value="${esc(s.description)}" placeholder="Read a book set in another country…"></div>
@@ -7164,9 +7184,25 @@ function renderPassportBuilder(cfg, target) {
     ? `<button class="btn btn-primary" onclick="qaAdminSaveDraftStamps()">Save Draft Stamps</button>`
     : `<button class="btn btn-primary" onclick="qaAdminSaveStamps()">Save Passport Stamps</button>`;
 
+  const saveCountBtn = t === 'draft'
+    ? `onclick="qaAdminSaveDraftStampCounts()"`
+    : `onclick="qaAdminSaveStampCounts()"`;
+
   return `<div class="card">
     <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.5rem;">Passport Stamp Setup${t==='draft'?' — Draft':''}</h3>
-    <p style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">Define 8 stamps. Members need any 6 to complete the challenge — their 7th and 8th claimed become bonus stamps.</p>
+    <p style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">Define stamps. Members need any ${required} to complete the challenge — the remaining ${bonusCount} become bonus stamps.</p>
+    <div class="grid2" style="margin-bottom:.75rem;gap:.75rem;">
+      <div class="f-group" style="margin:0;">
+        <label>Total Stamps (8–15)</label>
+        <input type="number" id="qa-stamp-total" value="${totalStamps}" min="8" max="15" style="max-width:100px;">
+      </div>
+      <div class="f-group" style="margin:0;">
+        <label>Bonus Stamps (1–5)</label>
+        <input type="number" id="qa-stamp-bonus" value="${bonusCount}" min="1" max="5" style="max-width:100px;">
+      </div>
+    </div>
+    <button class="btn btn-secondary btn-sm" style="margin-bottom:.75rem;" ${saveCountBtn}>Apply Count Changes</button>
+    <div id="qa-stamp-count-msg" style="margin-bottom:.5rem;"></div>
     ${rows}
     ${saveBtn}
     <div id="qa-stamps-msg" style="margin-top:.5rem;"></div>
@@ -7190,8 +7226,10 @@ function renderQAMemberList(cards, cfg) {
       const rows = countBingoRows(full);
       statLine = `${rows} bingo row${rows!==1?'s':''} · ${claimed.filter(Boolean).length} squares`;
     } else {
+      const _mlTotal = cfg.passportTotalStamps || 8;
+      const _mlReq = _mlTotal - (cfg.passportBonusCount || 2);
       const cnt = claimed.filter(Boolean).length;
-      statLine = `${cnt}/8 stamps${cnt>=6?' · ✓ Complete':''}`;
+      statLine = `${cnt}/${_mlTotal} stamps${cnt>=_mlReq?' · ✓ Complete':''}`;
     }
     const statusBadge = card.approved
       ? `<span class="qa-member-badge qa-badge-approved">Approved</span>`
@@ -7311,8 +7349,10 @@ async function qaAdminSaveBoard() {
 window.qaAdminSaveBoard = qaAdminSaveBoard;
 
 async function qaAdminSaveStamps() {
+  const cfg = getQuarterlyConfig();
+  const total = cfg.passportTotalStamps || 8;
   const stamps = [];
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < total; i++) {
     stamps.push({
       icon:        (document.getElementById(`qa-stamp-icon-${i}`)?.value || '📖').trim(),
       name:        (document.getElementById(`qa-stamp-name-${i}`)?.value || '').trim(),
@@ -7323,6 +7363,18 @@ async function qaAdminSaveStamps() {
   showMsg('qa-stamps-msg', 'Passport stamps saved!', 'ok');
 }
 window.qaAdminSaveStamps = qaAdminSaveStamps;
+
+async function qaAdminSaveStampCounts() {
+  const total = parseInt(document.getElementById('qa-stamp-total')?.value || '8', 10);
+  const bonus = parseInt(document.getElementById('qa-stamp-bonus')?.value || '2', 10);
+  if (total < 8 || total > 15) { showMsg('qa-stamp-count-msg', 'Total must be 8–15.', 'err'); return; }
+  if (bonus < 1 || bonus > 5)  { showMsg('qa-stamp-count-msg', 'Bonus must be 1–5.', 'err'); return; }
+  if (bonus >= total)           { showMsg('qa-stamp-count-msg', 'Bonus must be less than total.', 'err'); return; }
+  await fbSet(QUARTERLY_CONFIG_REF, { passportTotalStamps: total, passportBonusCount: bonus });
+  showMsg('qa-stamp-count-msg', `Updated: ${total} stamps, ${bonus} bonus, ${total-bonus} required.`, 'ok');
+  setTimeout(renderQuarterlyAdmin, 200);
+}
+window.qaAdminSaveStampCounts = qaAdminSaveStampCounts;
 
 // ── Draft setup functions ──────────────────────────────
 async function qaAdminSaveDraftMeta() {
@@ -7347,8 +7399,10 @@ async function qaAdminSaveDraftBoard() {
 window.qaAdminSaveDraftBoard = qaAdminSaveDraftBoard;
 
 async function qaAdminSaveDraftStamps() {
+  const draft = getQuarterlyDraft();
+  const total = draft.passportTotalStamps || 8;
   const stamps = [];
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < total; i++) {
     stamps.push({
       icon:        (document.getElementById(`qa-stamp-icon-${i}`)?.value || '📖').trim(),
       name:        (document.getElementById(`qa-stamp-name-${i}`)?.value || '').trim(),
@@ -7359,6 +7413,18 @@ async function qaAdminSaveDraftStamps() {
   showMsg('qa-stamps-msg', 'Draft saved!', 'ok');
 }
 window.qaAdminSaveDraftStamps = qaAdminSaveDraftStamps;
+
+async function qaAdminSaveDraftStampCounts() {
+  const total = parseInt(document.getElementById('qa-stamp-total')?.value || '8', 10);
+  const bonus = parseInt(document.getElementById('qa-stamp-bonus')?.value || '2', 10);
+  if (total < 8 || total > 15) { showMsg('qa-stamp-count-msg', 'Total must be 8-15.', 'err'); return; }
+  if (bonus < 1 || bonus > 5)  { showMsg('qa-stamp-count-msg', 'Bonus must be 1-5.', 'err'); return; }
+  if (bonus >= total)           { showMsg('qa-stamp-count-msg', 'Bonus must be less than total.', 'err'); return; }
+  await fbSet(QUARTERLY_DRAFT_REF, { passportTotalStamps: total, passportBonusCount: bonus });
+  showMsg('qa-stamp-count-msg', `Updated: ${total} stamps, ${bonus} bonus, ${total-bonus} required.`, 'ok');
+  setTimeout(renderQuarterlyAdmin, 200);
+}
+window.qaAdminSaveDraftStampCounts = qaAdminSaveDraftStampCounts;
 
 async function qaAdminToggleDraftMode() {
   const draft = getQuarterlyDraft();
@@ -7394,10 +7460,12 @@ async function qaAdminPromoteDraft() {
   showLoading('Promoting draft…');
   // Copy all draft fields into live config (preserving active/hidden/archives)
   const patch = {
-    mode:           draft.mode || 'bingo',
-    prompts:        draft.prompts || [],
-    passportStamps: draft.passportStamps || [],
-    staticBoard:    draft.staticBoard || false,
+    mode:                 draft.mode || 'bingo',
+    prompts:              draft.prompts || [],
+    passportStamps:       draft.passportStamps || [],
+    passportTotalStamps:  draft.passportTotalStamps || 8,
+    passportBonusCount:   draft.passportBonusCount  || 2,
+    staticBoard:          draft.staticBoard || false,
   };
   if (draft.quarterName) patch.quarterName = draft.quarterName;
   if (draft.startDate)   patch.startDate   = draft.startDate;
@@ -7459,10 +7527,13 @@ function qaAdminPreviewDraft() {
       </div>`;
   } else {
     const stamps = draft.passportStamps || [];
+    const _prevTotal = draft.passportTotalStamps || 8;
+    const _prevBonus = draft.passportBonusCount  || 2;
+    const _prevReq   = _prevTotal - _prevBonus;
     let stampCards = '';
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < _prevTotal; i++) {
       const s = stamps[i] || { name:`Stamp ${i+1}`, description:'', icon:'' };
-      const isBonus = i >= 6;
+      const isBonus = i >= _prevReq;
       stampCards += `<div class="stamp${isBonus?' bonus':''}">
         <div class="sh"><span class="sn">Stamp ${i+1}</span>${isBonus?'<span class="btag">Bonus</span>':''}</div>
         <div class="stamp-name">${_qaEscHtml(s.name || `Stamp ${i+1}`)}</div>
@@ -7474,8 +7545,8 @@ function qaAdminPreviewDraft() {
         <div class="sfooter"><span>Claimed</span><div class="chkbox"></div></div>
       </div>`;
     }
-    const pips = Array.from({length:6},(_,i)=>`<div class="ppip">${i+1}</div>`).join('') +
-      `<div class="ppip bonus">+1</div><div class="ppip bonus">+2</div>`;
+    const pips = Array.from({length:_prevReq},(_,i)=>`<div class="ppip">${i+1}</div>`).join('') +
+      Array.from({length:_prevBonus},(_,i)=>`<div class="ppip bonus">+${i+1}</div>`).join('');
     bodyHtml = `
       <div style="background:#fff3cd;border:2px solid #f0ad4e;border-radius:6px;padding:8px 14px;margin-bottom:14px;font-size:12px;color:#7a5800;">
         <strong>Admin Preview</strong> — This is how the draft passport will look to members. Not yet live.
@@ -7647,11 +7718,13 @@ function _renderAdminCardView() {
     const claimed = card.claimed || Array(8).fill(false);
     const books = card.books || {};
     const claimOrder = card.claimOrder || [];
-    const bonusSet = new Set(claimOrder.slice(6));
+    const _archReq = (archive.cfg.passportTotalStamps||8) - (archive.cfg.passportBonusCount||2);
+    const bonusSet = new Set(claimOrder.slice(_archReq));
+    const _archTotal = archive.cfg.passportTotalStamps || 8;
     const count = claimed.filter(Boolean).length;
-    html += `<div style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">${count}/8 stamps · ${count>=6?'✓ Completed':'Incomplete'}${count>6?` · ${count-6} bonus`:''}</div>`;
+    html += `<div style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">${count}/${_archTotal} stamps · ${count>=6?'✓ Completed':'Incomplete'}${count>6?` · ${count-6} bonus`:''}</div>`;
     html += `<div class="passport-grid">`;
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < _admTotal; i++) {
       const s = stamps[i] || { name:`Stamp ${i+1}`, icon:'📖' };
       const bk = bkGet(books, i);
       const isClaimed = claimed[i];
