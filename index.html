@@ -5110,7 +5110,7 @@ function renderAdminBadgeMembers() {
   const allBadges = getAllBadges({ includeHidden:true, includeDisabled:true });
   const cfg = getBadgeConfig();
 
-  area.innerHTML = [...members.values()].map(m => {
+  area.innerHTML = [...members.values()].sort((a, b) => (a.discord||a.name||'').toLowerCase().localeCompare((b.discord||b.name||'').toLowerCase())).map(m => {
     const p = computeMemberProfile(m.discord, m.email);
     const earned = allBadges.filter(b => hasBadge(b.id, p, m.key));
     const notEarned = allBadges.filter(b => !hasBadge(b.id, p, m.key));
