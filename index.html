@@ -1735,6 +1735,41 @@ window.submitVote = submitVote;
 // ════════════════════════════════════════════════════════
 // RESULTS
 // ════════════════════════════════════════════════════════
+
+// Shared Borda scoring — returns { sorted, scores, rankCounts, nb, isTied, tiedBooks }
+function computeBordaScores(books, votes) {
+  const nb = books.length;
+  const scores = {}, rankCounts = {};
+  books.forEach(b => { scores[b.id] = 0; rankCounts[b.id] = {}; });
+  Object.values(votes).forEach(vd => {
+    (vd.ranking || vd).forEach((id, idx) => {
+      if (scores[id] !== undefined) {
+        scores[id] += (nb - idx);
+        rankCounts[id][idx + 1] = (rankCounts[id][idx + 1] || 0) + 1;
+      }
+    });
+  });
+
+  // Sort: primary = Borda points desc, tiebreaker = most #1 votes desc
+  const sorted = [...books].sort((a, b) => {
+    const scoreDiff = scores[b.id] - scores[a.id];
+    if (scoreDiff !== 0) return scoreDiff;
+    const aFirst = rankCounts[a.id][1] || 0;
+    const bFirst = rankCounts[b.id][1] || 0;
+    return bFirst - aFirst;
+  });
+
+  // Detect tie at the top: tied if top 2+ have same points AND same #1 votes
+  const topScore   = scores[sorted[0]?.id] || 0;
+  const topFirst   = rankCounts[sorted[0]?.id]?.[1] || 0;
+  const tiedBooks  = sorted.filter(b =>
+    scores[b.id] === topScore && (rankCounts[b.id][1] || 0) === topFirst
+  );
+  const isTied = tiedBooks.length > 1;
+
+  return { sorted, scores, rankCounts, nb, isTied, tiedBooks };
+}
+
 function renderResults() {
   const s = getSettings(), books = getBooks(), votes = getVotes();
   const n = Object.keys(votes).length;
@@ -1746,29 +1781,32 @@ function renderResults() {
   }
   if (!books.length) { area.innerHTML = '<div class="empty"><div class="icon">📚</div><p>No books yet.</p></div>'; return; }
   if (!n) { area.innerHTML = '<div class="empty"><div class="icon">🗳️</div><p>No votes cast yet.</p></div>'; return; }
-  const nb = books.length, scores = {}, rankCounts = {};
-  books.forEach(b => { scores[b.id] = 0; rankCounts[b.id] = {}; });
-  Object.values(votes).forEach(vd => {
-    (vd.ranking || vd).forEach((id, idx) => {
-      if (scores[id] !== undefined) {
-        scores[id] += (nb - idx);
-        rankCounts[id][idx + 1] = (rankCounts[id][idx + 1] || 0) + 1;
-      }
-    });
-  });
-  const sorted = [...books].sort((a, b) => scores[b.id] - scores[a.id]);
+
+  const { sorted, scores, rankCounts, nb, isTied, tiedBooks } = computeBordaScores(books, votes);
   const max = scores[sorted[0]?.id] || 1;
-  area.innerHTML = sorted.map((b, i) => {
-    const pts = scores[b.id], pct = max > 0 ? pts / max * 100 : 0, win = i === 0;
-    // Build rank breakdown pills: show each rank that got at least 1 vote
+  const ordinal = r => r === 1 ? '1st' : r === 2 ? '2nd' : r === 3 ? '3rd' : `${r}th`;
+
+  let html = '';
+
+  if (isTied) {
+    html += `<div style="padding:.65rem 1rem;background:#fff3e0;border:2px solid #f0b429;border-radius:8px;margin-bottom:1rem;font-size:.85rem;color:#7a5800;">
+      <strong>⚖️ It's a tie!</strong> ${tiedBooks.map(b => `<em>${esc(b.title)}</em>`).join(' and ')} are equal on Borda points and first-place votes.
+      The tiebreaker could not separate them — admin may need to decide.
+    </div>`;
+  }
+
+  html += sorted.map((b, i) => {
+    const pts = scores[b.id], pct = max > 0 ? pts / max * 100 : 0;
+    const isTopTied = isTied && tiedBooks.some(t => t.id === b.id);
+    const win = i === 0 || isTopTied;
     const counts = rankCounts[b.id];
-    const ordinal = r => r === 1 ? '1st' : r === 2 ? '2nd' : r === 3 ? '3rd' : `${r}th`;
     const rankPills = Array.from({length: nb}, (_, r) => r + 1)
       .filter(r => counts[r])
       .map(r => `<span class="rank-pill">${ordinal(r)}: ${counts[r]}</span>`)
       .join(' · ');
+    const rankIcon = isTopTied ? '⚖️' : win ? '👑' : i + 1;
     return `<div class="result-item ${win ? 'winner' : ''}">
-      <div class="result-rank">${win ? '👑' : i+1}</div>
+      <div class="result-rank">${rankIcon}</div>
       <div class="book-info" style="flex:1">
         <div class="book-title">${esc(b.title)}</div>
         <div class="book-sub">${esc(b.author)}</div>
@@ -1779,6 +1817,8 @@ function renderResults() {
       <div class="res-pts">${pts} pts</div>
     </div>`;
   }).join('');
+
+  area.innerHTML = html;
 }
 
 // ════════════════════════════════════════════════════════
@@ -3257,26 +3297,23 @@ function renderAdminLiveResults() {
     return;
   }
 
-  // ── Score calculation (same as renderResults) ──
-  const nb = books.length;
-  const scores = {}, rankCounts = {}, votersByRank = {};
-  books.forEach(b => { scores[b.id] = 0; rankCounts[b.id] = {}; votersByRank[b.id] = {}; });
+  // ── Score calculation (uses shared helper) ──
+  const { sorted, scores, rankCounts, nb, isTied, tiedBooks } = computeBordaScores(books, votes);
+  const max = scores[sorted[0]?.id] || 1;
+  const ordinal = r => r === 1 ? '1st' : r === 2 ? '2nd' : r === 3 ? '3rd' : `${r}th`;
+
+  // Build voter-name-per-rank map (admin only)
+  const votersByRank = {};
+  books.forEach(b => { votersByRank[b.id] = {}; });
   Object.values(votes).forEach(vd => {
     (vd.ranking || vd).forEach((id, idx) => {
-      if (scores[id] !== undefined) {
-        scores[id] += (nb - idx);
+      if (votersByRank[id] !== undefined) {
         const rank = idx + 1;
-        rankCounts[id][rank] = (rankCounts[id][rank] || 0) + 1;
         if (!votersByRank[id][rank]) votersByRank[id][rank] = [];
         votersByRank[id][rank].push(vd.discord || vd.email || 'Unknown');
       }
     });
   });
-  const sorted = [...books].sort((a, b) => scores[b.id] - scores[a.id]);
-  const max = scores[sorted[0]?.id] || 1;
-  const maxPossible = nb * n; // if every voter ranked this book #1
-
-  const ordinal = r => r === 1 ? '1st' : r === 2 ? '2nd' : r === 3 ? '3rd' : `${r}th`;
 
   let html = `<div class="card" style="margin-bottom:1rem;">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
@@ -3298,14 +3335,20 @@ function renderAdminLiveResults() {
     return;
   }
 
+  if (isTied) {
+    html += `<div style="padding:.65rem 1rem;background:#fff3e0;border:2px solid #f0b429;border-radius:8px;margin-bottom:1rem;font-size:.85rem;color:#7a5800;">
+      <strong>⚖️ Tie detected!</strong> ${tiedBooks.map(b=>`<em>${esc(b.title)}</em>`).join(' and ')} are equal on Borda points and first-place votes. Admin intervention may be needed.
+    </div>`;
+  }
+
   html += sorted.map((b, i) => {
     const pts = scores[b.id];
     const pct = max > 0 ? pts / max * 100 : 0;
-    const win = i === 0;
+    const isTopTied = isTied && tiedBooks.some(t => t.id === b.id);
+    const win = i === 0 || isTopTied;
     const counts = rankCounts[b.id];
     const voters = votersByRank[b.id];
 
-    // Rank breakdown with voter names on hover/expand
     const rankRows = Array.from({length: nb}, (_, r) => r + 1)
       .filter(r => counts[r])
       .map(r => {
@@ -3317,9 +3360,10 @@ function renderAdminLiveResults() {
         </div>`;
       }).join('');
 
+    const rankIcon = isTopTied ? '⚖️' : win ? '👑' : i + 1;
     return `<div class="result-item ${win?'winner':''}" style="flex-direction:column;align-items:stretch;gap:.5rem;">
       <div style="display:flex;align-items:center;gap:1rem;">
-        <div class="result-rank" style="min-width:2rem;">${win?'👑':i+1}</div>
+        <div class="result-rank" style="min-width:2rem;">${rankIcon}</div>
         <div class="book-info" style="flex:1;">
           <div class="book-title">${esc(b.title)}</div>
           <div class="book-sub">${esc(b.author)}</div>
