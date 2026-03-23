@@ -706,6 +706,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 
     <div class="sub-tabs" style="margin-bottom:1.5rem;">
       <button class="sub-tab active" onclick="goAdminTab('manage',this)">Manage</button>
+      <button class="sub-tab" onclick="goAdminTab('live-results',this)">📊 Live Results</button>
       <button class="sub-tab" onclick="goAdminTab('compare',this)">Member Comparison</button>
       <button class="sub-tab" onclick="goAdminTab('reading-progress-admin',this)">📖 Reading Progress</button>
       <button class="sub-tab" onclick="goAdminTab('badges-admin',this)">🏅 Badge Manager</button>
@@ -867,6 +868,10 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
     </div>
 
     </div><!-- /admin-sub-manage -->
+
+    <div id="admin-sub-live-results" style="display:none;">
+      <div id="admin-live-results-area"></div>
+    </div>
 
     <div id="admin-sub-compare" style="display:none;">
       <div id="member-compare-area"><p style="font-size:.85rem;color:var(--soft);">Loading…</p></div>
@@ -1185,7 +1190,15 @@ function _doRefreshActiveTab() {
   else if (id === 'progress') renderProgressTab();
   else if (id === 'badges') renderBadgesTab();
   else if (id === 'quarterly') renderQuarterlyTab();
-  else if (id === 'admin' && document.getElementById('admin-panel').style.display !== 'none') renderAdmin();
+  else if (id === 'admin' && document.getElementById('admin-panel').style.display !== 'none') {
+    // If live results sub-tab is active, refresh it directly so vote counts update in real time
+    const liveArea = document.getElementById('admin-live-results-area');
+    if (liveArea && liveArea.closest('#admin-sub-live-results') && document.getElementById('admin-sub-live-results').style.display !== 'none') {
+      renderAdminLiveResults();
+    } else {
+      renderAdmin();
+    }
+  }
 }
 
 // ── Cache accessors ────────────────────────────────────
@@ -3214,22 +3227,131 @@ function renderAdmin() {
 }
 
 function goAdminTab(id, btn) {
-  ['manage','compare','reading-progress-admin','badges-admin','edit-books','quarterly-admin'].forEach(s => {
+  ['manage','live-results','compare','reading-progress-admin','badges-admin','edit-books','quarterly-admin'].forEach(s => {
     document.getElementById('admin-sub-'+s).style.display = s === id ? '' : 'none';
   });
   document.querySelectorAll('#admin-panel .sub-tab').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
-  if      (id === 'compare')                renderMemberCompare();
-  else if (id === 'reading-progress-admin') renderAdminReadingProgress();
-  else if (id === 'badges-admin')           renderAdminBadgeManager();
-  else if (id === 'edit-books')             renderEditBooksTab();
-  else if (id === 'quarterly-admin')        renderQuarterlyAdmin();
+  if      (id === 'live-results')             renderAdminLiveResults();
+  else if (id === 'compare')                  renderMemberCompare();
+  else if (id === 'reading-progress-admin')   renderAdminReadingProgress();
+  else if (id === 'badges-admin')             renderAdminBadgeManager();
+  else if (id === 'edit-books')               renderEditBooksTab();
+  else if (id === 'quarterly-admin')          renderQuarterlyAdmin();
 }
 window.goAdminTab = goAdminTab;
 
 // ════════════════════════════════════════════════════════
-// ADMIN — READING PROGRESS VIEW
+// ADMIN — LIVE RESULTS VIEW
 // ════════════════════════════════════════════════════════
+function renderAdminLiveResults() {
+  const area = document.getElementById('admin-live-results-area');
+  if (!area) return;
+  const books = getBooks();
+  const votes = getVotes();
+  const s     = getSettings();
+  const n     = Object.keys(votes).length;
+
+  if (!books.length) {
+    area.innerHTML = '<div class="empty"><div class="icon">📚</div><p>No books up for voting this month.</p></div>';
+    return;
+  }
+
+  // ── Score calculation (same as renderResults) ──
+  const nb = books.length;
+  const scores = {}, rankCounts = {}, votersByRank = {};
+  books.forEach(b => { scores[b.id] = 0; rankCounts[b.id] = {}; votersByRank[b.id] = {}; });
+  Object.values(votes).forEach(vd => {
+    (vd.ranking || vd).forEach((id, idx) => {
+      if (scores[id] !== undefined) {
+        scores[id] += (nb - idx);
+        const rank = idx + 1;
+        rankCounts[id][rank] = (rankCounts[id][rank] || 0) + 1;
+        if (!votersByRank[id][rank]) votersByRank[id][rank] = [];
+        votersByRank[id][rank].push(vd.discord || vd.email || 'Unknown');
+      }
+    });
+  });
+  const sorted = [...books].sort((a, b) => scores[b.id] - scores[a.id]);
+  const max = scores[sorted[0]?.id] || 1;
+  const maxPossible = nb * n; // if every voter ranked this book #1
+
+  const ordinal = r => r === 1 ? '1st' : r === 2 ? '2nd' : r === 3 ? '3rd' : `${r}th`;
+
+  let html = `<div class="card" style="margin-bottom:1rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
+      <div>
+        <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;">Live Voting Results</h3>
+        <p style="font-size:.82rem;color:var(--soft);margin-top:.2rem;">
+          ${n} vote${n!==1?'s':''} cast &nbsp;·&nbsp; ${nb} book${nb!==1?'s':''} &nbsp;·&nbsp; Borda count
+          &nbsp;·&nbsp; <span class="pill ${s.votingOpen?'pill-open':'pill-closed'}">${s.votingOpen?'Voting Open':'Voting Closed'}</span>
+          &nbsp;·&nbsp; <span class="pill ${s.resultsVisible?'pill-open':'pill-closed'}">${s.resultsVisible?'Results Visible to Members':'Results Hidden'}</span>
+        </p>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="renderAdminLiveResults()">↻ Refresh</button>
+    </div>
+  </div>`;
+
+  if (!n) {
+    html += '<div class="empty"><div class="icon">🗳️</div><p>No votes cast yet.</p></div>';
+    area.innerHTML = html;
+    return;
+  }
+
+  html += sorted.map((b, i) => {
+    const pts = scores[b.id];
+    const pct = max > 0 ? pts / max * 100 : 0;
+    const win = i === 0;
+    const counts = rankCounts[b.id];
+    const voters = votersByRank[b.id];
+
+    // Rank breakdown with voter names on hover/expand
+    const rankRows = Array.from({length: nb}, (_, r) => r + 1)
+      .filter(r => counts[r])
+      .map(r => {
+        const names = (voters[r] || []).map(d => esc(d)).join(', ');
+        return `<div style="display:flex;align-items:baseline;gap:.4rem;padding:.15rem 0;border-bottom:1px solid var(--border);font-size:.78rem;">
+          <span style="min-width:2.5rem;color:var(--soft);">${ordinal(r)}</span>
+          <span style="min-width:1.5rem;font-weight:600;color:var(--ink);">${counts[r]}×</span>
+          <span style="color:var(--soft);font-size:.72rem;">${names}</span>
+        </div>`;
+      }).join('');
+
+    return `<div class="result-item ${win?'winner':''}" style="flex-direction:column;align-items:stretch;gap:.5rem;">
+      <div style="display:flex;align-items:center;gap:1rem;">
+        <div class="result-rank" style="min-width:2rem;">${win?'👑':i+1}</div>
+        <div class="book-info" style="flex:1;">
+          <div class="book-title">${esc(b.title)}</div>
+          <div class="book-sub">${esc(b.author)}</div>
+          ${genrePillsHtml(b.genre)}
+          <div class="res-bar" style="margin-top:.4rem;"><div class="res-fill" style="width:${pct}%"></div></div>
+        </div>
+        <div class="res-pts" style="text-align:right;">
+          <div style="font-size:1.1rem;font-weight:600;color:${win?'var(--gold)':'var(--ink)'};">${pts}</div>
+          <div style="font-size:.68rem;color:var(--soft);">pts</div>
+        </div>
+      </div>
+      <div style="padding-left:3rem;">
+        <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.25rem;">Ballot breakdown</div>
+        ${rankRows}
+      </div>
+    </div>`;
+  }).join('');
+
+  // Who hasn't voted yet
+  const voterNames = Object.values(votes).map(vd => vd.discord || vd.email || '').filter(Boolean);
+  html += `<div class="card" style="margin-top:1rem;">
+    <h3 style="font-family:'Playfair Display',serif;font-size:1rem;margin-bottom:.5rem;">
+      Voters <span style="font-size:.8rem;font-weight:400;color:var(--soft);">(${n} submitted)</span>
+    </h3>
+    <div style="display:flex;flex-wrap:wrap;gap:.35rem;">
+      ${voterNames.length ? voterNames.map(d => `<span style="background:var(--cream);border:1px solid var(--border);border-radius:20px;padding:.18rem .6rem;font-size:.78rem;">${esc(d)}</span>`).join('') : '<span style="font-size:.82rem;color:var(--soft);">No votes yet.</span>'}
+    </div>
+  </div>`;
+
+  area.innerHTML = html;
+}
+window.renderAdminLiveResults = renderAdminLiveResults;
 let _adminPgRows = [];
 
 function renderAdminReadingProgress() {
