@@ -1595,6 +1595,8 @@ function renderVote() {
     const email = (emailEl?.value||'').trim(), discord = (discordEl?.value||'').trim();
     if (!email && !discord) { bannerEl.style.display = 'none'; return; }
     const rawVotes = getVotes();
+    // getVotes() returns only CURRENT month votes — archived months are in CACHE.archives
+    // So if rawVotes has an entry for this member it's definitely this active month
     const idMap = buildIdentityMap();
     const me = resolveId(discord, email, idMap);
     const existing = Object.values(rawVotes).find(vd => resolveId(vd.discord||'', vd.email||'', idMap) === me);
@@ -1602,13 +1604,13 @@ function renderVote() {
       const allBooks = getBooks().map(normBook);
       const ranked = (existing.ranking||[]).map((id,i) => {
         const b = allBooks.find(b=>String(b.id)===String(id));
-        return `<span style="font-size:.78rem;">${i+1}. ${b?esc(b.title):id}</span>`;
-      }).join('<br>');
+        return `<div style="font-size:.8rem;padding:.1rem 0;">${i+1}. ${b?esc(b.title):id}</div>`;
+      }).join('');
       bannerEl.style.display = 'block';
-      bannerEl.innerHTML = `<div style="background:#fffbef;border-left:3px solid var(--gold);padding:.75rem 1rem;border-radius:0 4px 4px 0;margin-bottom:1rem;">
-        <div style="font-size:.8rem;font-weight:600;margin-bottom:.35rem;">✓ You've already voted this month</div>
-        <div style="line-height:1.8;">${ranked}</div>
-        <div style="font-size:.72rem;color:var(--soft);margin-top:.4rem;">Submitting again will replace your existing ranking.</div>
+      bannerEl.innerHTML = `<div style="background:#e8f5e9;border-left:3px solid var(--green);padding:.75rem 1rem;border-radius:0 6px 6px 0;margin-bottom:1rem;">
+        <div style="font-size:.85rem;font-weight:600;color:var(--green);margin-bottom:.4rem;">✓ You've already voted this month</div>
+        <div style="color:var(--ink);line-height:1.7;margin-bottom:.4rem;">${ranked}</div>
+        <div style="font-size:.76rem;color:var(--soft);">You're welcome to resubmit if you'd like to change your ranking — your new vote will replace this one.</div>
       </div>`;
     } else {
       bannerEl.style.display = 'none';
@@ -1621,6 +1623,8 @@ function renderVote() {
   discordEl._voteCheck = checkExistingVote;
   emailEl?.addEventListener('blur', checkExistingVote);
   discordEl?.addEventListener('blur', checkExistingVote);
+  // Auto-check immediately — catches cookie-remembered members who never touch the fields
+  checkExistingVote();
 }
 
 function genrePillsHtml(genreStr) {
