@@ -931,23 +931,56 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
             <div id="cb-icon-preview" style="width:40px;height:40px;display:none;border-radius:6px;overflow:hidden;border:1px solid var(--border);"></div>
           </div>
         </div>
-        <div class="f-group" style="margin-top:.25rem;">
-          <label>Admin-only? (only you can grant this badge)</label>
-          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.85rem;text-transform:none;letter-spacing:0;margin-top:.3rem;">
-            <input type="checkbox" id="cb-admin-only" style="width:auto;margin:0;"> Yes — this badge cannot be earned automatically
-          </label>
-        </div>
         <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-top:.5rem;">
           <button class="btn btn-primary" onclick="saveCustomBadge()">Create Badge</button>
           <button class="btn btn-secondary" onclick="clearCustomBadgeForm()">Clear</button>
         </div>
+        <p style="font-size:.75rem;color:var(--soft);margin-top:.6rem;">All custom achievements are admin-granted only — use the Member Badge Overview to award them to specific members.</p>
         <div id="cb-msg"></div>
       </div>
 
       <!-- Custom Badges List -->
       <div class="card">
-        <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Custom Badges</h3>
+        <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Custom Achievements</h3>
         <div id="admin-custom-badges-list"></div>
+      </div>
+
+      <!-- Monthly Book Badge Creator -->
+      <div class="card">
+        <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.5rem;">Create Monthly Book Badge</h3>
+        <p style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">These badges are awarded automatically when a member marks a specific winning book as Finished on their My Progress page.</p>
+        <div class="grid2">
+          <div class="f-group"><label>Badge Name</label><input type="text" id="mbb-name" placeholder="e.g. Beartown Reader"></div>
+          <div class="f-group"><label>Description</label><input type="text" id="mbb-desc" placeholder="e.g. Finished Beartown — April 2026"></div>
+        </div>
+        <div class="f-group">
+          <label>Icon — choose an emoji or upload an image</label>
+          <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;margin-top:.3rem;">
+            <input type="text" id="mbb-emoji" placeholder="Paste emoji e.g. 📖" style="max-width:140px;">
+            <span style="color:var(--soft);font-size:.82rem;">or</span>
+            <label style="cursor:pointer;display:inline-flex;align-items:center;gap:.4rem;font-size:.82rem;text-transform:none;letter-spacing:0;color:var(--ink);border:1px solid var(--border);padding:.45rem .9rem;border-radius:4px;background:var(--cream);">
+              📁 Upload PNG/JPG <input type="file" id="mbb-icon-upload" accept="image/png,image/jpeg" style="display:none;" onchange="previewMbbIcon(this)">
+            </label>
+            <div id="mbb-icon-preview" style="width:40px;height:40px;display:none;border-radius:6px;overflow:hidden;border:1px solid var(--border);"></div>
+          </div>
+        </div>
+        <div class="f-group">
+          <label>Winning Book</label>
+          <select id="mbb-book-sel" style="max-width:400px;">
+            <option value="">— select a winning book —</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-top:.5rem;">
+          <button class="btn btn-primary" onclick="saveMbbBadge()">Create Book Badge</button>
+          <button class="btn btn-secondary" onclick="clearMbbForm()">Clear</button>
+        </div>
+        <div id="mbb-msg"></div>
+      </div>
+
+      <!-- Monthly Book Badges List -->
+      <div class="card">
+        <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Monthly Book Badges</h3>
+        <div id="admin-mbb-list"></div>
       </div>
     </div>
 
@@ -4396,7 +4429,22 @@ function getAllBadges({ includeHidden = false, includeDisabled = false } = {}) {
     desc: cb.desc, check: () => false, adminOnly: true, custom: true,
     iconDataUrl: cb.iconDataUrl || null,
   }));
-  const all = [...BADGE_DEFS, ...custom];
+  const monthlyBook = (cfg.monthlyBookBadges || []).map(mb => {
+    const bookId = String(mb.bookId);
+    return {
+      id: mb.id, name: mb.name, emoji: mb.emoji || '📖', tier: null,
+      desc: mb.desc || '',
+      category: 'monthly-book',
+      monthlyBook: true,
+      bookId,
+      monthLabel: mb.monthLabel || '',
+      year: mb.year || '',
+      iconDataUrl: mb.iconDataUrl || null,
+      // Live check: badge earned iff book is currently marked finished
+      check: p => !!(p.finishedBookIds && p.finishedBookIds.has(bookId)),
+    };
+  });
+  const all = [...BADGE_DEFS, ...monthlyBook, ...custom];
   return all.filter(b => {
     if (!includeDisabled && cfg.disabled && cfg.disabled[b.id]) return false;
     if (!includeHidden   && cfg.hidden   && cfg.hidden[b.id])   return false;
@@ -4418,10 +4466,10 @@ function hasBadge(badgeId, profile, memberKey) {
     const ov = cfg.overrides[memberKey];
     if (typeof ov[badgeId] === 'boolean') return ov[badgeId];
   }
-  const badge = [...BADGE_DEFS, ...(cfg.customBadges||[]).map(cb=>({id:cb.id,check:()=>false,adminOnly:true}))].find(b=>b.id===badgeId);
+  const badge = getAllBadges({ includeHidden: true, includeDisabled: true }).find(b => b.id === badgeId);
   if (!badge) return false;
-  if (badge.adminOnly) return false;
-  return badge.check(profile);
+  if (badge.adminOnly && !badge.monthlyBook) return false;
+  return badge.check ? badge.check(profile) : false;
 }
 
 // ── Helper: returns array of { archive, winnerBooks } for all archived months ──
@@ -4458,6 +4506,7 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
   let dnfCount=0, dnsCount=0, reviewsWithRating=0, surveysCompleted=0;
   let nightOwlCount=0, earlyBird=0, top1WinCount=0, top1VoteCount=0;
   let oneStarCount=0, genreLoyalist=false, speedFinishCount=0, lastMinuteCount=0;
+  const finishedBookIds = new Set(); // all book IDs currently marked finished in My Progress
   const dnfBookIds = new Set(); // track DNF book IDs from progress to avoid double-counting
   const totalMonths  = archives.length;
   const totalSurveys = allSurveys.length;
@@ -4542,20 +4591,25 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
     // ── Reading progress on this month's winner ──
     const myProgressMap = allProgress[myKey]||{};
 
+    // Track all books currently marked finished (for monthly book badges — live status, no cutoff)
+    winnerBooks.forEach(b => {
+      if (myProgressMap[b.id] === 'finished') finishedBookIds.add(String(b.id));
+    });
+
     if (a.archivedAt) {
       const archiveDate = new Date(a.archivedAt);
       const followMonthStart = new Date(archiveDate.getFullYear(), archiveDate.getMonth()+1, 1);
-      const followMonthEnd   = new Date(archiveDate.getFullYear(), archiveDate.getMonth()+2, 0, 23, 59, 59);
+      const followMonthEnd   = new Date(archiveDate.getFullYear(), archiveDate.getMonth()+2, 1) - 1; // true end-of-month (ms before next month)
       const day10End         = new Date(followMonthStart.getTime() + 10*24*60*60*1000 - 1);
-      const last24Start      = new Date(followMonthEnd.getTime() - 24*60*60*1000);
+      const last24Start      = followMonthEnd - 24*60*60*1000;
 
       winnerBooks.forEach(b => {
         const status = myProgressMap[b.id];
         const finishTs = myProgressMap[b.id + '_ts'];
         if (status==='finished' && finishTs && finishTs >= BADGE_CUTOFF) {
-          const ft = new Date(finishTs);
-          if (ft >= followMonthStart && ft <= day10End)  speedFinishCount++;
-          if (ft >= last24Start      && ft <= followMonthEnd) lastMinuteCount++;
+          const ft = finishTs; // already a number (Date.now())
+          if (ft >= followMonthStart.getTime() && ft <= day10End)  speedFinishCount++;
+          if (ft >= last24Start                && ft <= followMonthEnd) lastMinuteCount++;
         }
         // Count DNF from progress tracker; store book IDs to avoid double-counting with reviews
         if (status==='dnf') { dnfCount++; dnfBookIds.add(String(b.id)); }
@@ -5051,6 +5105,7 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
     qBingoMaxRows, qBingoMaxNoFreeRows, qPassportMaxBonus,
     qPassportCompleted, qPassportAllBonus,
     qParkTheBus, qCornerKick, qFourCorners, qFourFourTwo, qConsecutiveApprovals,
+    finishedBookIds,
   };
 }
 
@@ -5070,6 +5125,7 @@ window.loadBadges = loadBadges;
 
 // Badge category definitions — order controls display order
 const BADGE_CATEGORIES = [
+  { id:'monthly-book',  label:'📖 Monthly Book Badges', emoji:'📖' },
   { id:'participation', label:'🎯 Participation',      emoji:'🎯' },
   { id:'streaks',       label:'🔥 Streaks',             emoji:'🔥' },
   { id:'reading',       label:'📖 Reading',             emoji:'📖' },
@@ -5142,7 +5198,7 @@ function renderBadgesTab() {
     // whose check() can never pass organically (i.e. always returns false)
     const ov = _badgeCfg.overrides?.[myKey];
     if (ov && ov[b.id] === true && b.check) {
-      try { return b.check({ voted:999,suggestedMonths:999,reviewed:999,longestVoteStreak:999,longestReadStreak:999,longestAllRounderStreak:999,pickedWinner:999,suggestedTop3:999,dnfCount:999,dnsCount:999,whyNotBoth:999,genresSuggested:999,totalMonths:999,surveysCompleted:999,steadyEddie:true,dependable:true,deadReliable:true }) === false; }
+      try { return b.check({ voted:999,suggestedMonths:999,reviewed:999,longestVoteStreak:999,longestReadStreak:999,longestAllRounderStreak:999,pickedWinner:999,suggestedTop3:999,dnfCount:999,dnsCount:999,whyNotBoth:999,genresSuggested:999,totalMonths:999,surveysCompleted:999,steadyEddie:true,dependable:true,deadReliable:true,finishedBookIds:new Set(['__any__']) }) === false; }
       catch { return true; }
     }
     return false;
@@ -5179,6 +5235,11 @@ function renderBadgesTab() {
             if (!b.check(tmp)) { wouldLose = true; break; }
           }
         }
+      }
+      // Monthly book badges: check if removing each finished book id loses the badge
+      if (!wouldLose && b.monthlyBook && profile.finishedBookIds) {
+        const tmp = { ...profile, finishedBookIds: new Set() };
+        if (!b.check(tmp)) wouldLose = true;
       }
       if (wouldLose) { mostRecentBadge = b; break; }
     }
@@ -5229,11 +5290,55 @@ function renderBadgesTab() {
       return catId === cat.id;
     });
     if (!inCat.length) return '';
+
+    // ── Monthly Book Badges: group by year, collapse years that aren't the current year ──
+    if (cat.id === 'monthly-book') {
+      const earnedInCat  = inCat.filter(b => hasBadge(b.id, profile, myKey));
+      const lockedInCat  = inCat.filter(b => !hasBadge(b.id, profile, myKey) && !isBadgeOrganic(b.id));
+      if (!earnedInCat.length && !lockedInCat.length) return '';
+      const earnedCount = earnedInCat.length;
+      const totalCount  = earnedInCat.length + lockedInCat.length;
+
+      // Get all distinct years from the full badge set (earned + locked)
+      const allYears = [...new Set(inCat.map(b => b.year || 'Unknown'))].sort((a,b)=>b-a);
+      const currentYear = String(new Date().getFullYear());
+      // Only show year headings as collapsible if there are multiple distinct years
+      const multiYear = allYears.length > 1;
+
+      const yearBlocks = allYears.map(year => {
+        const earnedY  = earnedInCat.filter(b => (b.year||'Unknown') === year);
+        const lockedY  = lockedInCat.filter(b => (b.year||'Unknown') === year);
+        if (!earnedY.length && !lockedY.length) return '';
+        const yId = 'mbb-year-' + year;
+        const isCurrentYear = year === currentYear;
+        // For the current year (or when only one year exists), expand by default; older years collapsed
+        const collapsed = multiYear && !isCurrentYear;
+        return `<div style="margin-bottom:.75rem;">
+          ${multiYear ? `<button onclick="(function(el){const g=document.getElementById('${yId}');const open=g.style.display!=='none';g.style.display=open?'none':'block';el.querySelector('.mbb-caret').textContent=open?'▸':'▾';})(this)" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:.4rem;font-size:.78rem;color:var(--soft);text-transform:uppercase;letter-spacing:.08em;padding:.1rem 0;margin-bottom:.35rem;">
+            <span class="mbb-caret">${collapsed ? '▸' : '▾'}</span> ${esc(year)}
+          </button>` : ''}
+          <div id="${yId}" style="display:${collapsed ? 'none' : 'block'};">
+            ${earnedY.length ? `<div class="badge-grid" style="margin-bottom:.5rem;">${earnedY.map(b=>badgeCard(b,true)).join('')}</div>` : ''}
+            ${lockedY.length ? `<div class="badge-grid" style="opacity:.7;">${lockedY.map(b=>badgeCard(b,false)).join('')}</div>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+
+      return `<div style="margin-bottom:2rem;">
+        <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.75rem;padding-bottom:.4rem;border-bottom:2px solid var(--border);">
+          <span style="font-size:1.1rem;">${cat.emoji}</span>
+          <h3 style="font-family:'Playfair Display',serif;font-size:1rem;margin:0;">${cat.label.replace(/^.+ /,'')}</h3>
+          <span style="font-size:.72rem;color:var(--soft);margin-left:auto;">${earnedCount}/${totalCount} earned</span>
+        </div>
+        ${yearBlocks}
+      </div>`;
+    }
+
+    // ── All other categories ──
     const earnedInCat = inCat.filter(b => hasBadge(b.id, profile, myKey));
-    // Organic unearned badges are invisible to the member — omit from locked list and total
     const lockedInCat = inCat.filter(b => !hasBadge(b.id, profile, myKey) && !isBadgeOrganic(b.id));
     const earnedCount = earnedInCat.length;
-    const totalCount  = earnedInCat.length + lockedInCat.length; // excludes hidden organics
+    const totalCount  = earnedInCat.length + lockedInCat.length;
     if (!earnedInCat.length && !lockedInCat.length) return '';
     return `<div style="margin-bottom:2rem;">
       <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.75rem;padding-bottom:.4rem;border-bottom:2px solid var(--border);">
@@ -5256,6 +5361,8 @@ function renderAdminBadgeManager() {
   renderAdminBadgeMembers();
   renderAdminBadgeControls();
   renderAdminCustomBadgesList();
+  renderAdminMbbList();
+  populateMbbBookDropdown();
 }
 window.renderAdminBadgeManager = renderAdminBadgeManager;
 
@@ -5429,13 +5536,12 @@ async function saveCustomBadge() {
   const name  = document.getElementById('cb-name').value.trim();
   const desc  = document.getElementById('cb-desc').value.trim();
   const emoji = document.getElementById('cb-emoji').value.trim();
-  const adminOnly = document.getElementById('cb-admin-only').checked;
   if (!name) { showMsg('cb-msg','Please enter a badge name.','err'); return; }
   if (!emoji && !_customIconDataUrl) { showMsg('cb-msg','Please add an emoji or upload an icon.','err'); return; }
   const cfg = JSON.parse(JSON.stringify(getBadgeConfig()));
   if (!cfg.customBadges) cfg.customBadges = [];
   const id = 'custom-' + Date.now();
-  cfg.customBadges.push({ id, name, desc, emoji: emoji||'🏅', iconDataUrl: _customIconDataUrl||null, adminOnly });
+  cfg.customBadges.push({ id, name, desc, emoji: emoji||'🏅', iconDataUrl: _customIconDataUrl||null, adminOnly: true });
   showLoading('Saving…');
   await fbSet(BADGE_CONFIG_REF, cfg);
   hideLoading();
@@ -5448,7 +5554,6 @@ window.saveCustomBadge = saveCustomBadge;
 
 function clearCustomBadgeForm() {
   ['cb-name','cb-desc','cb-emoji'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-  const chk = document.getElementById('cb-admin-only'); if(chk) chk.checked=false;
   const prev = document.getElementById('cb-icon-preview'); if(prev){prev.style.display='none';prev.innerHTML='';}
   const upl = document.getElementById('cb-icon-upload'); if(upl) upl.value='';
   _customIconDataUrl = null;
@@ -5485,6 +5590,108 @@ async function adminDeleteCustomBadge(id) {
   renderAdminBadgeControls();
 }
 window.adminDeleteCustomBadge = adminDeleteCustomBadge;
+
+// ── Monthly Book Badge icon preview (separate variable from custom achievement) ──
+let _mbbIconDataUrl = null;
+window.previewMbbIcon = function(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    _mbbIconDataUrl = e.target.result;
+    const prev = document.getElementById('mbb-icon-preview');
+    if (prev) { prev.style.display='block'; prev.innerHTML=`<img src="${_mbbIconDataUrl}" style="width:40px;height:40px;object-fit:contain;">`; }
+  };
+  reader.readAsDataURL(file);
+};
+
+// Populate the book dropdown with all archived winners
+function populateMbbBookDropdown() {
+  const sel = document.getElementById('mbb-book-sel');
+  if (!sel) return;
+  const winners = getArchiveWinners();
+  sel.innerHTML = '<option value="">— select a winning book —</option>';
+  // Newest month first
+  [...winners].reverse().forEach(({ archive: a, winnerBooks }) => {
+    winnerBooks.forEach(b => {
+      const opt = document.createElement('option');
+      opt.value = String(b.id);
+      opt.dataset.monthLabel = a.label || '';
+      opt.dataset.year = a.label ? (a.label.match(/\d{4}/)||[''])[0] : '';
+      opt.textContent = `${esc(b.title)} — ${a.label || ''}`;
+      sel.appendChild(opt);
+    });
+  });
+}
+
+async function saveMbbBadge() {
+  const name  = document.getElementById('mbb-name').value.trim();
+  const desc  = document.getElementById('mbb-desc').value.trim();
+  const emoji = document.getElementById('mbb-emoji').value.trim();
+  const sel   = document.getElementById('mbb-book-sel');
+  const bookId = sel ? sel.value : '';
+  if (!name)   { showMsg('mbb-msg','Please enter a badge name.','err'); return; }
+  if (!emoji && !_mbbIconDataUrl) { showMsg('mbb-msg','Please add an emoji or upload an icon.','err'); return; }
+  if (!bookId) { showMsg('mbb-msg','Please select a winning book.','err'); return; }
+  const selOpt = sel.options[sel.selectedIndex];
+  const monthLabel = selOpt ? selOpt.dataset.monthLabel : '';
+  const year = selOpt ? selOpt.dataset.year : '';
+  const cfg = JSON.parse(JSON.stringify(getBadgeConfig()));
+  if (!cfg.monthlyBookBadges) cfg.monthlyBookBadges = [];
+  const id = 'mbb-' + Date.now();
+  cfg.monthlyBookBadges.push({ id, name, desc, emoji: emoji||'📖', iconDataUrl: _mbbIconDataUrl||null, bookId, monthLabel, year });
+  showLoading('Saving…');
+  await fbSet(BADGE_CONFIG_REF, cfg);
+  hideLoading();
+  showMsg('mbb-msg','✓ Book badge created!','ok');
+  clearMbbForm();
+  renderAdminMbbList();
+}
+window.saveMbbBadge = saveMbbBadge;
+
+function clearMbbForm() {
+  ['mbb-name','mbb-desc','mbb-emoji'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  const sel = document.getElementById('mbb-book-sel'); if(sel) sel.value='';
+  const prev = document.getElementById('mbb-icon-preview'); if(prev){prev.style.display='none';prev.innerHTML='';}
+  const upl = document.getElementById('mbb-icon-upload'); if(upl) upl.value='';
+  _mbbIconDataUrl = null;
+}
+window.clearMbbForm = clearMbbForm;
+
+function renderAdminMbbList() {
+  const area = document.getElementById('admin-mbb-list');
+  if (!area) return;
+  const cfg = getBadgeConfig();
+  const badges = cfg.monthlyBookBadges||[];
+  if (!badges.length) { area.innerHTML = '<p style="font-size:.85rem;color:var(--soft);">No monthly book badges created yet.</p>'; return; }
+  // Group by year for display
+  const byYear = {};
+  badges.forEach(b => { const y = b.year||'Unknown'; if(!byYear[y]) byYear[y]=[]; byYear[y].push(b); });
+  area.innerHTML = Object.keys(byYear).sort((a,b)=>b-a).map(year => `
+    <div style="margin-bottom:.75rem;">
+      <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.4rem;">${esc(year)}</div>
+      ${byYear[year].map(b=>`
+        <div style="display:flex;align-items:center;gap:.75rem;padding:.65rem .75rem;background:var(--cream);border-radius:6px;margin-bottom:.35rem;flex-wrap:wrap;">
+          <span style="font-size:1.3rem;">${b.iconDataUrl?`<img src="${b.iconDataUrl}" style="width:28px;height:28px;object-fit:contain;border-radius:4px;">`:esc(b.emoji)}</span>
+          <div style="flex:1;min-width:120px;">
+            <div style="font-size:.88rem;font-weight:500;">${esc(b.name)}</div>
+            <div style="font-size:.72rem;color:var(--soft);">${esc(b.desc)} · <em>Book ID ${esc(String(b.bookId))} — ${esc(b.monthLabel)}</em></div>
+          </div>
+          <button class="btn btn-danger btn-sm" onclick="adminDeleteMbbBadge('${esc(b.id)}')">Delete</button>
+        </div>`).join('')}
+    </div>`).join('');
+}
+
+async function adminDeleteMbbBadge(id) {
+  if (!confirm('Delete this book badge? It will disappear from all member profiles.')) return;
+  showLoading('Deleting…');
+  const cfg = JSON.parse(JSON.stringify(getBadgeConfig()));
+  cfg.monthlyBookBadges = (cfg.monthlyBookBadges||[]).filter(b=>b.id!==id);
+  await fbSet(BADGE_CONFIG_REF, cfg);
+  hideLoading();
+  renderAdminMbbList();
+}
+window.adminDeleteMbbBadge = adminDeleteMbbBadge;
 
 
 // ════════════════════════════════════════════════════════
