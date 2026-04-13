@@ -6575,7 +6575,7 @@ window.qaPrintPassport = function(prefill) {
   let stampCards = '';
   for (let i = 0; i < _printTotal; i++) {
     const s = stamps[i] || { name:`Stamp ${i+1}`, description:'', icon:'' };
-    const isBonus = prefill ? (claimed[i] && bonusSet.has(i)) : (i >= _printReq);
+    const isBonus = prefill ? (claimed[i] && bonusSet.has(i)) : false;
     const bk = prefill ? (bkGet(books, i) || {}) : {};
     const isClaimed = prefill && claimed[i];
     stampCards += `<div class="stamp${isBonus?' bonus':''}">
@@ -7703,7 +7703,7 @@ function qaAdminPreviewDraft() {
     let stampCards = '';
     for (let i = 0; i < _prevTotal; i++) {
       const s = stamps[i] || { name:`Stamp ${i+1}`, description:'', icon:'' };
-      const isBonus = i >= _prevReq;
+      const isBonus = false; // bonus is determined by claim order, not stamp position
       stampCards += `<div class="stamp${isBonus?' bonus':''}">
         <div class="sh"><span class="sn">Stamp ${i+1}</span>${isBonus?'<span class="btag">Bonus</span>':''}</div>
         <div class="stamp-name">${_qaEscHtml(s.name || `Stamp ${i+1}`)}</div>
@@ -7885,14 +7885,15 @@ function _renderAdminCardView() {
 
   } else {
     const stamps = cfg.passportStamps || [];
-    const claimed = card.claimed || Array(8).fill(false);
+    const _admTotal = cfg.passportTotalStamps || 8;
+    const _admBonus = cfg.passportBonusCount  || 2;
+    const _admReq   = _admTotal - _admBonus;
+    const claimed = card.claimed || Array(_admTotal).fill(false);
     const books = card.books || {};
     const claimOrder = card.claimOrder || [];
-    const _archReq = (archive.cfg.passportTotalStamps||8) - (archive.cfg.passportBonusCount||2);
-    const bonusSet = new Set(claimOrder.slice(_archReq));
-    const _archTotal = archive.cfg.passportTotalStamps || 8;
+    const bonusSet = new Set(claimOrder.slice(_admReq));
     const count = claimed.filter(Boolean).length;
-    html += `<div style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">${count}/${_archTotal} stamps · ${count>=6?'✓ Completed':'Incomplete'}${count>6?` · ${count-6} bonus`:''}</div>`;
+    html += `<div style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">${count}/${_admTotal} stamps · ${count>=_admReq?'✓ Completed':'Incomplete'}${count>_admReq?` · ${count-_admReq} bonus`:''}</div>`;
     html += `<div class="passport-grid">`;
     for (let i = 0; i < _admTotal; i++) {
       const s = stamps[i] || { name:`Stamp ${i+1}`, icon:'📖' };
