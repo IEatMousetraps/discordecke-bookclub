@@ -5157,7 +5157,12 @@ function renderBadgesTab() {
       'dnfCount','dnsCount','reviewsWithRating','nightOwlCount','earlyBird',
       'speedFinishCount','lastMinuteCount','oneStarCount','penPalCount','essayistCount',
       'earlyToRise','longestVoteStreak','longestReadStreak','longestAllRounderStreak',
-      'whyNotBoth','genresSuggested'];
+      'whyNotBoth','genresSuggested',
+      // Quarterly numeric stats
+      'qBingoMaxRows','qBingoMaxNoFreeRows','qPassportCompleted','qPassportMaxBonus',
+      'qBingoApproved','qPassportApproved','qTotalApprovals','qConsecutiveApprovals'];
+    // Boolean quarterly stats that also signal a newly-earned badge
+    const booleanKeys = ['qParkTheBus','qCornerKick','qFourCorners','qFourFourTwo','qPassportAllBonus'];
     for (const b of [...candidates].reverse()) {
       if (!b.check) continue;
       let wouldLose = false;
@@ -5165,6 +5170,14 @@ function renderBadgesTab() {
         if (typeof profile[k] === 'number' && profile[k] > 0) {
           const tmp = { ...profile, [k]: profile[k] - 1 };
           if (!b.check(tmp)) { wouldLose = true; break; }
+        }
+      }
+      if (!wouldLose) {
+        for (const k of booleanKeys) {
+          if (profile[k] === true) {
+            const tmp = { ...profile, [k]: false };
+            if (!b.check(tmp)) { wouldLose = true; break; }
+          }
         }
       }
       if (wouldLose) { mostRecentBadge = b; break; }
