@@ -897,7 +897,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
             <option value="not-started">📋 Not Started</option>
             <option value="dnf">❌ DNF</option>
             <option value="chose-not-to-read">🚫 Chose Not to Read</option>
-            <option value="pre-read">⏮️ Pre-Read</option>
+            <option value="pre-read">⏮️ Already Read</option>
           </select>
         </div>
         <div id="admin-reading-progress-area"></div>
@@ -3525,7 +3525,7 @@ function renderAdminReadingProgress() {
     'not-started':        { label: 'Not Started',        emoji: '📋', color: '#f5f5f5', text: '#555' },
     'dnf':                { label: 'DNF',                emoji: '❌', color: '#fce4ec', text: '#c0392b' },
     'chose-not-to-read':  { label: 'Chose Not to Read',  emoji: '🚫', color: '#f3e8ff', text: '#7b5ea7' },
-    'pre-read':           { label: 'Pre-Read',            emoji: '⏮️', color: '#e0f4ff', text: '#0077b6' },
+    'pre-read':           { label: 'Already Read',        emoji: '⏮️', color: '#e0f4ff', text: '#0077b6' },
   };
 
   _adminPgRows = [];
@@ -4150,7 +4150,7 @@ function renderProgressTab() {
     { key: 'finished',          label: 'Finished',          emoji: '✅' },
     { key: 'dnf',               label: 'DNF',               emoji: '❌' },
     { key: 'chose-not-to-read', label: 'Chose Not to Read', emoji: '🚫' },
-    { key: 'pre-read',          label: 'Pre-Read',          emoji: '⏮️' },
+    { key: 'pre-read',          label: 'Already Read',      emoji: '⏮️' },
   ];
 
   area.innerHTML = `
