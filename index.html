@@ -5306,8 +5306,8 @@ function renderBadgesTab() {
       const multiYear = allYears.length > 1;
 
       const yearBlocks = allYears.map(year => {
-        const earnedY  = earnedInCat.filter(b => (b.year||'Unknown') === year);
-        const lockedY  = lockedInCat.filter(b => (b.year||'Unknown') === year);
+        const earnedY  = sortMbbByMonth(earnedInCat.filter(b => (b.year||'Unknown') === year));
+        const lockedY  = sortMbbByMonth(lockedInCat.filter(b => (b.year||'Unknown') === year));
         if (!earnedY.length && !lockedY.length) return '';
         const yId = 'mbb-year-' + year;
         const isCurrentYear = year === currentYear;
@@ -5658,6 +5658,18 @@ function clearMbbForm() {
 }
 window.clearMbbForm = clearMbbForm;
 
+// Sort monthly book badges by chronological month order within a year
+const MONTH_ORDER = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+function mbbMonthIndex(badge) {
+  if (!badge.monthLabel) return 99;
+  const name = badge.monthLabel.replace(/\s*\d{4}.*/, '').trim();
+  const idx = MONTH_ORDER.indexOf(name);
+  return idx === -1 ? 99 : idx;
+}
+function sortMbbByMonth(arr) {
+  return [...arr].sort((a, b) => mbbMonthIndex(a) - mbbMonthIndex(b));
+}
+
 function renderAdminMbbList() {
   const area = document.getElementById('admin-mbb-list');
   if (!area) return;
@@ -5670,7 +5682,7 @@ function renderAdminMbbList() {
   area.innerHTML = Object.keys(byYear).sort((a,b)=>b-a).map(year => `
     <div style="margin-bottom:.75rem;">
       <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.4rem;">${esc(year)}</div>
-      ${byYear[year].map(b=>`
+      ${sortMbbByMonth(byYear[year]).map(b=>`
         <div style="display:flex;align-items:center;gap:.75rem;padding:.65rem .75rem;background:var(--cream);border-radius:6px;margin-bottom:.35rem;flex-wrap:wrap;">
           <span style="font-size:1.3rem;">${b.iconDataUrl?`<img src="${b.iconDataUrl}" style="width:28px;height:28px;object-fit:contain;border-radius:4px;">`:esc(b.emoji)}</span>
           <div style="flex:1;min-width:120px;">
