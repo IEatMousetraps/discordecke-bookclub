@@ -5172,6 +5172,18 @@ const BADGE_CATEGORY_MAP = {
   'founding-reader':'admin',
 };
 
+// Sort monthly book badges by chronological month order within a year
+const MONTH_ORDER = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+function mbbMonthIndex(badge) {
+  if (!badge.monthLabel) return 99;
+  const name = badge.monthLabel.replace(/\s*\d{4}.*/, '').trim().toLowerCase();
+  const idx = MONTH_ORDER.findIndex(m => m.toLowerCase().startsWith(name) || name.startsWith(m.toLowerCase().slice(0,3)));
+  return idx === -1 ? 99 : idx;
+}
+function sortMbbByMonth(arr) {
+  return [...arr].sort((a, b) => mbbMonthIndex(a) - mbbMonthIndex(b));
+}
+
 function renderBadgesTab() {
   const mainEl = document.getElementById('badges-main');
   if (!mainEl || mainEl.style.display === 'none') return;
@@ -5657,18 +5669,6 @@ function clearMbbForm() {
   _mbbIconDataUrl = null;
 }
 window.clearMbbForm = clearMbbForm;
-
-// Sort monthly book badges by chronological month order within a year
-const MONTH_ORDER = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-function mbbMonthIndex(badge) {
-  if (!badge.monthLabel) return 99;
-  const name = badge.monthLabel.replace(/\s*\d{4}.*/, '').trim();
-  const idx = MONTH_ORDER.indexOf(name);
-  return idx === -1 ? 99 : idx;
-}
-function sortMbbByMonth(arr) {
-  return [...arr].sort((a, b) => mbbMonthIndex(a) - mbbMonthIndex(b));
-}
 
 function renderAdminMbbList() {
   const area = document.getElementById('admin-mbb-list');
