@@ -790,6 +790,12 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
           <select id="archive-winner2"><option value="">— select book —</option></select>
         </div>
       </div>
+      <div class="f-group" style="margin-top:.75rem;">
+        <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.85rem;text-transform:none;letter-spacing:0;">
+          <input type="checkbox" id="archive-member-pick" style="width:auto;margin:0;">
+          This month's book was chosen by a member (no vote round — skip from all voting &amp; suggestion badge criteria)
+        </label>
+      </div>
       <button class="btn btn-gold" style="margin-top:.75rem;" onclick="archiveMonth()">Archive &amp; Reset</button>
       <div id="archive-msg"></div>
     </div>
@@ -3993,12 +3999,14 @@ async function archiveMonth() {
     if (w1 === w2)  { showMsg('archive-msg', 'Please select two different books.', 'err'); return; }
     winners = [String(w1), String(w2)];
   }
+  const isMemberPick = document.getElementById('archive-member-pick').checked;
   const snapshot = {
     label,
     books: JSON.parse(JSON.stringify(books)),
     votes: JSON.parse(JSON.stringify(votes)),
     archivedAt: Date.now(),
-    ...(isDual ? { dualWinners: winners } : {})
+    ...(isDual ? { dualWinners: winners } : {}),
+    ...(isMemberPick ? { memberPick: true } : {})
   };
   archives.push(snapshot);
   showLoading('Archiving…');
@@ -4010,6 +4018,7 @@ async function archiveMonth() {
   hideLoading();
   document.getElementById('archive-label').value = '';
   document.getElementById('archive-dual-winner').checked = false;
+  document.getElementById('archive-member-pick').checked = false;
   document.getElementById('dual-winner-fields').style.display = 'none';
   showMsg('archive-msg', isDual ? '✓ Archived with two co-winners! Reset for new month.' : '✓ Archived! Books & votes reset for new month.', 'ok');
   renderAdmin();
@@ -4508,7 +4517,7 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
   let oneStarCount=0, genreLoyalist=false, speedFinishCount=0, lastMinuteCount=0;
   const finishedBookIds = new Set(); // all book IDs currently marked finished in My Progress
   const dnfBookIds = new Set(); // track DNF book IDs from progress to avoid double-counting
-  const totalMonths  = archives.length;
+  const totalMonths  = archives.filter(a => !a.memberPick).length;
   const totalSurveys = allSurveys.length;
 
   // Track genres suggested by this member — split on / for accurate per-genre counts
@@ -4533,6 +4542,37 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
 
   archiveWinners.forEach(({ archive:a, winnerBooks, sortedBooks }) => {
     const nb = (a.books||[]).length;
+
+    // ── Member-pick months: book was chosen directly, no voting or nomination round.
+    // Skip all participation stats (vote, suggest, all-rounder streak) but still
+    // credit reading progress and DNF/DNS tracking.
+    if (a.memberPick) {
+      // Reading progress still counts
+      const myProgressMap = allProgress[myKey]||{};
+      winnerBooks.forEach(b => {
+        if (myProgressMap[b.id] === 'finished') finishedBookIds.add(String(b.id));
+        if (a.archivedAt) {
+          const archiveDate = new Date(a.archivedAt);
+          const followMonthStart = new Date(archiveDate.getFullYear(), archiveDate.getMonth()+1, 1);
+          const followMonthEnd   = new Date(archiveDate.getFullYear(), archiveDate.getMonth()+2, 1) - 1;
+          const day10End         = new Date(followMonthStart.getTime() + 10*24*60*60*1000 - 1);
+          const last24Start      = followMonthEnd - 24*60*60*1000;
+          const status = myProgressMap[b.id];
+          const finishTs = myProgressMap[b.id + '_ts'];
+          if (status==='finished' && finishTs && finishTs >= BADGE_CUTOFF) {
+            const ft = finishTs;
+            if (ft >= followMonthStart.getTime() && ft <= day10End)  speedFinishCount++;
+            if (ft >= last24Start                && ft <= followMonthEnd) lastMinuteCount++;
+          }
+          if (status==='dnf') { dnfCount++; dnfBookIds.add(String(b.id)); }
+          if (status==='chose-not-to-read') { dnsCount++; }
+        }
+      });
+      const finishedWinner = winnerBooks.some(b=>(allProgress[myKey]||{})[b.id]==='finished');
+      monthReadFinished.push(finishedWinner);
+      // Do NOT push to monthVoted or monthAllRounder — month is invisible to those streaks
+      return;
+    }
 
     // ── Did I vote? ──
     const myVoteEntry = Object.values(a.votes||{}).find(vd=>resolveId(vd.discord,vd.email,idMap)===myName);
@@ -4720,6 +4760,7 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
   let brokenClock = false;
   let consecutiveMisses = 0;
   archiveWinners.forEach(({ archive:a, winnerBooks }) => {
+    if (a.memberPick) return; // no vote round, skip
     const myVote = Object.values(a.votes||{}).find(vd=>resolveId(vd.discord,vd.email,idMap)===myName);
     if (!myVote) return;
     const myR = myVote.ranking||myVote;
