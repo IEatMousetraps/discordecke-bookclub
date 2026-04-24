@@ -15,7 +15,7 @@
 body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);min-height:100vh;}
 body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");opacity:.4;}
-header{text-align:center;padding:2rem 1rem 1.75rem;border-bottom:3px solid var(--gold);background:var(--black);position:relative;z-index:1;}
+header{text-align:center;padding:2rem 1rem 1.75rem;border-bottom:3px solid var(--gold);background:var(--black);position:relative;z-index:1000;}
 header .eyebrow{font-size:.7rem;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:.5rem;opacity:.85;}
 header .logo-wrap{display:flex;justify-content:center;align-items:center;gap:1.25rem;flex-wrap:wrap;}
 header .logo-img{width:90px;height:90px;object-fit:contain;filter:drop-shadow(0 2px 8px rgba(0,0,0,.4));}
@@ -4431,7 +4431,7 @@ function applyMaintenanceMode() {
     if (!overlay) {
       const el = document.createElement('div');
       el.id = 'maintenance-overlay';
-      el.style.cssText = 'position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--paper);z-index:900;padding:2rem;text-align:center;';
+      el.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--paper);z-index:999;padding:2rem;text-align:center;';
       const msg = (s.maintenanceMessage || '').trim() || 'The site is temporarily down for maintenance. Check back soon!';
       el.innerHTML = `
         <div style="font-size:2.5rem;margin-bottom:1rem;">🔧</div>
