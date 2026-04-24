@@ -997,8 +997,9 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
           <input type="text" id="badge-feed-filter" placeholder="Filter by member name…" oninput="filterBadgeFeed()" style="max-width:240px;font-size:.85rem;padding:.35rem .7rem;">
           <select id="badge-feed-source-filter" onchange="filterBadgeFeed()" style="font-size:.85rem;padding:.35rem .6rem;">
             <option value="">All types</option>
+            <option value="earned">Earned</option>
+            <option value="auto">Book badge</option>
             <option value="admin">Admin granted</option>
-            <option value="auto">Auto awarded</option>
           </select>
           <span id="badge-feed-count" style="font-size:.78rem;color:var(--soft);margin-left:auto;"></span>
         </div>
@@ -5617,68 +5618,141 @@ let _badgeFeedEvents = [];
 function renderAdminBadgeFeed() {
   const area = document.getElementById('admin-badge-feed-area');
   if (!area) return;
+  area.innerHTML = '<p style="font-size:.85rem;color:var(--soft);">Computing badge history…</p>';
 
-  const cfg       = getBadgeConfig();
-  const allBadges = getAllBadges({ includeHidden: true, includeDisabled: true });
-  const idMap     = buildIdentityMap();
-  const progress  = getReadingProgress();
-  const mbbList   = (cfg.monthlyBookBadges || []);
+  // Defer so the loading message renders first
+  setTimeout(() => {
+    const events = _buildBadgeFeedEvents();
+    events.sort((a, b) => b.at - a.at);
+    _badgeFeedEvents = events;
+    const countEl = document.getElementById('badge-feed-count');
+    if (!events.length) {
+      area.innerHTML = '<p style="font-size:.85rem;color:var(--soft);">No badge events found yet.</p>';
+      if (countEl) countEl.textContent = '';
+      return;
+    }
+    filterBadgeFeed();
+  }, 30);
+}
+window.renderAdminBadgeFeed = renderAdminBadgeFeed;
 
+function _buildBadgeFeedEvents() {
   const events = [];
+  const cfg        = getBadgeConfig();
+  const allBadges  = getAllBadges({ includeHidden: true, includeDisabled: true });
+  const idMap      = buildIdentityMap();
+  const progress   = getReadingProgress();
+  const archives   = getArchives(); // chronological
+  const allReviews = getReviews();
+  const allSurveys = getSurveys();
+  const allSurveyResps = getSurveyResponses();
+  const mbbList    = (cfg.monthlyBookBadges || []);
+  const overrides  = cfg.overrides || {};
+
+  // Only organic (non-adminOnly, non-custom) badges can be derived from archive replay
+  const organicBadges = allBadges.filter(b => !b.adminOnly && !b.custom && !b.monthlyBook);
 
   // ── 1. Admin-granted badges with timestamps ──────────────────────────────
-  const overrides = cfg.overrides || {};
   Object.entries(overrides).forEach(([memberKey, memberOvs]) => {
     Object.entries(memberOvs).forEach(([badgeId, val]) => {
       if (val && typeof val === 'object' && val.granted === true && val.at) {
         const badge = allBadges.find(b => b.id === badgeId);
         const memberName = (idMap.get(memberKey) || {}).displayName || memberKey;
         events.push({
-          at:      val.at,
-          member:  memberName,
-          badge:   badge ? badge.name : badgeId,
-          emoji:   badge ? (badge.iconDataUrl ? null : badge.emoji) : '🏅',
+          at: val.at, member: memberName,
+          badge: badge ? badge.name : badgeId,
+          emoji: badge ? (badge.iconDataUrl ? null : badge.emoji) : '🏅',
           iconUrl: badge ? badge.iconDataUrl : null,
-          source:  'admin'
+          source: 'admin'
         });
       }
     });
   });
 
-  // ── 2. Monthly book badges auto-awarded via finish timestamp ─────────────
+  // ── 2. Monthly book badges via finish timestamp ──────────────────────────
   Object.entries(progress).forEach(([memberKey, memberData]) => {
     const memberName = (idMap.get(memberKey) || {}).displayName || memberKey;
     mbbList.forEach(mbb => {
       if (!mbb.bookId) return;
-      const tsKey = mbb.bookId + '_ts';
-      const finishTs = memberData[tsKey];
-      if (!finishTs) return;
-      if (memberData[mbb.bookId] !== 'finished') return;
+      const finishTs = memberData[mbb.bookId + '_ts'];
+      if (!finishTs || memberData[mbb.bookId] !== 'finished') return;
       events.push({
-        at:      finishTs,
-        member:  memberName,
-        badge:   mbb.name,
-        emoji:   mbb.iconDataUrl ? null : (mbb.emoji || '📖'),
+        at: finishTs, member: memberName,
+        badge: mbb.name,
+        emoji: mbb.iconDataUrl ? null : (mbb.emoji || '📖'),
         iconUrl: mbb.iconDataUrl || null,
-        source:  'auto'
+        source: 'auto'
       });
     });
   });
 
-  // Sort most recent first, cache for filtering
-  events.sort((a, b) => b.at - a.at);
-  _badgeFeedEvents = events;
+  // ── 3. Organic badges — derive from archive replay ───────────────────────
+  // Build set of all member keys seen across all data
+  const memberKeys = new Set();
+  archives.forEach(a => {
+    Object.values(a.votes||{}).forEach(vd => {
+      const k = normEmail(vd.email)||normId(vd.discord); if (k) memberKeys.add(k);
+    });
+    (a.books||[]).map(normBook).forEach(b => b.suggesters.forEach(s => {
+      const k = normEmail(s.email)||normId(s.discord); if (k) memberKeys.add(k);
+    }));
+  });
+  Object.entries(allReviews).forEach(([, entries]) => (entries||[]).forEach(r => {
+    const k = normEmail(r.email)||normId(r.discord); if (k) memberKeys.add(k);
+  }));
 
-  if (!events.length) {
-    area.innerHTML = '<p style="font-size:.85rem;color:var(--soft);">No timestamped badge events yet. Admin-granted badges will appear here going forward; monthly book badges appear when members mark books finished.</p>';
-    const countEl = document.getElementById('badge-feed-count');
-    if (countEl) countEl.textContent = '';
-    return;
-  }
+  // For each member, replay archives in order and detect first badge cross
+  memberKeys.forEach(memberKey => {
+    const entry = idMap.get(memberKey);
+    const memberName = (entry || {}).displayName || memberKey;
+    const discord = (entry || {}).displayName || '';
+    const email   = (entry || {}).email || '';
 
-  filterBadgeFeed();
+    // Track which organic badges have already been logged for this member
+    const logged = new Set();
+
+    // Replay: after each archive, compute full profile up to that point and check badges
+    for (let i = 0; i < archives.length; i++) {
+      const archivesUpTo = archives.slice(0, i + 1);
+      const at = archives[i].archivedAt || 0;
+      if (!at) continue;
+
+      // Build a minimal profile snapshot for this slice
+      // We call computeMemberProfile but pass a fake pre-built idMap to avoid rebuilding each time
+      const profile = computeMemberProfile(discord, email, { idMap, archiveWinners: null });
+      // computeMemberProfile uses all archives from CACHE — we can't slice it easily.
+      // Instead, compute profile using only archives up to i by temporarily swapping CACHE.archives
+      const _savedArchives = CACHE.archives;
+      CACHE.archives = archivesUpTo;
+      const p = computeMemberProfile(discord, email, { idMap });
+      CACHE.archives = _savedArchives;
+
+      organicBadges.forEach(badge => {
+        if (logged.has(badge.id)) return;
+        // Check override: if explicitly revoked, skip
+        const ov = overrides[memberKey]?.[badge.id];
+        if (ov === false) return;
+        try {
+          if (badge.check(p)) {
+            logged.add(badge.id);
+            events.push({
+              at, member: memberName,
+              badge: badge.name,
+              emoji: badge.iconDataUrl ? null : badge.emoji,
+              iconUrl: badge.iconDataUrl || null,
+              source: 'earned'
+            });
+          }
+        } catch(e) { /* skip badges whose check throws on partial data */ }
+      });
+
+      // Early exit if all organic badges logged for this member
+      if (logged.size >= organicBadges.length) break;
+    }
+  });
+
+  return events;
 }
-window.renderAdminBadgeFeed = renderAdminBadgeFeed;
 
 function filterBadgeFeed() {
   const area      = document.getElementById('admin-badge-feed-area');
@@ -5713,7 +5787,9 @@ function filterBadgeFeed() {
       : `<span style="font-size:1.1rem;line-height:1;flex-shrink:0;">${e.emoji}</span>`;
     const sourceTag = e.source === 'admin'
       ? `<span style="font-size:.68rem;background:#fff3cd;border:1px solid #ffc107;color:#856404;padding:.1rem .4rem;border-radius:10px;white-space:nowrap;">admin granted</span>`
-      : `<span style="font-size:.68rem;background:#e8f5e9;border:1px solid #a5d6a7;color:#2d7a3a;padding:.1rem .4rem;border-radius:10px;white-space:nowrap;">auto awarded</span>`;
+      : e.source === 'auto'
+      ? `<span style="font-size:.68rem;background:#e8f5e9;border:1px solid #a5d6a7;color:#2d7a3a;padding:.1rem .4rem;border-radius:10px;white-space:nowrap;">book badge</span>`
+      : `<span style="font-size:.68rem;background:#e8eaf6;border:1px solid #9fa8da;color:#283593;padding:.1rem .4rem;border-radius:10px;white-space:nowrap;">earned</span>`;
     return `<div style="display:flex;align-items:center;gap:.65rem;padding:.6rem .75rem;border-bottom:1px solid var(--border);">
       ${icon}
       <div style="flex:1;min-width:0;">
