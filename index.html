@@ -2692,6 +2692,8 @@ function renderAnalysisVoting() {
 // ── Rank Distributions sub-tab ───────────────────────────────────────────────
 // Track active month filter for rank dist ('all' or an archive label)
 let _rankDistMonth = 'all';
+// Track sort mode: 'avgRank' or 'firstVotes'
+let _rankDistSort = 'avgRank';
 
 function renderAnalysisRankDist() {
   const archives = getArchives();
@@ -2735,10 +2737,23 @@ function renderAnalysisRankDist() {
     ? entries
     : entries.filter(e => e.month === _rankDistMonth);
 
-  const sorted = [...filtered].sort((a,b)=>a.avgRank-b.avgRank);
+  const getFirstVotes = d => d.rankCounts[1] || 0;
+  const sorted = _rankDistSort === 'firstVotes'
+    ? [...filtered].sort((a,b) => getFirstVotes(b) - getFirstVotes(a))
+    : [...filtered].sort((a,b) => a.avgRank - b.avgRank);
+
+  const sortDesc = _rankDistSort === 'firstVotes'
+    ? `Books are sorted by <strong>#1 votes received</strong> — the book most members put at the top of their ballot appears first.`
+    : `Books are sorted by <strong>average rank position</strong> — a book most members placed #1 or #2 appears at the top.`;
+
+  const sortToggleHtml = `<div style="display:flex;gap:.5rem;margin-bottom:1rem;align-items:center;">
+    <span style="font-size:.78rem;color:var(--soft);">Sort by:</span>
+    <button class="month-tab ${_rankDistSort==='avgRank'?'active':''}" onclick="setRankDistSort('avgRank')">Avg Rank</button>
+    <button class="month-tab ${_rankDistSort==='firstVotes'?'active':''}" onclick="setRankDistSort('firstVotes')">#1 Votes</button>
+  </div>`;
 
   const desc = `<p style="font-size:.82rem;color:var(--soft);margin-bottom:1.25rem;">
-    Books are sorted by <strong>average rank position</strong> — a book most members placed #1 or #2 appears at the top.
+    ${sortDesc}
     Each bar chart shows what percentage of voters placed that book at each rank position, from #1 (green) to last place (red).
     The <em>avg rank</em> figure is the mean position given to that book across all votes cast on it.<br><br>
     Use the toggles below to view a single month in isolation or the full year at once.
@@ -2793,13 +2808,13 @@ function renderAnalysisRankDist() {
       </div>`;
 
     const booksHtml = pageItems.map((d, i) => buildEntryCard(d, page * PAGE_SIZE + i)).join('');
-    area.innerHTML = desc + togglesHtml + pagination + booksHtml + pagination;
+    area.innerHTML = desc + sortToggleHtml + togglesHtml + pagination + booksHtml + pagination;
   } else {
     window._rankDistPage = 0;
     const booksHtml = sorted.length
       ? sorted.map((d, i) => buildEntryCard(d, i)).join('')
       : '<p style="color:var(--soft);font-size:.875rem;">No data for this month yet.</p>';
-    area.innerHTML = desc + togglesHtml + booksHtml;
+    area.innerHTML = desc + sortToggleHtml + togglesHtml + booksHtml;
   }
 }
 
@@ -2809,6 +2824,13 @@ function setRankDistMonth(month) {
   renderAnalysisRankDist();
 }
 window.setRankDistMonth = setRankDistMonth;
+
+function setRankDistSort(sort) {
+  _rankDistSort = sort;
+  window._rankDistPage = 0;
+  renderAnalysisRankDist();
+}
+window.setRankDistSort = setRankDistSort;
 
 function rankDistGoPage(page) {
   window._rankDistPage = page;
