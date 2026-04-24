@@ -1736,6 +1736,7 @@ function buildSortable(books) {
         <div class="book-title">${esc(b.title)}</div>
         <div class="book-sub">${esc(b.author)}</div>
         ${genrePillsHtml(b.genre)}
+        ${b.pageCount ? `<div class="book-sub" style="margin-top:.25rem;">📄 ${b.pageCount} pages <span style="color:var(--soft);font-size:.78em;">(${b.pagesFormat})</span>${b.pageCountAlt ? ` · ${b.pageCountAlt} pages (${b.pagesFormatAlt})` : ''}</div>` : ''}
         ${blurbs}
       </div>
       <div class="move-btns">
