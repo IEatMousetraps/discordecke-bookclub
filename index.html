@@ -896,6 +896,12 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
     </div>
 
     <div id="admin-sub-badges-admin" style="display:none;">
+      <div class="sub-tabs" style="margin-bottom:1.25rem;">
+        <button class="sub-tab active" id="badge-sub-btn-manager" onclick="goAdminBadgeTab('manager',this)">Manager</button>
+        <button class="sub-tab" id="badge-sub-btn-feed" onclick="goAdminBadgeTab('feed',this)">Activity Feed</button>
+      </div>
+
+      <div id="badge-sub-manager">
       <!-- Member Badge Overview -->
       <div class="card">
         <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Member Badge Overview</h3>
@@ -980,12 +986,25 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
         <div id="admin-mbb-list"></div>
       </div>
 
+      </div><!-- /badge-sub-manager -->
+
+      <div id="badge-sub-feed" style="display:none;">
       <!-- Badge Activity Feed -->
       <div class="card">
         <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.25rem;">Badge Activity Feed</h3>
-        <p style="font-size:.85rem;color:var(--soft);margin-bottom:.75rem;">A running log of badges earned, most recent first. Includes admin-granted badges (timestamped from when they were granted) and monthly book badges (timestamped from when the member marked the book finished).</p>
+        <p style="font-size:.85rem;color:var(--soft);margin-bottom:.75rem;">A running log of every badge earned, most recent first. Admin-granted badges are logged from the moment they were granted. Monthly book badges are logged from when the member marked the book finished. This log goes back as far as data exists.</p>
+        <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;">
+          <input type="text" id="badge-feed-filter" placeholder="Filter by member name…" oninput="filterBadgeFeed()" style="max-width:240px;font-size:.85rem;padding:.35rem .7rem;">
+          <select id="badge-feed-source-filter" onchange="filterBadgeFeed()" style="font-size:.85rem;padding:.35rem .6rem;">
+            <option value="">All types</option>
+            <option value="admin">Admin granted</option>
+            <option value="auto">Auto awarded</option>
+          </select>
+          <span id="badge-feed-count" style="font-size:.78rem;color:var(--soft);margin-left:auto;"></span>
+        </div>
         <div id="admin-badge-feed-area"></div>
       </div>
+      </div><!-- /badge-sub-feed -->
     </div>
 
     <div id="admin-sub-edit-books" style="display:none;">
@@ -2812,12 +2831,6 @@ function renderAnalysisPageCount() {
   }).filter(Boolean);
   const maxMonthAvg = Math.max(...monthAvgs.map(m=>m.avg), 1);
 
-  // ── Chart 4: Format breakdown ──
-  const formatCounts = {};
-  allBooks.forEach(b => { const f = b.pagesFormat||'unknown'; formatCounts[f]=(formatCounts[f]||0)+1; });
-  const formatRows = Object.entries(formatCounts).sort((a,b)=>b[1]-a[1]);
-  const maxFormat = Math.max(...formatRows.map(r=>r[1]), 1);
-
   area.innerHTML = `
   <div class="chart-wrap">
     <h3>Book Length Distribution</h3>
@@ -2860,17 +2873,6 @@ function renderAnalysisPageCount() {
     </div>
   </div>` : ''}
 
-  ${formatRows.length > 1 ? `<div class="chart-wrap">
-    <h3>Format Breakdown</h3>
-    <p style="font-size:.78rem;color:var(--soft);margin-bottom:1rem;">Which edition members used when reporting page counts.</p>
-    <div class="bar-chart">
-      ${formatRows.map(([f,c]) => `<div class="bar-row">
-        <div style="font-size:.78rem;white-space:nowrap;text-transform:capitalize;">${esc(f)}</div>
-        <div class="bar-track"><div class="bar-val" style="width:${Math.max(3,c/maxFormat*100)}%"></div></div>
-        <div class="bar-lbl">${c} book${c!==1?'s':''}</div>
-      </div>`).join('')}
-    </div>
-  </div>` : ''}
   `;
 }
 
@@ -5609,15 +5611,18 @@ function renderBadgesTab() {
 // ADMIN BADGE MANAGER
 // ════════════════════════════════════════════════════════
 // ── Badge Activity Feed ───────────────────────────────────────────────────────
+// Badge feed events cache for filtering
+let _badgeFeedEvents = [];
+
 function renderAdminBadgeFeed() {
   const area = document.getElementById('admin-badge-feed-area');
   if (!area) return;
 
-  const cfg        = getBadgeConfig();
-  const allBadges  = getAllBadges({ includeHidden: true, includeDisabled: true });
-  const idMap      = buildIdentityMap();
-  const progress   = getReadingProgress();
-  const mbbList    = (cfg.monthlyBookBadges || []);
+  const cfg       = getBadgeConfig();
+  const allBadges = getAllBadges({ includeHidden: true, includeDisabled: true });
+  const idMap     = buildIdentityMap();
+  const progress  = getReadingProgress();
+  const mbbList   = (cfg.monthlyBookBadges || []);
 
   const events = [];
 
@@ -5625,10 +5630,9 @@ function renderAdminBadgeFeed() {
   const overrides = cfg.overrides || {};
   Object.entries(overrides).forEach(([memberKey, memberOvs]) => {
     Object.entries(memberOvs).forEach(([badgeId, val]) => {
-      // Only include explicit grants that have a timestamp
       if (val && typeof val === 'object' && val.granted === true && val.at) {
         const badge = allBadges.find(b => b.id === badgeId);
-        const memberName = idMap.get(memberKey) || memberKey;
+        const memberName = (idMap.get(memberKey) || {}).displayName || memberKey;
         events.push({
           at:      val.at,
           member:  memberName,
@@ -5643,13 +5647,12 @@ function renderAdminBadgeFeed() {
 
   // ── 2. Monthly book badges auto-awarded via finish timestamp ─────────────
   Object.entries(progress).forEach(([memberKey, memberData]) => {
-    const memberName = idMap.get(memberKey) || memberKey;
+    const memberName = (idMap.get(memberKey) || {}).displayName || memberKey;
     mbbList.forEach(mbb => {
       if (!mbb.bookId) return;
       const tsKey = mbb.bookId + '_ts';
       const finishTs = memberData[tsKey];
       if (!finishTs) return;
-      // Verify the member actually has the status 'finished' for this book
       if (memberData[mbb.bookId] !== 'finished') return;
       events.push({
         at:      finishTs,
@@ -5662,13 +5665,28 @@ function renderAdminBadgeFeed() {
     });
   });
 
+  // Sort most recent first, cache for filtering
+  events.sort((a, b) => b.at - a.at);
+  _badgeFeedEvents = events;
+
   if (!events.length) {
-    area.innerHTML = '<p style="font-size:.85rem;color:var(--soft);">No timestamped badge events yet. Admin-granted badges will appear here going forward; monthly book badges appear here when members mark books finished.</p>';
+    area.innerHTML = '<p style="font-size:.85rem;color:var(--soft);">No timestamped badge events yet. Admin-granted badges will appear here going forward; monthly book badges appear when members mark books finished.</p>';
+    const countEl = document.getElementById('badge-feed-count');
+    if (countEl) countEl.textContent = '';
     return;
   }
 
-  // Sort most recent first
-  events.sort((a, b) => b.at - a.at);
+  filterBadgeFeed();
+}
+window.renderAdminBadgeFeed = renderAdminBadgeFeed;
+
+function filterBadgeFeed() {
+  const area      = document.getElementById('admin-badge-feed-area');
+  const countEl   = document.getElementById('badge-feed-count');
+  if (!area) return;
+
+  const query     = (document.getElementById('badge-feed-filter')?.value || '').trim().toLowerCase();
+  const srcFilter = (document.getElementById('badge-feed-source-filter')?.value || '');
 
   const fmt = ts => {
     const d = new Date(ts);
@@ -5676,7 +5694,20 @@ function renderAdminBadgeFeed() {
            ' at ' + d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
   };
 
-  area.innerHTML = events.map(e => {
+  const filtered = _badgeFeedEvents.filter(e => {
+    if (srcFilter && e.source !== srcFilter) return false;
+    if (query && !e.member.toLowerCase().includes(query) && !e.badge.toLowerCase().includes(query)) return false;
+    return true;
+  });
+
+  if (countEl) countEl.textContent = filtered.length + ' of ' + _badgeFeedEvents.length + ' event' + (_badgeFeedEvents.length !== 1 ? 's' : '');
+
+  if (!filtered.length) {
+    area.innerHTML = '<p style="font-size:.85rem;color:var(--soft);">No events match your filter.</p>';
+    return;
+  }
+
+  area.innerHTML = filtered.map(e => {
     const icon = e.iconUrl
       ? `<img src="${e.iconUrl}" style="width:22px;height:22px;object-fit:contain;border-radius:4px;flex-shrink:0;">`
       : `<span style="font-size:1.1rem;line-height:1;flex-shrink:0;">${e.emoji}</span>`;
@@ -5693,16 +5724,27 @@ function renderAdminBadgeFeed() {
     </div>`;
   }).join('');
 }
-window.renderAdminBadgeFeed = renderAdminBadgeFeed;
+window.filterBadgeFeed = filterBadgeFeed;
 
+function goAdminBadgeTab(id, btn) {
+  ['manager','feed'].forEach(s => {
+    const el = document.getElementById('badge-sub-' + s);
+    if (el) el.style.display = s === id ? '' : 'none';
+  });
+  document.querySelectorAll('#admin-sub-badges-admin .sub-tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  if (id === 'feed') renderAdminBadgeFeed();
+}
+window.goAdminBadgeTab = goAdminBadgeTab;
 
 function renderAdminBadgeManager() {
+  // Default to manager sub-tab
+  goAdminBadgeTab('manager', document.getElementById('badge-sub-btn-manager'));
   renderAdminBadgeMembers();
   renderAdminBadgeControls();
   renderAdminCustomBadgesList();
   renderAdminMbbList();
   populateMbbBookDropdown();
-  renderAdminBadgeFeed();
 }
 window.renderAdminBadgeManager = renderAdminBadgeManager;
 
