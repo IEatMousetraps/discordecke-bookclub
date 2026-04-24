@@ -5754,10 +5754,15 @@ function _buildBadgeFeedEvents() {
   return events;
 }
 
-function filterBadgeFeed() {
-  const area      = document.getElementById('admin-badge-feed-area');
-  const countEl   = document.getElementById('badge-feed-count');
+let _badgeFeedPage = 0;
+const _BADGE_FEED_PAGE_SIZE = 50;
+
+function filterBadgeFeed(resetPage = true) {
+  const area    = document.getElementById('admin-badge-feed-area');
+  const countEl = document.getElementById('badge-feed-count');
   if (!area) return;
+
+  if (resetPage) _badgeFeedPage = 0;
 
   const query     = (document.getElementById('badge-feed-filter')?.value || '').trim().toLowerCase();
   const srcFilter = (document.getElementById('badge-feed-source-filter')?.value || '');
@@ -5774,14 +5779,26 @@ function filterBadgeFeed() {
     return true;
   });
 
-  if (countEl) countEl.textContent = filtered.length + ' of ' + _badgeFeedEvents.length + ' event' + (_badgeFeedEvents.length !== 1 ? 's' : '');
+  const totalPages = Math.max(1, Math.ceil(filtered.length / _BADGE_FEED_PAGE_SIZE));
+  _badgeFeedPage = Math.min(_badgeFeedPage, totalPages - 1);
+  const pageStart = _badgeFeedPage * _BADGE_FEED_PAGE_SIZE;
+  const pageEnd   = pageStart + _BADGE_FEED_PAGE_SIZE;
+  const pageItems = filtered.slice(pageStart, pageEnd);
+
+  if (countEl) {
+    const from = filtered.length ? pageStart + 1 : 0;
+    const to   = Math.min(pageEnd, filtered.length);
+    countEl.textContent = filtered.length
+      ? `${from}–${to} of ${filtered.length} event${filtered.length !== 1 ? 's' : ''}`
+      : '0 events';
+  }
 
   if (!filtered.length) {
     area.innerHTML = '<p style="font-size:.85rem;color:var(--soft);">No events match your filter.</p>';
     return;
   }
 
-  area.innerHTML = filtered.map(e => {
+  const rows = pageItems.map(e => {
     const icon = e.iconUrl
       ? `<img src="${e.iconUrl}" style="width:22px;height:22px;object-fit:contain;border-radius:4px;flex-shrink:0;">`
       : `<span style="font-size:1.1rem;line-height:1;flex-shrink:0;">${e.emoji}</span>`;
@@ -5799,8 +5816,28 @@ function filterBadgeFeed() {
       ${sourceTag}
     </div>`;
   }).join('');
+
+  const prevDisabled = _badgeFeedPage === 0 ? 'disabled' : '';
+  const nextDisabled = _badgeFeedPage >= totalPages - 1 ? 'disabled' : '';
+  const pagination = totalPages > 1 ? `
+    <div style="display:flex;align-items:center;justify-content:center;gap:.75rem;padding:.75rem 0;border-top:1px solid var(--border);margin-top:.25rem;">
+      <button class="btn btn-secondary btn-sm" onclick="badgeFeedGoPage(0)" ${prevDisabled}>« First</button>
+      <button class="btn btn-secondary btn-sm" onclick="badgeFeedGoPage(${_badgeFeedPage - 1})" ${prevDisabled}>‹ Prev</button>
+      <span style="font-size:.82rem;color:var(--soft);">Page ${_badgeFeedPage + 1} of ${totalPages}</span>
+      <button class="btn btn-secondary btn-sm" onclick="badgeFeedGoPage(${_badgeFeedPage + 1})" ${nextDisabled}>Next ›</button>
+      <button class="btn btn-secondary btn-sm" onclick="badgeFeedGoPage(${totalPages - 1})" ${nextDisabled}>Last »</button>
+    </div>` : '';
+
+  area.innerHTML = rows + pagination;
 }
 window.filterBadgeFeed = filterBadgeFeed;
+
+function badgeFeedGoPage(page) {
+  _badgeFeedPage = page;
+  filterBadgeFeed(false);
+  document.getElementById('admin-badge-feed-area')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+window.badgeFeedGoPage = badgeFeedGoPage;
 
 function goAdminBadgeTab(id, btn) {
   ['manager','feed'].forEach(s => {
