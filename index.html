@@ -853,6 +853,22 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
     </div>
 
 
+    <!-- Maintenance Mode -->
+    <div class="card" style="border-left:3px solid var(--gold);border-radius:0 6px 6px 0;">
+      <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.5rem;">🔧 Maintenance Mode</h3>
+      <p style="font-size:.85rem;color:var(--soft);margin-bottom:.75rem;">Hides the site from members. You can still browse the site normally while logged in. Members see a maintenance message instead.</p>
+      <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem;">
+        <span id="a-maintenance-pill" class="pill">Off</span>
+        <button class="btn btn-secondary btn-sm" onclick="toggleSetting('maintenanceMode')">Toggle</button>
+      </div>
+      <div class="f-group" style="margin-bottom:.5rem;">
+        <label>Message shown to members <span style="font-size:.7rem;color:var(--soft);text-transform:none;letter-spacing:0;">(optional — leave blank for default)</span></label>
+        <textarea id="maintenance-msg-input" rows="2" placeholder="e.g. We're back in 30 minutes — updating the badge system!"></textarea>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="saveMaintenanceMessage()">Save Message</button>
+      <div id="maintenance-msg-status" style="font-size:.8rem;margin-top:.4rem;color:var(--soft);"></div>
+    </div>
+
     <!-- Danger zone -->
     <div class="card" style="border-color:var(--accent);">
       <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--accent);margin-bottom:.75rem;">Danger Zone</h3>
@@ -1275,6 +1291,7 @@ function refreshActiveTab() {
   _refreshDebounce = setTimeout(_doRefreshActiveTab, 80);
 }
 function _doRefreshActiveTab() {
+  applyMaintenanceMode();
   const active = document.querySelector('.section.active');
   if (!active) return;
   const id = active.id.replace('tab-', '');
@@ -3500,8 +3517,10 @@ window.showMonthDetail = showMonthDetail;
 function adminLogin() {
   const pass = document.getElementById('admin-pass').value;
   if (pass === getSettings().password) {
+    window._adminAuthed = true;
     document.getElementById('admin-login-area').style.display = 'none';
     document.getElementById('admin-panel').style.display = 'block';
+    applyMaintenanceMode();
     renderAdmin();
   } else { showMsg('admin-login-msg', 'Incorrect password.', 'err'); }
 }
@@ -3543,6 +3562,15 @@ function renderAdmin() {
   setPill('a-voting-pill',     s.votingOpen,         'Open',    'Closed',  'pill-open', 'pill-closed');
   setPill('a-results-pill',    s.resultsVisible,     'Visible', 'Hidden',  'pill-open', 'pill-closed');
   setPill('a-review-pill',     s.reviewsOpen,        'Open',    'Closed',  'pill-open', 'pill-closed');
+  const _mp = document.getElementById('a-maintenance-pill');
+  if (_mp) {
+    _mp.textContent = s.maintenanceMode ? 'On' : 'Off';
+    _mp.style.background   = s.maintenanceMode ? '#fce4ec' : '#f5f5f5';
+    _mp.style.color        = s.maintenanceMode ? '#c0392b' : '#555';
+    _mp.style.border       = s.maintenanceMode ? '1px solid #ef9a9a' : '1px solid #ddd';
+  }
+  const _mmi = document.getElementById('maintenance-msg-input');
+  if (_mmi) _mmi.value = s.maintenanceMessage || '';
   const vnames = Object.keys(votes);
   document.getElementById('voter-count').textContent = `(${vnames.length})`;
   document.getElementById('voter-list').innerHTML = vnames.length ? vnames.map(n => {
@@ -4389,6 +4417,47 @@ function renderMemberCompare() {
     </div>`;
 }
 window.renderMemberCompare = renderMemberCompare;
+
+function applyMaintenanceMode() {
+  const s = getSettings();
+  const overlay = document.getElementById('maintenance-overlay');
+  const nav  = document.getElementById('app-nav');
+  const main = document.getElementById('app-main');
+
+  if (s.maintenanceMode && !window._adminAuthed) {
+    // Show overlay, hide site
+    if (nav)  nav.style.display  = 'none';
+    if (main) main.style.display = 'none';
+    if (!overlay) {
+      const el = document.createElement('div');
+      el.id = 'maintenance-overlay';
+      el.style.cssText = 'position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--paper);z-index:900;padding:2rem;text-align:center;';
+      const msg = (s.maintenanceMessage || '').trim() || 'The site is temporarily down for maintenance. Check back soon!';
+      el.innerHTML = `
+        <div style="font-size:2.5rem;margin-bottom:1rem;">🔧</div>
+        <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:400;margin-bottom:.75rem;">Down for Maintenance</h2>
+        <p style="font-size:.95rem;color:var(--soft);max-width:420px;line-height:1.6;">${esc(msg)}</p>`;
+      document.body.appendChild(el);
+    }
+  } else {
+    // Remove overlay, restore site
+    if (overlay) overlay.remove();
+    if (nav)  nav.style.display  = '';
+    if (main) main.style.display = '';
+  }
+}
+window.applyMaintenanceMode = applyMaintenanceMode;
+
+async function saveMaintenanceMessage() {
+  const val = (document.getElementById('maintenance-msg-input')?.value || '').trim();
+  const s = { ...getSettings(), maintenanceMessage: val };
+  showLoading('Saving…');
+  await fbSet(SETTINGS_REF, s);
+  hideLoading();
+  const status = document.getElementById('maintenance-msg-status');
+  if (status) { status.textContent = '✓ Message saved'; setTimeout(() => { status.textContent = ''; }, 2500); }
+}
+window.saveMaintenanceMessage = saveMaintenanceMessage;
 
 async function toggleSetting(key) {
   const s = getSettings(); s[key] = !s[key];
