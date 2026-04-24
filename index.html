@@ -906,18 +906,12 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 
     <div id="admin-sub-badges-admin" style="display:none;">
       <div class="sub-tabs" style="margin-bottom:1.25rem;">
-        <button class="sub-tab active" id="badge-sub-btn-manager" onclick="goAdminBadgeTab('manager',this)">Manager</button>
+        <button class="sub-tab active" id="badge-sub-btn-manage" onclick="goAdminBadgeTab('manage',this)">Manage</button>
+        <button class="sub-tab" id="badge-sub-btn-overview" onclick="goAdminBadgeTab('overview',this)">Overview</button>
         <button class="sub-tab" id="badge-sub-btn-feed" onclick="goAdminBadgeTab('feed',this)">Activity Feed</button>
       </div>
 
-      <div id="badge-sub-manager">
-      <!-- Member Badge Overview -->
-      <div class="card">
-        <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Member Badge Overview</h3>
-        <p style="font-size:.85rem;color:var(--soft);margin-bottom:.75rem;">View all members, their earned badges, and manually grant or revoke any badge.</p>
-        <div id="admin-badge-members-area"></div>
-      </div>
-
+      <div id="badge-sub-manage">
       <!-- Badge Enable/Disable/Hide Controls -->
       <div class="card">
         <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Badge Visibility &amp; Controls</h3>
@@ -947,7 +941,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
           <button class="btn btn-primary" onclick="saveCustomBadge()">Create Badge</button>
           <button class="btn btn-secondary" onclick="clearCustomBadgeForm()">Clear</button>
         </div>
-        <p style="font-size:.75rem;color:var(--soft);margin-top:.6rem;">All custom achievements are admin-granted only — use the Member Badge Overview to award them to specific members.</p>
+        <p style="font-size:.75rem;color:var(--soft);margin-top:.6rem;">All custom achievements are admin-granted only — use the Overview tab to award them to specific members.</p>
         <div id="cb-msg"></div>
       </div>
 
@@ -995,7 +989,16 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
         <div id="admin-mbb-list"></div>
       </div>
 
-      </div><!-- /badge-sub-manager -->
+      </div><!-- /badge-sub-manage -->
+
+      <div id="badge-sub-overview" style="display:none;">
+      <!-- Member Badge Overview -->
+      <div class="card">
+        <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Member Badge Overview</h3>
+        <p style="font-size:.85rem;color:var(--soft);margin-bottom:.75rem;">View all members, their earned badges, and manually grant or revoke any badge.</p>
+        <div id="admin-badge-members-area"></div>
+      </div>
+      </div><!-- /badge-sub-overview -->
 
       <div id="badge-sub-feed" style="display:none;">
       <!-- Badge Activity Feed -->
@@ -6134,24 +6137,20 @@ function badgeFeedGoPage(page) {
 window.badgeFeedGoPage = badgeFeedGoPage;
 
 function goAdminBadgeTab(id, btn) {
-  ['manager','feed'].forEach(s => {
+  ['manage','overview','feed'].forEach(s => {
     const el = document.getElementById('badge-sub-' + s);
     if (el) el.style.display = s === id ? '' : 'none';
   });
   document.querySelectorAll('#admin-sub-badges-admin .sub-tab').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
-  if (id === 'feed') renderAdminBadgeFeed();
+  if (id === 'feed')     renderAdminBadgeFeed();
+  if (id === 'overview') renderAdminBadgeMembers();
+  if (id === 'manage')   { renderAdminBadgeControls(); renderAdminCustomBadgesList(); renderAdminMbbList(); populateMbbBookDropdown(); }
 }
 window.goAdminBadgeTab = goAdminBadgeTab;
 
 function renderAdminBadgeManager() {
-  // Default to manager sub-tab
-  goAdminBadgeTab('manager', document.getElementById('badge-sub-btn-manager'));
-  renderAdminBadgeMembers();
-  renderAdminBadgeControls();
-  renderAdminCustomBadgesList();
-  renderAdminMbbList();
-  populateMbbBookDropdown();
+  goAdminBadgeTab('manage', document.getElementById('badge-sub-btn-manage'));
 }
 window.renderAdminBadgeManager = renderAdminBadgeManager;
 
