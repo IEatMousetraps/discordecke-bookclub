@@ -676,11 +676,13 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
     <button class="sub-tab" onclick="goSubTab('members',this)">Members</button>
     <button class="sub-tab" onclick="goSubTab('rank-dist',this)">Book Rank Distributions</button>
     <button class="sub-tab" onclick="goSubTab('genre-diversity',this)">Genre Diversity</button>
+    <button class="sub-tab" onclick="goSubTab('page-count',this)">Page Count</button>
   </div>
   <div id="sub-voting"><div id="analysis-voting-area"></div></div>
   <div id="sub-members" style="display:none;"><div id="analysis-members-area"></div></div>
   <div id="sub-rank-dist" style="display:none;"><div id="analysis-rankdist-area"></div></div>
   <div id="sub-genre-diversity" style="display:none;"><div id="analysis-genre-area"></div></div>
+  <div id="sub-page-count" style="display:none;"><div id="analysis-pagecount-area"></div></div>
 </div>
 
 <!-- ══════════════ ADMIN ══════════════ -->
@@ -725,6 +727,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       <button class="sub-tab" onclick="goAdminTab('badges-admin',this)">🏅 Badge Manager</button>
       <button class="sub-tab" onclick="goAdminTab('edit-books',this)">✏️ Edit Books</button>
       <button class="sub-tab" onclick="goAdminTab('quarterly-admin',this)">🎯 Quarterly</button>
+      <button class="sub-tab" onclick="goAdminTab('surveys-admin',this)">📋 Surveys</button>
     </div>
 
     <div id="admin-sub-manage">
@@ -849,31 +852,6 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       <div id="admin-book-list"></div>
     </div>
 
-    <!-- Survey builder -->
-    <div class="card">
-      <h3 id="survey-builder-heading" style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Survey Builder</h3>
-      <div id="survey-edit-banner" style="display:none;background:#fffbef;border-left:3px solid var(--gold);padding:.6rem 1rem;font-size:.82rem;color:var(--soft);margin-bottom:.75rem;border-radius:0 4px 4px 0;">Editing a published survey. Existing responses are preserved.</div>
-      <div class="f-group"><label>Survey Title</label><input type="text" id="survey-title" placeholder="e.g. Reading Preferences 2025"></div>
-      <div id="question-builder"></div>
-      <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.75rem;">
-        <button class="btn btn-secondary btn-sm" onclick="addQ('text')">+ Free Text</button>
-        <button class="btn btn-secondary btn-sm" onclick="addQ('mc')">+ Multiple Choice</button>
-        <button class="btn btn-secondary btn-sm" onclick="addQ('rating')">+ Rating Scale</button>
-        <button class="btn btn-secondary btn-sm" onclick="addQ('yesno')">+ Yes / No</button>
-      </div>
-      <div style="margin-top:1rem;display:flex;gap:.75rem;flex-wrap:wrap;">
-        <button id="survey-publish-btn" class="btn btn-primary" onclick="publishSurvey()">Publish Survey</button>
-        <button id="survey-cancel-edit-btn" class="btn btn-secondary" style="display:none;" onclick="cancelEditSurvey()">Cancel Edit</button>
-        <button id="survey-load-draft-btn" class="btn btn-secondary" onclick="loadDraftSurvey()">Load Draft</button>
-      </div>
-      <div id="survey-builder-msg"></div>
-    </div>
-
-    <!-- Surveys list -->
-    <div class="card">
-      <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Published Surveys</h3>
-      <div id="admin-surveys-list"></div>
-    </div>
 
     <!-- Danger zone -->
     <div class="card" style="border-color:var(--accent);">
@@ -1001,6 +979,13 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
         <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Monthly Book Badges</h3>
         <div id="admin-mbb-list"></div>
       </div>
+
+      <!-- Badge Activity Feed -->
+      <div class="card">
+        <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.25rem;">Badge Activity Feed</h3>
+        <p style="font-size:.85rem;color:var(--soft);margin-bottom:.75rem;">A running log of badges earned, most recent first. Includes admin-granted badges (timestamped from when they were granted) and monthly book badges (timestamped from when the member marked the book finished).</p>
+        <div id="admin-badge-feed-area"></div>
+      </div>
     </div>
 
     <div id="admin-sub-edit-books" style="display:none;">
@@ -1030,6 +1015,35 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
     <div id="admin-sub-quarterly-admin" style="display:none;">
       <div id="quarterly-admin-area"></div>
     </div>
+
+    <div id="admin-sub-surveys-admin" style="display:none;">
+    <!-- Survey builder -->
+    <div class="card">
+      <h3 id="survey-builder-heading" style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Survey Builder</h3>
+      <div id="survey-edit-banner" style="display:none;background:#fffbef;border-left:3px solid var(--gold);padding:.6rem 1rem;font-size:.82rem;color:var(--soft);margin-bottom:.75rem;border-radius:0 4px 4px 0;">Editing a published survey. Existing responses are preserved.</div>
+      <div class="f-group"><label>Survey Title</label><input type="text" id="survey-title" placeholder="e.g. Reading Preferences 2025"></div>
+      <div id="question-builder"></div>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.75rem;">
+        <button class="btn btn-secondary btn-sm" onclick="addQ('text')">+ Free Text</button>
+        <button class="btn btn-secondary btn-sm" onclick="addQ('mc')">+ Multiple Choice</button>
+        <button class="btn btn-secondary btn-sm" onclick="addQ('rating')">+ Rating Scale</button>
+        <button class="btn btn-secondary btn-sm" onclick="addQ('yesno')">+ Yes / No</button>
+      </div>
+      <div style="margin-top:1rem;display:flex;gap:.75rem;flex-wrap:wrap;">
+        <button id="survey-publish-btn" class="btn btn-primary" onclick="publishSurvey()">Publish Survey</button>
+        <button id="survey-cancel-edit-btn" class="btn btn-secondary" style="display:none;" onclick="cancelEditSurvey()">Cancel Edit</button>
+        <button id="survey-load-draft-btn" class="btn btn-secondary" onclick="loadDraftSurvey()">Load Draft</button>
+      </div>
+      <div id="survey-builder-msg"></div>
+    </div>
+
+    <!-- Surveys list -->
+    <div class="card">
+      <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Published Surveys</h3>
+      <div id="admin-surveys-list"></div>
+    </div>
+
+    </div><!-- /admin-sub-surveys-admin -->
 
   </div><!-- /admin-panel -->
 </div><!-- /tab-admin -->
@@ -2285,7 +2299,9 @@ function editSurvey(i) {
   questions = survey.questions.map(q => ({...q, options: [...(q.options||[])]}));
   renderBuilder();
   _setSurveyBuilderMode(true);
-  // Scroll the builder into view
+  // Switch to surveys tab and scroll builder into view
+  const surveyBtn = [...document.querySelectorAll('#admin-panel .sub-tab')].find(b => b.textContent.includes('Surveys'));
+  goAdminTab('surveys-admin', surveyBtn || null);
   const builderEl = document.getElementById('survey-builder-heading');
   if (builderEl) builderEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
   showMsg('survey-builder-msg', `Editing: "${esc(survey.title)}"`, 'ok');
@@ -2354,7 +2370,7 @@ async function publishSurvey() {
     document.getElementById('question-builder').innerHTML = '';
     showMsg('survey-builder-msg', '✓ Survey published!', 'ok');
   }
-  renderAdmin();
+  renderAdmin(); renderAdminSurveys();
 }
 window.publishSurvey = publishSurvey;
 
@@ -2553,7 +2569,7 @@ window.submitReview = submitReview;
 // ANALYSIS — sub-tab controller
 // ════════════════════════════════════════════════════════
 function goSubTab(id, btn) {
-  ['voting','members','rank-dist','genre-diversity'].forEach(s => {
+  ['voting','members','rank-dist','genre-diversity','page-count'].forEach(s => {
     document.getElementById('sub-'+s).style.display = s === id ? '' : 'none';
   });
   document.querySelectorAll('.sub-tab').forEach(b => b.classList.remove('active'));
@@ -2563,6 +2579,7 @@ function goSubTab(id, btn) {
   else if (id === 'members')         renderAnalysisMembers(_sharedIdMap);
   else if (id === 'rank-dist')       renderAnalysisRankDist();
   else if (id === 'genre-diversity') renderGenreDiversity();
+  else if (id === 'page-count')       renderAnalysisPageCount();
 }
 window.goSubTab = goSubTab;
 
@@ -2727,6 +2744,136 @@ function setRankDistMonth(month) {
   renderAnalysisRankDist();
 }
 window.setRankDistMonth = setRankDistMonth;
+
+// ── Page Count sub-tab ───────────────────────────────────────────────────────
+function renderAnalysisPageCount() {
+  const archives = getArchives();
+  const area = document.getElementById('analysis-pagecount-area');
+  if (!archives.length) { area.innerHTML = '<div class="empty"><div class="icon">📄</div><p>No archived months yet.</p></div>'; return; }
+
+  // Collect all books with page count data
+  const allBooks = [];
+  archives.forEach(a => {
+    const winnerIds = a.dualWinners ? a.dualWinners.map(String) : (a.winner ? [String(a.winner)] : []);
+    // Determine winner: highest Borda score if no explicit winner flagged
+    let computedWinners = winnerIds;
+    if (!computedWinners.length && a.books && a.votes) {
+      const scores = {};
+      const nb = (a.books||[]).length;
+      (a.books||[]).forEach(b => { scores[String(b.id)] = 0; });
+      Object.values(a.votes||{}).forEach(vd => {
+        (vd.ranking||[]).forEach((id, idx) => { if (scores[String(id)] !== undefined) scores[String(id)] += (nb - idx); });
+      });
+      const sorted = Object.entries(scores).sort((a,b) => b[1]-a[1]);
+      if (sorted.length) computedWinners = [sorted[0][0]];
+    }
+    (a.books||[]).forEach(b => {
+      if (!b.pageCount) return;
+      allBooks.push({
+        title: b.title,
+        pageCount: b.pageCount,
+        pagesFormat: b.pagesFormat || '',
+        month: a.label,
+        winner: computedWinners.includes(String(b.id))
+      });
+    });
+  });
+
+  if (!allBooks.length) {
+    area.innerHTML = '<div class="empty"><div class="icon">📄</div><p>No page count data yet — add page counts to books via the suggestion form or admin edit.</p></div>';
+    return;
+  }
+
+  // ── Chart 1: Length distribution (buckets) ──
+  const buckets = [
+    { label: 'Under 200',  min: 0,   max: 199  },
+    { label: '200–299',    min: 200, max: 299   },
+    { label: '300–399',    min: 300, max: 399   },
+    { label: '400–499',    min: 400, max: 499   },
+    { label: '500–599',    min: 500, max: 599   },
+    { label: '600+',       min: 600, max: Infinity },
+  ];
+  const bucketCounts = buckets.map(bk => allBooks.filter(b => b.pageCount >= bk.min && b.pageCount <= bk.max).length);
+  const maxBucket = Math.max(...bucketCounts, 1);
+
+  // ── Chart 2: Winners vs non-winners average ──
+  const winners    = allBooks.filter(b => b.winner);
+  const nonWinners = allBooks.filter(b => !b.winner);
+  const avg = arr => arr.length ? Math.round(arr.reduce((s,b)=>s+b.pageCount,0)/arr.length) : null;
+  const winnerAvg    = avg(winners);
+  const nonWinnerAvg = avg(nonWinners);
+  const maxAvg = Math.max(winnerAvg||0, nonWinnerAvg||0, 1);
+
+  // ── Chart 3: Average per month over time ──
+  const monthAvgs = archives.map(a => {
+    const booksWithCount = (a.books||[]).filter(b => b.pageCount);
+    if (!booksWithCount.length) return null;
+    return { label: a.label, avg: Math.round(booksWithCount.reduce((s,b)=>s+b.pageCount,0)/booksWithCount.length) };
+  }).filter(Boolean);
+  const maxMonthAvg = Math.max(...monthAvgs.map(m=>m.avg), 1);
+
+  // ── Chart 4: Format breakdown ──
+  const formatCounts = {};
+  allBooks.forEach(b => { const f = b.pagesFormat||'unknown'; formatCounts[f]=(formatCounts[f]||0)+1; });
+  const formatRows = Object.entries(formatCounts).sort((a,b)=>b[1]-a[1]);
+  const maxFormat = Math.max(...formatRows.map(r=>r[1]), 1);
+
+  area.innerHTML = `
+  <div class="chart-wrap">
+    <h3>Book Length Distribution</h3>
+    <p style="font-size:.78rem;color:var(--soft);margin-bottom:1rem;">How books nominated for voting break down by page count. Based on ${allBooks.length} book${allBooks.length!==1?'s':''} with page count data.</p>
+    <div class="bar-chart">
+      ${buckets.map((bk,i) => `<div class="bar-row">
+        <div style="font-size:.78rem;white-space:nowrap;">${bk.label}</div>
+        <div class="bar-track"><div class="bar-val" style="width:${Math.max(bucketCounts[i]>0?3:0, bucketCounts[i]/maxBucket*100)}%"></div></div>
+        <div class="bar-lbl">${bucketCounts[i]} book${bucketCounts[i]!==1?'s':''}</div>
+      </div>`).join('')}
+    </div>
+  </div>
+
+  ${(winnerAvg !== null || nonWinnerAvg !== null) ? `<div class="chart-wrap">
+    <h3>Average Length: Winners vs. Non-Winners</h3>
+    <p style="font-size:.78rem;color:var(--soft);margin-bottom:1rem;">Does page count influence which books get chosen?</p>
+    <div class="bar-chart">
+      ${winnerAvg !== null ? `<div class="bar-row">
+        <div style="font-size:.78rem;white-space:nowrap;">Winners (${winners.length})</div>
+        <div class="bar-track"><div class="bar-val" style="width:${Math.max(3,winnerAvg/maxAvg*100)}%;background:var(--gold);"></div></div>
+        <div class="bar-lbl">${winnerAvg} pages</div>
+      </div>` : ''}
+      ${nonWinnerAvg !== null ? `<div class="bar-row">
+        <div style="font-size:.78rem;white-space:nowrap;">Non-winners (${nonWinners.length})</div>
+        <div class="bar-track"><div class="bar-val" style="width:${Math.max(3,nonWinnerAvg/maxAvg*100)}%"></div></div>
+        <div class="bar-lbl">${nonWinnerAvg} pages</div>
+      </div>` : ''}
+    </div>
+  </div>` : ''}
+
+  ${monthAvgs.length > 1 ? `<div class="chart-wrap">
+    <h3>Average Page Count Per Month</h3>
+    <p style="font-size:.78rem;color:var(--soft);margin-bottom:1rem;">Average length of all nominated books each month.</p>
+    <div class="bar-chart">
+      ${monthAvgs.map(m => `<div class="bar-row">
+        <div style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(m.label)}</div>
+        <div class="bar-track"><div class="bar-val" style="width:${Math.max(3,m.avg/maxMonthAvg*100)}%"></div></div>
+        <div class="bar-lbl">${m.avg} pages</div>
+      </div>`).join('')}
+    </div>
+  </div>` : ''}
+
+  ${formatRows.length > 1 ? `<div class="chart-wrap">
+    <h3>Format Breakdown</h3>
+    <p style="font-size:.78rem;color:var(--soft);margin-bottom:1rem;">Which edition members used when reporting page counts.</p>
+    <div class="bar-chart">
+      ${formatRows.map(([f,c]) => `<div class="bar-row">
+        <div style="font-size:.78rem;white-space:nowrap;text-transform:capitalize;">${esc(f)}</div>
+        <div class="bar-track"><div class="bar-val" style="width:${Math.max(3,c/maxFormat*100)}%"></div></div>
+        <div class="bar-lbl">${c} book${c!==1?'s':''}</div>
+      </div>`).join('')}
+    </div>
+  </div>` : ''}
+  `;
+}
+
 
 // ── Members sub-tab ───────────────────────────────────────────────────────────
 function renderAnalysisMembers(_idMapM) {
@@ -3308,6 +3455,30 @@ function adminLogin() {
 }
 window.adminLogin = adminLogin;
 
+function renderAdminSurveys() {
+  const surveys = getSurveys();
+  const _surveyResps = getSurveyResponses();
+  document.getElementById('admin-surveys-list').innerHTML = surveys.length ? surveys.map((s, i) => {
+    const rCount = (_surveyResps[s.id]||[]).length;
+    return `
+    <div style="padding:.6rem 0;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;flex-wrap:wrap;">
+        <div><div style="font-size:.9rem;">${esc(s.title)}</div><div style="font-size:.75rem;color:var(--soft);">${s.questions.length} question${s.questions.length!==1?'s':''} · ${rCount} response${rCount!==1?'s':''}</div></div>
+        <div style="display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;">
+          <span class="pill ${s.paused?'pill-paused':s.active?'pill-open':'pill-closed'}">${s.paused?'Paused':s.active?'Active':'Closed'}</span>
+          <button class="btn btn-secondary btn-sm" onclick="toggleSurvey(${i})">${s.active?'Close':'Open'}</button>
+          ${s.active ? `<button class="btn btn-secondary btn-sm" onclick="pauseSurvey(${i})">${s.paused?'Resume':'Pause'}</button>` : ''}
+          <button class="btn btn-secondary btn-sm" onclick="editSurvey(${i})">Edit</button>
+          ${rCount > 0 ? `<button class="btn btn-secondary btn-sm" onclick="downloadSurveyCSV('${s.id}')">⬇ CSV</button>` : ''}
+          ${rCount > 0 ? `<button class="btn btn-danger btn-sm" onclick="wipeSurveyResponses('${s.id}')">Wipe Responses</button>` : ''}
+          <button class="btn btn-danger btn-sm" onclick="deleteSurvey(${i})">Delete</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('') : '<p style="font-size:.85rem;color:var(--soft);">No surveys yet.</p>';
+}
+window.renderAdminSurveys = renderAdminSurveys;
+
 function renderAdmin() {
   const s = getSettings(), votes = getVotes(), books = getBooks(), surveys = getSurveys();
   // Populate meeting fields
@@ -3331,29 +3502,11 @@ function renderAdmin() {
       <div class="book-info"><div class="book-title">${esc(b.title)}</div><div class="book-sub">${esc(b.author)} &middot; ${normBook(b).suggesters.map(s=>esc(s.discord)).join(', ')}</div></div>
       <button class="btn btn-danger btn-sm" onclick="deleteBook(${b.id})">Remove</button>
     </div>`).join('') : '<p style="font-size:.85rem;color:var(--soft);">No books.</p>';
-  const _surveyResps = getSurveyResponses();
-  document.getElementById('admin-surveys-list').innerHTML = surveys.length ? surveys.map((s, i) => {
-    const rCount = (_surveyResps[s.id]||[]).length;
-    return `
-    <div style="padding:.6rem 0;border-bottom:1px solid var(--border);">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;flex-wrap:wrap;">
-        <div><div style="font-size:.9rem;">${esc(s.title)}</div><div style="font-size:.75rem;color:var(--soft);">${s.questions.length} question${s.questions.length!==1?'s':''} · ${rCount} response${rCount!==1?'s':''}</div></div>
-        <div style="display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;">
-          <span class="pill ${s.paused?'pill-paused':s.active?'pill-open':'pill-closed'}">${s.paused?'Paused':s.active?'Active':'Closed'}</span>
-          <button class="btn btn-secondary btn-sm" onclick="toggleSurvey(${i})">${s.active?'Close':'Open'}</button>
-          ${s.active ? `<button class="btn btn-secondary btn-sm" onclick="pauseSurvey(${i})">${s.paused?'Resume':'Pause'}</button>` : ''}
-          <button class="btn btn-secondary btn-sm" onclick="editSurvey(${i})">Edit</button>
-          ${rCount > 0 ? `<button class="btn btn-secondary btn-sm" onclick="downloadSurveyCSV('${s.id}')">⬇ CSV</button>` : ''}
-          ${rCount > 0 ? `<button class="btn btn-danger btn-sm" onclick="wipeSurveyResponses('${s.id}')">Wipe Responses</button>` : ''}
-          <button class="btn btn-danger btn-sm" onclick="deleteSurvey(${i})">Delete</button>
-        </div>
-      </div>
-    </div>`;
-  }).join('') : '<p style="font-size:.85rem;color:var(--soft);">No surveys yet.</p>';
+  // surveys list now rendered in renderAdminSurveys() on the Surveys sub-tab
 }
 
 function goAdminTab(id, btn) {
-  ['manage','live-results','compare','reading-progress-admin','badges-admin','edit-books','quarterly-admin'].forEach(s => {
+  ['manage','live-results','compare','reading-progress-admin','badges-admin','edit-books','quarterly-admin','surveys-admin'].forEach(s => {
     document.getElementById('admin-sub-'+s).style.display = s === id ? '' : 'none';
   });
   document.querySelectorAll('#admin-panel .sub-tab').forEach(b => b.classList.remove('active'));
@@ -3364,6 +3517,7 @@ function goAdminTab(id, btn) {
   else if (id === 'badges-admin')             renderAdminBadgeManager();
   else if (id === 'edit-books')               renderEditBooksTab();
   else if (id === 'quarterly-admin')          renderQuarterlyAdmin();
+  else if (id === 'surveys-admin')             renderAdminSurveys();
 }
 window.goAdminTab = goAdminTab;
 
@@ -3944,9 +4098,9 @@ async function toggleSetting(key) {
 }
 window.toggleSetting = toggleSetting;
 
-async function toggleSurvey(i) { const sv = getSurveys(); sv[i].active = !sv[i].active; if (!sv[i].active) sv[i].paused = false; await fbSet(SURVEYS_REF, {list:sv}); renderAdmin(); }
-async function pauseSurvey(i) { const sv = getSurveys(); sv[i].paused = !sv[i].paused; await fbSet(SURVEYS_REF, {list:sv}); renderAdmin(); }
-async function deleteSurvey(i) { if (!confirm('Delete this survey?')) return; const sv = getSurveys(); sv.splice(i,1); await fbSet(SURVEYS_REF, {list:sv}); renderAdmin(); }
+async function toggleSurvey(i) { const sv = getSurveys(); sv[i].active = !sv[i].active; if (!sv[i].active) sv[i].paused = false; await fbSet(SURVEYS_REF, {list:sv}); renderAdmin(); renderAdminSurveys(); }
+async function pauseSurvey(i) { const sv = getSurveys(); sv[i].paused = !sv[i].paused; await fbSet(SURVEYS_REF, {list:sv}); renderAdmin(); renderAdminSurveys(); }
+async function deleteSurvey(i) { if (!confirm('Delete this survey?')) return; const sv = getSurveys(); sv.splice(i,1); await fbSet(SURVEYS_REF, {list:sv}); renderAdmin(); renderAdminSurveys(); }
 function downloadSurveyCSV(sid) {
   const survey = getSurveys().find(s => s.id === sid);
   if (!survey) return;
@@ -3978,7 +4132,7 @@ async function wipeSurveyResponses(sid) {
   delete responses[sid];
   await fbSet(SRESP_REF, { map: responses });
   hideLoading();
-  renderAdmin();
+  renderAdmin(); renderAdminSurveys();
 }
 window.wipeSurveyResponses = wipeSurveyResponses;
 async function deleteVote(name) { if (!confirm(`Remove vote for "${name}"?`)) return; showLoading('Removing…'); const v = getVotes(); delete v[name]; await fbSet(VOTES_REF, {map:v}); hideLoading(); }
@@ -4517,6 +4671,7 @@ function hasBadge(badgeId, profile, memberKey) {
   if (cfg.overrides && cfg.overrides[memberKey]) {
     const ov = cfg.overrides[memberKey];
     if (typeof ov[badgeId] === 'boolean') return ov[badgeId];
+    if (ov[badgeId] && typeof ov[badgeId] === 'object') return ov[badgeId].granted === true;
   }
   const badge = getAllBadges({ includeHidden: true, includeDisabled: true }).find(b => b.id === badgeId);
   if (!badge) return false;
@@ -5293,7 +5448,7 @@ function renderBadgesTab() {
     // Also treat as admin-granted if the member has an explicit true override for a badge
     // whose check() can never pass organically (i.e. always returns false)
     const ov = _badgeCfg.overrides?.[myKey];
-    if (ov && ov[b.id] === true && b.check) {
+    if (ov && (ov[b.id] === true || (ov[b.id] && ov[b.id].granted)) && b.check) {
       try { return b.check({ voted:999,suggestedMonths:999,reviewed:999,longestVoteStreak:999,longestReadStreak:999,longestAllRounderStreak:999,pickedWinner:999,suggestedTop3:999,dnfCount:999,dnsCount:999,whyNotBoth:999,genresSuggested:999,totalMonths:999,surveysCompleted:999,steadyEddie:true,dependable:true,deadReliable:true,finishedBookIds:new Set(['__any__']) }) === false; }
       catch { return true; }
     }
@@ -5453,12 +5608,101 @@ function renderBadgesTab() {
 // ════════════════════════════════════════════════════════
 // ADMIN BADGE MANAGER
 // ════════════════════════════════════════════════════════
+// ── Badge Activity Feed ───────────────────────────────────────────────────────
+function renderAdminBadgeFeed() {
+  const area = document.getElementById('admin-badge-feed-area');
+  if (!area) return;
+
+  const cfg        = getBadgeConfig();
+  const allBadges  = getAllBadges({ includeHidden: true, includeDisabled: true });
+  const idMap      = buildIdentityMap();
+  const progress   = getReadingProgress();
+  const mbbList    = (cfg.monthlyBookBadges || []);
+
+  const events = [];
+
+  // ── 1. Admin-granted badges with timestamps ──────────────────────────────
+  const overrides = cfg.overrides || {};
+  Object.entries(overrides).forEach(([memberKey, memberOvs]) => {
+    Object.entries(memberOvs).forEach(([badgeId, val]) => {
+      // Only include explicit grants that have a timestamp
+      if (val && typeof val === 'object' && val.granted === true && val.at) {
+        const badge = allBadges.find(b => b.id === badgeId);
+        const memberName = idMap.get(memberKey) || memberKey;
+        events.push({
+          at:      val.at,
+          member:  memberName,
+          badge:   badge ? badge.name : badgeId,
+          emoji:   badge ? (badge.iconDataUrl ? null : badge.emoji) : '🏅',
+          iconUrl: badge ? badge.iconDataUrl : null,
+          source:  'admin'
+        });
+      }
+    });
+  });
+
+  // ── 2. Monthly book badges auto-awarded via finish timestamp ─────────────
+  Object.entries(progress).forEach(([memberKey, memberData]) => {
+    const memberName = idMap.get(memberKey) || memberKey;
+    mbbList.forEach(mbb => {
+      if (!mbb.bookId) return;
+      const tsKey = mbb.bookId + '_ts';
+      const finishTs = memberData[tsKey];
+      if (!finishTs) return;
+      // Verify the member actually has the status 'finished' for this book
+      if (memberData[mbb.bookId] !== 'finished') return;
+      events.push({
+        at:      finishTs,
+        member:  memberName,
+        badge:   mbb.name,
+        emoji:   mbb.iconDataUrl ? null : (mbb.emoji || '📖'),
+        iconUrl: mbb.iconDataUrl || null,
+        source:  'auto'
+      });
+    });
+  });
+
+  if (!events.length) {
+    area.innerHTML = '<p style="font-size:.85rem;color:var(--soft);">No timestamped badge events yet. Admin-granted badges will appear here going forward; monthly book badges appear here when members mark books finished.</p>';
+    return;
+  }
+
+  // Sort most recent first
+  events.sort((a, b) => b.at - a.at);
+
+  const fmt = ts => {
+    const d = new Date(ts);
+    return d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) +
+           ' at ' + d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+  };
+
+  area.innerHTML = events.map(e => {
+    const icon = e.iconUrl
+      ? `<img src="${e.iconUrl}" style="width:22px;height:22px;object-fit:contain;border-radius:4px;flex-shrink:0;">`
+      : `<span style="font-size:1.1rem;line-height:1;flex-shrink:0;">${e.emoji}</span>`;
+    const sourceTag = e.source === 'admin'
+      ? `<span style="font-size:.68rem;background:#fff3cd;border:1px solid #ffc107;color:#856404;padding:.1rem .4rem;border-radius:10px;white-space:nowrap;">admin granted</span>`
+      : `<span style="font-size:.68rem;background:#e8f5e9;border:1px solid #a5d6a7;color:#2d7a3a;padding:.1rem .4rem;border-radius:10px;white-space:nowrap;">auto awarded</span>`;
+    return `<div style="display:flex;align-items:center;gap:.65rem;padding:.6rem .75rem;border-bottom:1px solid var(--border);">
+      ${icon}
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:.85rem;font-weight:500;">${esc(e.member)} <span style="color:var(--soft);font-weight:400;">earned</span> ${esc(e.badge)}</div>
+        <div style="font-size:.73rem;color:var(--soft);">${fmt(e.at)}</div>
+      </div>
+      ${sourceTag}
+    </div>`;
+  }).join('');
+}
+window.renderAdminBadgeFeed = renderAdminBadgeFeed;
+
+
 function renderAdminBadgeManager() {
   renderAdminBadgeMembers();
   renderAdminBadgeControls();
   renderAdminCustomBadgesList();
   renderAdminMbbList();
   populateMbbBookDropdown();
+  renderAdminBadgeFeed();
 }
 window.renderAdminBadgeManager = renderAdminBadgeManager;
 
@@ -5539,10 +5783,10 @@ async function adminToggleBadge(memberKey, badgeId, grant) {
   if (!cfg.overrides) cfg.overrides = {};
   if (!cfg.overrides[memberKey]) cfg.overrides[memberKey] = {};
   if (grant) {
-    cfg.overrides[memberKey][badgeId] = true;
+    cfg.overrides[memberKey][badgeId] = { granted: true, at: Date.now() };
   } else {
     // If it was manually granted, remove the override; otherwise explicitly revoke
-    const wasManualGrant = cfg.overrides[memberKey][badgeId] === true;
+    const _ov = cfg.overrides[memberKey][badgeId]; const wasManualGrant = _ov === true || (_ov && _ov.granted === true);
     if (wasManualGrant) delete cfg.overrides[memberKey][badgeId];
     else cfg.overrides[memberKey][badgeId] = false;
     // Clean up empty override objects
