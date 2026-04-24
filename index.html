@@ -722,7 +722,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
     <div class="sub-tabs" style="margin-bottom:1.5rem;">
       <button class="sub-tab active" onclick="goAdminTab('manage',this)">Manage</button>
       <button class="sub-tab" onclick="goAdminTab('live-results',this)">📊 Live Results</button>
-      <button class="sub-tab" onclick="goAdminTab('compare',this)">Member Comparison</button>
+      <button class="sub-tab" onclick="goAdminTab('members-overview',this)">👥 Members</button>
       <button class="sub-tab" onclick="goAdminTab('reading-progress-admin',this)">📖 Reading Progress</button>
       <button class="sub-tab" onclick="goAdminTab('badges-admin',this)">🏅 Badge Manager</button>
       <button class="sub-tab" onclick="goAdminTab('edit-books',this)">✏️ Edit Books</button>
@@ -870,8 +870,17 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       <div id="admin-live-results-area"></div>
     </div>
 
-    <div id="admin-sub-compare" style="display:none;">
-      <div id="member-compare-area"><p style="font-size:.85rem;color:var(--soft);">Loading…</p></div>
+    <div id="admin-sub-members-overview" style="display:none;">
+      <div class="sub-tabs" style="margin-bottom:1.25rem;">
+        <button class="sub-tab active" id="members-sub-btn-directory" onclick="goMembersTab('directory',this)">Member Directory</button>
+        <button class="sub-tab" id="members-sub-btn-comparison" onclick="goMembersTab('comparison',this)">Member Comparison</button>
+      </div>
+      <div id="members-sub-directory">
+        <div id="member-directory-area"></div>
+      </div>
+      <div id="members-sub-comparison" style="display:none;">
+        <div id="member-compare-area"><p style="font-size:.85rem;color:var(--soft);">Loading…</p></div>
+      </div>
     </div>
 
     <div id="admin-sub-reading-progress-admin" style="display:none;">
@@ -3509,13 +3518,13 @@ function renderAdmin() {
 }
 
 function goAdminTab(id, btn) {
-  ['manage','live-results','compare','reading-progress-admin','badges-admin','edit-books','quarterly-admin','surveys-admin'].forEach(s => {
+  ['manage','live-results','members-overview','reading-progress-admin','badges-admin','edit-books','quarterly-admin','surveys-admin'].forEach(s => {
     document.getElementById('admin-sub-'+s).style.display = s === id ? '' : 'none';
   });
   document.querySelectorAll('#admin-panel .sub-tab').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   if      (id === 'live-results')             renderAdminLiveResults();
-  else if (id === 'compare')                  renderMemberCompare();
+  else if (id === 'members-overview')          renderMembersOverview();
   else if (id === 'reading-progress-admin')   renderAdminReadingProgress();
   else if (id === 'badges-admin')             renderAdminBadgeManager();
   else if (id === 'edit-books')               renderEditBooksTab();
@@ -3849,6 +3858,270 @@ function filterAdminProgress() {
     </div>`;
 }
 window.filterAdminProgress = filterAdminProgress;
+
+// ── Members Overview tab ─────────────────────────────────────────────────────
+function goMembersTab(id, btn) {
+  ['directory','comparison'].forEach(s => {
+    const el = document.getElementById('members-sub-' + s);
+    if (el) el.style.display = s === id ? '' : 'none';
+  });
+  document.querySelectorAll('#admin-sub-members-overview .sub-tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  if (id === 'comparison') renderMemberCompare();
+  else if (id === 'directory') renderMemberDirectory();
+}
+window.goMembersTab = goMembersTab;
+
+function renderMembersOverview() {
+  // Default to directory sub-tab
+  goMembersTab('directory', document.getElementById('members-sub-btn-directory'));
+}
+window.renderMembersOverview = renderMembersOverview;
+
+function toggleMemberCard(key) {
+  const body = document.getElementById('mdir-body-' + key);
+  const chevron = document.getElementById('mdir-chevron-' + key);
+  if (!body) return;
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : '';
+  if (chevron) chevron.textContent = isOpen ? '▸' : '▾';
+}
+window.toggleMemberCard = toggleMemberCard;
+
+function renderMemberDirectory() {
+  const area = document.getElementById('member-directory-area');
+  if (!area) return;
+  area.innerHTML = '<p style="font-size:.85rem;color:var(--soft);">Building directory…</p>';
+  setTimeout(() => _doRenderMemberDirectory(), 30);
+}
+window.renderMemberDirectory = renderMemberDirectory;
+
+function _doRenderMemberDirectory() {
+  const area = document.getElementById('member-directory-area');
+  if (!area) return;
+
+  const archives      = getArchives();
+  const allReviews    = getReviews();
+  const allProgress   = getReadingProgress();
+  const idMap         = buildIdentityMap();
+  const archiveWinners = getArchiveWinners();
+  const totalMonths   = archives.filter(a => !a.memberPick).length;
+
+  if (!archives.length) {
+    area.innerHTML = '<p style="font-size:.85rem;color:var(--soft);">No archived months yet.</p>';
+    return;
+  }
+
+  // ── Build per-member data ─────────────────────────────────────────────────
+  const memberData = {}; // key → { name, email, votedMonths, suggestedBooks, reviewedMonths, progress }
+
+  const getOrCreate = (key, name, email) => {
+    if (!memberData[key]) memberData[key] = {
+      name, email: email || '',
+      votedMonths: [],
+      suggestedBooks: [], // { title, author, month, won }
+      reviewedMonths: [], // { month, rating, finished }
+      progress: {}        // bookId → status
+    };
+    return memberData[key];
+  };
+
+  archives.forEach(a => {
+    const winnerIds = new Set((a.dualWinners || []).map(String));
+    // If no explicit winners, compute from scores
+    if (!winnerIds.size && a.books && a.votes) {
+      const nb = (a.books||[]).length;
+      const scores = {};
+      (a.books||[]).forEach(b => { scores[String(b.id)] = 0; });
+      Object.values(a.votes||{}).forEach(vd => {
+        (vd.ranking||[]).forEach((id,idx) => { if (scores[String(id)] !== undefined) scores[String(id)] += (nb-idx); });
+      });
+      const top = Object.entries(scores).sort((x,y)=>y[1]-x[1])[0];
+      if (top) winnerIds.add(top[0]);
+    }
+
+    // Voters
+    if (!a.memberPick) {
+      Object.values(a.votes||{}).forEach(vd => {
+        const key = normEmail(vd.email) || normId(vd.discord);
+        if (!key) return;
+        const name = resolveId(vd.discord, vd.email, idMap) || vd.discord || vd.email;
+        const m = getOrCreate(key, name, vd.email);
+        m.votedMonths.push(a.label);
+      });
+    }
+
+    // Suggesters
+    (a.books||[]).map(normBook).forEach(b => {
+      const won = winnerIds.has(String(b.id));
+      b.suggesters.forEach(s => {
+        const key = normEmail(s.email) || normId(s.discord);
+        if (!key) return;
+        const name = resolveId(s.discord, s.email, idMap) || s.discord || s.email;
+        const m = getOrCreate(key, name, s.email);
+        m.suggestedBooks.push({ title: b.title, author: b.author, month: a.label, won });
+      });
+    });
+  });
+
+  // Reviewers
+  Object.entries(allReviews).forEach(([month, entries]) => {
+    (entries||[]).forEach(r => {
+      const key = normEmail(r.email) || normId(r.discord);
+      if (!key) return;
+      const name = resolveId(r.discord, r.email, idMap) || r.discord || r.email;
+      const m = getOrCreate(key, name, r.email);
+      m.reviewedMonths.push({ month, rating: r.rating, finished: r.finished });
+    });
+  });
+
+  // Reading progress — winner books only
+  const statusLabel = {
+    'finished':           '✅ Finished',
+    'reading':            '👀 Reading',
+    'not-started':        '📋 Not Started',
+    'dnf':                '❌ DNF',
+    'chose-not-to-read':  '🚫 Chose Not to Read',
+    'pre-read':           '⏮️ Already Read',
+  };
+
+  // Build list of all winner books across archives
+  const allWinnerBooks = []; // { id, title, author, month }
+  archiveWinners.forEach(({ archive: a, winnerBooks }) => {
+    winnerBooks.forEach(b => {
+      allWinnerBooks.push({ id: String(b.id), title: b.title, author: b.author, month: a.label });
+    });
+  });
+
+  Object.entries(allProgress).forEach(([memberKey, memberProg]) => {
+    if (!memberData[memberKey]) return; // only show members we already know
+    memberData[memberKey].progress = memberProg;
+  });
+
+  // Filter + search state
+  let _dirQuery = '';
+
+  const renderCards = (query) => {
+    const members = Object.entries(memberData)
+      .map(([key, m]) => ({ key, ...m }))
+      .filter(m => !query || m.name.toLowerCase().includes(query.toLowerCase()) || m.email.toLowerCase().includes(query.toLowerCase()))
+      .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+
+    if (!members.length) {
+      document.getElementById('mdir-cards').innerHTML = '<p style="font-size:.85rem;color:var(--soft);">No members match your search.</p>';
+      document.getElementById('mdir-count').textContent = '';
+      return;
+    }
+
+    document.getElementById('mdir-count').textContent = members.length + ' member' + (members.length !== 1 ? 's' : '');
+
+    document.getElementById('mdir-cards').innerHTML = members.map(m => {
+      const safeKey = m.key.replace(/[^a-z0-9]/gi, '_');
+      const voted     = m.votedMonths.length;
+      const suggested = m.suggestedBooks.length;
+      const reviewed  = m.reviewedMonths.length;
+
+      // ── Voted months ──
+      const votedHtml = m.votedMonths.length
+        ? `<div style="display:flex;flex-wrap:wrap;gap:.3rem;">${m.votedMonths.map(mo =>
+            `<span style="font-size:.73rem;background:var(--cream);border:1px solid var(--border);padding:.15rem .5rem;border-radius:12px;">${esc(mo)}</span>`
+          ).join('')}</div>`
+        : '<p style="font-size:.82rem;color:var(--soft);margin:0;">No votes recorded.</p>';
+
+      // ── Suggested books ──
+      const suggestedHtml = m.suggestedBooks.length
+        ? m.suggestedBooks.map(b =>
+            `<div style="display:flex;align-items:baseline;gap:.5rem;padding:.35rem 0;border-bottom:1px solid var(--border);">
+              <div style="flex:1;font-size:.83rem;">${esc(b.title)} <span style="color:var(--soft);font-size:.78rem;">by ${esc(b.author)}</span></div>
+              <span style="font-size:.73rem;color:var(--soft);white-space:nowrap;">${esc(b.month)}</span>
+              ${b.won ? '<span style="font-size:.7rem;background:#fff8e1;border:1px solid var(--gold);color:#b8860b;padding:.1rem .4rem;border-radius:10px;white-space:nowrap;">won</span>' : ''}
+            </div>`
+          ).join('')
+        : '<p style="font-size:.82rem;color:var(--soft);margin:0;">No suggestions recorded.</p>';
+
+      // ── Reading progress on winner books ──
+      const progressRows = allWinnerBooks.map(wb => {
+        const status = (m.progress || {})[wb.id];
+        const label  = status ? (statusLabel[status] || status) : '— no entry';
+        const soft   = !status;
+        return `<div style="display:flex;align-items:center;gap:.5rem;padding:.3rem 0;border-bottom:1px solid var(--border);">
+          <div style="flex:1;font-size:.83rem;">${esc(wb.title)} <span style="color:var(--soft);font-size:.78rem;">${esc(wb.month)}</span></div>
+          <span style="font-size:.78rem;${soft ? 'color:var(--soft);' : ''}">${label}</span>
+        </div>`;
+      }).join('');
+      const progressHtml = allWinnerBooks.length
+        ? progressRows
+        : '<p style="font-size:.82rem;color:var(--soft);margin:0;">No winning books archived yet.</p>';
+
+      // ── Reviews ──
+      const reviewHtml = m.reviewedMonths.length
+        ? m.reviewedMonths.map(r => {
+            const stars = r.rating && r.rating !== 'opt-out' ? '★'.repeat(Number(r.rating)) + '☆'.repeat(5 - Number(r.rating)) : r.rating === 'opt-out' ? 'opted out' : '—';
+            return `<div style="display:flex;align-items:center;gap:.5rem;padding:.3rem 0;border-bottom:1px solid var(--border);">
+              <div style="flex:1;font-size:.83rem;">${esc(r.month)}</div>
+              <span style="font-size:.78rem;color:var(--soft);">${stars}</span>
+            </div>`;
+          }).join('')
+        : '<p style="font-size:.82rem;color:var(--soft);margin:0;">No reviews submitted.</p>';
+
+      return `<div style="border:1px solid var(--border);border-radius:8px;margin-bottom:.6rem;overflow:hidden;">
+        <div onclick="toggleMemberCard('${safeKey}')" style="display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;cursor:pointer;background:var(--cream);user-select:none;">
+          <span id="mdir-chevron-${safeKey}" style="font-size:.85rem;color:var(--soft);flex-shrink:0;">▸</span>
+          <div style="flex:1;font-weight:500;font-size:.92rem;">${esc(m.name)}</div>
+          <div style="display:flex;gap:1rem;font-size:.75rem;color:var(--soft);">
+            <span>🗳️ ${voted}</span>
+            <span>📚 ${suggested}</span>
+            <span>✍️ ${reviewed}</span>
+          </div>
+        </div>
+        <div id="mdir-body-${safeKey}" style="display:none;padding:1rem;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+
+            <div>
+              <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.5rem;">Months Voted (${voted} of ${totalMonths})</div>
+              ${votedHtml}
+            </div>
+
+            <div>
+              <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.5rem;">Reviews (${reviewed})</div>
+              ${reviewHtml}
+            </div>
+
+            <div style="grid-column:1/-1;">
+              <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.5rem;">Books Suggested (${suggested})</div>
+              ${suggestedHtml}
+            </div>
+
+            <div style="grid-column:1/-1;">
+              <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.5rem;">Reading Progress — Winning Books</div>
+              ${progressHtml}
+            </div>
+
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  };
+
+  area.innerHTML = `
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap;">
+        <input type="text" id="mdir-search" placeholder="Search members…" oninput="
+          document.getElementById('mdir-cards') && (() => {
+            const q = this.value;
+            window._mdirRender && window._mdirRender(q);
+          })()
+        " style="max-width:240px;font-size:.85rem;padding:.35rem .7rem;">
+        <span id="mdir-count" style="font-size:.78rem;color:var(--soft);margin-left:auto;"></span>
+      </div>
+      <div id="mdir-cards"></div>
+    </div>`;
+
+  // Store render fn on window for the inline oninput handler
+  window._mdirRender = renderCards;
+  renderCards('');
+}
+
 
 function renderMemberCompare() {
   const archives   = getArchives();
