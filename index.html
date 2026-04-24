@@ -886,10 +886,10 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
     <div id="admin-sub-reading-progress-admin" style="display:none;">
       <div class="card">
         <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.25rem;">Member Reading Progress</h3>
-        <p style="font-size:.85rem;color:var(--soft);margin-bottom:1rem;">See every member's self-reported progress on each winning book.</p>
+        <p style="font-size:.85rem;color:var(--soft);margin-bottom:1rem;">Select a book to see where every member is at. Use the filters to narrow the member list.</p>
+        <div id="admin-pg-book-cards" style="margin-bottom:1.25rem;"></div>
         <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem;">
           <input type="text" id="admin-pg-search" placeholder="Search member…" oninput="filterAdminProgress()" style="max-width:220px;">
-          <select id="admin-pg-book-filter" onchange="filterAdminProgress()" style="max-width:240px;"><option value="">All books</option></select>
           <select id="admin-pg-status-filter" onchange="filterAdminProgress()" style="max-width:180px;">
             <option value="">All statuses</option>
             <option value="finished">✅ Finished</option>
@@ -2741,7 +2741,8 @@ function renderAnalysisRankDist() {
     Books that have been nominated more than once (e.g. Born to Run) appear as separate entries, each labelled with the month they competed in, so their results are never mixed together.
   </p>`;
 
-  const booksHtml = sorted.length ? sorted.map((d,i)=>{
+  // Build a card for a single entry
+  const buildEntryCard = (d, i) => {
     const maxR = Math.max(...Object.keys(d.rankCounts).map(Number));
     const rows = Array.from({length:maxR},(_,j)=>{
       const rank=j+1,count=d.rankCounts[rank]||0,pct=d.totalVoters>0?(count/d.totalVoters*100):0;
@@ -2763,16 +2764,54 @@ function renderAnalysisRankDist() {
       <div class="bar-chart" style="margin-top:.5rem;">${rows}</div>
       <div style="font-size:.72rem;color:var(--soft);margin-top:.3rem;">avg rank ${d.avgRank.toFixed(1)} · ${d.totalVoters} vote${d.totalVoters!==1?'s':''}</div>
     </div>`;
-  }).join('') : '<p style="color:var(--soft);font-size:.875rem;">No data for this month yet.</p>';
+  };
 
-  area.innerHTML = desc + togglesHtml + booksHtml;
+  // Pagination — only when viewing All Time
+  const PAGE_SIZE = 25;
+  if (_rankDistMonth === 'all' && sorted.length > PAGE_SIZE) {
+    if (typeof _rankDistPage !== 'number') window._rankDistPage = 0;
+    const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
+    window._rankDistPage = Math.min(window._rankDistPage, totalPages - 1);
+    const page      = window._rankDistPage;
+    const pageItems = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+    const from = page * PAGE_SIZE + 1;
+    const to   = Math.min((page + 1) * PAGE_SIZE, sorted.length);
+
+    const prevDisabled = page === 0 ? 'disabled' : '';
+    const nextDisabled = page >= totalPages - 1 ? 'disabled' : '';
+    const pagination = `
+      <div style="display:flex;align-items:center;justify-content:center;gap:.75rem;padding:.6rem 0;margin-bottom:1rem;border-bottom:1px solid var(--border);">
+        <button class="btn btn-secondary btn-sm" onclick="rankDistGoPage(0)" ${prevDisabled}>« First</button>
+        <button class="btn btn-secondary btn-sm" onclick="rankDistGoPage(${page-1})" ${prevDisabled}>‹ Prev</button>
+        <span style="font-size:.82rem;color:var(--soft);">Page ${page+1} of ${totalPages} &nbsp;·&nbsp; ${from}–${to} of ${sorted.length}</span>
+        <button class="btn btn-secondary btn-sm" onclick="rankDistGoPage(${page+1})" ${nextDisabled}>Next ›</button>
+        <button class="btn btn-secondary btn-sm" onclick="rankDistGoPage(${totalPages-1})" ${nextDisabled}>Last »</button>
+      </div>`;
+
+    const booksHtml = pageItems.map((d, i) => buildEntryCard(d, page * PAGE_SIZE + i)).join('');
+    area.innerHTML = desc + togglesHtml + pagination + booksHtml + pagination;
+  } else {
+    window._rankDistPage = 0;
+    const booksHtml = sorted.length
+      ? sorted.map((d, i) => buildEntryCard(d, i)).join('')
+      : '<p style="color:var(--soft);font-size:.875rem;">No data for this month yet.</p>';
+    area.innerHTML = desc + togglesHtml + booksHtml;
+  }
 }
 
 function setRankDistMonth(month) {
   _rankDistMonth = month;
+  window._rankDistPage = 0;
   renderAnalysisRankDist();
 }
 window.setRankDistMonth = setRankDistMonth;
+
+function rankDistGoPage(page) {
+  window._rankDistPage = page;
+  renderAnalysisRankDist();
+  document.getElementById('analysis-rankdist-area')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+window.rankDistGoPage = rankDistGoPage;
 
 // ── Page Count sub-tab ───────────────────────────────────────────────────────
 function renderAnalysisPageCount() {
@@ -3288,8 +3327,7 @@ function renderRankings() {
 
   area.innerHTML = `
   <p style="font-size:.78rem;color:var(--soft);margin-bottom:1.5rem;">Rankings are based on member reviews submitted through the Rank A Book page. Sorted by average star rating. Click <strong>Member Reviews</strong> on any book to see individual responses.</p>
-  ${groups.map(group => {
-    const isDualGroup = group.cards.length > 1 || (rankKeyMeta[group.cards[0]?.rankKey]?.isDual);
+  ${groups.map(group => {    const isDualGroup = group.cards.length > 1 || (rankKeyMeta[group.cards[0]?.rankKey]?.isDual);
     const monthLabel  = group.month;
     const cleanMonthLabel = (archiveLookup[monthLabel]?.cleanLabel) || monthLabel;
 
@@ -3416,7 +3454,6 @@ function renderRankings() {
     </div>`;
   }).join('')}`;
 }
-
 function toggleRankingReviews(id, btn) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -3649,16 +3686,17 @@ function renderAdminLiveResults() {
 }
 window.renderAdminLiveResults = renderAdminLiveResults;
 let _adminPgRows = [];
+let _adminPgSelectedBookId = null;
 
 function renderAdminReadingProgress() {
   const archives = getArchives();
   const progress = getReadingProgress();
   const idMap    = buildIdentityMap();
   const area     = document.getElementById('admin-reading-progress-area');
-  const bookSel  = document.getElementById('admin-pg-book-filter');
+  const cardArea = document.getElementById('admin-pg-book-cards');
 
   if (!archives.length) {
-    area.innerHTML = '<div class="empty"><div class="icon">📚</div><p>No archived months yet.</p></div>';
+    if (area) area.innerHTML = '<div class="empty"><div class="icon">📚</div><p>No archived months yet.</p></div>';
     return;
   }
 
@@ -3682,20 +3720,8 @@ function renderAdminReadingProgress() {
     winners.forEach(b => winnerBooks.push({ bookId: String(b.id), title: b.title, author: b.author || '', month: a.label }));
   });
 
-  // Populate book filter dropdown (reset first to avoid dupes on re-render)
-  bookSel.innerHTML = '<option value="">All books</option>';
-  winnerBooks.forEach(wb => {
-    const opt = document.createElement('option');
-    opt.value = wb.bookId;
-    opt.textContent = `${wb.month} — ${wb.title}`;
-    bookSel.appendChild(opt);
-  });
-
-  // Collect all known members from: progress entries + archive votes + reviews
-  // Using a Map keyed by canonical key (normEmail || normId)
-  const memberKeys = new Map(); // key → displayName
-
-  // 1. From reading progress entries
+  // Collect all known members
+  const memberKeys = new Map();
   Object.keys(progress).forEach(k => {
     if (!memberKeys.has(k)) {
       let name = k;
@@ -3705,38 +3731,30 @@ function renderAdminReadingProgress() {
       memberKeys.set(k, name);
     }
   });
-
-  // 2. From archive votes
   archives.forEach(a => {
     Object.values(a.votes || {}).forEach(vd => {
       const key = normEmail(vd.email) || normId(vd.discord);
-      if (key && !memberKeys.has(key)) {
-        memberKeys.set(key, resolveId(vd.discord, vd.email, idMap) || vd.discord || key);
-      }
+      if (key && !memberKeys.has(key)) memberKeys.set(key, resolveId(vd.discord, vd.email, idMap) || vd.discord || key);
     });
   });
-
-  // 3. From reviews — this is the fix: members who only reviewed (like alexofohio)
-  //    were previously invisible here because they never voted.
   const allReviews = getReviews();
   Object.values(allReviews).forEach(entries => {
     (entries || []).forEach(r => {
       const key = normEmail(r.email) || normId(r.discord);
-      if (key && !memberKeys.has(key)) {
-        memberKeys.set(key, resolveId(r.discord || '', r.email || '', idMap) || r.discord || key);
-      }
+      if (key && !memberKeys.has(key)) memberKeys.set(key, resolveId(r.discord || '', r.email || '', idMap) || r.discord || key);
     });
   });
 
   const statusMeta = {
-    'finished':           { label: 'Finished',          emoji: '✅', color: '#e8f5e9', text: '#2d7a3a' },
-    'reading':            { label: 'Reading',            emoji: '👀', color: '#e3f2fd', text: '#1565c0' },
-    'not-started':        { label: 'Not Started',        emoji: '📋', color: '#f5f5f5', text: '#555' },
-    'dnf':                { label: 'DNF',                emoji: '❌', color: '#fce4ec', text: '#c0392b' },
-    'chose-not-to-read':  { label: 'Chose Not to Read',  emoji: '🚫', color: '#f3e8ff', text: '#7b5ea7' },
-    'pre-read':           { label: 'Already Read',        emoji: '⏮️', color: '#e0f4ff', text: '#0077b6' },
+    'finished':          { label: 'Finished',          emoji: '✅', color: '#e8f5e9', text: '#2d7a3a' },
+    'reading':           { label: 'Reading',            emoji: '👀', color: '#e3f2fd', text: '#1565c0' },
+    'not-started':       { label: 'Not Started',        emoji: '📋', color: '#f5f5f5', text: '#555' },
+    'dnf':               { label: 'DNF',                emoji: '❌', color: '#fce4ec', text: '#c0392b' },
+    'chose-not-to-read': { label: 'Chose Not to Read',  emoji: '🚫', color: '#f3e8ff', text: '#7b5ea7' },
+    'pre-read':          { label: 'Already Read',        emoji: '⏮️', color: '#e0f4ff', text: '#0077b6' },
   };
 
+  // Build rows
   _adminPgRows = [];
   memberKeys.forEach((displayName, key) => {
     const memberProgress = progress[key] || {};
@@ -3747,115 +3765,118 @@ function renderAdminReadingProgress() {
     const finished = bookStatuses.filter(b => b.status === 'finished').length;
     _adminPgRows.push({ key, displayName, bookStatuses, finished, total: winnerBooks.length });
   });
-
   _adminPgRows.sort((a, b) => b.finished - a.finished || a.displayName.localeCompare(b.displayName));
 
   window._adminPgWinnerBooks = winnerBooks;
   window._adminPgStatusMeta  = statusMeta;
 
+  // Default to first book if none selected or selected book no longer exists
+  if (!_adminPgSelectedBookId || !winnerBooks.find(w => w.bookId === _adminPgSelectedBookId)) {
+    _adminPgSelectedBookId = winnerBooks.length ? winnerBooks[winnerBooks.length - 1].bookId : null;
+  }
+
+  // Build status counts per book
+  const bookCounts = {};
+  winnerBooks.forEach(wb => {
+    const counts = {};
+    _adminPgRows.forEach(r => {
+      const bs = r.bookStatuses.find(b => b.bookId === wb.bookId);
+      const st = bs ? bs.status : 'not-started';
+      counts[st] = (counts[st] || 0) + 1;
+    });
+    bookCounts[wb.bookId] = counts;
+  });
+
+  // Render book cards grid
+  if (cardArea) {
+    const statusOrder = ['finished','reading','not-started','dnf','chose-not-to-read','pre-read'];
+    cardArea.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:.5rem;">` +
+      winnerBooks.map(wb => {
+        const counts = bookCounts[wb.bookId] || {};
+        const isActive = wb.bookId === _adminPgSelectedBookId;
+        const pillsHtml = statusOrder
+          .filter(s => counts[s])
+          .map(s => {
+            const sm = statusMeta[s];
+            return `<span style="font-size:.7rem;padding:.1rem .45rem;border-radius:20px;background:${sm.color};color:${sm.text};white-space:nowrap;">${sm.emoji} ${counts[s]}</span>`;
+          }).join('');
+        return `<div onclick="selectPgBook('${wb.bookId}')" style="cursor:pointer;padding:.65rem .75rem;border-radius:6px;border:${isActive ? '2px solid var(--gold)' : '1px solid var(--border)'};background:${isActive ? 'var(--cream)' : 'var(--paper)'};">
+          <div style="font-size:.82rem;font-weight:500;margin-bottom:.15rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(wb.title)}</div>
+          <div style="font-size:.7rem;color:var(--soft);margin-bottom:.45rem;">${esc(wb.month)}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:.25rem;">${pillsHtml}</div>
+        </div>`;
+      }).join('') + `</div>`;
+  }
+
   filterAdminProgress();
 }
 window.renderAdminReadingProgress = renderAdminReadingProgress;
 
+function selectPgBook(bookId) {
+  _adminPgSelectedBookId = bookId;
+  renderAdminReadingProgress();
+}
+window.selectPgBook = selectPgBook;
+
 function filterAdminProgress() {
-  const area       = document.getElementById('admin-reading-progress-area');
-  const search     = (document.getElementById('admin-pg-search')?.value || '').trim().toLowerCase();
-  const bookId     = document.getElementById('admin-pg-book-filter')?.value || '';
-  const statusF    = document.getElementById('admin-pg-status-filter')?.value || '';
+  const area      = document.getElementById('admin-reading-progress-area');
+  const search    = (document.getElementById('admin-pg-search')?.value || '').trim().toLowerCase();
+  const statusF   = (document.getElementById('admin-pg-status-filter')?.value || '');
   const winnerBooks = window._adminPgWinnerBooks || [];
   const statusMeta  = window._adminPgStatusMeta  || {};
 
-  if (!_adminPgRows.length) {
-    area.innerHTML = '<div class="empty"><div class="icon">📖</div><p>No progress data yet.</p></div>';
+  if (!_adminPgRows.length || !_adminPgSelectedBookId) {
+    if (area) area.innerHTML = '<div class="empty"><div class="icon">📖</div><p>No progress data yet.</p></div>';
     return;
   }
 
-  let rows = _adminPgRows;
+  const wb = winnerBooks.find(w => w.bookId === _adminPgSelectedBookId);
+
+  let rows = _adminPgRows.map(r => {
+    const bs = r.bookStatuses.find(b => b.bookId === _adminPgSelectedBookId);
+    return { displayName: r.displayName, status: bs ? bs.status : 'not-started' };
+  });
+
   if (search)  rows = rows.filter(r => r.displayName.toLowerCase().includes(search));
-  if (bookId)  rows = rows.filter(r => r.bookStatuses.some(b => b.bookId === bookId && (!statusF || b.status === statusF)));
-  if (statusF && !bookId) rows = rows.filter(r => r.bookStatuses.some(b => b.status === statusF));
+  if (statusF) rows = rows.filter(r => r.status === statusF);
+
+  const statusOrder = ['finished','reading','pre-read','not-started','dnf','chose-not-to-read'];
+  rows.sort((a, b) => statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status) || a.displayName.localeCompare(b.displayName));
+
+  // Status summary counts (unfiltered by search/status for the summary bar)
+  const allForBook = _adminPgRows.map(r => {
+    const bs = r.bookStatuses.find(b => b.bookId === _adminPgSelectedBookId);
+    return bs ? bs.status : 'not-started';
+  });
+  const statusCounts = {};
+  allForBook.forEach(s => { statusCounts[s] = (statusCounts[s] || 0) + 1; });
 
   if (!rows.length) {
-    area.innerHTML = '<div class="empty"><div class="icon">🔍</div><p>No members match this filter.</p></div>';
-    return;
-  }
-
-  if (bookId) {
-    const wb = winnerBooks.find(w => w.bookId === bookId);
-    const filtered = rows.map(r => {
-      const bs = r.bookStatuses.find(b => b.bookId === bookId);
-      return { displayName: r.displayName, status: bs ? bs.status : 'not-started' };
-    }).filter(r => !statusF || r.status === statusF)
-      .sort((a, b) => {
-        const order = ['finished','reading','not-started','dnf','chose-not-to-read','pre-read'];
-        return order.indexOf(a.status) - order.indexOf(b.status) || a.displayName.localeCompare(b.displayName);
-      });
-
-    const statusCounts = {};
-    filtered.forEach(r => { statusCounts[r.status] = (statusCounts[r.status] || 0) + 1; });
-
     area.innerHTML = `
-      <div style="margin-bottom:1rem;">
-        ${wb ? `<div style="font-weight:500;font-size:.95rem;margin-bottom:.35rem;">👑 ${esc(wb.month)} — <em>${esc(wb.title)}</em></div>` : ''}
-        <div style="display:flex;gap:.5rem;flex-wrap:wrap;font-size:.78rem;margin-bottom:.75rem;">
-          ${Object.entries(statusMeta).map(([k, sm]) => statusCounts[k] ? `<span style="padding:.15rem .55rem;border-radius:12px;background:${sm.color};color:${sm.text};border:1px solid ${sm.text}33;">${sm.emoji} ${sm.label}: <strong>${statusCounts[k]}</strong></span>` : '').join('')}
+      <div style="margin-bottom:.75rem;">
+        ${wb ? `<div style="font-weight:500;font-size:.9rem;margin-bottom:.35rem;">👑 ${esc(wb.month)} — <em>${esc(wb.title)}</em></div>` : ''}
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap;font-size:.78rem;margin-bottom:.75rem;">
+          ${Object.entries(statusMeta).map(([k, sm]) => statusCounts[k] ? `<span style="padding:.15rem .55rem;border-radius:12px;background:${sm.color};color:${sm.text};">${sm.emoji} ${sm.label}: <strong>${statusCounts[k]}</strong></span>` : '').join('')}
         </div>
       </div>
-      ${filtered.map(r => {
-        const sm = statusMeta[r.status] || statusMeta['not-started'];
-        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:.5rem .75rem;border-radius:6px;margin-bottom:.35rem;background:${sm.color};border:1px solid ${sm.text}22;">
-          <span style="font-size:.88rem;font-weight:500;">${esc(r.displayName)}</span>
-          <span style="font-size:.78rem;color:${sm.text};font-weight:600;">${sm.emoji} ${sm.label}</span>
-        </div>`;
-      }).join('')}`;
+      <div class="empty"><div class="icon">🔍</div><p>No members match this filter.</p></div>`;
     return;
   }
 
-  const visibleBooks = winnerBooks;
-  const colW = Math.max(80, Math.floor(560 / Math.max(visibleBooks.length, 1)));
-
   area.innerHTML = `
-    <div style="overflow-x:auto;">
-      <table style="width:100%;border-collapse:collapse;font-size:.8rem;">
-        <thead>
-          <tr style="border-bottom:2px solid var(--border);">
-            <th style="text-align:left;padding:.5rem .75rem;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);min-width:140px;">Member</th>
-            <th style="text-align:center;padding:.5rem .4rem;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);min-width:60px;">Done</th>
-            ${visibleBooks.map(wb => `<th style="text-align:center;padding:.4rem .3rem;min-width:${colW}px;max-width:${colW}px;">
-              <div style="font-size:.65rem;color:var(--gold);letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(wb.month)}</div>
-              <div style="font-size:.72rem;color:var(--ink);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(wb.title)}">${esc(wb.title.length > 12 ? wb.title.slice(0,11)+'…' : wb.title)}</div>
-            </th>`).join('')}
-          </tr>
-        </thead>
-        <tbody>
-          ${rows.map((r, ri) => {
-            const pct = r.total > 0 ? Math.round(r.finished / r.total * 100) : 0;
-            return `<tr style="border-bottom:1px solid var(--border);${ri % 2 === 0 ? '' : 'background:#fafaf8;'}">
-              <td style="padding:.55rem .75rem;">
-                <div style="font-weight:500;font-size:.85rem;">${esc(r.displayName)}</div>
-                <div style="height:4px;background:var(--border);border-radius:2px;margin-top:.3rem;overflow:hidden;max-width:120px;">
-                  <div style="height:100%;width:${pct}%;background:var(--green);border-radius:2px;"></div>
-                </div>
-                <div style="font-size:.68rem;color:var(--soft);margin-top:.15rem;">${r.finished}/${r.total} finished</div>
-              </td>
-              <td style="text-align:center;padding:.55rem .4rem;">
-                <span style="font-family:'Playfair Display',serif;font-size:1rem;font-weight:700;color:${r.finished===r.total&&r.total>0?'var(--green)':'var(--soft)'};">${r.finished}</span>
-              </td>
-              ${r.bookStatuses.map(bs => {
-                const sm = statusMeta[bs.status] || statusMeta['not-started'];
-                const show = !statusF || bs.status === statusF;
-                return `<td style="text-align:center;padding:.4rem .2rem;" title="${sm.label}">
-                  <span style="display:inline-block;padding:.15rem .3rem;border-radius:6px;background:${show ? sm.color : 'transparent'};font-size:.85rem;">${show ? sm.emoji : '<span style=\'opacity:.2\'>·</span>'}</span>
-                </td>`;
-              }).join('')}
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
+    <div style="margin-bottom:.75rem;">
+      ${wb ? `<div style="font-weight:500;font-size:.9rem;margin-bottom:.35rem;">👑 ${esc(wb.month)} — <em>${esc(wb.title)}</em></div>` : ''}
+      <div style="display:flex;gap:.4rem;flex-wrap:wrap;font-size:.78rem;margin-bottom:.75rem;">
+        ${Object.entries(statusMeta).map(([k, sm]) => statusCounts[k] ? `<span style="padding:.15rem .55rem;border-radius:12px;background:${sm.color};color:${sm.text};">${sm.emoji} ${sm.label}: <strong>${statusCounts[k]}</strong></span>` : '').join('')}
+      </div>
     </div>
-    <div style="margin-top:.75rem;font-size:.72rem;color:var(--soft);display:flex;flex-wrap:wrap;gap:.75rem;">
-      ${Object.entries(statusMeta).map(([, sm]) => `<span>${sm.emoji} ${sm.label}</span>`).join('')}
-    </div>`;
+    ${rows.map(r => {
+      const sm = statusMeta[r.status] || statusMeta['not-started'];
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:.5rem .75rem;border-radius:6px;margin-bottom:.3rem;background:${sm.color};border:1px solid ${sm.text}22;">
+        <span style="font-size:.88rem;font-weight:500;">${esc(r.displayName)}</span>
+        <span style="font-size:.78rem;color:${sm.text};font-weight:600;">${sm.emoji} ${sm.label}</span>
+      </div>`;
+    }).join('')}`;
 }
 window.filterAdminProgress = filterAdminProgress;
 
