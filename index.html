@@ -461,6 +461,19 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
           <select id="s-genre2"></select>
         </div>
       </div>
+      <div class="f-group">
+        <label>Page Count *</label>
+        <div class="grid2">
+          <input type="number" id="s-pages" placeholder="e.g. 320" min="1" style="max-width:100%;">
+          <select id="s-pages-format">
+            <option value="">Format…</option>
+            <option value="hardcover">Hardcover</option>
+            <option value="paperback">Paperback</option>
+            <option value="digital">Digital / eBook</option>
+          </select>
+        </div>
+        <div style="font-size:.75rem;color:var(--soft);margin-top:.5rem;">Page counts vary between formats — no need to be exact! We just want to give members a rough sense of the length when they're voting.</div>
+      </div>
       <div class="f-group"><label>Why are you recommending this book? <span style="font-size:.7rem;color:var(--soft);text-transform:none;letter-spacing:0;">(optional)</span></label><textarea id="s-reason" placeholder="Tell the club why they should read this…" rows="3"></textarea></div>
       <label class="receipt-check"><input type="checkbox" id="s-receipt"> Download a copy of my submission (PDF)</label>
       <div id="suggest-identity-banner"></div>
@@ -1408,9 +1421,10 @@ function resolveId(discord, email, identityMap) {
 }
 
 function clearSuggestForm() {
-  ['s-title','s-author','s-email','s-discord','s-reason'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['s-title','s-author','s-email','s-discord','s-reason','s-pages'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const g1 = document.getElementById('s-genre');  if (g1) g1.value = '';
   const g2 = document.getElementById('s-genre2'); if (g2) g2.value = '';
+  const pf = document.getElementById('s-pages-format'); if (pf) pf.value = '';
 }
 
 async function suggestBook() {
@@ -1419,8 +1433,13 @@ async function suggestBook() {
   const genre1 = (document.getElementById('s-genre')?.value || '').trim();
   const genre2 = (document.getElementById('s-genre2')?.value || '').trim();
   const genre = [genre1, genre2].filter(Boolean).join(' / ');
+  const pagesRaw = (document.getElementById('s-pages')?.value || '').trim();
+  const pagesFormat = (document.getElementById('s-pages-format')?.value || '').trim();
+  const pageCount = pagesRaw ? parseInt(pagesRaw, 10) : null;
   if (!getSettings().suggestionsOpen) { showMsg('suggest-msg', 'Suggestions are currently closed.', 'err'); return; }
   if (!title || !author || !email || !discord) { showMsg('suggest-msg', 'Please fill in all fields.', 'err'); return; }
+  if (!pageCount || pageCount < 1) { showMsg('suggest-msg', 'Please enter a page count.', 'err'); return; }
+  if (!pagesFormat) { showMsg('suggest-msg', 'Please select a format (hardcover, paperback, or digital).', 'err'); return; }
   if (!email.includes('@')) { showMsg('suggest-msg', 'Please enter a valid email.', 'err'); return; }
   const books = getBooks().map(normBook);
   const norm = s => s.trim().toLowerCase();
@@ -1431,22 +1450,43 @@ async function suggestBook() {
     }
     existing.suggesters.push({ discord, email, reason });
     if (genre && !existing.genre) existing.genre = genre;
+    // Page count merge logic
+    if (pageCount) {
+      if (!existing.pageCount) {
+        // No existing count — just set it
+        existing.pageCount = pageCount;
+        existing.pagesFormat = pagesFormat;
+      } else if (existing.pagesFormat === pagesFormat) {
+        // Same format — keep the higher count
+        if (pageCount > existing.pageCount) existing.pageCount = pageCount;
+      } else {
+        // Different formats — store the secondary alongside the primary
+        // Primary stays as-is; secondary goes into pageCountAlt/pagesFormatAlt
+        // (unless an alt already exists with the same format — then same-format rule applies to it)
+        if (existing.pagesFormatAlt === pagesFormat) {
+          if (pageCount > existing.pageCountAlt) existing.pageCountAlt = pageCount;
+        } else if (!existing.pageCountAlt) {
+          existing.pageCountAlt = pageCount;
+          existing.pagesFormatAlt = pagesFormat;
+        }
+      }
+    }
     showLoading('Adding recommendation…');
     await fbSet(BOOKS_REF, { list: books });
     hideLoading();
     clearSuggestForm();
     showMsg('suggest-msg', '✓ Your recommendation was added to an existing entry!', 'ok');
-    if (document.getElementById('s-receipt')?.checked) downloadSuggestReceipt({ discord, email, title, author, reason });
+    if (document.getElementById('s-receipt')?.checked) downloadSuggestReceipt({ discord, email, title, author, reason, pageCount, pagesFormat });
     return;
   }
   if (books.length >= 30) { showMsg('suggest-msg', 'Maximum 30 books reached.', 'err'); return; }
   showLoading('Adding book…');
-  books.push({ id: Date.now(), title, author, genre: genre || undefined, suggesters: [{ discord, email, reason }] });
+  books.push({ id: Date.now(), title, author, genre: genre || undefined, pageCount, pagesFormat, suggesters: [{ discord, email, reason }] });
   await fbSet(BOOKS_REF, { list: books });
   hideLoading();
   clearSuggestForm();
   showMsg('suggest-msg', '✓ Book added!', 'ok');
-  if (document.getElementById('s-receipt')?.checked) downloadSuggestReceipt({ discord, email, title, author, reason });
+  if (document.getElementById('s-receipt')?.checked) downloadSuggestReceipt({ discord, email, title, author, reason, pageCount, pagesFormat });
 }
 window.suggestBook = suggestBook;
 
@@ -1541,6 +1581,7 @@ function downloadSuggestReceipt(data) {
       { label: 'Email',            value: data.email },
       { label: 'Book Title',       value: data.title },
       { label: 'Author',           value: data.author },
+      { label: 'Page Count',        value: data.pageCount ? data.pageCount + ' pages (' + data.pagesFormat + ')' : '(not provided)' },
       { label: 'Why Recommend?',   value: data.reason || '(not provided)' },
     ]
   });
@@ -1609,6 +1650,7 @@ function renderSuggest() {
         <div class="book-title">${esc(b.title)}</div>
         <div class="book-sub">${esc(b.author)}</div>
         ${genrePillsHtml(b.genre)}
+        ${b.pageCount ? `<div class="book-sub" style="margin-top:.25rem;">📄 ${b.pageCount} pages <span style="color:var(--soft);font-size:.78em;">(${b.pagesFormat})</span>${b.pageCountAlt ? ` <span style="color:var(--soft);font-size:.78em;">· ${b.pageCountAlt} pages (${b.pagesFormatAlt})</span>` : ''}</div>` : ''}
         ${blurbs}
       </div>
     </div>`;
@@ -5790,6 +5832,21 @@ function editBookCard(book, onSave, onCancel, context) {
         <input type="text" id="${uid}-suggester" value="${esc(primarySuggester.discord||'')}" style="font-size:.85rem;padding:.4rem .7rem;">
       </div>
     </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem;">
+      <div class="f-group">
+        <label>Page Count</label>
+        <input type="number" id="${uid}-pages" value="${book.pageCount||''}" min="1" placeholder="e.g. 320" style="font-size:.85rem;padding:.4rem .7rem;">
+      </div>
+      <div class="f-group">
+        <label>Format</label>
+        <select id="${uid}-pagesFormat" style="font-size:.85rem;padding:.4rem .7rem;">
+          <option value="">— none —</option>
+          <option value="hardcover" ${book.pagesFormat==='hardcover'?'selected':''}>Hardcover</option>
+          <option value="paperback" ${book.pagesFormat==='paperback'?'selected':''}>Paperback</option>
+          <option value="digital" ${book.pagesFormat==='digital'?'selected':''}>Digital / eBook</option>
+        </select>
+      </div>
+    </div>
     <div id="${uid}-msg"></div>
     <div style="display:flex;gap:.5rem;margin-top:.4rem;">
       <button class="btn btn-primary btn-sm" onclick="${onSave}('${book.id}','${uid}')">Save</button>
@@ -5856,6 +5913,9 @@ async function saveCurrentBook(bookId, uid) {
   const g2       = (document.getElementById(uid+'-genre-2')?.value||'').trim();
   const genre    = [g1,g2].filter(Boolean).join(' / ');
   const suggester = document.getElementById(uid+'-suggester')?.value.trim();
+  const pagesRaw  = document.getElementById(uid+'-pages')?.value.trim();
+  const pagesFormat = (document.getElementById(uid+'-pagesFormat')?.value||'').trim();
+  const pageCount = pagesRaw ? parseInt(pagesRaw, 10) : null;
   if (!title || !author) { showMsg(uid+'-msg','Title and author are required.','err'); return; }
   showLoading('Saving…');
   const books = JSON.parse(JSON.stringify(getBooks()));
@@ -5864,6 +5924,8 @@ async function saveCurrentBook(bookId, uid) {
   books[idx].title  = title;
   books[idx].author = author;
   if (genre) books[idx].genre = genre; else delete books[idx].genre;
+  if (pageCount) { books[idx].pageCount = pageCount; books[idx].pagesFormat = pagesFormat || undefined; }
+  else { delete books[idx].pageCount; delete books[idx].pagesFormat; }
   const nb = normBook(books[idx]);
   if (suggester && nb.suggesters.length > 0) nb.suggesters[0].discord = suggester;
   books[idx].suggesters = nb.suggesters;
@@ -5936,6 +5998,9 @@ async function saveArchiveBook(label, bookId, uid) {
   const ag2      = (document.getElementById(uid+'-genre-2')?.value||'').trim();
   const genre    = [ag1,ag2].filter(Boolean).join(' / ');
   const suggester = document.getElementById(uid+'-suggester')?.value.trim();
+  const aPagesRaw   = document.getElementById(uid+'-pages')?.value.trim();
+  const aPagesFormat = (document.getElementById(uid+'-pagesFormat')?.value||'').trim();
+  const aPageCount  = aPagesRaw ? parseInt(aPagesRaw, 10) : null;
   if (!title || !author) { showMsg(uid+'-msg','Title and author are required.','err'); return; }
   showLoading('Saving…');
   const archives = JSON.parse(JSON.stringify(getArchives()));
@@ -5947,6 +6012,8 @@ async function saveArchiveBook(label, bookId, uid) {
   books[bIdx].title  = title;
   books[bIdx].author = author;
   if (genre) books[bIdx].genre = genre; else delete books[bIdx].genre;
+  if (aPageCount) { books[bIdx].pageCount = aPageCount; books[bIdx].pagesFormat = aPagesFormat || undefined; }
+  else { delete books[bIdx].pageCount; delete books[bIdx].pagesFormat; }
   const nb = normBook(books[bIdx]);
   if (suggester && nb.suggesters.length > 0) nb.suggesters[0].discord = suggester;
   books[bIdx].suggesters = nb.suggesters;
