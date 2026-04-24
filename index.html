@@ -2930,9 +2930,31 @@ function renderAnalysisPageCount() {
     </div>
   </div>
 
-  <div class="chart-wrap">
+  <div class="chart-wrap" id="pc-table-wrap">
     <h3>All books by page count</h3>
     <p style="font-size:.78rem;color:var(--soft);margin-bottom:1rem;">Every nominated book with page count data, sorted longest to shortest.</p>
+    <div id="pc-table-inner"></div>
+  </div>
+  `;
+  window._pcBooks = sortedBooks;
+  window._pcPage  = 1;
+  _renderPageCountTable(1);
+}
+
+function _renderPageCountTable(page) {
+  const books = window._pcBooks || [];
+  const PER_PAGE = 10;
+  const totalPages = Math.ceil(books.length / PER_PAGE);
+  page = Math.max(1, Math.min(page, totalPages));
+  window._pcPage = page;
+  const slice = books.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  const inner = document.getElementById('pc-table-inner');
+  if (!inner) return;
+
+  const navBtnStyle = 'font-size:.78rem;padding:.25rem .65rem;border:1px solid var(--border);border-radius:4px;background:var(--paper);color:var(--ink);cursor:pointer;';
+  const navDisabled = 'opacity:.35;cursor:default;pointer-events:none;';
+
+  inner.innerHTML = `
     <div style="overflow-x:auto;">
       <table style="width:100%;border-collapse:collapse;font-size:.82rem;">
         <thead>
@@ -2945,7 +2967,7 @@ function renderAnalysisPageCount() {
           </tr>
         </thead>
         <tbody>
-          ${sortedBooks.map(b => `<tr style="border-bottom:1px solid var(--border);">
+          ${slice.map(b => `<tr style="border-bottom:1px solid var(--border);">
             <td style="padding:.45rem .6rem;font-weight:500;">${esc(b.title)}</td>
             <td style="padding:.45rem .6rem;color:var(--soft);">${esc(b.month)}</td>
             <td style="padding:.45rem .6rem;text-align:center;color:var(--soft);font-size:.82rem;">${b.rank ? '#' + b.rank + ' of ' + b.totalInMonth : '—'}</td>
@@ -2957,9 +2979,17 @@ function renderAnalysisPageCount() {
         </tbody>
       </table>
     </div>
-  </div>
+    ${totalPages > 1 ? `<div style="display:flex;align-items:center;justify-content:space-between;margin-top:.85rem;">
+      <div style="display:flex;gap:.4rem;">
+        <button style="${navBtnStyle}${page===1?navDisabled:''}" onclick="pcGoPage(${page-1})">← Prev</button>
+        <button style="${navBtnStyle}${page===totalPages?navDisabled:''}" onclick="pcGoPage(${page+1})">Next →</button>
+      </div>
+      <div style="font-size:.78rem;color:var(--soft);">Page ${page} of ${totalPages} · ${books.length} books</div>
+    </div>` : ''}
   `;
 }
+function pcGoPage(p) { _renderPageCountTable(p); }
+window.pcGoPage = pcGoPage;
 
 
 // ── Members sub-tab ───────────────────────────────────────────────────────────
