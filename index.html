@@ -674,7 +674,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   <div class="sub-tabs">
     <button class="sub-tab active" onclick="goSubTab('voting',this)">Voting</button>
     <button class="sub-tab" onclick="goSubTab('members',this)">Members</button>
-    <button class="sub-tab" onclick="goSubTab('rank-dist',this)">Book Rank Distributions</button>
+    <button class="sub-tab" onclick="goSubTab('rank-dist',this)">Voting Results Breakdown</button>
     <button class="sub-tab" onclick="goSubTab('genre-diversity',this)">Genre Diversity</button>
     <button class="sub-tab" onclick="goSubTab('page-count',this)">Page Count</button>
   </div>
@@ -2711,7 +2711,7 @@ function renderAnalysisVoting() {
   showMonthDetail(archives.length-1, area.querySelector('.month-tab.active'));
 }
 
-// ── Rank Distributions sub-tab ───────────────────────────────────────────────
+// ── Voting Results Breakdown sub-tab ──────────────────────────────────────────
 // Track active month filter for rank dist ('all' or an archive label)
 let _rankDistMonth = 'all';
 // Track sort mode: 'avgRank' or 'firstVotes'
@@ -2941,7 +2941,7 @@ function renderAnalysisPageCount() {
 
   area.innerHTML = `
   <div class="chart-wrap">
-    <h3>Book Length Distribution</h3>
+    <h3>Book Length Breakdown</h3>
     <p style="font-size:.78rem;color:var(--soft);margin-bottom:1rem;">How books nominated for voting break down by page count. Based on ${allBooks.length} book${allBooks.length!==1?'s':''} with page count data.</p>
     <div class="bar-chart">
       ${buckets.map((bk,i) => `<div class="bar-row">
@@ -3025,8 +3025,10 @@ function _renderPageCountTable(page) {
     </div>
     ${totalPages > 1 ? `<div style="display:flex;align-items:center;justify-content:space-between;margin-top:.85rem;">
       <div style="display:flex;gap:.4rem;">
+        <button style="${navBtnStyle}${page===1?navDisabled:''}" onclick="pcGoPage(1)">« First</button>
         <button style="${navBtnStyle}${page===1?navDisabled:''}" onclick="pcGoPage(${page-1})">← Prev</button>
         <button style="${navBtnStyle}${page===totalPages?navDisabled:''}" onclick="pcGoPage(${page+1})">Next →</button>
+        <button style="${navBtnStyle}${page===totalPages?navDisabled:''}" onclick="pcGoPage(${totalPages})">Last »</button>
       </div>
       <div style="font-size:.78rem;color:var(--soft);">Page ${page} of ${totalPages} · ${books.length} books</div>
     </div>` : ''}
