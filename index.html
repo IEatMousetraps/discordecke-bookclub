@@ -5829,76 +5829,6 @@ function renderBadgesTab() {
   const earnedBadges = visibleBadges.filter(b => hasBadge(b.id, profile, myKey));
   const totalEarned = earnedBadges.length;
 
-  // Find the most recently earned badge by checking which badge the member earned last.
-  // Strategy: for threshold-based badges, the "latest" is the one whose threshold they most
-  // recently crossed. We approximate by finding the badge whose check predicate is satisfied
-  // now but would NOT be satisfied if each key stat were decremented by 1.
-  // Admin-only and manually-overridden badges (check always returns false) are excluded —
-  // they have no meaningful earn order and would otherwise dominate the fallback.
-  const _badgeCfg = getBadgeConfig();
-  const _isAdminGranted = (b) => {
-    if (b.adminOnly) return true;
-    // Also treat as admin-granted if the member has an explicit true override for a badge
-    // whose check() can never pass organically (i.e. always returns false)
-    const ov = _badgeCfg.overrides?.[myKey];
-    if (ov && (ov[b.id] === true || (ov[b.id] && ov[b.id].granted)) && b.check) {
-      try { return b.check({ voted:999,suggestedMonths:999,reviewed:999,longestVoteStreak:999,longestReadStreak:999,longestAllRounderStreak:999,pickedWinner:999,suggestedTop3:999,dnfCount:999,dnsCount:999,whyNotBoth:999,genresSuggested:999,totalMonths:999,surveysCompleted:999,steadyEddie:true,dependable:true,deadReliable:true,finishedBookIds:new Set(['__any__']) }) === false; }
-      catch { return true; }
-    }
-    return false;
-  };
-
-  let mostRecentBadge = null;
-  if (earnedBadges.length) {
-    const organicEarned = earnedBadges.filter(b => !_isAdminGranted(b));
-    const candidates = organicEarned.length ? organicEarned : earnedBadges;
-
-    const numericKeys = ['voted','suggestedMonths','reviewed','pickedWinner','suggestedTop3',
-      'dnfCount','dnsCount','reviewsWithRating','nightOwlCount','earlyBird',
-      'speedFinishCount','lastMinuteCount','oneStarCount','penPalCount','essayistCount',
-      'earlyToRise','longestVoteStreak','longestReadStreak','longestAllRounderStreak',
-      'whyNotBoth','genresSuggested',
-      // Quarterly numeric stats
-      'qBingoMaxRows','qBingoMaxNoFreeRows','qPassportCompleted','qPassportMaxBonus',
-      'qBingoApproved','qPassportApproved','qTotalApprovals','qConsecutiveApprovals'];
-    // Boolean quarterly stats that also signal a newly-earned badge
-    const booleanKeys = ['qParkTheBus','qCornerKick','qFourCorners','qFourFourTwo','qPassportAllBonus'];
-    for (const b of [...candidates].reverse()) {
-      if (!b.check) continue;
-      let wouldLose = false;
-      for (const k of numericKeys) {
-        if (typeof profile[k] === 'number' && profile[k] > 0) {
-          const tmp = { ...profile, [k]: profile[k] - 1 };
-          if (!b.check(tmp)) { wouldLose = true; break; }
-        }
-      }
-      if (!wouldLose) {
-        for (const k of booleanKeys) {
-          if (profile[k] === true) {
-            const tmp = { ...profile, [k]: false };
-            if (!b.check(tmp)) { wouldLose = true; break; }
-          }
-        }
-      }
-      // Monthly book badges: check if removing each finished book id loses the badge
-      if (!wouldLose && b.monthlyBook && profile.finishedBookIds) {
-        const tmp = { ...profile, finishedBookIds: new Set() };
-        if (!b.check(tmp)) wouldLose = true;
-      }
-      if (wouldLose) { mostRecentBadge = b; break; }
-    }
-    // Fallback: last earned organic badge in definition order
-    if (!mostRecentBadge) mostRecentBadge = candidates[candidates.length - 1];
-  }
-
-  const recentBadgeHtml = mostRecentBadge
-    ? `<div style="display:flex;align-items:center;gap:.5rem;margin-top:.5rem;padding:.4rem .65rem;background:var(--cream);border-radius:4px;border-left:2px solid var(--gold);font-size:.8rem;">
-        <span style="font-size:1rem;">${mostRecentBadge.iconDataUrl ? '🖼️' : mostRecentBadge.emoji}</span>
-        <span><strong>Latest:</strong> ${esc(mostRecentBadge.name)}</span>
-        <span style="color:var(--soft);font-size:.75rem;">— ${esc(mostRecentBadge.desc)}</span>
-       </div>`
-    : '';
-
   document.getElementById('badges-summary').innerHTML = `
     <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
       <div style="text-align:center;">
@@ -5909,7 +5839,6 @@ function renderBadgesTab() {
         <div style="font-weight:500;margin-bottom:.3rem;">${earnedBadges.map(b=>b.iconDataUrl?'🖼️':b.emoji).join(' ')||'—'}</div>
         <div style="font-size:.82rem;color:var(--soft);">${profile.voted} months voted · ${profile.suggestedMonths} months suggested · ${profile.reviewed} reviews · ${profile.surveysCompleted} surveys · ${profile.pickedWinner} winning pick${profile.pickedWinner!==1?'s':''}</div>
         <div style="font-size:.78rem;color:var(--soft);margin-top:.2rem;">Longest vote streak: ${profile.longestVoteStreak} · Longest read streak: ${profile.longestReadStreak}</div>
-        ${recentBadgeHtml}
       </div>
     </div>`;
 
