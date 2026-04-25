@@ -1238,6 +1238,7 @@ function startListeners() {
   onSnapshot(PROGRESS_REF, snap => {
     CACHE.readingProgress = snap.exists() ? (snap.data().map || {}) : {};
     refreshActiveTab();
+    updateBadgeNavDot();
   });
   onSnapshot(MEETING_REF, snap => {
     CACHE.meetingInfo = snap.exists() ? snap.data() : {};
@@ -1249,6 +1250,7 @@ function startListeners() {
       snap.exists() ? snap.data() : {}
     );
     refreshActiveTab();
+    updateBadgeNavDot();
   });
   onSnapshot(QUARTERLY_CONFIG_REF, snap => {
     CACHE.quarterlyConfig = Object.assign(
@@ -7098,11 +7100,17 @@ function updateBadgeNavDot() {
 function renderNewBadgeAlert(memberKey, profile) {
   const container = document.getElementById('badge-new-alert');
   if (!container) return;
-  const newBadges = getNewBadgesSinceLastVisit(memberKey, profile);
 
-  // Always update the seen snapshot to current earned set on every visit
   const allBadges = getAllBadges({ includeHidden: true, includeDisabled: true });
   const earnedIds = new Set(allBadges.filter(b => hasBadge(b.id, profile, memberKey)).map(b => b.id));
+
+  // First-ever visit: no stored snapshot yet — silently set baseline, no alert
+  const isFirstVisit = localStorage.getItem(_badgeSeenKey(memberKey)) === null;
+
+  // Compute new badges BEFORE saving the updated snapshot
+  const newBadges = isFirstVisit ? [] : getNewBadgesSinceLastVisit(memberKey, profile);
+
+  // Now save the current earned set as the new baseline
   _saveSeenBadgeIds(memberKey, earnedIds);
   updateBadgeNavDot();
 
@@ -7112,7 +7120,7 @@ function renderNewBadgeAlert(memberKey, profile) {
     <div style="display:flex;align-items:center;gap:.6rem;padding:.5rem 0;border-bottom:1px solid rgba(240,180,41,.2);">
       <span style="font-size:1.4rem;min-width:1.8rem;text-align:center;">${b.iconDataUrl ? `<img src="${b.iconDataUrl}" style="width:28px;height:28px;object-fit:contain;border-radius:3px;">` : b.emoji}</span>
       <div>
-        <div style="font-weight:600;font-size:.88rem;">${esc(b.name)}</div>
+        <div style="font-weight:600;font-size:.88rem;color:#ffffff;">${esc(b.name)}</div>
         <div style="font-size:.77rem;color:rgba(255,255,255,.65);">${esc(b.desc)}</div>
       </div>
     </div>`).join('');
