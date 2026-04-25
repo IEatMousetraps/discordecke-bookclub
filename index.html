@@ -27,6 +27,8 @@ nav{display:flex;justify-content:center;gap:0;border-bottom:3px solid var(--gold
 nav button{font-family:'DM Sans',sans-serif;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;padding:.85rem 1.25rem;background:none;border:none;border-bottom:3px solid transparent;cursor:pointer;color:rgba(255,255,255,.5);transition:all .2s;white-space:nowrap;margin-bottom:-3px;}
 nav button.active{color:var(--gold);border-bottom-color:var(--gold);font-weight:600;}
 nav button:hover:not(.active){color:rgba(255,255,255,.85);}
+.badge-notify-dot{display:inline-block;width:7px;height:7px;background:var(--gold);border-radius:50%;margin-left:5px;vertical-align:middle;position:relative;top:-1px;box-shadow:0 0 0 0 rgba(240,180,41,.6);animation:badge-pulse 1.8s ease-out infinite;}
+@keyframes badge-pulse{0%{box-shadow:0 0 0 0 rgba(240,180,41,.6);}70%{box-shadow:0 0 0 6px rgba(240,180,41,0);}100%{box-shadow:0 0 0 0 rgba(240,180,41,0);}}
 main{max-width:740px;margin:0 auto;padding:2rem 1rem 5rem;position:relative;z-index:1;}
 .section{display:none;} .section.active{display:block;}
 .sec-head{margin-bottom:1.75rem;padding-bottom:1rem;border-bottom:1px solid var(--border);}
@@ -432,7 +434,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   <button data-tab="review" onclick="goTab('review',this)">Review</button>
   <button data-tab="surveys" onclick="goTab('surveys',this)">Surveys</button>
   <button data-tab="progress" onclick="goTab('progress',this)">📖 My Progress</button>
-  <button data-tab="badges" onclick="goTab('badges',this)">🏅 Badges</button>
+  <button data-tab="badges" onclick="goTab('badges',this)">🏅 Badges<span id="badge-notify-dot" class="badge-notify-dot" style="display:none;"></span></button>
   <button data-tab="rankings" onclick="goTab('rankings',this)">2026 Book Rankings</button>
   <button data-tab="analysis" onclick="goTab('analysis',this)">Book Club Metrics</button>
   <button data-tab="quarterly" id="quarterly-nav-btn" onclick="goTab('quarterly',this)" style="display:none;">🎯 Quarterly Activity</button>
@@ -657,6 +659,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
     <div id="bg-identity-msg"></div>
   </div>
   <div id="badges-main" style="display:none;">
+    <div id="badge-new-alert"></div>
     <div id="badges-summary" class="card" style="margin-bottom:1.25rem;"></div>
     <div id="badges-area"></div>
   </div>
@@ -5743,9 +5746,12 @@ async function loadBadges() {
   _bgIdentity = { email, discord };
   saveIdentityCookie(email, discord);
   document.getElementById('badges-main').style.display = '';
+  updateBadgeNavDot();
   renderBadgesTab();
 }
 window.loadBadges = loadBadges;
+window.updateBadgeNavDot = updateBadgeNavDot;
+window.renderNewBadgeAlert = renderNewBadgeAlert;
 
 // Badge category definitions — order controls display order
 const BADGE_CATEGORIES = [
@@ -5988,6 +5994,7 @@ function renderBadgesTab() {
   }).join('');
 
   document.getElementById('badges-area').innerHTML = html || '<p style="font-size:.85rem;color:var(--soft);">No badges available yet.</p>';
+  renderNewBadgeAlert(myKey, profile);
 }
 
 // ════════════════════════════════════════════════════════
@@ -7047,6 +7054,79 @@ function loadIdentityCookie() {
 
 function clearIdentityCookie() {
   document.cookie = `${IDENTITY_COOKIE}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;SameSite=Lax`;
+}
+
+// ── Badge notification (new-since-last-visit) ────────────────────────────────
+function _badgeSeenKey(memberKey) { return 'dbc_badges_seen_' + memberKey; }
+
+function _getSeenBadgeIds(memberKey) {
+  try { return new Set(JSON.parse(localStorage.getItem(_badgeSeenKey(memberKey)) || '[]')); }
+  catch { return new Set(); }
+}
+
+function _saveSeenBadgeIds(memberKey, ids) {
+  try { localStorage.setItem(_badgeSeenKey(memberKey), JSON.stringify([...ids])); } catch {}
+}
+
+// Compute which earned badge IDs are new since the member last visited the badges page.
+// Returns an array of badge objects (not just IDs).
+function getNewBadgesSinceLastVisit(memberKey, profile) {
+  const allBadges    = getAllBadges({ includeHidden: true, includeDisabled: true });
+  const earnedIds    = new Set(allBadges.filter(b => hasBadge(b.id, profile, memberKey)).map(b => b.id));
+  const seenIds      = _getSeenBadgeIds(memberKey);
+  const newIds       = [...earnedIds].filter(id => !seenIds.has(id));
+  const visibleBadges = getAllBadges(); // respects organic/hidden settings
+  const visibleIds   = new Set(visibleBadges.map(b => b.id));
+  // Only surface new badges that are currently visible to the member
+  return newIds.map(id => allBadges.find(b => b.id === id)).filter(b => b && visibleIds.has(b.id));
+}
+
+// Update the pulsing dot on the nav button.
+// Call this whenever identity is known or badges page is dismissed.
+function updateBadgeNavDot() {
+  const dot = document.getElementById('badge-notify-dot');
+  if (!dot) return;
+  if (!_bgIdentity) { dot.style.display = 'none'; return; }
+  const myKey  = normEmail(_bgIdentity.email) || normId(_bgIdentity.discord);
+  const profile = computeMemberProfile(_bgIdentity.discord, _bgIdentity.email);
+  const newBadges = getNewBadgesSinceLastVisit(myKey, profile);
+  dot.style.display = newBadges.length ? 'inline-block' : 'none';
+}
+
+// Show (or skip) the new-badge celebration alert at the top of the badges tab.
+// Called from renderBadgesTab() after the summary renders.
+function renderNewBadgeAlert(memberKey, profile) {
+  const container = document.getElementById('badge-new-alert');
+  if (!container) return;
+  const newBadges = getNewBadgesSinceLastVisit(memberKey, profile);
+
+  // Always update the seen snapshot to current earned set on every visit
+  const allBadges = getAllBadges({ includeHidden: true, includeDisabled: true });
+  const earnedIds = new Set(allBadges.filter(b => hasBadge(b.id, profile, memberKey)).map(b => b.id));
+  _saveSeenBadgeIds(memberKey, earnedIds);
+  updateBadgeNavDot();
+
+  if (!newBadges.length) { container.innerHTML = ''; return; }
+
+  const badgeItems = newBadges.map(b => `
+    <div style="display:flex;align-items:center;gap:.6rem;padding:.5rem 0;border-bottom:1px solid rgba(240,180,41,.2);">
+      <span style="font-size:1.4rem;min-width:1.8rem;text-align:center;">${b.iconDataUrl ? `<img src="${b.iconDataUrl}" style="width:28px;height:28px;object-fit:contain;border-radius:3px;">` : b.emoji}</span>
+      <div>
+        <div style="font-weight:600;font-size:.88rem;">${esc(b.name)}</div>
+        <div style="font-size:.77rem;color:rgba(255,255,255,.65);">${esc(b.desc)}</div>
+      </div>
+    </div>`).join('');
+
+  const plural = newBadges.length === 1;
+  container.innerHTML = `
+    <div style="background:linear-gradient(135deg,#2a1f00,#1f1800);border:1.5px solid var(--gold);border-radius:8px;padding:1rem 1.1rem 1rem;margin-bottom:1.5rem;position:relative;">
+      <button onclick="document.getElementById('badge-new-alert').innerHTML=''" aria-label="Dismiss"
+        style="position:absolute;top:.6rem;right:.75rem;background:none;border:none;cursor:pointer;color:rgba(255,255,255,.4);font-size:1rem;line-height:1;padding:.2rem;">✕</button>
+      <div style="font-family:'Playfair Display',serif;font-size:1rem;font-weight:700;color:var(--gold);margin-bottom:.65rem;">
+        🎉 You've earned ${newBadges.length} new badge${plural ? '' : 's'} since your last visit!
+      </div>
+      ${badgeItems}
+    </div>`;
 }
 
 // Two banner styles:
@@ -9208,6 +9288,10 @@ function applyIdentityCookieToForms() {
   insertGateBanner('surveys-identity-card');
   insertGateBanner('badges-identity-card');
   insertGateBanner('quarterly-identity-card');
+
+  // Set identity so nav dot can be computed for remembered members
+  if (!_bgIdentity) { _bgIdentity = { email, discord }; }
+  updateBadgeNavDot();
 
   // ── Submission pages ──
   fill('s-email', email);  fill('s-discord', discord);
