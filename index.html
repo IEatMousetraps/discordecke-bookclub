@@ -520,25 +520,10 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 <!-- ══════════════ SURVEYS ══════════════ -->
 <div id="tab-surveys" class="section">
   <div id="surveys-nav-area">
-    <div class="sec-head"><h2>Surveys</h2><p>Fill out active surveys or review your past responses.</p></div>
-    <div class="sub-tabs">
-      <button class="sub-tab active" id="surveys-tab-btn-active" onclick="goSurveysTab('active',this)">Active Surveys</button>
-      <button class="sub-tab" id="surveys-tab-btn-my-responses" onclick="goSurveysTab('my-responses',this)">My Survey Responses</button>
-    </div>
+    <div class="sec-head"><h2>Surveys</h2><p>Fill out active surveys below.</p></div>
   </div>
   <div id="surveys-sub-active">
     <div id="surveys-member-area"></div>
-  </div>
-  <div id="surveys-sub-my-responses" style="display:none;">
-    <div class="card" id="surveys-identity-card">
-      <div class="grid2">
-        <div class="f-group"><label>Email *</label><input type="email" id="sr-lookup-email" placeholder="you@email.com"></div>
-        <div class="f-group"><label>Discord Username *</label><input type="text" id="sr-lookup-discord" placeholder="user#0000"></div>
-      </div>
-      <button class="btn btn-primary" onclick="loadMySurveyResponses()">Show My Responses</button>
-      <div id="sr-lookup-msg"></div>
-    </div>
-    <div id="surveys-my-responses-main" style="display:none;"></div>
   </div>
   <div id="surveys-sub-detail" style="display:none;">
     <div id="surveys-detail-area"></div>
@@ -647,6 +632,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       <button class="sub-tab active" id="profile-sub-btn-overview" onclick="goProfileSubTab('overview',this)">Overview</button>
       <button class="sub-tab" id="profile-sub-btn-progress" onclick="goProfileSubTab('progress',this)">My Progress</button>
       <button class="sub-tab" id="profile-sub-btn-badges" onclick="goProfileSubTab('badges',this)">My Badges<span id="profile-badge-sub-dot" class="badge-notify-dot" style="display:none;"></span></button>
+      <button class="sub-tab" id="profile-sub-btn-surveys" onclick="goProfileSubTab('surveys',this)">My Surveys</button>
     </div>
 
     <!-- Overview sub-panel -->
@@ -667,6 +653,11 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       <div id="badge-new-alert"></div>
       <div id="badges-summary" class="card" style="margin-bottom:1.25rem;"></div>
       <div id="badges-area"></div>
+    </div>
+
+    <!-- My Surveys sub-panel -->
+    <div id="profile-sub-surveys" style="display:none;">
+      <div id="surveys-my-responses-main"></div>
     </div>
   </div>
 </div>
@@ -1295,7 +1286,7 @@ function _doRefreshActiveTab() {
   else if (id === 'results') renderResults();
   else if (id === 'review')    renderReview();
   else if (id === 'rankings')  renderRankings();
-  else if (id === 'surveys')   { renderMemberSurveys(); renderMySurveyResponses(); }
+  else if (id === 'surveys')   renderMemberSurveys();
   else if (id === 'analysis') renderAnalysis();
   else if (id === 'profile')  {
     // If identity already known (cookie), skip the gate and show sub-tabs automatically
@@ -1356,7 +1347,7 @@ function goTab(id, btn) {
   else if (id === 'results')  renderResults();
   else if (id === 'review')   renderReview();
   else if (id === 'rankings') renderRankings();
-  else if (id === 'surveys')  { renderMemberSurveys(); renderMySurveyResponses(); }
+  else if (id === 'surveys')  renderMemberSurveys();
   else if (id === 'analysis') renderAnalysis();
   else if (id === 'profile')  {
     // If identity already known (cookie), skip the gate and show sub-tabs automatically
@@ -2169,17 +2160,12 @@ async function submitSurveyResponse(sid) {
 window.submitSurveyResponse = submitSurveyResponse;
 
 function goSurveysTab(id, btn) {
-  // Always close detail view when switching main sub-tabs
   const detail = document.getElementById('surveys-sub-detail');
   if (detail) detail.style.display = 'none';
   const navArea = document.getElementById('surveys-nav-area');
   if (navArea) navArea.style.display = '';
-  ['active','my-responses'].forEach(s => {
-    const el = document.getElementById('surveys-sub-' + s);
-    if (el) el.style.display = s === id ? '' : 'none';
-  });
-  document.querySelectorAll('#tab-surveys .sub-tab').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
+  const active = document.getElementById('surveys-sub-active');
+  if (active) active.style.display = '';
 }
 window.goSurveysTab = goSurveysTab;
 
@@ -2200,7 +2186,7 @@ window.loadMySurveyResponses = loadMySurveyResponses;
 
 function renderMySurveyResponses() {
   const main = document.getElementById('surveys-my-responses-main');
-  if (!main || main.style.display === 'none') return;
+  if (!main) return;
   if (!_srIdentity) return;
   const { email, discord } = _srIdentity;
   const idMap      = buildIdentityMap();
@@ -5810,9 +5796,10 @@ async function loadProfile() {
   if (!email) { showMsg('profile-identity-msg', 'Please enter your email address.', 'err'); return; }
   if (!discord) { showMsg('profile-identity-msg', 'Please enter your Discord username.', 'err'); return; }
   _profileIdentity = { email, discord, key: pgKey(email, discord) };
-  // Sync to existing identity vars so progress/badges functions work
+  // Sync to existing identity vars so all sub-tab functions work
   _pgIdentity = _profileIdentity;
   _bgIdentity = { email, discord };
+  _srIdentity = { email, discord };
   saveIdentityCookie(email, discord);
   document.getElementById('profile-identity-card').style.display = 'none';
   document.getElementById('profile-subtabs').style.display = '';
@@ -5826,7 +5813,7 @@ async function loadProfile() {
 window.loadProfile = loadProfile;
 
 function goProfileSubTab(id, btn) {
-  ['overview','progress','badges'].forEach(p => {
+  ['overview','progress','badges','surveys'].forEach(p => {
     document.getElementById('profile-sub-' + p).style.display = p === id ? '' : 'none';
   });
   document.querySelectorAll('#profile-subtabs .sub-tab').forEach(b => b.classList.remove('active'));
@@ -5835,6 +5822,9 @@ function goProfileSubTab(id, btn) {
     renderBadgesTab(); // saves snapshot + clears dots via renderNewBadgeAlert → updateBadgeNavDot
     const subDot = document.getElementById('profile-badge-sub-dot');
     if (subDot) subDot.style.display = 'none';
+  }
+  if (id === 'surveys') {
+    renderMySurveyResponses();
   }
 }
 window.goProfileSubTab = goProfileSubTab;
@@ -7348,24 +7338,24 @@ function rememberedBannerHtml(email, discord, mode) {
 function forgetIdentity() {
   clearIdentityCookie();
   // Clear every identity field across all pages
-  ['pg-email','pg-discord','sr-lookup-email','sr-lookup-discord','bg-email','bg-discord',
+  ['profile-email','profile-discord',
    's-email','s-discord','v-email','v-discord','rv-email','rv-discord','qa-email','qa-discord'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   // Remove all banners (both styles share the class)
   document.querySelectorAll('.remembered-banner').forEach(el => el.remove());
   // Gate pages: restore identity cards, hide main content
-  ['profile-identity-card','surveys-identity-card','quarterly-identity-card'].forEach(id => {
+  ['profile-identity-card','quarterly-identity-card'].forEach(id => {
     const el = document.getElementById(id); if (el) el.style.display = '';
   });
-  ['profile-subtabs','surveys-my-responses-main','quarterly-main'].forEach(id => {
+  ['profile-subtabs','quarterly-main'].forEach(id => {
     const el = document.getElementById(id); if (el) el.style.display = 'none';
   });
   // Reset in-memory identities
   _pgIdentity = null;
   _bgIdentity = null;
   _profileIdentity = null;
-  if (typeof _srIdentity !== 'undefined') window._srIdentity = null;
+  _srIdentity = null;
   _qaIdentity = null;
 }
 window.forgetIdentity = forgetIdentity;
@@ -9473,7 +9463,6 @@ function applyIdentityCookieToForms() {
 
   // ── Gate pages ──
   fill('profile-email', email);   fill('profile-discord', discord);
-  fill('sr-lookup-email', email); fill('sr-lookup-discord', discord);
   fill('qa-email', email);        fill('qa-discord', discord);
 
   const insertGateBanner = (cardId) => {
@@ -9484,13 +9473,13 @@ function applyIdentityCookieToForms() {
     card.insertBefore(wrap.firstElementChild, card.querySelector('button'));
   };
   insertGateBanner('profile-identity-card');
-  insertGateBanner('surveys-identity-card');
   insertGateBanner('quarterly-identity-card');
 
   // Set identity so nav dot can be computed for remembered members
   if (!_bgIdentity) { _bgIdentity = { email, discord }; }
   if (!_profileIdentity) { _profileIdentity = { email, discord, key: pgKey(email, discord) }; }
   if (!_pgIdentity) { _pgIdentity = _profileIdentity; }
+  if (!_srIdentity) { _srIdentity = { email, discord }; }
   updateBadgeNavDot();
   updateProfileSubBadgeDot();
 
