@@ -5751,7 +5751,6 @@ async function loadBadges() {
   if (!discord) { showMsg('bg-identity-msg', 'Please enter your Discord username.', 'err'); return; }
   _bgIdentity = { email, discord };
   saveIdentityCookie(email, discord);
-  document.getElementById('badges-main').style.display = '';
   updateBadgeNavDot();
   renderBadgesTab();
 }
@@ -5782,7 +5781,8 @@ async function loadProfile() {
   updateProfileSubBadgeDot();
   renderProfileOverview();
   renderProgressTab();
-  renderBadgesTab();
+  // renderBadgesTab is intentionally deferred — called only when My Badges sub-tab is visited
+  // so that renderNewBadgeAlert doesn't save the badge snapshot prematurely
 }
 window.loadProfile = loadProfile;
 
@@ -5793,11 +5793,9 @@ function goProfileSubTab(id, btn) {
   document.querySelectorAll('#profile-subtabs .sub-tab').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   if (id === 'badges') {
-    // Clear both dots when badges sub-tab is visited
+    renderBadgesTab(); // saves snapshot + clears dots via renderNewBadgeAlert → updateBadgeNavDot
     const subDot = document.getElementById('profile-badge-sub-dot');
-    const navDot = document.getElementById('badge-notify-dot');
     if (subDot) subDot.style.display = 'none';
-    if (navDot) navDot.style.display = 'none';
   }
 }
 window.goProfileSubTab = goProfileSubTab;
@@ -5816,7 +5814,7 @@ function renderProfileTab() {
   if (!_profileIdentity) return;
   renderProfileOverview();
   renderProgressTab();
-  renderBadgesTab();
+  // renderBadgesTab deferred to when My Badges sub-tab is actually visited
 }
 window.renderProfileTab = renderProfileTab;
 
