@@ -1297,8 +1297,7 @@ function _doRefreshActiveTab() {
   else if (id === 'rankings')  renderRankings();
   else if (id === 'surveys')   { renderMemberSurveys(); renderMySurveyResponses(); }
   else if (id === 'analysis') renderAnalysis();
-  else if (id === 'progress') renderProgressTab();
-  else if (id === 'badges') renderBadgesTab();
+  else if (id === 'profile')  renderProfileTab();
   else if (id === 'quarterly') renderQuarterlyTab();
   else if (id === 'admin' && document.getElementById('admin-panel').style.display !== 'none') {
     // If live results sub-tab is active, refresh it directly so vote counts update in real time
@@ -5831,7 +5830,7 @@ function renderProfileOverview() {
 
   // ── Reading progress breakdown ──
   const archives = getArchives();
-  const allProgress = getProgress();
+  const allProgress = getReadingProgress();
   const myProgressMap = allProgress[myKey] || {};
   let finished = 0, dnf = 0, cntr = 0, noEntry = 0;
   archives.forEach(a => {
@@ -7293,10 +7292,10 @@ function forgetIdentity() {
   // Remove all banners (both styles share the class)
   document.querySelectorAll('.remembered-banner').forEach(el => el.remove());
   // Gate pages: restore identity cards, hide main content
-  ['progress-identity-card','surveys-identity-card','badges-identity-card','quarterly-identity-card'].forEach(id => {
+  ['profile-identity-card','surveys-identity-card','quarterly-identity-card'].forEach(id => {
     const el = document.getElementById(id); if (el) el.style.display = '';
   });
-  ['progress-main','surveys-my-responses-main','badges-main','quarterly-main'].forEach(id => {
+  ['profile-subtabs','surveys-my-responses-main','quarterly-main'].forEach(id => {
     const el = document.getElementById(id); if (el) el.style.display = 'none';
   });
   // Reset in-memory identities
