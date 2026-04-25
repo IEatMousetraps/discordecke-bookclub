@@ -5871,28 +5871,51 @@ function renderProfileOverview() {
   });
   const reviewsHtml = myReviews.length
     ? myReviews.map(r => {
-        const label = r.bookTitle || r.book || r.monthLabel || '';
-        const month = r.monthLabel || '';
-        return `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:.35rem 0;border-bottom:.5px solid var(--border);font-size:.88rem;">
-          <span>${label}</span>
-          <span style="font-size:.75rem;color:var(--soft);">${month}</span>
+        const rat = Number(r.rating);
+        const stars = (rat >= 1 && rat <= 5)
+          ? `<span style="color:var(--gold);letter-spacing:.05em;">${'★'.repeat(rat)}${'☆'.repeat(5 - rat)}</span>`
+          : '—';
+        // Find book title from archive entry for this month
+        const archiveEntry = archives.find(a => a.label === r.monthLabel);
+        const bookEntry = archiveEntry ? (archiveEntry.books || []).find(b => String(b.id) === String(r.bookId) || b.title === r.bookTitle) : null;
+        const title = (bookEntry && bookEntry.title) || r.bookTitle || r.book || r.monthLabel || '';
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:.35rem 0;border-bottom:.5px solid var(--border);font-size:.88rem;">
+          <span>${esc(title)}</span>
+          <span style="font-size:.9rem;white-space:nowrap;">${stars}</span>
         </div>`;
       }).join('')
     : `<p style="font-size:.85rem;color:var(--soft);margin:0;">No reviews submitted yet.</p>`;
 
-  // ── Books suggested ──
+  // ── Books suggested — build winner ID set first for the "won" pill ──
+  const winnerBookIds = new Set();
+  archives.forEach(a => {
+    const dualIds = a.dualWinners || [];
+    if (dualIds.length) {
+      dualIds.forEach(id => winnerBookIds.add(String(id)));
+    } else {
+      const nb = (a.books || []).length;
+      const scores = {};
+      (a.books || []).forEach(b => scores[b.id] = 0);
+      Object.values(a.votes || {}).forEach(vd => {
+        (vd.ranking || vd).forEach((id, idx) => { if (scores[id] !== undefined) scores[id] += (nb - idx); });
+      });
+      const sorted = [...(a.books || [])].sort((x, y) => scores[y.id] - scores[x.id]);
+      if (sorted.length) winnerBookIds.add(String(sorted[0].id));
+    }
+  });
   const mySuggestions = [];
   archives.forEach(a => {
     (a.books || []).map(normBook).forEach(b => {
       const isMine = b.suggesters.some(s => (normEmail(s.email) || normId(s.discord)) === myKey);
-      if (isMine) mySuggestions.push({ ...b, monthLabel: a.label });
+      if (isMine) mySuggestions.push({ ...b, monthLabel: a.label, won: winnerBookIds.has(String(b.id)) });
     });
   });
   const suggestionsHtml = mySuggestions.length
     ? mySuggestions.map(b => {
+        const wonPill = b.won ? `<span style="font-size:.7rem;background:#fff8e1;border:1px solid var(--gold);color:#b8860b;padding:.1rem .4rem;border-radius:10px;white-space:nowrap;margin-left:.5rem;">won</span>` : '';
         return `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:.35rem 0;border-bottom:.5px solid var(--border);font-size:.88rem;">
-          <span><strong>${b.title||''}</strong>${b.author ? ` <span style="color:var(--soft);font-size:.8rem;">by ${b.author}</span>` : ''}</span>
-          <span style="font-size:.75rem;color:var(--soft);">${b.monthLabel||''}</span>
+          <span><strong>${esc(b.title||'')}</strong>${b.author ? ` <span style="color:var(--soft);font-size:.8rem;">by ${esc(b.author)}</span>` : ''}${wonPill}</span>
+          <span style="font-size:.75rem;color:var(--soft);white-space:nowrap;margin-left:.5rem;">${esc(b.monthLabel||'')}</span>
         </div>`;
       }).join('')
     : `<p style="font-size:.85rem;color:var(--soft);margin:0;">No books suggested yet.</p>`;
