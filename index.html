@@ -433,8 +433,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   <button data-tab="results" onclick="goTab('results',this)">Results</button>
   <button data-tab="review" onclick="goTab('review',this)">Review</button>
   <button data-tab="surveys" onclick="goTab('surveys',this)">Surveys</button>
-  <button data-tab="progress" onclick="goTab('progress',this)">📖 My Progress</button>
-  <button data-tab="badges" onclick="goTab('badges',this)">🏅 Badges<span id="badge-notify-dot" class="badge-notify-dot" style="display:none;"></span></button>
+  <button data-tab="profile" onclick="goTab('profile',this)">👤 My Profile<span id="badge-notify-dot" class="badge-notify-dot" style="display:none;"></span></button>
   <button data-tab="rankings" onclick="goTab('rankings',this)">2026 Book Rankings</button>
   <button data-tab="analysis" onclick="goTab('analysis',this)">Book Club Metrics</button>
   <button data-tab="quarterly" id="quarterly-nav-btn" onclick="goTab('quarterly',this)" style="display:none;">🎯 Quarterly Activity</button>
@@ -628,40 +627,47 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   </div>
 </div>
 
-<!-- ══════════════ READING PROGRESS ══════════════ -->
-<div id="tab-progress" class="section">
-  <div class="sec-head"><h2>📖 My Reading Progress</h2><p>Track where you are with this month's book club pick.</p></div>
-  <div id="progress-identity-card" class="card">
-    <div class="grid2">
-      <div class="f-group"><label>Email *</label><input type="email" id="pg-email" placeholder="you@email.com"></div>
-      <div class="f-group"><label>Discord Username *</label><input type="text" id="pg-discord" placeholder="user#0000"></div>
-    </div>
-    <button class="btn btn-primary" onclick="loadProgress()">Load My Progress</button>
-    <div id="pg-identity-msg"></div>
-  </div>
-  <div id="progress-main" style="display:none;">
-    <div id="progress-books-area"></div>
-    <div id="pg-save-msg"></div>
-  </div>
-  <div class="sec-head" style="margin-top:2rem;"><h2>Club Reading Leaderboard</h2><p>See where everyone's at across all winning books.</p></div>
-  <div id="progress-leaderboard"></div>
-</div>
+<!-- ══════════════ MY PROFILE ══════════════ -->
+<div id="tab-profile" class="section">
+  <div class="sec-head"><h2>👤 My Profile</h2><p>Your reading record, badges, and progress all in one place.</p></div>
 
-<!-- ══════════════ BADGES ══════════════ -->
-<div id="tab-badges" class="section">
-  <div class="sec-head"><h2>🏅 Member Achievements</h2><p>Earn badges for your participation milestones.</p></div>
-  <div class="card" id="badges-identity-card">
+  <!-- Shared identity gate -->
+  <div id="profile-identity-card" class="card">
     <div class="grid2">
-      <div class="f-group"><label>Email *</label><input type="email" id="bg-email" placeholder="you@email.com"></div>
-      <div class="f-group"><label>Discord Username *</label><input type="text" id="bg-discord" placeholder="user#0000"></div>
+      <div class="f-group"><label>Email *</label><input type="email" id="profile-email" placeholder="you@email.com"></div>
+      <div class="f-group"><label>Discord Username *</label><input type="text" id="profile-discord" placeholder="user#0000"></div>
     </div>
-    <button class="btn btn-primary" onclick="loadBadges()">Show My Badges</button>
-    <div id="bg-identity-msg"></div>
+    <button class="btn btn-primary" onclick="loadProfile()">Load My Profile</button>
+    <div id="profile-identity-msg"></div>
   </div>
-  <div id="badges-main" style="display:none;">
-    <div id="badge-new-alert"></div>
-    <div id="badges-summary" class="card" style="margin-bottom:1.25rem;"></div>
-    <div id="badges-area"></div>
+
+  <!-- Sub-tab bar and panels (shown after login) -->
+  <div id="profile-subtabs" style="display:none;">
+    <div class="sub-tabs">
+      <button class="sub-tab active" id="profile-sub-btn-overview" onclick="goProfileSubTab('overview',this)">Overview</button>
+      <button class="sub-tab" id="profile-sub-btn-progress" onclick="goProfileSubTab('progress',this)">My Progress</button>
+      <button class="sub-tab" id="profile-sub-btn-badges" onclick="goProfileSubTab('badges',this)">My Badges<span id="profile-badge-sub-dot" class="badge-notify-dot" style="display:none;"></span></button>
+    </div>
+
+    <!-- Overview sub-panel -->
+    <div id="profile-sub-overview">
+      <div id="profile-overview-area"></div>
+    </div>
+
+    <!-- My Progress sub-panel -->
+    <div id="profile-sub-progress" style="display:none;">
+      <div id="progress-books-area"></div>
+      <div id="pg-save-msg"></div>
+      <div class="sec-head" style="margin-top:2rem;"><h2>Club Reading Leaderboard</h2><p>See where everyone's at across all winning books.</p></div>
+      <div id="progress-leaderboard"></div>
+    </div>
+
+    <!-- My Badges sub-panel -->
+    <div id="profile-sub-badges" style="display:none;">
+      <div id="badge-new-alert"></div>
+      <div id="badges-summary" class="card" style="margin-bottom:1.25rem;"></div>
+      <div id="badges-area"></div>
+    </div>
   </div>
 </div>
 
@@ -1343,8 +1349,7 @@ function goTab(id, btn) {
   else if (id === 'rankings') renderRankings();
   else if (id === 'surveys')  { renderMemberSurveys(); renderMySurveyResponses(); }
   else if (id === 'analysis') renderAnalysis();
-  else if (id === 'progress') renderProgressTab();
-  else if (id === 'badges')   renderBadgesTab();
+  else if (id === 'profile')  renderProfileTab();
   else if (id === 'quarterly') renderQuarterlyTab();
   else if (id === 'admin' && document.getElementById('admin-panel').style.display !== 'none') renderAdmin();
 }
@@ -5755,6 +5760,203 @@ window.loadBadges = loadBadges;
 window.updateBadgeNavDot = updateBadgeNavDot;
 window.renderNewBadgeAlert = renderNewBadgeAlert;
 
+// ════════════════════════════════════════════════════════
+// MY PROFILE TAB
+// ════════════════════════════════════════════════════════
+
+let _profileIdentity = null; // { email, discord, key }
+
+async function loadProfile() {
+  const email   = document.getElementById('profile-email').value.trim();
+  const discord = document.getElementById('profile-discord').value.trim();
+  if (!email && !discord) { showMsg('profile-identity-msg', 'Please enter your email or Discord username.', 'err'); return; }
+  if (!email) { showMsg('profile-identity-msg', 'Please enter your email address.', 'err'); return; }
+  if (!discord) { showMsg('profile-identity-msg', 'Please enter your Discord username.', 'err'); return; }
+  _profileIdentity = { email, discord, key: pgKey(email, discord) };
+  // Sync to existing identity vars so progress/badges functions work
+  _pgIdentity = _profileIdentity;
+  _bgIdentity = { email, discord };
+  saveIdentityCookie(email, discord);
+  document.getElementById('profile-identity-card').style.display = 'none';
+  document.getElementById('profile-subtabs').style.display = '';
+  updateBadgeNavDot();
+  updateProfileSubBadgeDot();
+  renderProfileOverview();
+  renderProgressTab();
+  renderBadgesTab();
+}
+window.loadProfile = loadProfile;
+
+function goProfileSubTab(id, btn) {
+  ['overview','progress','badges'].forEach(p => {
+    document.getElementById('profile-sub-' + p).style.display = p === id ? '' : 'none';
+  });
+  document.querySelectorAll('#profile-subtabs .sub-tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  if (id === 'badges') {
+    // Clear both dots when badges sub-tab is visited
+    const subDot = document.getElementById('profile-badge-sub-dot');
+    const navDot = document.getElementById('badge-notify-dot');
+    if (subDot) subDot.style.display = 'none';
+    if (navDot) navDot.style.display = 'none';
+  }
+}
+window.goProfileSubTab = goProfileSubTab;
+
+function updateProfileSubBadgeDot() {
+  const subDot = document.getElementById('profile-badge-sub-dot');
+  if (!subDot || !_bgIdentity) return;
+  const myKey  = normEmail(_bgIdentity.email) || normId(_bgIdentity.discord);
+  const profile = computeMemberProfile(_bgIdentity.discord, _bgIdentity.email);
+  const newBadges = getNewBadgesSinceLastVisit(myKey, profile);
+  subDot.style.display = newBadges.length ? 'inline-block' : 'none';
+}
+window.updateProfileSubBadgeDot = updateProfileSubBadgeDot;
+
+function renderProfileTab() {
+  if (!_profileIdentity) return;
+  renderProfileOverview();
+  renderProgressTab();
+  renderBadgesTab();
+}
+window.renderProfileTab = renderProfileTab;
+
+function renderProfileOverview() {
+  const area = document.getElementById('profile-overview-area');
+  if (!area || !_profileIdentity) return;
+
+  const { email, discord } = _profileIdentity;
+  const profile = computeMemberProfile(discord, email);
+  const myKey   = normEmail(email) || normId(discord);
+
+  // ── Reading progress breakdown ──
+  const archives = getArchives();
+  const allProgress = getProgress();
+  const myProgressMap = allProgress[myKey] || {};
+  let finished = 0, dnf = 0, cntr = 0, noEntry = 0;
+  archives.forEach(a => {
+    const winnerIds = a.dualWinners && a.dualWinners.length
+      ? a.dualWinners
+      : (() => {
+          const nb = (a.books||[]).length;
+          const scores = {};
+          (a.books||[]).forEach(b => scores[b.id] = 0);
+          Object.values(a.votes||{}).forEach(vd => {
+            (vd.ranking||vd).forEach((id,idx) => { if (scores[id]!==undefined) scores[id]+=(nb-idx); });
+          });
+          const sorted = [...(a.books||[])].sort((x,y)=>scores[y.id]-scores[x.id]);
+          return sorted.length ? [String(sorted[0].id)] : [];
+        })();
+    winnerIds.forEach(wid => {
+      const status = myProgressMap[String(wid)];
+      if (status === 'finished') finished++;
+      else if (status === 'dnf') dnf++;
+      else if (status === 'chose-not-to-read') cntr++;
+      else noEntry++;
+    });
+  });
+
+  // ── Badges teaser ──
+  const visibleBadges = getAllBadges();
+  const earnedBadges = visibleBadges.filter(b => hasBadge(b.id, profile, myKey));
+  const badgeIcons = earnedBadges.slice(0,8).map(b => `<span style="font-size:1.2rem;">${b.emoji||'🏅'}</span>`).join('');
+
+  // ── Reviews submitted (only reviewed, not opted out) ──
+  const allReviews = getReviews();
+  const myReviews = [];
+  Object.entries(allReviews).forEach(([monthLabel, entries]) => {
+    (entries || []).forEach(r => {
+      const rKey = normEmail(r.email) || normId(r.discord);
+      if (rKey === myKey && r.rating && r.rating !== 'opt-out' && r.rating !== '') {
+        myReviews.push({ ...r, monthLabel });
+      }
+    });
+  });
+  const reviewsHtml = myReviews.length
+    ? myReviews.map(r => {
+        const label = r.bookTitle || r.book || r.monthLabel || '';
+        const month = r.monthLabel || '';
+        return `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:.35rem 0;border-bottom:.5px solid var(--border);font-size:.88rem;">
+          <span>${label}</span>
+          <span style="font-size:.75rem;color:var(--soft);">${month}</span>
+        </div>`;
+      }).join('')
+    : `<p style="font-size:.85rem;color:var(--soft);margin:0;">No reviews submitted yet.</p>`;
+
+  // ── Books suggested ──
+  const mySuggestions = [];
+  archives.forEach(a => {
+    (a.books || []).map(normBook).forEach(b => {
+      const isMine = b.suggesters.some(s => (normEmail(s.email) || normId(s.discord)) === myKey);
+      if (isMine) mySuggestions.push({ ...b, monthLabel: a.label });
+    });
+  });
+  const suggestionsHtml = mySuggestions.length
+    ? mySuggestions.map(b => {
+        return `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:.35rem 0;border-bottom:.5px solid var(--border);font-size:.88rem;">
+          <span><strong>${b.title||''}</strong>${b.author ? ` <span style="color:var(--soft);font-size:.8rem;">by ${b.author}</span>` : ''}</span>
+          <span style="font-size:.75rem;color:var(--soft);">${b.monthLabel||''}</span>
+        </div>`;
+      }).join('')
+    : `<p style="font-size:.85rem;color:var(--soft);margin:0;">No books suggested yet.</p>`;
+
+  // ── Progress breakdown text ──
+  const parts = [];
+  if (finished) parts.push(`<strong>${finished} finished</strong>`);
+  if (dnf) parts.push(`${dnf} DNF`);
+  if (cntr) parts.push(`${cntr} chose not to read`);
+  if (noEntry) parts.push(`${noEntry} no entry`);
+  const progressText = parts.length ? parts.join(' &nbsp;·&nbsp; ') : 'No entries yet.';
+
+  // ── Initials avatar ──
+  const initials = (discord || email || '?').slice(0,2).toUpperCase();
+
+  area.innerHTML = `
+    <div class="card" style="margin-bottom:1.25rem;">
+      <!-- Header -->
+      <div style="display:flex;align-items:center;gap:.85rem;margin-bottom:1rem;">
+        <div style="width:44px;height:44px;border-radius:50%;background:#2a1f00;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:.95rem;color:var(--gold);flex-shrink:0;">${initials}</div>
+        <div style="flex:1;">
+          <div style="font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:700;color:var(--gold);">${discord || email}</div>
+        </div>
+        ${finished ? `<span style="font-size:.75rem;padding:.2rem .7rem;border-radius:20px;background:rgba(255,255,255,.07);border:.5px solid rgba(255,255,255,.15);color:var(--soft);">${finished} book${finished===1?'':'s'} finished</span>` : ''}
+      </div>
+
+      <hr style="border:none;border-top:.5px solid var(--border);margin:.75rem 0;">
+
+      <!-- Badges teaser -->
+      <div style="margin-bottom:.5rem;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);">Badges</div>
+      <div style="background:rgba(255,255,255,.04);border-radius:8px;padding:.65rem 1rem;display:flex;align-items:center;gap:.85rem;">
+        <div style="text-align:center;flex-shrink:0;">
+          <div style="font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:700;color:var(--gold);">${earnedBadges.length}</div>
+          <div style="font-size:.7rem;color:var(--soft);">earned</div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:.3rem;flex:1;">${badgeIcons || '<span style="font-size:.8rem;color:var(--soft);">None yet</span>'}</div>
+        <button class="btn" style="font-size:.75rem;padding:.25rem .65rem;white-space:nowrap;" onclick="goProfileSubTab('badges', document.getElementById('profile-sub-btn-badges'))">See all →</button>
+      </div>
+
+      <hr style="border:none;border-top:.5px solid var(--border);margin:.75rem 0;">
+
+      <!-- Reading progress -->
+      <div style="margin-bottom:.5rem;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);">Reading progress</div>
+      <div style="font-size:.9rem;">${progressText}</div>
+
+      <hr style="border:none;border-top:.5px solid var(--border);margin:.75rem 0;">
+
+      <!-- Reviews -->
+      <div style="margin-bottom:.5rem;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);">Reviews submitted</div>
+      ${reviewsHtml}
+
+      <hr style="border:none;border-top:.5px solid var(--border);margin:.75rem 0;">
+
+      <!-- Suggestions -->
+      <div style="margin-bottom:.5rem;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);">Books suggested</div>
+      ${suggestionsHtml}
+    </div>
+  `;
+}
+window.renderProfileOverview = renderProfileOverview;
+
 // Badge category definitions — order controls display order
 const BADGE_CATEGORIES = [
   { id:'monthly-book',  label:'📖 Monthly Book Badges', emoji:'📖' },
@@ -5817,8 +6019,6 @@ function sortMbbByMonth(arr) {
 }
 
 function renderBadgesTab() {
-  const mainEl = document.getElementById('badges-main');
-  if (!mainEl || mainEl.style.display === 'none') return;
   if (!_bgIdentity) return;
 
   const profile  = computeMemberProfile(_bgIdentity.discord, _bgIdentity.email);
@@ -7102,6 +7302,7 @@ function forgetIdentity() {
   // Reset in-memory identities
   _pgIdentity = null;
   _bgIdentity = null;
+  _profileIdentity = null;
   if (typeof _srIdentity !== 'undefined') window._srIdentity = null;
   _qaIdentity = null;
 }
@@ -9209,9 +9410,8 @@ function applyIdentityCookieToForms() {
   const fill = (id, val) => { const el = document.getElementById(id); if (el && !el.value) el.value = val || ''; };
 
   // ── Gate pages ──
-  fill('pg-email', email);        fill('pg-discord', discord);
+  fill('profile-email', email);   fill('profile-discord', discord);
   fill('sr-lookup-email', email); fill('sr-lookup-discord', discord);
-  fill('bg-email', email);        fill('bg-discord', discord);
   fill('qa-email', email);        fill('qa-discord', discord);
 
   const insertGateBanner = (cardId) => {
@@ -9221,14 +9421,16 @@ function applyIdentityCookieToForms() {
     wrap.innerHTML = rememberedBannerHtml(email, discord, 'gate');
     card.insertBefore(wrap.firstElementChild, card.querySelector('button'));
   };
-  insertGateBanner('progress-identity-card');
+  insertGateBanner('profile-identity-card');
   insertGateBanner('surveys-identity-card');
-  insertGateBanner('badges-identity-card');
   insertGateBanner('quarterly-identity-card');
 
   // Set identity so nav dot can be computed for remembered members
   if (!_bgIdentity) { _bgIdentity = { email, discord }; }
+  if (!_profileIdentity) { _profileIdentity = { email, discord, key: pgKey(email, discord) }; }
+  if (!_pgIdentity) { _pgIdentity = _profileIdentity; }
   updateBadgeNavDot();
+  updateProfileSubBadgeDot();
 
   // ── Submission pages ──
   fill('s-email', email);  fill('s-discord', discord);
@@ -9264,7 +9466,7 @@ window.applyIdentityCookieToSurveyForm = applyIdentityCookieToSurveyForm;
 // Show the app immediately — Firebase listeners will update data as they arrive
 hideLoading();
 const _initTab = location.hash.replace('#', '');
-const _validTabs = ['suggest','vote','results','review','surveys','rankings','analysis','progress','badges','quarterly','admin'];
+const _validTabs = ['suggest','vote','results','review','surveys','rankings','analysis','profile','quarterly','admin'];
 if (_initTab && _validTabs.includes(_initTab)) {
   const _btn = document.querySelector(`nav button[data-tab="${_initTab}"]`) || document.getElementById('admin-nav-btn');
   goTab(_initTab, _btn);
