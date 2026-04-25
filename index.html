@@ -5853,6 +5853,7 @@ function renderProfileTab() {
   if (!_profileIdentity) return;
   document.getElementById('profile-identity-card').style.display = 'none';
   document.getElementById('profile-subtabs').style.display = '';
+  updateProfileSubBadgeDot();
   renderProfileOverview();
   renderProgressTab();
   // renderBadgesTab deferred to when My Badges sub-tab is actually visited
