@@ -1297,15 +1297,25 @@ function _doRefreshActiveTab() {
   else if (id === 'rankings')  renderRankings();
   else if (id === 'surveys')   { renderMemberSurveys(); renderMySurveyResponses(); }
   else if (id === 'analysis') renderAnalysis();
-  else if (id === 'profile')  renderProfileTab();
+  else if (id === 'profile')  {
+    // If identity already known (cookie), skip the gate and show sub-tabs automatically
+    if (_profileIdentity) {
+      document.getElementById('profile-identity-card').style.display = 'none';
+      document.getElementById('profile-subtabs').style.display = '';
+    }
+    renderProfileTab();
+  }
   else if (id === 'quarterly') renderQuarterlyTab();
-  else if (id === 'admin' && document.getElementById('admin-panel').style.display !== 'none') {
-    // If live results sub-tab is active, refresh it directly so vote counts update in real time
-    const liveArea = document.getElementById('admin-live-results-area');
-    if (liveArea && liveArea.closest('#admin-sub-live-results') && document.getElementById('admin-sub-live-results').style.display !== 'none') {
-      renderAdminLiveResults();
-    } else {
-      renderAdmin();
+  else if (id === 'admin') {
+    // Try to restore a recent session before checking panel visibility
+    if (document.getElementById('admin-panel').style.display === 'none') tryRestoreAdminSession();
+    if (document.getElementById('admin-panel').style.display !== 'none') {
+      const liveArea = document.getElementById('admin-live-results-area');
+      if (liveArea && liveArea.closest('#admin-sub-live-results') && document.getElementById('admin-sub-live-results').style.display !== 'none') {
+        renderAdminLiveResults();
+      } else {
+        renderAdmin();
+      }
     }
   }
 }
@@ -1348,9 +1358,26 @@ function goTab(id, btn) {
   else if (id === 'rankings') renderRankings();
   else if (id === 'surveys')  { renderMemberSurveys(); renderMySurveyResponses(); }
   else if (id === 'analysis') renderAnalysis();
-  else if (id === 'profile')  renderProfileTab();
+  else if (id === 'profile')  {
+    // If identity already known (cookie), skip the gate and show sub-tabs automatically
+    if (_profileIdentity) {
+      document.getElementById('profile-identity-card').style.display = 'none';
+      document.getElementById('profile-subtabs').style.display = '';
+    }
+    renderProfileTab();
+  }
   else if (id === 'quarterly') renderQuarterlyTab();
-  else if (id === 'admin' && document.getElementById('admin-panel').style.display !== 'none') renderAdmin();
+  else if (id === 'admin') {
+    if (document.getElementById('admin-panel').style.display === 'none') tryRestoreAdminSession();
+    if (document.getElementById('admin-panel').style.display !== 'none') {
+      const liveArea = document.getElementById('admin-live-results-area');
+      if (liveArea && liveArea.closest('#admin-sub-live-results') && document.getElementById('admin-sub-live-results').style.display !== 'none') {
+        renderAdminLiveResults();
+      } else {
+        renderAdmin();
+      }
+    }
+  }
 }
 window.goTab = goTab;
 
@@ -3594,12 +3621,24 @@ window.showMonthDetail = showMonthDetail;
 function adminLogin() {
   const pass = document.getElementById('admin-pass').value;
   if (pass === getSettings().password) {
+    sessionStorage.setItem('admin_session', JSON.stringify({ expires: Date.now() + 10 * 60 * 1000 }));
     document.getElementById('admin-login-area').style.display = 'none';
     document.getElementById('admin-panel').style.display = 'block';
     renderAdmin();
   } else { showMsg('admin-login-msg', 'Incorrect password.', 'err'); }
 }
 window.adminLogin = adminLogin;
+
+function tryRestoreAdminSession() {
+  try {
+    const stored = JSON.parse(sessionStorage.getItem('admin_session') || 'null');
+    if (!stored || Date.now() > stored.expires) { sessionStorage.removeItem('admin_session'); return false; }
+    document.getElementById('admin-login-area').style.display = 'none';
+    document.getElementById('admin-panel').style.display = 'block';
+    return true;
+  } catch { return false; }
+}
+window.tryRestoreAdminSession = tryRestoreAdminSession;
 
 function renderAdminSurveys() {
   const surveys = getSurveys();
@@ -5812,6 +5851,8 @@ window.updateProfileSubBadgeDot = updateProfileSubBadgeDot;
 
 function renderProfileTab() {
   if (!_profileIdentity) return;
+  document.getElementById('profile-identity-card').style.display = 'none';
+  document.getElementById('profile-subtabs').style.display = '';
   renderProfileOverview();
   renderProgressTab();
   // renderBadgesTab deferred to when My Badges sub-tab is actually visited
@@ -9495,6 +9536,12 @@ if (_initTab && _validTabs.includes(_initTab)) {
 }
 startListeners();
 applyIdentityCookieToForms();
+tryRestoreAdminSession();
+// Auto-load quarterly if identity cookie is present and quarterly is the active tab
+if (location.hash === '#quarterly') {
+  const _qc = loadIdentityCookie();
+  if (_qc && _qc.email && _qc.discord) loadQuarterlyCard();
+}
 
 </script>
 </body>
