@@ -1419,6 +1419,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       <button class="sub-tab" onclick="goAdminTab('edit-books',this)">✏️ Edit Books</button>
       <button class="sub-tab" onclick="goAdminTab('quarterly-admin',this)">🎯 Quarterly</button>
       <button class="sub-tab" onclick="goAdminTab('surveys-admin',this)">📋 Surveys</button>
+      <button class="sub-tab" onclick="goAdminTab('penny-admin',this)">📚 Penny Preview</button>
     </div>
 
     <div id="admin-sub-manage">
@@ -1450,6 +1451,11 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
           <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.3rem;">Reviews</div>
           <span id="a-review-pill" class="pill pill-closed">Closed</span>
           <button class="btn btn-secondary btn-sm" style="margin-left:.5rem;" onclick="toggleSetting('reviewsOpen')">Toggle</button>
+        </div>
+        <div>
+          <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.3rem;">Penny's</div>
+          <span id="a-penny-pill" class="pill pill-closed">Hidden</span>
+          <button class="btn btn-secondary btn-sm" style="margin-left:.5rem;" onclick="toggleSetting('pennyVisible')">Toggle</button>
         </div>
       </div>
     </div>
@@ -1769,6 +1775,21 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 
     </div><!-- /admin-sub-surveys-admin -->
 
+    <div id="admin-sub-penny-admin" style="display:none;">
+      <div class="card" style="margin-bottom:1rem;">
+        <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.5rem;">Penny Preview</h3>
+        <p style="font-size:.85rem;color:var(--soft);margin-bottom:1rem;">This is your private view of Penny's tab — visible only to admins regardless of the Penny's toggle. Use it to test the experience before enabling it for members.</p>
+        <button class="btn btn-secondary btn-sm" onclick="adminResetPennyVisit()">Reset my visit history</button>
+        <span id="penny-reset-msg" style="font-size:.8rem;color:var(--gold);margin-left:.75rem;"></span>
+      </div>
+      <div id="admin-penny-preview-area" style="background:#1a1208;border-radius:6px;padding:1.5rem 0;">
+        <p style="font-family:'Playfair Display',serif;font-style:italic;color:rgba(240,180,41,.4);font-size:14px;text-align:center;">Click "Load Preview" to render Penny.</p>
+        <div style="text-align:center;margin-top:.75rem;">
+          <button class="btn btn-secondary btn-sm" onclick="loadAdminPennyPreview()">Load Preview</button>
+        </div>
+      </div>
+    </div><!-- /admin-sub-penny-admin -->
+
   </div><!-- /admin-panel -->
 </div><!-- /tab-admin -->
 
@@ -1810,7 +1831,7 @@ const PENNY_REF            = doc(db, 'club', 'pennyData');
 
 // ── In-memory cache kept fresh by real-time listeners ──
 let CACHE = {
-  settings: {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,reviewsOpen:false,password:'bookclub123'},
+  settings: {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,reviewsOpen:false,pennyVisible:false,password:'bookclub123'},
   books: [], votes: {}, archives: [], surveys: [], surveyResponses: {}, reviews: {},
   readingProgress: {}, meetingInfo: {},
   badgeConfig: { disabled:{}, hidden:{}, organic:{}, customBadges:[], overrides:{} },
@@ -1895,9 +1916,10 @@ function startListeners() {
 
   onSnapshot(SETTINGS_REF, snap => {
     CACHE.settings = Object.assign(
-      {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,reviewsOpen:false,password:'bookclub123'},
+      {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,reviewsOpen:false,pennyVisible:false,password:'bookclub123'},
       snap.exists() ? snap.data() : {}
     );
+    updatePennyNavVisibility();
     refreshActiveTab();
   });
   onSnapshot(BOOKS_REF, snap => {
@@ -4380,6 +4402,8 @@ function renderAdmin() {
   setPill('a-voting-pill',     s.votingOpen,         'Open',    'Closed',  'pill-open', 'pill-closed');
   setPill('a-results-pill',    s.resultsVisible,     'Visible', 'Hidden',  'pill-open', 'pill-closed');
   setPill('a-review-pill',     s.reviewsOpen,        'Open',    'Closed',  'pill-open', 'pill-closed');
+  setPill('a-penny-pill',      s.pennyVisible,       'Visible', 'Hidden',  'pill-open', 'pill-closed');
+  updatePennyNavVisibility();
   const vnames = Object.keys(votes);
   document.getElementById('voter-count').textContent = `(${vnames.length})`;
   document.getElementById('voter-list').innerHTML = vnames.length ? vnames.map(n => {
@@ -8213,6 +8237,12 @@ async function renderPennyTab() {
   if (!area) return;
   if (_pennyRendering) return;
   _pennyRendering = true;
+  await renderPennyTabInto(area);
+  _pennyRendering = false;
+}
+window.renderPennyTab = renderPennyTab;
+
+async function renderPennyTabInto(area) {
 
   area.className = 'penny-loading';
   area.innerHTML = '<p style="font-family:\'Playfair Display\',serif;font-style:italic;color:rgba(240,180,41,.5);font-size:14px;">Penny is just finishing something…</p>';
@@ -8279,9 +8309,7 @@ async function renderPennyTab() {
     </div>
     <p class="penny-closer">She folds her hands on the desk and waits, unhurried.</p>
   `;
-  _pennyRendering = false;
 }
-window.renderPennyTab = renderPennyTab;
 
 function pennySelectOption(optionId, el) {
   // Highlight selected card
@@ -8290,6 +8318,57 @@ function pennySelectOption(optionId, el) {
   // Chunk 3 will wire the actual conversation from here
 }
 window.pennySelectOption = pennySelectOption;
+
+// ── Penny visibility & admin tools ────────────────────
+function updatePennyNavVisibility() {
+  const btn = document.getElementById('penny-nav-btn');
+  if (!btn) return;
+  const visible = getSettings().pennyVisible;
+  btn.style.display = visible ? '' : 'none';
+  // If penny tab is active but just got hidden, bounce to suggest
+  if (!visible) {
+    const active = document.querySelector('.section.active');
+    if (active && active.id === 'tab-penny') {
+      goTab('suggest', document.querySelector('nav button[data-tab="suggest"]'));
+    }
+  }
+}
+window.updatePennyNavVisibility = updatePennyNavVisibility;
+
+async function loadAdminPennyPreview() {
+  const area = document.getElementById('admin-penny-preview-area');
+  if (!area) return;
+  // Temporarily redirect penny render into the admin area
+  const realArea = document.getElementById('penny-interaction-area');
+  // Clone Penny's tab structure into the preview area
+  area.innerHTML = `
+    <div id="admin-penny-preview-inner" style="background:#1a1208;">
+      <div id="penny-interaction-area-preview" class="penny-loading">
+        <p style="font-family:'Playfair Display',serif;font-style:italic;color:rgba(240,180,41,.5);font-size:14px;">Penny is just finishing something…</p>
+      </div>
+    </div>
+  `;
+  // Run a version of renderPennyTab targeting the preview div
+  await renderPennyTabInto(document.getElementById('penny-interaction-area-preview'));
+}
+window.loadAdminPennyPreview = loadAdminPennyPreview;
+
+async function adminResetPennyVisit() {
+  const msg = document.getElementById('penny-reset-msg');
+  if (!_profileIdentity || !_profileIdentity.key) {
+    if (msg) msg.textContent = 'No identity loaded — visit the main site as yourself first.';
+    return;
+  }
+  try {
+    await fbSet(PENNY_REF, { [_profileIdentity.key]: { visitCount: 0, lastVisit: null } });
+    if (msg) { msg.textContent = 'Visit history reset. Reload the preview to see first-visit flow.'; }
+    // Also reset the render guard so preview re-runs cleanly
+    _pennyRendering = false;
+  } catch(e) {
+    if (msg) msg.textContent = 'Error resetting: ' + e.message;
+  }
+}
+window.adminResetPennyVisit = adminResetPennyVisit;
 
 // ── Cookie auto-load for quarterly tab ────────────────
 function renderQuarterlyTab() {
