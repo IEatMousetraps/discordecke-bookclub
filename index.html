@@ -1990,7 +1990,7 @@ function _doRefreshActiveTab() {
     renderProfileTab();
   }
   else if (id === 'quarterly') renderQuarterlyTab();
-  else if (id === 'penny') renderPennyTab();
+  else if (id === 'penny') { /* Penny renders once on tab open, not on cache refresh */ }
   else if (id === 'admin') {
     // Try to restore a recent session before checking panel visibility
     if (document.getElementById('admin-panel').style.display === 'none') tryRestoreAdminSession();
@@ -8212,6 +8212,8 @@ const PENNY_OPTIONS = [
 async function renderPennyTab() {
   const area = document.getElementById('penny-interaction-area');
   if (!area) return;
+  // Don't re-render if already showing content (Firestore refreshes, etc.)
+  if (area.querySelector('.penny-storybook')) return;
 
   area.className = 'penny-loading';
   area.innerHTML = '<p style="font-family:\'Playfair Display\',serif;font-style:italic;color:rgba(240,180,41,.5);font-size:14px;">Penny is just finishing something…</p>';
@@ -10355,7 +10357,7 @@ window.applyIdentityCookieToSurveyForm = applyIdentityCookieToSurveyForm;
 // Show the app immediately — Firebase listeners will update data as they arrive
 hideLoading();
 const _initTab = location.hash.replace('#', '');
-const _validTabs = ['suggest','vote','results','review','surveys','rankings','analysis','profile','quarterly','admin'];
+const _validTabs = ['suggest','vote','results','review','surveys','rankings','analysis','profile','quarterly','penny','admin'];
 if (_initTab && _validTabs.includes(_initTab)) {
   const _btn = document.querySelector(`nav button[data-tab="${_initTab}"]`) || document.getElementById('admin-nav-btn');
   goTab(_initTab, _btn);
