@@ -8440,15 +8440,12 @@ function _pennyShowReturnGreeting(area, memberName) {
         <p class="penny-speech">What can I do for you?</p>
       </div>
     </div>
-    <div class="penny-options-grid">
-      ${PENNY_OPTIONS.map(opt => `
-        <div class="penny-option-card" onclick="pennySelectOption('${opt.id}','${aid}',this)">
-          <span class="penny-option-label">${opt.label}</span>
-          <span class="penny-option-pitch">${opt.pitch}</span>
-        </div>
-      `).join('')}
+    <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+      <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you do?</em></p>
+      <button class="penny-action-btn" onclick="pennySelectOption('trust','${aid}',this)">"I trust you, Penny."</button>
+      <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
+      <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
     </div>
-    <p class="penny-closer">She folds her hands on the desk and waits, unhurried.</p>
   `;
 }
 
@@ -8458,30 +8455,30 @@ function _pennyShowOptions(area) {
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
         <span class="penny-action">Penny's face lights up. She clasps her hands together.</span>
-        <p class="penny-speech">Oh, well you've come to exactly the right place. The question is how we find it.</p>
-        <p class="penny-speech">I have a few ways we can do this.</p>
+        <p class="penny-speech">Oh, well you've come to exactly the right place. The question is how we find it. I have a few ways we can do this.</p>
+        <span class="penny-action" style="margin-top:.6rem;">She holds up one finger.</span>
+        <p class="penny-speech">Trust me completely and I'll find you something. No questions, no hints — I know these books like old friends, and I have a feeling one of them has been waiting for you.</p>
+        <span class="penny-action" style="margin-top:.6rem;">She holds up a second finger.</span>
+        <p class="penny-speech">Or — let fate decide. Pick a drawer, any drawer — the catalog has never steered me wrong!</p>
+        <span class="penny-action" style="margin-top:.6rem;">A third finger.</span>
+        <p class="penny-speech">Or answer a few questions for me first. I like to know who I'm recommending to. It makes all the difference, I promise.</p>
+        <span class="penny-action" style="margin-top:.6rem;">She folds her hands on the desk and waits.</span>
+        <p class="penny-speech" style="font-style:italic;font-size:13px;color:#8a6d3b;">Any of them will work. I do have a preference but I'll keep it to myself.</p>
       </div>
     </div>
-    <div class="penny-options-grid">
-      ${PENNY_OPTIONS.map(opt => `
-        <div class="penny-option-card" onclick="pennySelectOption('${opt.id}','${aid}',this)">
-          <span class="penny-option-label">${opt.label}</span>
-          <span class="penny-option-pitch">${opt.pitch}</span>
-        </div>
-      `).join('')}
+    <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+      <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you do?</em></p>
+      <button class="penny-action-btn" onclick="pennySelectOption('trust','${aid}',this)">"I trust you, Penny."</button>
+      <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
+      <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
     </div>
-    <p class="penny-closer">Any of them will work. I do have a preference but I'll keep it to myself.</p>
   `;
 }
 
 function pennySelectOption(optionId, areaId, el) {
   const area = document.getElementById(areaId);
   if (!area) return;
-  // Highlight selected card
-  area.querySelectorAll('.penny-option-card').forEach(c => c.classList.remove('selected'));
-  el.classList.add('selected');
-
-  // Branch stubs — Chunk 3 will wire these fully
+  if (el) { el.disabled = true; el.style.opacity = '.5'; }
   setTimeout(() => {
     if (optionId === 'trust') _pennyBranchTrust(area);
     else if (optionId === 'catalog') _pennyBranchCatalog(area);
