@@ -857,6 +857,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   margin: 0 0 .75rem;
   display: block;
   line-height: 1.6;
+  white-space: pre-wrap;
 }
 .penny-speech {
   font-family: 'Playfair Display', serif;
@@ -908,6 +909,78 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   color: rgba(240,180,41,.45);
   display: block;
   margin-bottom: .15rem;
+}
+
+/* door / entry scene */
+.penny-door-scene {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem 1.5rem 2rem;
+  gap: 1rem;
+  position: relative;
+  z-index: 2;
+}
+.penny-door-sign {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 1px solid rgba(240,180,41,.4);
+  border-radius: 2px;
+  padding: 1.1rem 2.2rem;
+  background: rgba(240,180,41,.04);
+  box-shadow: 0 0 0 4px #1a1208, 0 0 0 5px rgba(240,180,41,.15);
+  margin-bottom: .5rem;
+}
+.penny-door-sign-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.6rem;
+  color: var(--gold);
+  letter-spacing: .04em;
+}
+.penny-door-sign-sub {
+  font-family: 'DM Sans', sans-serif;
+  font-size: .72rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: rgba(240,180,41,.6);
+  margin-top: .2rem;
+}
+.penny-door-sign-est {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: .8rem;
+  color: rgba(240,180,41,.4);
+  margin-top: .4rem;
+}
+.penny-door-prompt {
+  font-family: 'Playfair Display', serif;
+  font-size: 14px;
+  color: rgba(240,180,41,.65);
+  text-align: center;
+  margin: 0;
+  line-height: 1.6;
+}
+.penny-action-btn {
+  background: transparent;
+  border: 1px solid rgba(240,180,41,.4);
+  border-radius: 2px;
+  color: rgba(240,180,41,.85);
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 14px;
+  padding: .75rem 1.25rem;
+  cursor: pointer;
+  transition: background .18s, border-color .18s, color .18s;
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+  line-height: 1.5;
+}
+.penny-action-btn:hover {
+  background: rgba(240,180,41,.08);
+  border-color: rgba(240,180,41,.75);
+  color: var(--gold);
 }
 
 /* option cards (Chunk 2) */
@@ -8204,13 +8277,25 @@ window.qaDrawerCheck = function() {
 // ── Penny: arrival scenarios ───────────────────────────
 const PENNY_SCENARIOS = [
   {
-    action: 'The shop is quiet when you step in. Penny is at the desk, a book open in front of her. She looks up when she hears the door.'
+    interior: 'The door swings open. Inside is a small, warm library. Shelves line the walls. A grandfather clock ticks in the corner. Penny is sitting in an armchair, deeply absorbed in a book. She doesn\'t notice you at first.\n\nA few seconds pass.\n\nShe turns a page.',
+    startle:  'Penny startles slightly, looks up, and her face breaks into a warm smile.',
+    greeting: 'Oh! Oh goodness — sorry, I was just at a very good part. Actually, do you want to know what happens? No. No, I won\'t do that to you.',
+    setup:    'She sets her book down, stands up, and moves behind a small wooden desk. There\'s a card catalog against the wall behind her. The whole place smells like old paper and something vaguely like tea. She looks at you expectantly.',
+    return:   'Penny is at the shelves with a duster, working her way along a row of books. She doesn\'t notice you at first. A moment passes. She moves to the next shelf. You step further inside. She turns around and spots you, her face breaking into a warm smile of recognition.'
   },
   {
-    action: 'A bell above the door announces you. Penny is halfway up a stepstool, dusting the top shelf. She steps down and turns.'
+    interior: 'The door swings open. The shop is small and warm. Every wall is shelves. A single lamp glows on a wooden desk in the corner. Penny is standing on a stepstool, carefully reshelving a stack of books. She\'s humming something quietly to herself. She doesn\'t notice you.',
+    startle:  'She reaches for the next book, turns slightly, and sees you. She nearly drops the stack.',
+    greeting: 'Oh! Sorry — I didn\'t hear you come in. I get a bit lost in the organizing.',
+    setup:    'She steps down from the stool and moves behind the desk, straightening her cardigan. She sets the books aside and gives you her full attention.',
+    return:   'Penny is halfway up a stepstool, working on the high shelf. She steps down when she hears the door and turns to see you. Her face settles into a look of pleased recognition.'
   },
   {
-    action: 'The smell of tea hits you before anything else. Penny is at the small table by the window, mid-pour. She sets the pot down when she sees you.'
+    interior: 'The door swings open. The smell of tea hits you before anything else. The shop is warm and quiet. A small pot sits on the corner of a wooden desk, sending up a thin curl of steam. Penny is at the desk, pouring herself a cup and reading a folded piece of paper — a letter, maybe. She looks up.',
+    startle:  'She sets the teapot down a little quickly and tucks the paper away.',
+    greeting: 'Oh — sorry, come in. I was just — catching up on some correspondence. Nothing important.',
+    setup:    'She gestures to the space around her with the easy confidence of someone who has arranged it exactly as she likes it.',
+    return:   'Penny is at the desk with a cup of tea and an open book. She looks up when you come in and sets the cup down.'
   }
 ];
 
@@ -8246,12 +8331,9 @@ window.renderPennyTab = renderPennyTab;
 async function renderPennyTabInto(area) {
 
   area.className = 'penny-loading';
-  area.innerHTML = '<p style="font-family:\'Playfair Display\',serif;font-style:italic;color:rgba(240,180,41,.5);font-size:14px;">Penny is just finishing something…</p>';
+  area.innerHTML = '<p style="font-family:\'Playfair Display\',serif;font-style:italic;color:rgba(240,180,41,.5);font-size:14px;text-align:center;padding:2rem 1.5rem;">…</p>';
 
-  // Pick a random arrival scenario for this session
-  const scenario = PENNY_SCENARIOS[Math.floor(Math.random() * PENNY_SCENARIOS.length)];
-
-  // Determine if member has visited before
+  // Check visit history
   let isFirstVisit = true;
   let memberName = '';
   if (_profileIdentity && _profileIdentity.key) {
@@ -8261,55 +8343,132 @@ async function renderPennyTabInto(area) {
       const memberKey = _profileIdentity.key;
       const prev = (data[memberKey] || {});
       const newCount = (prev.visitCount || 0) + 1;
-      // Write the new count first
-      await fbSet(PENNY_REF, {
-        [memberKey]: { visitCount: newCount, lastVisit: Date.now() }
-      });
-      // First visit only if this is literally visit #1
+      await fbSet(PENNY_REF, { [memberKey]: { visitCount: newCount, lastVisit: Date.now() } });
       isFirstVisit = (newCount === 1);
       memberName = _profileIdentity.discord || _profileIdentity.email || '';
-    } catch(e) {
-      // Non-fatal — degrade gracefully, treat as first visit
-    }
+    } catch(e) { /* degrade gracefully */ }
   }
 
-  // Build intro speech
-  const firstName = memberName ? memberName.split(/[\s#]/)[0] : '';
-  let introSpeech;
+  // Store state on the area element so stage functions can read it
+  area._pennyState = { isFirstVisit, memberName };
+
   if (isFirstVisit) {
-    introSpeech = `I'm Penny. I run the recommended reading here — Kaitlin brought me on to help members find their next great read. I have access to all the club's records: every submission, every vote, every review. Very thorough operation you've got here.`;
+    _pennyShowDoor(area);
   } else {
-    const returnLines = [
-      `${firstName ? firstName + '. ' : ''}Back again. Good.`,
-      `${firstName ? 'Ah, ' + firstName + '. ' : ''}I thought I heard the door. What is it this time?`,
-      `${firstName ? firstName + '. ' : ''}I was just thinking about you, actually. Well — thinking about a book. But you're here now.`,
-      `${firstName ? firstName + '. ' : ''}Come in. I was hoping someone would stop by.`
-    ];
-    introSpeech = returnLines[Math.floor(Math.random() * returnLines.length)];
+    _pennyShowReturnGreeting(area, memberName);
   }
+}
 
-  // Build options HTML
-  const optionsHTML = PENNY_OPTIONS.map(opt => `
-    <div class="penny-option-card" onclick="pennySelectOption('${opt.id}', this)">
-      <span class="penny-option-label">${opt.label}</span>
-      <span class="penny-option-pitch">${opt.pitch}</span>
+function _pennyShowDoor(area) {
+  area.className = '';
+  area.innerHTML = `
+    <div class="penny-door-scene">
+      <div class="penny-door-sign">
+        <span class="penny-door-sign-title">Penny's</span>
+        <span class="penny-door-sign-sub">Recommended Reading</span>
+        <span class="penny-door-sign-est">Est. 2026</span>
+      </div>
+      <p class="penny-door-prompt">You find a door. There's a small sign on it.</p>
+      <p class="penny-door-prompt"><em>What do you do?</em></p>
+      <button class="penny-action-btn" onclick="pennyAdvance('entering')">Let's explore! — open the door and walk in</button>
     </div>
-  `).join('');
+  `;
+}
+window.pennyAdvance = pennyAdvance;
+
+function pennyAdvance(stage) {
+  const area = document.getElementById('penny-interaction-area') ||
+               document.getElementById('penny-interaction-area-preview');
+  if (!area) return;
+  const state = area._pennyState || { isFirstVisit: true, memberName: '' };
+
+  if (stage === 'entering') {
+    // Pick arrival scenario
+    const scenario = PENNY_SCENARIOS[Math.floor(Math.random() * PENNY_SCENARIOS.length)];
+    area._pennyScenario = scenario;
+    area.innerHTML = `
+      <div class="penny-storybook">
+        <div class="penny-storybook-inner">
+          <span class="penny-action">${scenario.interior}</span>
+        </div>
+      </div>
+      <div style="text-align:center;padding:.5rem 1.5rem 1.5rem;">
+        <p class="penny-door-prompt" style="margin-bottom:1.2rem;"><em>What do you do?</em></p>
+        <button class="penny-action-btn" onclick="pennyAdvance('greeting')">You clear your throat.</button>
+      </div>
+    `;
+  } else if (stage === 'greeting') {
+    const scenario = area._pennyScenario || PENNY_SCENARIOS[0];
+    area.innerHTML = `
+      <div class="penny-storybook">
+        <div class="penny-storybook-inner">
+          <span class="penny-action">${scenario.startle}</span>
+          <p class="penny-speech">${scenario.greeting}</p>
+          <span class="penny-action">${scenario.setup}</span>
+          <p class="penny-speech">How can I help?</p>
+        </div>
+      </div>
+      <div style="text-align:center;padding:.5rem 1.5rem 1.5rem;">
+        <p class="penny-door-prompt" style="margin-bottom:1.2rem;"><em>What do you do?</em></p>
+        <button class="penny-action-btn" onclick="pennyAdvance('options')">"I'm here to find a book. I need something new to read."</button>
+      </div>
+    `;
+  } else if (stage === 'options') {
+    _pennyShowOptions(area);
+  }
+}
+
+function _pennyShowReturnGreeting(area, memberName) {
+  // Pick return scenario
+  const scenario = PENNY_SCENARIOS[Math.floor(Math.random() * PENNY_SCENARIOS.length)];
+  area._pennyScenario = scenario;
+  const returnLines = [
+    `Back again. Good.`,
+    `I thought I heard the door. What is it this time?`,
+    `I was just thinking about you, actually. Well — thinking about a book. But you're here now.`,
+    `Come in. I was hoping someone would stop by.`
+  ];
+  const returnLine = returnLines[Math.floor(Math.random() * returnLines.length)];
 
   area.className = '';
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
-        <span class="penny-action">${scenario.action}</span>
-        <p class="penny-speech">${introSpeech}</p>
-        ${isFirstVisit ? `<p class="penny-speech">What can I help you find?</p>` : `<p class="penny-speech">What can I do for you?</p>`}
+        <span class="penny-action">${scenario.return}</span>
+        <p class="penny-speech">${returnLine}</p>
+        <p class="penny-speech">What can I do for you?</p>
       </div>
     </div>
     <div class="penny-options-grid">
-      ${optionsHTML}
+      ${_pennyOptionsHTML()}
     </div>
     <p class="penny-closer">She folds her hands on the desk and waits, unhurried.</p>
   `;
+}
+
+function _pennyShowOptions(area) {
+  area.innerHTML = `
+    <div class="penny-storybook">
+      <div class="penny-storybook-inner">
+        <span class="penny-action">Penny's face lights up. She clasps her hands together.</span>
+        <p class="penny-speech">Oh, well you've come to exactly the right place. The question is how we find it.</p>
+        <p class="penny-speech">I have a few ways we can do this.</p>
+      </div>
+    </div>
+    <div class="penny-options-grid">
+      ${_pennyOptionsHTML()}
+    </div>
+    <p class="penny-closer">She folds her hands on the desk and waits, unhurried.</p>
+  `;
+}
+
+function _pennyOptionsHTML() {
+  return PENNY_OPTIONS.map(opt => `
+    <div class="penny-option-card" onclick="pennySelectOption('${opt.id}', this)">
+      <span class="penny-option-label">${opt.label}</span>
+      <span class="penny-option-pitch">${opt.pitch}</span>
+    </div>
+  `).join('');
 }
 
 function pennySelectOption(optionId, el) {
