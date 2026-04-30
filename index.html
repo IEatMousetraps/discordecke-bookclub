@@ -4419,7 +4419,7 @@ function renderAdmin() {
 }
 
 function goAdminTab(id, btn) {
-  ['manage','live-results','members-overview','reading-progress-admin','badges-admin','edit-books','quarterly-admin','surveys-admin'].forEach(s => {
+  ['manage','live-results','members-overview','reading-progress-admin','badges-admin','edit-books','quarterly-admin','surveys-admin','penny-admin'].forEach(s => {
     document.getElementById('admin-sub-'+s).style.display = s === id ? '' : 'none';
   });
   document.querySelectorAll('#admin-panel .sub-tab').forEach(b => b.classList.remove('active'));
@@ -4431,6 +4431,7 @@ function goAdminTab(id, btn) {
   else if (id === 'edit-books')               renderEditBooksTab();
   else if (id === 'quarterly-admin')          renderQuarterlyAdmin();
   else if (id === 'surveys-admin')             renderAdminSurveys();
+  // penny-admin has no auto-render — content loads on button click
 }
 window.goAdminTab = goAdminTab;
 
