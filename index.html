@@ -8360,6 +8360,7 @@ async function renderPennyTabInto(area) {
 }
 
 function _pennyShowDoor(area) {
+  const aid = area.id;
   area.className = '';
   area.innerHTML = `
     <div class="penny-door-scene">
@@ -8370,20 +8371,20 @@ function _pennyShowDoor(area) {
       </div>
       <p class="penny-door-prompt">You find a door. There's a small sign on it.</p>
       <p class="penny-door-prompt"><em>What do you do?</em></p>
-      <button class="penny-action-btn" onclick="pennyAdvance('entering')">Let's explore! — open the door and walk in</button>
+      <button class="penny-action-btn" onclick="pennyAdvance('entering','${aid}')">Let's explore! — open the door and walk in</button>
     </div>
   `;
 }
 window.pennyAdvance = pennyAdvance;
 
-function pennyAdvance(stage) {
-  const area = document.getElementById('penny-interaction-area') ||
-               document.getElementById('penny-interaction-area-preview');
+function pennyAdvance(stage, areaId) {
+  const area = areaId
+    ? document.getElementById(areaId)
+    : document.getElementById('penny-interaction-area');
   if (!area) return;
-  const state = area._pennyState || { isFirstVisit: true, memberName: '' };
+  const aid = area.id;
 
   if (stage === 'entering') {
-    // Pick arrival scenario
     const scenario = PENNY_SCENARIOS[Math.floor(Math.random() * PENNY_SCENARIOS.length)];
     area._pennyScenario = scenario;
     area.innerHTML = `
@@ -8394,7 +8395,7 @@ function pennyAdvance(stage) {
       </div>
       <div style="text-align:center;padding:.5rem 1.5rem 1.5rem;">
         <p class="penny-door-prompt" style="margin-bottom:1.2rem;"><em>What do you do?</em></p>
-        <button class="penny-action-btn" onclick="pennyAdvance('greeting')">You clear your throat.</button>
+        <button class="penny-action-btn" onclick="pennyAdvance('greeting','${aid}')">You clear your throat.</button>
       </div>
     `;
   } else if (stage === 'greeting') {
@@ -8410,7 +8411,7 @@ function pennyAdvance(stage) {
       </div>
       <div style="text-align:center;padding:.5rem 1.5rem 1.5rem;">
         <p class="penny-door-prompt" style="margin-bottom:1.2rem;"><em>What do you do?</em></p>
-        <button class="penny-action-btn" onclick="pennyAdvance('options')">"I'm here to find a book. I need something new to read."</button>
+        <button class="penny-action-btn" onclick="pennyAdvance('options','${aid}')">"I'm here to find a book. I need something new to read."</button>
       </div>
     `;
   } else if (stage === 'options') {
