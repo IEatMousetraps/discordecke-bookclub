@@ -760,16 +760,17 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 /* ═══════════════ END AUXILIARY PANEL ═══════════════ */
 
 /* ═══════════════ PENNY'S ═══════════════ */
-#tab-penny { padding: 0; background: #1a1208; min-height: 100vh; }
+#tab-penny { padding: 0; background: #1a1208; }
+#tab-penny.active { display: block; }
 
 .penny-page {
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-height: 100vh;
   background: #1a1208;
   position: relative;
   overflow: hidden;
+  padding-bottom: 3rem;
 }
 
 /* header */
@@ -1293,56 +1294,56 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
     <svg width="380" height="220" viewBox="0 0 380 220" role="img" aria-label="Penny the librarian seated at her desk">
       <ellipse cx="190" cy="216" rx="160" ry="7" fill="#f0b429" opacity="0.06"/>
       <!-- Lamp -->
-      <ellipse cx="68" cy="202" rx="20" ry="5" fill="#2a1d0a"/>
-      <rect x="64" y="148" width="7" height="56" rx="3" fill="#2a1d0a"/>
-      <circle cx="67" cy="148" r="5" fill="#2a1d0a"/>
-      <rect x="67" y="145" width="36" height="6" rx="3" fill="#2a1d0a"/>
-      <circle cx="103" cy="148" r="5" fill="#2a1d0a"/>
-      <path d="M88 130 L118 130 L126 155 L80 155 Z" fill="#2a1d0a"/>
-      <path d="M92 132 L114 132 L120 152 L84 152 Z" fill="#3a2810" opacity="0.5"/>
+      <ellipse cx="68" cy="202" rx="20" ry="5" fill="#5a3e20"/>
+      <rect x="64" y="148" width="7" height="56" rx="3" fill="#5a3e20"/>
+      <circle cx="67" cy="148" r="5" fill="#5a3e20"/>
+      <rect x="67" y="145" width="36" height="6" rx="3" fill="#5a3e20"/>
+      <circle cx="103" cy="148" r="5" fill="#5a3e20"/>
+      <path d="M88 130 L118 130 L126 155 L80 155 Z" fill="#5a3e20"/>
+      <path d="M92 132 L114 132 L120 152 L84 152 Z" fill="#7a5530" opacity="0.6"/>
       <path d="M84 155 L122 155 L136 205 L70 205 Z" fill="#f0b429" opacity="0.05"/>
       <ellipse cx="103" cy="204" rx="26" ry="4" fill="#f0b429" opacity="0.09"/>
       <!-- Desk -->
-      <rect x="38" y="202" width="304" height="9" rx="2" fill="#2d1f0c"/>
-      <rect x="38" y="209" width="304" height="11" rx="1" fill="#221608"/>
+      <rect x="38" y="202" width="304" height="9" rx="2" fill="#4a3018"/>
+      <rect x="38" y="209" width="304" height="11" rx="1" fill="#3a2410"/>
       <!-- Books on desk -->
       <rect x="145" y="181" width="8" height="21" rx="1" fill="#f0b429" opacity="0.75"/>
       <rect x="154" y="176" width="9" height="26" rx="1" fill="#c8853a" opacity="0.8"/>
       <rect x="164" y="183" width="7" height="19" rx="1" fill="#f0b429" opacity="0.5"/>
       <rect x="172" y="178" width="8" height="24" rx="1" fill="#8a5a20" opacity="0.7"/>
       <!-- Penny body -->
-      <path d="M 216 114 C 214 118 213 122 213 126 C 206 128 202 132 200 138 C 198 144 198 152 200 162 C 201 170 202 180 202 202 L 240 202 C 240 180 239 170 239 162 C 240 152 240 144 238 138 C 236 132 232 128 226 126 C 226 122 225 118 224 114 Z" fill="#2a1d0a"/>
+      <path d="M 216 114 C 214 118 213 122 213 126 C 206 128 202 132 200 138 C 198 144 198 152 200 162 C 201 170 202 180 202 202 L 240 202 C 240 180 239 170 239 162 C 240 152 240 144 238 138 C 236 132 232 128 226 126 C 226 122 225 118 224 114 Z" fill="#5a3e20"/>
       <!-- Left arm -->
-      <path d="M 201 133 C 193 138 184 146 178 156" stroke="#2a1d0a" stroke-width="13" stroke-linecap="round" fill="none"/>
-      <path d="M 178 156 C 170 161 160 165 148 167" stroke="#2a1d0a" stroke-width="10" stroke-linecap="round" fill="none"/>
-      <ellipse cx="142" cy="168" rx="10" ry="6" fill="#2a1d0a" transform="rotate(-8 142 168)"/>
+      <path d="M 201 133 C 193 138 184 146 178 156" stroke="#5a3e20" stroke-width="13" stroke-linecap="round" fill="none"/>
+      <path d="M 178 156 C 170 161 160 165 148 167" stroke="#5a3e20" stroke-width="10" stroke-linecap="round" fill="none"/>
+      <ellipse cx="142" cy="168" rx="10" ry="6" fill="#5a3e20" transform="rotate(-8 142 168)"/>
       <!-- Right arm -->
-      <path d="M 238 132 C 245 126 252 118 255 108" stroke="#2a1d0a" stroke-width="13" stroke-linecap="round" fill="none"/>
-      <path d="M 255 108 C 257 98 257 88 256 80" stroke="#2a1d0a" stroke-width="10" stroke-linecap="round" fill="none"/>
+      <path d="M 238 132 C 245 126 252 118 255 108" stroke="#5a3e20" stroke-width="13" stroke-linecap="round" fill="none"/>
+      <path d="M 255 108 C 257 98 257 88 256 80" stroke="#5a3e20" stroke-width="10" stroke-linecap="round" fill="none"/>
       <!-- Book -->
-      <path d="M 256 82 C 250 76 243 65 246 54 C 248 48 254 47 256 54 L 256 82 Z" fill="#2a1d0a"/>
-      <path d="M 256 82 C 262 76 269 65 266 54 C 264 48 258 47 256 54 L 256 82 Z" fill="#2a1d0a"/>
-      <line x1="256" y1="55" x2="256" y2="82" stroke="#3a2810" stroke-width="1.5" opacity="0.55"/>
-      <line x1="249" y1="70" x2="255" y2="63" stroke="#3a2810" stroke-width="1" opacity="0.35"/>
-      <line x1="250" y1="77" x2="255" y2="71" stroke="#3a2810" stroke-width="1" opacity="0.35"/>
-      <line x1="257" y1="63" x2="263" y2="70" stroke="#3a2810" stroke-width="1" opacity="0.35"/>
-      <line x1="257" y1="71" x2="263" y2="77" stroke="#3a2810" stroke-width="1" opacity="0.35"/>
+      <path d="M 256 82 C 250 76 243 65 246 54 C 248 48 254 47 256 54 L 256 82 Z" fill="#5a3e20"/>
+      <path d="M 256 82 C 262 76 269 65 266 54 C 264 48 258 47 256 54 L 256 82 Z" fill="#5a3e20"/>
+      <line x1="256" y1="55" x2="256" y2="82" stroke="#7a5530" stroke-width="1.5" opacity="0.55"/>
+      <line x1="249" y1="70" x2="255" y2="63" stroke="#7a5530" stroke-width="1" opacity="0.45"/>
+      <line x1="250" y1="77" x2="255" y2="71" stroke="#7a5530" stroke-width="1" opacity="0.45"/>
+      <line x1="257" y1="63" x2="263" y2="70" stroke="#7a5530" stroke-width="1" opacity="0.45"/>
+      <line x1="257" y1="71" x2="263" y2="77" stroke="#7a5530" stroke-width="1" opacity="0.45"/>
       <!-- Neck -->
-      <path d="M 216 114 L 215 126 L 224 126 L 223 114 Z" fill="#2a1d0a"/>
+      <path d="M 216 114 L 215 126 L 224 126 L 223 114 Z" fill="#5a3e20"/>
       <!-- Head -->
-      <path d="M 220 70 C 208 70 202 78 202 90 C 202 102 207 112 216 115 C 218 116 222 116 224 115 C 233 112 238 102 238 90 C 238 78 232 70 220 70 Z" fill="#2a1d0a"/>
+      <path d="M 220 70 C 208 70 202 78 202 90 C 202 102 207 112 216 115 C 218 116 222 116 224 115 C 233 112 238 102 238 90 C 238 78 232 70 220 70 Z" fill="#5a3e20"/>
       <!-- Hair -->
-      <path d="M 207 76 C 207 67 211 61 220 59 C 229 61 233 67 233 76 C 229 72 222 71 220 71 C 218 71 211 72 207 76 Z" fill="#2a1d0a"/>
-      <path d="M 202 84 C 196 82 193 89 193 98 C 193 108 197 115 203 117 C 202 108 202 97 204 87 Z" fill="#2a1d0a"/>
-      <circle cx="205" cy="71" r="11" fill="#2a1d0a"/>
-      <circle cx="204" cy="70" r="7" fill="#3a2810"/>
-      <circle cx="205" cy="66" r="2.5" fill="#f0b429" opacity="0.4"/>
+      <path d="M 207 76 C 207 67 211 61 220 59 C 229 61 233 67 233 76 C 229 72 222 71 220 71 C 218 71 211 72 207 76 Z" fill="#5a3e20"/>
+      <path d="M 202 84 C 196 82 193 89 193 98 C 193 108 197 115 203 117 C 202 108 202 97 204 87 Z" fill="#5a3e20"/>
+      <circle cx="205" cy="71" r="11" fill="#5a3e20"/>
+      <circle cx="204" cy="70" r="7" fill="#7a5530"/>
+      <circle cx="205" cy="66" r="2.5" fill="#f0b429" opacity="0.5"/>
       <!-- Glasses -->
-      <circle cx="212" cy="94" r="7" fill="none" stroke="#f0b429" stroke-width="1.5" opacity="0.6"/>
-      <circle cx="227" cy="94" r="7" fill="none" stroke="#f0b429" stroke-width="1.5" opacity="0.6"/>
-      <line x1="219" y1="94" x2="220" y2="94" stroke="#f0b429" stroke-width="1.5" opacity="0.6"/>
-      <line x1="205" y1="93" x2="202" y2="92" stroke="#f0b429" stroke-width="1.5" opacity="0.6"/>
-      <line x1="234" y1="93" x2="237" y2="92" stroke="#f0b429" stroke-width="1.5" opacity="0.6"/>
+      <circle cx="212" cy="94" r="7" fill="none" stroke="#f0b429" stroke-width="1.5" opacity="0.7"/>
+      <circle cx="227" cy="94" r="7" fill="none" stroke="#f0b429" stroke-width="1.5" opacity="0.7"/>
+      <line x1="219" y1="94" x2="220" y2="94" stroke="#f0b429" stroke-width="1.5" opacity="0.7"/>
+      <line x1="205" y1="93" x2="202" y2="92" stroke="#f0b429" stroke-width="1.5" opacity="0.7"/>
+      <line x1="234" y1="93" x2="237" y2="92" stroke="#f0b429" stroke-width="1.5" opacity="0.7"/>
     </svg>
   </div>
 
@@ -1354,6 +1355,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 </div>
 </div>
 <!-- ══════════════ END PENNY'S ══════════════ -->
+<div id="tab-admin" class="section">
   <div class="sec-head"><h2>Admin Panel</h2><p>Manage everything from here.</p></div>
   <div id="admin-login-area">
     <div class="card" style="max-width:360px;">
