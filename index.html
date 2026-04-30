@@ -8301,19 +8301,19 @@ const PENNY_SCENARIOS = [
 
 const PENNY_OPTIONS = [
   {
-    id: 'recommend',
-    label: '📚 Get a recommendation',
-    pitch: 'Tell me what you\'re in the mood for — I\'ll pull something from the club\'s history that fits.'
+    id: 'trust',
+    label: 'I trust you, Penny',
+    pitch: 'Trust me completely and I\'ll find you something. No questions, no hints — I know these books like old friends, and I have a feeling one of them has been waiting for you.'
   },
   {
-    id: 'history',
-    label: '🗂️ Look up a past pick',
-    pitch: 'I have every book the club has ever voted on. Name a month, a title, anything — I\'ll find it.'
+    id: 'catalog',
+    label: 'The card catalog',
+    pitch: 'Let fate decide. Pick a drawer, any drawer — the catalog has never steered me wrong!'
   },
   {
-    id: 'chat',
-    label: '💬 Just talk books',
-    pitch: 'No agenda needed. Sometimes you just want to talk about what you\'re reading.'
+    id: 'quiz',
+    label: 'Ask me your questions',
+    pitch: 'Answer a few questions for me first. I like to know who I\'m recommending to. It makes all the difference, I promise.'
   }
 ];
 
@@ -8420,7 +8420,6 @@ function pennyAdvance(stage, areaId) {
 }
 
 function _pennyShowReturnGreeting(area, memberName) {
-  // Pick return scenario
   const scenario = PENNY_SCENARIOS[Math.floor(Math.random() * PENNY_SCENARIOS.length)];
   area._pennyScenario = scenario;
   const returnLines = [
@@ -8430,6 +8429,7 @@ function _pennyShowReturnGreeting(area, memberName) {
     `Come in. I was hoping someone would stop by.`
   ];
   const returnLine = returnLines[Math.floor(Math.random() * returnLines.length)];
+  const aid = area.id;
 
   area.className = '';
   area.innerHTML = `
@@ -8441,13 +8441,19 @@ function _pennyShowReturnGreeting(area, memberName) {
       </div>
     </div>
     <div class="penny-options-grid">
-      ${_pennyOptionsHTML()}
+      ${PENNY_OPTIONS.map(opt => `
+        <div class="penny-option-card" onclick="pennySelectOption('${opt.id}','${aid}',this)">
+          <span class="penny-option-label">${opt.label}</span>
+          <span class="penny-option-pitch">${opt.pitch}</span>
+        </div>
+      `).join('')}
     </div>
     <p class="penny-closer">She folds her hands on the desk and waits, unhurried.</p>
   `;
 }
 
 function _pennyShowOptions(area) {
+  const aid = area.id;
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
@@ -8457,28 +8463,71 @@ function _pennyShowOptions(area) {
       </div>
     </div>
     <div class="penny-options-grid">
-      ${_pennyOptionsHTML()}
+      ${PENNY_OPTIONS.map(opt => `
+        <div class="penny-option-card" onclick="pennySelectOption('${opt.id}','${aid}',this)">
+          <span class="penny-option-label">${opt.label}</span>
+          <span class="penny-option-pitch">${opt.pitch}</span>
+        </div>
+      `).join('')}
     </div>
-    <p class="penny-closer">She folds her hands on the desk and waits, unhurried.</p>
+    <p class="penny-closer">Any of them will work. I do have a preference but I'll keep it to myself.</p>
   `;
 }
 
-function _pennyOptionsHTML() {
-  return PENNY_OPTIONS.map(opt => `
-    <div class="penny-option-card" onclick="pennySelectOption('${opt.id}', this)">
-      <span class="penny-option-label">${opt.label}</span>
-      <span class="penny-option-pitch">${opt.pitch}</span>
-    </div>
-  `).join('');
-}
-
-function pennySelectOption(optionId, el) {
+function pennySelectOption(optionId, areaId, el) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
   // Highlight selected card
-  document.querySelectorAll('.penny-option-card').forEach(c => c.classList.remove('selected'));
+  area.querySelectorAll('.penny-option-card').forEach(c => c.classList.remove('selected'));
   el.classList.add('selected');
-  // Chunk 3 will wire the actual conversation from here
+
+  // Branch stubs — Chunk 3 will wire these fully
+  setTimeout(() => {
+    if (optionId === 'trust') _pennyBranchTrust(area);
+    else if (optionId === 'catalog') _pennyBranchCatalog(area);
+    else if (optionId === 'quiz') _pennyBranchQuiz(area);
+  }, 300);
 }
 window.pennySelectOption = pennySelectOption;
+
+function _pennyBranchTrust(area) {
+  area.innerHTML = `
+    <div class="penny-storybook">
+      <div class="penny-storybook-inner">
+        <span class="penny-action">Penny disappears briefly into the stacks. A moment passes. She returns and places a book on the desk in front of you with quiet triumph.</span>
+        <p class="penny-speech">Here. This one. I knew it the moment you walked in the door.</p>
+      </div>
+    </div>
+    <p class="penny-closer" style="margin-top:1rem;">— Coming soon in the next build —</p>
+  `;
+}
+
+function _pennyBranchCatalog(area) {
+  area.innerHTML = `
+    <div class="penny-storybook">
+      <div class="penny-storybook-inner">
+        <span class="penny-action">Penny smiles and gestures toward the card catalog on the wall behind her.</span>
+        <p class="penny-speech">Ooh, the card catalog. Bold choice. Let's see what fate has in store...</p>
+      </div>
+    </div>
+    <p class="penny-closer" style="margin-top:1rem;">— Coming soon in the next build —</p>
+  `;
+}
+
+function _pennyBranchQuiz(area) {
+  area.innerHTML = `
+    <div class="penny-storybook">
+      <div class="penny-storybook-inner">
+        <span class="penny-action">Penny looks delighted. She reaches under the desk and produces a small notepad and pencil.</span>
+        <p class="penny-speech">Oh good, the quiz. I was hoping someone would pick this one. You know those personality quizzes from old magazines? This is nothing like those. It's much better. I wrote it myself. Ready?</p>
+      </div>
+    </div>
+    <div style="text-align:center;padding:.5rem 1.5rem 1.5rem;">
+      <button class="penny-action-btn" style="max-width:200px;" onclick="alert('Quiz coming in next build!')">Let\'s do it!</button>
+    </div>
+    <p class="penny-closer">— Coming soon in the next build —</p>
+  `;
+}
 
 // ── Penny visibility & admin tools ────────────────────
 function updatePennyNavVisibility() {
