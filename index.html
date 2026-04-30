@@ -8179,16 +8179,13 @@ window.qaDrawerCheck = function() {
 // ── Penny: arrival scenarios ───────────────────────────
 const PENNY_SCENARIOS = [
   {
-    action: 'She\'s seated at the desk when you arrive, a book open in her hands. She sets it face-down and looks up.',
-    greeting: null // uses default intro or return line
+    action: 'The shop is quiet when you step in. Penny is at the desk, a book open in front of her. She looks up when she hears the door.'
   },
   {
-    action: 'She\'s reaching up to dust the top shelf of the bookcase. She turns when she hears you come in.',
-    greeting: null
+    action: 'A bell above the door announces you. Penny is halfway up a stepstool, dusting the top shelf. She steps down and turns.'
   },
   {
-    action: 'She\'s pouring herself a cup of tea from a small pot on the corner of the desk. She sets the pot down.',
-    greeting: null
+    action: 'The smell of tea hits you before anything else. Penny is at the small table by the window, mid-pour. She sets the pot down when she sees you.'
   }
 ];
 
@@ -8231,20 +8228,17 @@ async function renderPennyTab() {
       const snap = await getDoc(PENNY_REF);
       const data = snap.exists() ? snap.data() : {};
       const memberKey = _profileIdentity.key;
-      if (data[memberKey] && data[memberKey].visitCount > 0) {
-        isFirstVisit = false;
-      }
-      // Record this visit
       const prev = (data[memberKey] || {});
+      const newCount = (prev.visitCount || 0) + 1;
+      // Write the new count first
       await fbSet(PENNY_REF, {
-        [memberKey]: {
-          visitCount: (prev.visitCount || 0) + 1,
-          lastVisit: Date.now()
-        }
+        [memberKey]: { visitCount: newCount, lastVisit: Date.now() }
       });
+      // First visit only if this is literally visit #1
+      isFirstVisit = (newCount === 1);
       memberName = _profileIdentity.discord || _profileIdentity.email || '';
     } catch(e) {
-      // Non-fatal — degrade gracefully
+      // Non-fatal — degrade gracefully, treat as first visit
     }
   }
 
