@@ -910,6 +910,50 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   margin-bottom: .15rem;
 }
 
+/* option cards (Chunk 2) */
+.penny-options-grid {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  max-width: 520px;
+  width: calc(100% - 3rem);
+  margin: 0 1.5rem 1.2rem;
+  position: relative;
+  z-index: 2;
+}
+.penny-option-card {
+  background: transparent;
+  border: 1px solid rgba(240,180,41,.28);
+  border-radius: 2px;
+  padding: .75rem 1rem;
+  cursor: pointer;
+  transition: background .18s, border-color .18s;
+}
+.penny-option-card:hover {
+  background: rgba(240,180,41,.06);
+  border-color: rgba(240,180,41,.6);
+}
+.penny-option-card.selected {
+  background: rgba(240,180,41,.1);
+  border-color: rgba(240,180,41,.9);
+}
+.penny-option-label {
+  display: block;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(240,180,41,.9);
+  margin-bottom: .25rem;
+}
+.penny-option-pitch {
+  display: block;
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 12px;
+  color: rgba(240,180,41,.55);
+  line-height: 1.5;
+}
+
 /* closer line */
 .penny-closer {
   font-family: 'Playfair Display', serif;
@@ -1734,7 +1778,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 // ════════════════════════════════════════════════════════
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
-  getFirestore, doc, setDoc, onSnapshot
+  getFirestore, doc, setDoc, getDoc, onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -1762,6 +1806,7 @@ const BADGE_CONFIG_REF = doc(db, 'club', 'badgeConfig');
 const QUARTERLY_CONFIG_REF = doc(db, 'club', 'quarterlyConfig');
 const QUARTERLY_DRAFT_REF  = doc(db, 'club', 'quarterlyConfigDraft');
 const QUARTERLY_CARDS_REF  = doc(db, 'club', 'quarterlyCards');
+const PENNY_REF            = doc(db, 'club', 'pennyData');
 
 // ── In-memory cache kept fresh by real-time listeners ──
 let CACHE = {
@@ -8130,21 +8175,122 @@ window.qaDrawerCheck = function() {
 // PENNY'S — Recommended Reading
 // ════════════════════════════════════════════════════════
 
-function renderPennyTab() {
+// ── Penny: arrival scenarios ───────────────────────────
+const PENNY_SCENARIOS = [
+  {
+    action: 'She\'s seated at the desk when you arrive, a book open in her hands. She sets it face-down and looks up.',
+    greeting: null // uses default intro or return line
+  },
+  {
+    action: 'She\'s reaching up to dust the top shelf of the bookcase. She turns when she hears you come in.',
+    greeting: null
+  },
+  {
+    action: 'She\'s pouring herself a cup of tea from a small pot on the corner of the desk. She sets the pot down.',
+    greeting: null
+  }
+];
+
+const PENNY_OPTIONS = [
+  {
+    id: 'recommend',
+    label: '📚 Get a recommendation',
+    pitch: 'Tell me what you\'re in the mood for — I\'ll pull something from the club\'s history that fits.'
+  },
+  {
+    id: 'history',
+    label: '🗂️ Look up a past pick',
+    pitch: 'I have every book the club has ever voted on. Name a month, a title, anything — I\'ll find it.'
+  },
+  {
+    id: 'chat',
+    label: '💬 Just talk books',
+    pitch: 'No agenda needed. Sometimes you just want to talk about what you\'re reading.'
+  }
+];
+
+async function renderPennyTab() {
   const area = document.getElementById('penny-interaction-area');
   if (!area) return;
-  // Stub — full interaction wired in next chunk
+
+  area.className = 'penny-loading';
+  area.innerHTML = '<p style="font-family:\'Playfair Display\',serif;font-style:italic;color:rgba(240,180,41,.5);font-size:14px;">Penny is just finishing something…</p>';
+
+  // Pick a random arrival scenario for this session
+  const scenario = PENNY_SCENARIOS[Math.floor(Math.random() * PENNY_SCENARIOS.length)];
+
+  // Determine if member has visited before
+  let isFirstVisit = true;
+  let memberName = '';
+  if (_profileIdentity && _profileIdentity.key) {
+    try {
+      const snap = await getDoc(PENNY_REF);
+      const data = snap.exists() ? snap.data() : {};
+      const memberKey = _profileIdentity.key;
+      if (data[memberKey] && data[memberKey].visitCount > 0) {
+        isFirstVisit = false;
+      }
+      // Record this visit
+      const prev = (data[memberKey] || {});
+      await fbSet(PENNY_REF, {
+        [memberKey]: {
+          visitCount: (prev.visitCount || 0) + 1,
+          lastVisit: Date.now()
+        }
+      });
+      memberName = _profileIdentity.discord || _profileIdentity.email || '';
+    } catch(e) {
+      // Non-fatal — degrade gracefully
+    }
+  }
+
+  // Build intro speech
+  const firstName = memberName ? memberName.split(/[\s#]/)[0] : '';
+  let introSpeech;
+  if (isFirstVisit) {
+    introSpeech = `I'm Penny. I run the recommended reading here — Kaitlin brought me on to help members find their next great read. I have access to all the club's records: every submission, every vote, every review. Very thorough operation you've got here.`;
+  } else {
+    const returnLines = [
+      `${firstName ? firstName + '. ' : ''}Back again. Good.`,
+      `${firstName ? 'Ah, ' + firstName + '. ' : ''}I thought I heard the door. What is it this time?`,
+      `${firstName ? firstName + '. ' : ''}I was just thinking about you, actually. Well — thinking about a book. But you're here now.`,
+      `${firstName ? firstName + '. ' : ''}Come in. I was hoping someone would stop by.`
+    ];
+    introSpeech = returnLines[Math.floor(Math.random() * returnLines.length)];
+  }
+
+  // Build options HTML
+  const optionsHTML = PENNY_OPTIONS.map(opt => `
+    <div class="penny-option-card" onclick="pennySelectOption('${opt.id}', this)">
+      <span class="penny-option-label">${opt.label}</span>
+      <span class="penny-option-pitch">${opt.pitch}</span>
+    </div>
+  `).join('');
+
+  area.className = '';
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
-        <span class="penny-action">She sets her book down, stands up, and moves behind a small wooden desk.</span>
-        <p class="penny-speech">I'm Penny, by the way. I run the recommended reading here. Kaitlin brought me on to help members find their next great read — she gave me access to all the club's records, so I know quite a lot about what's been suggested, how things voted, all of it. Very thorough operation you've got here.</p>
+        <span class="penny-action">${scenario.action}</span>
+        <p class="penny-speech">${introSpeech}</p>
+        ${isFirstVisit ? `<p class="penny-speech">What can I help you find?</p>` : `<p class="penny-speech">What can I do for you?</p>`}
       </div>
     </div>
-    <p class="penny-closer" style="color:rgba(240,180,41,.35);font-family:'Playfair Display',serif;font-style:italic;font-size:12px;text-align:center;width:calc(100% - 3rem);margin:0 1.5rem 2rem;">Coming soon…</p>
+    <div class="penny-options-grid">
+      ${optionsHTML}
+    </div>
+    <p class="penny-closer">She folds her hands on the desk and waits, unhurried.</p>
   `;
 }
 window.renderPennyTab = renderPennyTab;
+
+function pennySelectOption(optionId, el) {
+  // Highlight selected card
+  document.querySelectorAll('.penny-option-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  // Chunk 3 will wire the actual conversation from here
+}
+window.pennySelectOption = pennySelectOption;
 
 // ── Cookie auto-load for quarterly tab ────────────────
 function renderQuarterlyTab() {
