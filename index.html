@@ -1964,6 +1964,22 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
         <button class="btn btn-secondary btn-sm" onclick="adminResetPennyVisit()">Reset my visit history</button>
         <span id="penny-reset-msg" style="font-size:.8rem;color:var(--gold);margin-left:.75rem;"></span>
       </div>
+
+      <div class="card" style="margin-bottom:1rem;">
+        <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.5rem;">Historical Book Pool</h3>
+        <p style="font-size:.85rem;color:var(--soft);margin-bottom:1rem;">Add non-winning books from 2025 (or any period not in the archive) so Penny can recommend them. Books that won in any archived month are automatically excluded even if added here.</p>
+        <div class="grid2" style="margin-bottom:.75rem;">
+          <div class="f-group"><label>Title</label><input type="text" id="ph-title" placeholder="Book title"></div>
+          <div class="f-group"><label>Author</label><input type="text" id="ph-author" placeholder="Author name"></div>
+          <div class="f-group"><label>Suggested by (Discord)</label><input type="text" id="ph-suggester" placeholder="Discord username"></div>
+          <div class="f-group"><label>Month (e.g. March 2025)</label><input type="text" id="ph-month" placeholder="Month Year"></div>
+          <div class="f-group"><label>Genre (optional)</label><select id="ph-genre"><option value="">— select —</option></select></div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="adminAddHistoricalBook()">Add Book</button>
+        <span id="ph-msg" style="font-size:.8rem;color:var(--gold);margin-left:.75rem;"></span>
+        <div id="ph-list" style="margin-top:1rem;"></div>
+      </div>
+
       <div id="admin-penny-preview-area" style="background:#1a1208;border-radius:6px;padding:1.5rem 0;">
         <p style="font-family:'Playfair Display',serif;font-style:italic;color:rgba(240,180,41,.4);font-size:14px;text-align:center;">Click "Load Preview" to render Penny.</p>
         <div style="text-align:center;margin-top:.75rem;">
@@ -2166,6 +2182,10 @@ function startListeners() {
   onSnapshot(QUARTERLY_CARDS_REF, snap => {
     CACHE.quarterlyCards = snap.exists() ? (snap.data().map || {}) : {};
     refreshActiveTab();
+  });
+  onSnapshot(PENNY_REF, snap => {
+    const data = snap.exists() ? snap.data() : {};
+    CACHE.pennyHistorical = data.historicalPool || [];
   });
 }
 
@@ -4614,6 +4634,14 @@ function goAdminTab(id, btn) {
   else if (id === 'quarterly-admin')          renderQuarterlyAdmin();
   else if (id === 'surveys-admin')             renderAdminSurveys();
   // penny-admin has no auto-render — content loads on button click
+  if (id === 'penny-admin') {
+    renderHistoricalBookList();
+    // Populate genre dropdown if empty
+    const gSel = document.getElementById('ph-genre');
+    if (gSel && gSel.options.length <= 1) {
+      GENRE_NAMES.forEach(g => { const o = document.createElement('option'); o.value = g; o.textContent = g; gSel.appendChild(o); });
+    }
+  }
 }
 window.goAdminTab = goAdminTab;
 
@@ -8610,12 +8638,22 @@ window.pennySelectOption = pennySelectOption;
 // ══════════════════════════════════════════════════════
 
 // Build the full pool of recommendable books from archives
-// (all submitted books — not just winners — with their metadata)
+// (all submitted non-winning books + manually added historical books)
 function _pennyBuildPool() {
   const archives = getArchives();
-  const pool = [];
+
+  // Build a global set of ALL winning titles across all months
+  // A book is excluded if it won in ANY month, regardless of which month we're pulling it from
+  const winningTitles = new Set();
   archives.forEach(a => {
     const winnerIds = a.dualWinners ? a.dualWinners.map(String) : (a.winner ? [String(a.winner)] : []);
+    (a.books || []).forEach(b => {
+      if (winnerIds.includes(String(b.id))) winningTitles.add(b.title.trim().toLowerCase());
+    });
+  });
+
+  const pool = [];
+  archives.forEach(a => {
     const nb = (a.books || []).length;
     const scores = {};
     (a.books || []).forEach(b => { scores[String(b.id)] = 0; });
@@ -8628,17 +8666,16 @@ function _pennyBuildPool() {
     const voterCount = Object.keys(a.votes || {}).length;
     const maxScore = Math.max(...Object.values(scores), 0);
 
-    // Sort books by score to get rank positions
     const sortedByScore = Object.entries(scores).sort((a, b) => b[1] - a[1]);
     const rankMap = {};
     sortedByScore.forEach(([id], i) => { rankMap[id] = i + 1; });
 
     (a.books || []).forEach(b => {
       const bid = String(b.id);
-      const bookScore = scores[bid] || 0;
-      const isWinner = winnerIds.includes(bid);
-      if (isWinner) return; // Penny only recommends non-winners
+      // Exclude if this book won in any month (by title)
+      if (winningTitles.has(b.title.trim().toLowerCase())) return;
 
+      const bookScore = scores[bid] || 0;
       let rankedByCount = 0;
       Object.values(a.votes || {}).forEach(vd => {
         const ranking = vd.ranking || vd;
@@ -8658,7 +8695,33 @@ function _pennyBuildPool() {
       });
     });
   });
-  return pool;
+
+  // Deduplicate by title — if a book appeared in multiple losing months, keep the one with best rank
+  const seen = new Map();
+  pool.forEach(b => {
+    const key = b.title.trim().toLowerCase();
+    if (!seen.has(key) || b.rankPosition < seen.get(key).rankPosition) {
+      seen.set(key, b);
+    }
+  });
+
+  // Add manually-entered historical books (2025 data, etc.)
+  const historical = CACHE.pennyHistorical || [];
+  historical.forEach(h => {
+    if (!winningTitles.has((h.title||'').trim().toLowerCase()) && !seen.has((h.title||'').trim().toLowerCase())) {
+      seen.set(h.title.trim().toLowerCase(), {
+        id: 'hist_' + h.title.replace(/\s/g,'_'),
+        title: h.title, author: h.author || '',
+        genre: h.genre || '', pageCount: h.pageCount || null,
+        suggesters: [{ discord: h.suggestedBy || '', email: '' }],
+        month: h.month || '2025', isWinner: false,
+        bordaScore: 0, maxScore: 0, voterCount: 0, rankedByCount: 0,
+        rankPosition: 99, totalBooks: 0, submissionCount: 1, pointsBehind: 0
+      });
+    }
+  });
+
+  return [...seen.values()];
 }
 
 // Pick a random "interesting fact" line Penny says about the book
@@ -9171,6 +9234,65 @@ async function adminResetPennyVisit() {
   }
 }
 window.adminResetPennyVisit = adminResetPennyVisit;
+
+// ── Penny historical book pool management ─────────────
+function renderHistoricalBookList() {
+  const el = document.getElementById('ph-list');
+  if (!el) return;
+  const books = CACHE.pennyHistorical || [];
+  if (!books.length) { el.innerHTML = '<p style="font-size:.85rem;color:var(--soft);">No historical books added yet.</p>'; return; }
+  el.innerHTML = books.map((b, i) => `
+    <div style="display:flex;align-items:center;gap:.75rem;padding:.5rem 0;border-bottom:1px solid rgba(255,255,255,.06);">
+      <div style="flex:1;font-size:.85rem;">
+        <strong>${esc(b.title)}</strong>
+        ${b.author ? ` <span style="color:var(--soft);">by ${esc(b.author)}</span>` : ''}
+        ${b.month ? ` · <span style="color:var(--soft);">${esc(b.month)}</span>` : ''}
+        ${b.suggestedBy ? ` · <span style="color:var(--soft);">via ${esc(b.suggestedBy)}</span>` : ''}
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="adminRemoveHistoricalBook(${i})">Remove</button>
+    </div>
+  `).join('');
+}
+
+async function adminAddHistoricalBook() {
+  const title = document.getElementById('ph-title')?.value.trim();
+  const author = document.getElementById('ph-author')?.value.trim();
+  const suggestedBy = document.getElementById('ph-suggester')?.value.trim();
+  const month = document.getElementById('ph-month')?.value.trim();
+  const genre = document.getElementById('ph-genre')?.value.trim();
+  const msg = document.getElementById('ph-msg');
+  if (!title) { if (msg) msg.textContent = 'Title is required.'; return; }
+
+  const books = [...(CACHE.pennyHistorical || [])];
+  if (books.some(b => b.title.trim().toLowerCase() === title.toLowerCase())) {
+    if (msg) msg.textContent = 'That title is already in the pool.'; return;
+  }
+  books.push({ title, author: author||'', suggestedBy: suggestedBy||'', month: month||'', genre: genre||'' });
+  try {
+    await fbSet(PENNY_REF, { historicalPool: books });
+    CACHE.pennyHistorical = books;
+    ['ph-title','ph-author','ph-suggester','ph-month'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    const g = document.getElementById('ph-genre'); if (g) g.value = '';
+    if (msg) msg.textContent = `✓ "${title}" added.`;
+    renderHistoricalBookList();
+  } catch(e) {
+    if (msg) msg.textContent = 'Error saving: ' + e.message;
+  }
+}
+window.adminAddHistoricalBook = adminAddHistoricalBook;
+
+async function adminRemoveHistoricalBook(index) {
+  const books = [...(CACHE.pennyHistorical || [])];
+  const removed = books.splice(index, 1)[0];
+  try {
+    await fbSet(PENNY_REF, { historicalPool: books });
+    CACHE.pennyHistorical = books;
+    renderHistoricalBookList();
+    const msg = document.getElementById('ph-msg');
+    if (msg) msg.textContent = `Removed "${removed?.title || 'book'}".`;
+  } catch(e) { console.warn('Remove failed:', e); }
+}
+window.adminRemoveHistoricalBook = adminRemoveHistoricalBook;
 
 // ── Cookie auto-load for quarterly tab ────────────────
 function renderQuarterlyTab() {
