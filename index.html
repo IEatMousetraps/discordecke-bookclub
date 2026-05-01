@@ -1903,6 +1903,13 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
         <div id="edit-archive-books-area"></div>
       </div>
 
+      <!-- Historical pool books -->
+      <div class="card">
+        <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.5rem;">Historical Books (2025)</h3>
+        <p style="font-size:.85rem;color:var(--soft);margin-bottom:.75rem;">Edit books in Penny's historical pool — books added manually that predate the archive.</p>
+        <div id="edit-historical-books-area"></div>
+      </div>
+
     </div><!-- /admin-sub-edit-books -->
 
     <div id="admin-sub-quarterly-admin" style="display:none;">
@@ -1939,11 +1946,37 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
     </div><!-- /admin-sub-surveys-admin -->
 
     <div id="admin-sub-penny-admin" style="display:none;">
+
+      <!-- Go Live -->
+      <div class="card" style="margin-bottom:1rem;border:1px solid rgba(240,180,41,.25);">
+        <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.4rem;">🔓 Go Live</h3>
+        <p style="font-size:.85rem;color:var(--soft);margin-bottom:.75rem;">When Penny is <strong style="color:var(--gold);">visible</strong>, the Penny's tab appears in the nav for all members. Toggle this once you're ready to launch.</p>
+        <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
+          <button class="btn btn-primary btn-sm" onclick="toggleSetting('pennyVisible');setTimeout(()=>{document.getElementById('penny-live-status').textContent=window.getSettings&&getSettings().pennyVisible?'✅ Penny is LIVE — members can see her tab.':'🔒 Penny is hidden — preview only.'},300);">Toggle Penny Visibility</button>
+          <span id="penny-live-status" style="font-size:.85rem;color:var(--gold);"></span>
+        </div>
+      </div>
+
+      <!-- My Visit Reset -->
       <div class="card" style="margin-bottom:1rem;">
         <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.5rem;">Penny Preview</h3>
-        <p style="font-size:.85rem;color:var(--soft);margin-bottom:1rem;">This is your private view of Penny's tab — visible only to admins regardless of the Penny's toggle. Use it to test the experience before enabling it for members.</p>
+        <p style="font-size:.85rem;color:var(--soft);margin-bottom:1rem;">This is your private view of Penny's tab — visible only to admins regardless of the toggle. Use it to test the experience before enabling it for members.</p>
         <button class="btn btn-secondary btn-sm" onclick="adminResetPennyVisit()">Reset my visit history</button>
         <span id="penny-reset-msg" style="font-size:.8rem;color:var(--gold);margin-left:.75rem;"></span>
+      </div>
+
+      <!-- Member Visit Manager -->
+      <div class="card" style="margin-bottom:1rem;">
+        <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.4rem;">👥 Member Visit History</h3>
+        <p style="font-size:.85rem;color:var(--soft);margin-bottom:.75rem;">View or reset any member's Penny interaction history. Useful for troubleshooting stuck states.</p>
+        <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:.75rem;">
+          <select id="penny-member-select" style="background:var(--bg2);color:var(--fg);border:1px solid rgba(255,255,255,.15);border-radius:4px;padding:.35rem .6rem;font-size:.85rem;min-width:200px;">
+            <option value="">— select a member —</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" onclick="adminLoadMemberPennyData()">View History</button>
+          <button class="btn btn-danger btn-sm" onclick="adminResetMemberPenny()" style="background:#7a1a1a;border-color:#a33;">Reset Selected Member</button>
+        </div>
+        <div id="penny-member-history" style="font-size:.85rem;color:var(--soft);"></div>
       </div>
 
       <div class="card" style="margin-bottom:1rem;">
@@ -1954,7 +1987,9 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
           <div class="f-group"><label>Author</label><input type="text" id="ph-author" placeholder="Author name"></div>
           <div class="f-group"><label>Suggested by (Discord)</label><input type="text" id="ph-suggester" placeholder="Discord username"></div>
           <div class="f-group"><label>Month (e.g. March 2025)</label><input type="text" id="ph-month" placeholder="Month Year"></div>
-          <div class="f-group"><label>Genre (optional)</label><select id="ph-genre"><option value="">— select —</option></select></div>
+          <div class="f-group"><label>Genre 1 (optional)</label><select id="ph-genre"><option value="">— select —</option></select></div>
+          <div class="f-group"><label>Genre 2 (optional)</label><select id="ph-genre-2"><option value="">— select —</option></select></div>
+          <div class="f-group"><label>Page Count (optional)</label><input type="number" id="ph-pages" placeholder="e.g. 320" min="1"></div>
         </div>
         <button class="btn btn-primary btn-sm" onclick="adminAddHistoricalBook()">Add Book</button>
         <span id="ph-msg" style="font-size:.8rem;color:var(--gold);margin-left:.75rem;"></span>
@@ -2167,6 +2202,10 @@ function startListeners() {
   onSnapshot(PENNY_REF, snap => {
     const data = snap.exists() ? snap.data() : {};
     CACHE.pennyHistorical = data.historicalPool || [];
+    // Cache member penny records for badge checks (exclude the pool key)
+    const memberRecords = {};
+    Object.entries(data).forEach(([k,v]) => { if (k !== 'historicalPool') memberRecords[k] = v; });
+    CACHE.pennyMembers = memberRecords;
   });
 }
 
@@ -4617,10 +4656,19 @@ function goAdminTab(id, btn) {
   // penny-admin has no auto-render — content loads on button click
   if (id === 'penny-admin') {
     renderHistoricalBookList();
-    // Populate genre dropdown if empty
+    // Populate member dropdown for visit history
+    adminPopulatePennyMemberDropdown();
+    // Update live status label
+    const liveStatus = document.getElementById('penny-live-status');
+    if (liveStatus) liveStatus.textContent = getSettings().pennyVisible ? '✅ Penny is LIVE — members can see her tab.' : '🔒 Penny is hidden — preview only.';
+    // Populate genre dropdowns if empty
     const gSel = document.getElementById('ph-genre');
     if (gSel && gSel.options.length <= 1) {
       GENRE_NAMES.forEach(g => { const o = document.createElement('option'); o.value = g; o.textContent = g; gSel.appendChild(o); });
+    }
+    const gSel2 = document.getElementById('ph-genre-2');
+    if (gSel2 && gSel2.options.length <= 1) {
+      GENRE_NAMES.forEach(g => { const o = document.createElement('option'); o.value = g; o.textContent = g; gSel2.appendChild(o); });
     }
   }
 }
@@ -5955,6 +6003,15 @@ const BADGE_DEFS = [
   // ── Admin-only ────────────────────────────────────────────────────────────
   { id:'founding-reader',   name:'1st Edition',         emoji:'🏛️',  tier:null,     desc:'Member during the inaugural year — admin awarded only',     check:()=>false, adminOnly:true },
 
+  // ── Penny — organic/hidden ────────────────────────────────────────────────
+  { id:'penny-met',         name:'Meet Penny',           emoji:'🕯️',  tier:null, category:'penny', organic:true, desc:'Pay Penny your first visit',                                check:p=>( p.pennyRecord.visitCount||0)>=1 },
+  { id:'penny-trust',       name:'Trust Penny',          emoji:'🤝',  tier:null, category:'penny', organic:true, desc:'Let Penny choose for you',                                  check:p=>!!p.pennyRecord.usedTrust },
+  { id:'penny-catalog',     name:'The Card Catalog',     emoji:'🗂️',  tier:null, category:'penny', organic:true, desc:'Try your luck with the card catalog',                        check:p=>!!p.pennyRecord.usedCatalog },
+  { id:'penny-quiz',        name:'Ask Me Your Questions',emoji:'📝',  tier:null, category:'penny', organic:true, desc:'Submit to Penny\'s quiz',                                   check:p=>!!p.pennyRecord.usedQuiz },
+  { id:'penny-accepted',    name:'I\'ll Take It',        emoji:'📖',  tier:null, category:'penny', organic:true, desc:'Accept one of Penny\'s recommendations',                    check:p=>!!p.pennyRecord.acceptedRec },
+  { id:'penny-declined',    name:'Not Quite',            emoji:'🙈',  tier:null, category:'penny', organic:true, desc:'Politely decline one of Penny\'s recommendations',          check:p=>!!p.pennyRecord.declinedRec },
+  { id:'penny-returned',    name:'Back Again',           emoji:'🔁',  tier:null, category:'penny', organic:true, desc:'Return to Penny for another visit',                         check:p=>( p.pennyRecord.visitCount||0)>=2 },
+
   // ── Quarterly Activity — Bingo (tiered families) ──────────────────────────
   { id:'q-first-touch',     name:'First Touch',          emoji:'⚽',  tier:'bronze', category:'quarterly', desc:'Earn your first bingo row on an approved card',                                    check:p=>p.qBingoMaxRows>=1 },
   { id:'q-top-of-table',    name:'Top of the Table',     emoji:'🏆',  tier:'silver', category:'quarterly', desc:'Earn 5 bingo rows on a single approved card',                                     check:p=>p.qBingoMaxRows>=5 },
@@ -6014,7 +6071,10 @@ function getAllBadges({ includeHidden = false, includeDisabled = false } = {}) {
 // Returns true if a badge is organic (hidden until earned)
 function isBadgeOrganic(badgeId) {
   const cfg = getBadgeConfig();
-  return !!(cfg.organic && cfg.organic[badgeId]);
+  if (cfg.organic && cfg.organic[badgeId]) return true;
+  // Also check the badge definition's own organic flag
+  const def = BADGE_DEFS.find(b => b.id === badgeId);
+  return !!(def && def.organic);
 }
 
 // Resolve whether a member has earned a given badge, considering overrides
@@ -6698,6 +6758,11 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
     qPassportCompleted, qPassportAllBonus,
     qParkTheBus, qCornerKick, qFourCorners, qFourFourTwo, qConsecutiveApprovals,
     finishedBookIds,
+    // Penny interaction data (sourced from CACHE.pennyMembers at check time)
+    get pennyRecord() {
+      const pm = (typeof CACHE !== 'undefined' && CACHE.pennyMembers) ? CACHE.pennyMembers : {};
+      return pm[myKey] || {};
+    },
   };
 }
 
@@ -6954,6 +7019,7 @@ const BADGE_CATEGORIES = [
   { id:'genre',         label:'🎭 Genre',               emoji:'🎭' },
   { id:'quarterly',     label:'⚽ Quarterly Challenges', emoji:'⚽' },
   { id:'fun',           label:'😄 Fun & Personality',   emoji:'😄' },
+  { id:'penny',         label:'🕯️ Penny\'s',            emoji:'🕯️' },
   { id:'admin',         label:'⭐ Special Awards',      emoji:'⭐' },
 ];
 
@@ -6990,6 +7056,9 @@ const BADGE_CATEGORY_MAP = {
   'pen-pal':'fun','essayist':'fun','early-to-rise':'fun',
   // Special Awards
   'founding-reader':'admin',
+  // Penny
+  'penny-met':'penny','penny-trust':'penny','penny-catalog':'penny',
+  'penny-quiz':'penny','penny-accepted':'penny','penny-declined':'penny','penny-returned':'penny',
 };
 
 // Sort monthly book badges by chronological month order within a year
@@ -7760,6 +7829,7 @@ function editBookCard(book, onSave, onCancel, context) {
 // ── Current month books ───────────────────────────────
 function renderEditBooksTab() {
   renderEditCurrentBooks();
+  renderEditHistoricalBooks();
   // Populate archive month selector
   const sel = document.getElementById('edit-archive-month-sel');
   if (sel) {
@@ -8399,6 +8469,7 @@ const PENNY_SCENARIOS = [
     entering: 'The door swings open. Inside is a small, warm library. A woman in glasses is sitting in an armchair, deeply absorbed in a book. She doesn\'t notice you at first. A few seconds pass. She turns a page.',
     action:   'You clear your throat.',
     prompt:   'What do you do?',
+    startle:  'She jumps slightly, fumbling to keep her page, then looks up.',
     greeting: 'Oh! Oh goodness — sorry, I was just at a very good part. Actually, do you want to know what happens? No. No, I won\'t do that to you. How can I help?',
     setup:    'She sets her book down, stands up, and moves behind a small wooden desk. There\'s a card catalog against the wall behind her. The whole place smells like old paper and something vaguely like tea. She looks at you expectantly.',
     return:   'Penny is at the shelves with a duster, working her way along a row of books. She doesn\'t notice you at first. A moment passes. You step further inside. She turns around and spots you, her face breaking into a warm smile of recognition.'
@@ -8532,7 +8603,7 @@ function pennyAdvance(stage, areaId) {
     area.innerHTML = `
       <div class="penny-storybook">
         <div class="penny-storybook-inner">
-          <span class="penny-action">${scenario.startle}</span>
+          ${scenario.startle ? `<span class="penny-action">${scenario.startle}</span>` : ''}
           <p class="penny-speech">${scenario.greeting}</p>
           <span class="penny-action">${scenario.setup}</span>
           <p class="penny-speech">I'm Penny, by the way. I run the recommended reading here.</p>
@@ -8854,6 +8925,12 @@ function pennySelectOption(optionId, areaId, el) {
   const area = document.getElementById(areaId);
   if (!area) return;
   if (el) { el.disabled = true; el.style.opacity = '.5'; }
+  // Track badge events
+  if (_profileIdentity && _profileIdentity.key) {
+    const flagMap = { trust: 'usedTrust', catalog: 'usedCatalog', quiz: 'usedQuiz' };
+    const flag = flagMap[optionId];
+    if (flag) fbSet(PENNY_REF, { [_profileIdentity.key]: { [flag]: true } }).catch(()=>{});
+  }
   setTimeout(() => {
     if (optionId === 'trust') _pennyBranchTrust(area);
     else if (optionId === 'catalog') _pennyBranchCatalog(area);
@@ -9079,7 +9156,7 @@ function pennyAccept(areaId) {
   if (!area) return;
   // Store last rec in Firestore if identity known
   if (_profileIdentity && _profileIdentity.key && area._pennyLastRec) {
-    fbSet(PENNY_REF, { [_profileIdentity.key]: { lastRec: { title: area._pennyLastRec.title, month: area._pennyLastRec.month, ts: Date.now() }, lastRecAsked: false } }).catch(()=>{});
+    fbSet(PENNY_REF, { [_profileIdentity.key]: { lastRec: { title: area._pennyLastRec.title, month: area._pennyLastRec.month, ts: Date.now() }, lastRecAsked: false, acceptedRec: true } }).catch(()=>{});
   }
 
   // Rare stacks hint — only on return visits, ~1 in 20 chance
@@ -9165,6 +9242,10 @@ function pennyDecline(areaId, fromBranch) {
   // Remove the declined book from future picks this session
   if (!area._pennyExcluded) area._pennyExcluded = [];
   if (area._pennyLastRec) area._pennyExcluded.push(area._pennyLastRec.id);
+  // Track badge event
+  if (_profileIdentity && _profileIdentity.key) {
+    fbSet(PENNY_REF, { [_profileIdentity.key]: { declinedRec: true } }).catch(()=>{});
+  }
 
   const isQuiz = fromBranch === 'quiz';
   area.innerHTML = `
@@ -9602,6 +9683,81 @@ async function adminResetPennyVisit() {
 }
 window.adminResetPennyVisit = adminResetPennyVisit;
 
+function adminPopulatePennyMemberDropdown() {
+  const sel = document.getElementById('penny-member-select');
+  if (!sel) return;
+  const members = buildAllMembersMap();
+  const sorted = [...members.values()].sort((a,b) => (a.name||'').localeCompare(b.name||''));
+  sel.innerHTML = '<option value="">— select a member —</option>' +
+    sorted.map(m => `<option value="${esc(m.key)}" data-name="${esc(m.name)}">${esc(m.name||m.discord||m.email||m.key)}</option>`).join('');
+}
+window.adminPopulatePennyMemberDropdown = adminPopulatePennyMemberDropdown;
+
+async function adminLoadMemberPennyData() {
+  const sel = document.getElementById('penny-member-select');
+  const area = document.getElementById('penny-member-history');
+  if (!sel || !area) return;
+  const memberKey = sel.value;
+  if (!memberKey) { area.innerHTML = '<em>Select a member first.</em>'; return; }
+  const memberName = sel.options[sel.selectedIndex]?.dataset?.name || memberKey;
+  area.innerHTML = '<em style="color:var(--gold);">Loading…</em>';
+  try {
+    const snap = await getDoc(PENNY_REF);
+    const data = snap.exists() ? snap.data() : {};
+    const record = data[memberKey];
+    if (!record) {
+      area.innerHTML = `<p><strong>${esc(memberName)}</strong> has no Penny history yet.</p>`;
+      return;
+    }
+    const fmt = ts => ts ? new Date(ts).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}) : '—';
+    const visitHistory = Array.isArray(record.visitLog) ? record.visitLog : [];
+    const lastRecTitle = record.lastRec?.title || null;
+    const lastRecTs = record.lastRec?.ts || null;
+    const lastRecAsked = record.lastRecAsked || false;
+    let html = `<div style="border:1px solid rgba(240,180,41,.18);border-radius:6px;padding:.75rem 1rem;background:rgba(0,0,0,.2);">`;
+    html += `<p style="margin:0 0 .5rem;"><strong style="color:var(--fg);">${esc(memberName)}</strong></p>`;
+    html += `<table style="width:100%;border-collapse:collapse;font-size:.83rem;">`;
+    html += `<tr><td style="padding:.2rem .5rem .2rem 0;color:var(--soft);width:140px;">Visit count</td><td style="color:var(--fg);">${record.visitCount ?? 0}</td></tr>`;
+    html += `<tr><td style="padding:.2rem .5rem .2rem 0;color:var(--soft);">Last visit</td><td style="color:var(--fg);">${fmt(record.lastVisit)}</td></tr>`;
+    if (lastRecTitle) {
+      html += `<tr><td style="padding:.2rem .5rem .2rem 0;color:var(--soft);">Last rec</td><td style="color:var(--fg);">${esc(lastRecTitle)}${lastRecTs ? ` <span style="color:var(--soft);font-size:.8em;">· ${fmt(lastRecTs)}</span>` : ''}</td></tr>`;
+      html += `<tr><td style="padding:.2rem .5rem .2rem 0;color:var(--soft);">Follow-up asked</td><td style="color:var(--fg);">${lastRecAsked ? 'Yes' : 'Not yet'}</td></tr>`;
+    }
+    html += `</table>`;
+    if (visitHistory.length) {
+      html += `<p style="margin:.75rem 0 .3rem;font-size:.8rem;color:var(--soft);">Visit log:</p><ul style="margin:0;padding-left:1.2rem;font-size:.8rem;color:var(--fg);">`;
+      visitHistory.slice().reverse().forEach(ts => {
+        html += `<li>${fmt(ts)}</li>`;
+      });
+      html += `</ul>`;
+    }
+    html += `</div>`;
+    area.innerHTML = html;
+  } catch(e) {
+    area.innerHTML = `<span style="color:#c55;">Error loading data: ${esc(e.message)}</span>`;
+  }
+}
+window.adminLoadMemberPennyData = adminLoadMemberPennyData;
+
+async function adminResetMemberPenny() {
+  const sel = document.getElementById('penny-member-select');
+  const area = document.getElementById('penny-member-history');
+  if (!sel || !area) return;
+  const memberKey = sel.value;
+  if (!memberKey) { area.innerHTML = '<em>Select a member first.</em>'; return; }
+  const memberName = sel.options[sel.selectedIndex]?.dataset?.name || memberKey;
+  if (!confirm(`Reset Penny history for ${memberName}? This will clear their visit count, last rec, and follow-up state.`)) return;
+  area.innerHTML = '<em style="color:var(--gold);">Resetting…</em>';
+  try {
+    // Set member's penny data to a clean slate (visitCount 0, clear lastRec/lastRecAsked)
+    await fbSet(PENNY_REF, { [memberKey]: { visitCount: 0, lastVisit: null, lastRec: null, lastRecAsked: false, visitLog: [] } });
+    area.innerHTML = `<p style="color:var(--gold);">✓ ${esc(memberName)}'s Penny history has been cleared. Their next visit will be treated as a first visit.</p>`;
+  } catch(e) {
+    area.innerHTML = `<span style="color:#c55;">Error resetting: ${esc(e.message)}</span>`;
+  }
+}
+window.adminResetMemberPenny = adminResetMemberPenny;
+
 // ── Penny historical book pool management ─────────────
 function renderHistoricalBookList() {
   const el = document.getElementById('ph-list');
@@ -9615,6 +9771,8 @@ function renderHistoricalBookList() {
         ${b.author ? ` <span style="color:var(--soft);">by ${esc(b.author)}</span>` : ''}
         ${b.month ? ` · <span style="color:var(--soft);">${esc(b.month)}</span>` : ''}
         ${b.suggestedBy ? ` · <span style="color:var(--soft);">via ${esc(b.suggestedBy)}</span>` : ''}
+        ${b.genre ? ` · <span style="color:var(--soft);">${esc(b.genre)}</span>` : ''}
+        ${b.pageCount ? ` · <span style="color:var(--soft);">${b.pageCount} pp</span>` : ''}
       </div>
       <button class="btn btn-danger btn-sm" onclick="adminRemoveHistoricalBook(${i})">Remove</button>
     </div>
@@ -9626,7 +9784,11 @@ async function adminAddHistoricalBook() {
   const author = document.getElementById('ph-author')?.value.trim();
   const suggestedBy = document.getElementById('ph-suggester')?.value.trim();
   const month = document.getElementById('ph-month')?.value.trim();
-  const genre = document.getElementById('ph-genre')?.value.trim();
+  const genre1 = document.getElementById('ph-genre')?.value.trim();
+  const genre2 = document.getElementById('ph-genre-2')?.value.trim();
+  const genre = [genre1, genre2].filter(Boolean).join(' / ');
+  const pagesRaw = document.getElementById('ph-pages')?.value.trim();
+  const pageCount = pagesRaw ? parseInt(pagesRaw, 10) : null;
   const msg = document.getElementById('ph-msg');
   if (!title) { if (msg) msg.textContent = 'Title is required.'; return; }
 
@@ -9634,12 +9796,15 @@ async function adminAddHistoricalBook() {
   if (books.some(b => b.title.trim().toLowerCase() === title.toLowerCase())) {
     if (msg) msg.textContent = 'That title is already in the pool.'; return;
   }
-  books.push({ title, author: author||'', suggestedBy: suggestedBy||'', month: month||'', genre: genre||'' });
+  const entry = { title, author: author||'', suggestedBy: suggestedBy||'', month: month||'', genre: genre||'' };
+  if (pageCount) entry.pageCount = pageCount;
+  books.push(entry);
   try {
     await fbSet(PENNY_REF, { historicalPool: books });
     CACHE.pennyHistorical = books;
-    ['ph-title','ph-author','ph-suggester','ph-month'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    ['ph-title','ph-author','ph-suggester','ph-month','ph-pages'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     const g = document.getElementById('ph-genre'); if (g) g.value = '';
+    const g2 = document.getElementById('ph-genre-2'); if (g2) g2.value = '';
     if (msg) msg.textContent = `✓ "${title}" added.`;
     renderHistoricalBookList();
   } catch(e) {
@@ -9661,7 +9826,90 @@ async function adminRemoveHistoricalBook(index) {
 }
 window.adminRemoveHistoricalBook = adminRemoveHistoricalBook;
 
-// ── Cookie auto-load for quarterly tab ────────────────
+// ── Historical pool book editing (Edit Books tab) ─────
+function renderEditHistoricalBooks() {
+  const area = document.getElementById('edit-historical-books-area');
+  if (!area) return;
+  const books = CACHE.pennyHistorical || [];
+  if (!books.length) { area.innerHTML = '<p style="font-size:.85rem;color:var(--soft);">No historical books in the pool yet. Add them from the Penny admin tab.</p>'; return; }
+  area.innerHTML = books.map((b, i) => {
+    const genreDisplay = b.genre ? `<span style="font-size:.7rem;background:var(--cream);border:1px solid var(--border);padding:.1rem .5rem;border-radius:12px;color:var(--soft);">${esc(b.genre)}</span>` : '<span style="font-size:.7rem;color:var(--red);">no genre</span>';
+    return `<div id="ehb-row-${i}" style="display:flex;align-items:center;gap:.75rem;padding:.65rem .75rem;background:var(--cream);border-radius:6px;margin-bottom:.4rem;flex-wrap:wrap;">
+      <div style="flex:1;min-width:150px;">
+        <div style="font-size:.88rem;font-weight:500;">${esc(b.title)}</div>
+        <div style="font-size:.75rem;color:var(--soft);">${esc(b.author||'—')} · ${esc(b.month||'—')} · ${genreDisplay}${b.pageCount ? ` · ${b.pageCount} pp` : ''}</div>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="openEditHistoricalBook(${i})">Edit</button>
+    </div>
+    <div id="ehb-form-${i}" style="display:none;"></div>`;
+  }).join('');
+}
+window.renderEditHistoricalBooks = renderEditHistoricalBooks;
+
+function openEditHistoricalBook(index) {
+  document.querySelectorAll('[id^="ehb-form-"]').forEach(el => { el.style.display='none'; el.innerHTML=''; });
+  const form = document.getElementById('ehb-form-' + index);
+  if (!form) return;
+  const books = CACHE.pennyHistorical || [];
+  const b = books[index];
+  if (!b) return;
+  const uid = 'ehb-' + index;
+  const genreParts = (b.genre||'').split(' / ').map(s=>s.trim());
+  const g1 = genreParts[0]||'', g2 = genreParts[1]||'';
+  form.style.display = '';
+  form.innerHTML = `<div class="card" style="padding:1rem;margin-bottom:.65rem;border-left:3px solid var(--gold);">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem;">
+      <div class="f-group"><label>Title</label><input type="text" id="${uid}-title" value="${esc(b.title)}" style="font-size:.85rem;padding:.4rem .7rem;"></div>
+      <div class="f-group"><label>Author</label><input type="text" id="${uid}-author" value="${esc(b.author||'')}" style="font-size:.85rem;padding:.4rem .7rem;"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem;">
+      <div class="f-group"><label>Suggested by (Discord)</label><input type="text" id="${uid}-suggester" value="${esc(b.suggestedBy||'')}" style="font-size:.85rem;padding:.4rem .7rem;"></div>
+      <div class="f-group"><label>Month</label><input type="text" id="${uid}-month" value="${esc(b.month||'')}" placeholder="e.g. March 2025" style="font-size:.85rem;padding:.4rem .7rem;"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;margin-bottom:.5rem;">
+      <div class="f-group"><label>Genre 1</label>${genreSelect(uid+'-genre', b.genre||'')}</div>
+      <div class="f-group"><label>Page Count</label><input type="number" id="${uid}-pages" value="${b.pageCount||''}" min="1" placeholder="e.g. 320" style="font-size:.85rem;padding:.4rem .7rem;"></div>
+    </div>
+    <div id="${uid}-msg"></div>
+    <div style="display:flex;gap:.5rem;margin-top:.4rem;">
+      <button class="btn btn-primary btn-sm" onclick="saveHistoricalBook(${index},'${uid}')">Save</button>
+      <button class="btn btn-secondary btn-sm" onclick="cancelEditHistoricalBook()">Cancel</button>
+    </div>
+  </div>`;
+}
+window.openEditHistoricalBook = openEditHistoricalBook;
+
+function cancelEditHistoricalBook() {
+  document.querySelectorAll('[id^="ehb-form-"]').forEach(el => { el.style.display='none'; el.innerHTML=''; });
+}
+window.cancelEditHistoricalBook = cancelEditHistoricalBook;
+
+async function saveHistoricalBook(index, uid) {
+  const title = document.getElementById(uid+'-title')?.value.trim();
+  const author = document.getElementById(uid+'-author')?.value.trim();
+  const suggestedBy = document.getElementById(uid+'-suggester')?.value.trim();
+  const month = document.getElementById(uid+'-month')?.value.trim();
+  const g1 = (document.getElementById(uid+'-genre')?.value||'').trim();
+  const g2 = (document.getElementById(uid+'-genre-2')?.value||'').trim();
+  const genre = [g1,g2].filter(Boolean).join(' / ');
+  const pagesRaw = document.getElementById(uid+'-pages')?.value.trim();
+  const pageCount = pagesRaw ? parseInt(pagesRaw, 10) : null;
+  const msg = document.getElementById(uid+'-msg');
+  if (!title) { if (msg) msg.textContent = 'Title is required.'; return; }
+  const books = JSON.parse(JSON.stringify(CACHE.pennyHistorical || []));
+  if (!books[index]) { if (msg) msg.textContent = 'Book not found.'; return; }
+  books[index] = { ...books[index], title, author: author||'', suggestedBy: suggestedBy||'', month: month||'', genre: genre||'' };
+  if (pageCount) books[index].pageCount = pageCount; else delete books[index].pageCount;
+  try {
+    await fbSet(PENNY_REF, { historicalPool: books });
+    CACHE.pennyHistorical = books;
+    cancelEditHistoricalBook();
+    renderEditHistoricalBooks();
+  } catch(e) {
+    if (msg) msg.textContent = 'Error saving: ' + e.message;
+  }
+}
+window.saveHistoricalBook = saveHistoricalBook;
 function renderQuarterlyTab() {
   const cfg = getQuarterlyConfig();
   const titleEl = document.getElementById('quarterly-tab-title');
