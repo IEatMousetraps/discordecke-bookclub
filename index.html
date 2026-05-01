@@ -8481,6 +8481,8 @@ async function renderPennyTabInto(area) {
   // Check visit history
   let isFirstVisit = true;
   let memberName = '';
+  let lastRec = null;
+  let lastRecAsked = false;
   if (_profileIdentity && _profileIdentity.key) {
     try {
       const snap = await getDoc(PENNY_REF);
@@ -8491,11 +8493,13 @@ async function renderPennyTabInto(area) {
       await fbSet(PENNY_REF, { [memberKey]: { visitCount: newCount, lastVisit: Date.now() } });
       isFirstVisit = (newCount === 1);
       memberName = _profileIdentity.discord || _profileIdentity.email || '';
+      lastRec = prev.lastRec || null;
+      lastRecAsked = prev.lastRecAsked || false;
     } catch(e) { /* degrade gracefully */ }
   }
 
   // Store state on the area element so stage functions can read it
-  area._pennyState = { isFirstVisit, memberName };
+  area._pennyState = { isFirstVisit, memberName, lastRec, lastRecAsked };
 
   // Always start at the door — first visit or return
   _pennyShowDoor(area);
@@ -8568,6 +8572,40 @@ function pennyAdvance(stage, areaId) {
 function _pennyShowReturnGreeting(area, memberName) {
   const scenario = PENNY_SCENARIOS[Math.floor(Math.random() * PENNY_SCENARIOS.length)];
   area._pennyScenario = scenario;
+  const state = area._pennyState || {};
+  const aid = area.id;
+
+  area.className = '';
+
+  // If there's a previous recommendation that hasn't been asked about yet, do the follow-up first
+  if (state.lastRec && !state.lastRecAsked) {
+    const recTitle = state.lastRec.title || 'that book';
+    const followUpLines = [
+      `Back again. Good.`,
+      `I was hoping you'd come back.`,
+      `I thought I heard the door. Come in.`,
+      `Oh, it's you. Good timing, actually.`
+    ];
+    const openLine = followUpLines[Math.floor(Math.random() * followUpLines.length)];
+
+    area.innerHTML = `
+      <div class="penny-storybook">
+        <div class="penny-storybook-inner">
+          <span class="penny-action">${scenario.return}</span>
+          <p class="penny-speech">${openLine}</p>
+          <p class="penny-speech">I've been meaning to ask — did you get a chance to read <em>${esc(recTitle)}</em>?</p>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+        <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
+        <button class="penny-action-btn" onclick="pennyFollowUp('finished','${aid}',this)">"Yes, I finished it!"</button>
+        <button class="penny-action-btn" onclick="pennyFollowUp('notyet','${aid}',this)">"Not yet..."</button>
+      </div>
+    `;
+    return;
+  }
+
+  // No pending follow-up — go straight to options
   const returnLines = [
     `Back again. Good.`,
     `I thought I heard the door. What is it this time?`,
@@ -8575,9 +8613,7 @@ function _pennyShowReturnGreeting(area, memberName) {
     `Come in. I was hoping someone would stop by.`
   ];
   const returnLine = returnLines[Math.floor(Math.random() * returnLines.length)];
-  const aid = area.id;
 
-  area.className = '';
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
@@ -8594,6 +8630,210 @@ function _pennyShowReturnGreeting(area, memberName) {
     </div>
   `;
 }
+
+function pennyFollowUp(response, areaId, el) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  if (el) { el.disabled = true; el.style.opacity = '.5'; }
+
+  // Mark as asked in Firestore so it doesn't repeat
+  if (_profileIdentity && _profileIdentity.key) {
+    fbSet(PENNY_REF, { [_profileIdentity.key]: { lastRecAsked: true } }).catch(()=>{});
+  }
+
+  setTimeout(() => {
+    if (response === 'finished') {
+      _pennyFollowUpFinished(area);
+    } else {
+      _pennyFollowUpNotYet(area);
+    }
+  }, 300);
+}
+window.pennyFollowUp = pennyFollowUp;
+
+function _pennyFollowUpFinished(area) {
+  const aid = area.id;
+  area.innerHTML = `
+    <div class="penny-storybook">
+      <div class="penny-storybook-inner">
+        <span class="penny-action">Her face brightens immediately.</span>
+        <p class="penny-speech">Oh wonderful. And? What did you think?</p>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+      <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
+      <button class="penny-action-btn" onclick="pennyFollowUpReaction('loved','${aid}',this)">"I loved it."</button>
+      <button class="penny-action-btn" onclick="pennyFollowUpReaction('good','${aid}',this)">"It was pretty good."</button>
+      <button class="penny-action-btn" onclick="pennyFollowUpReaction('notforme','${aid}',this)">"It wasn't really for me."</button>
+    </div>
+  `;
+}
+
+function _pennyFollowUpNotYet(area) {
+  const aid = area.id;
+  area.innerHTML = `
+    <div class="penny-storybook">
+      <div class="penny-storybook-inner">
+        <span class="penny-action">She tilts her head, patient and warm.</span>
+        <p class="penny-speech">Not yet! That's perfectly alright. These things take time.</p>
+        <p class="penny-speech">Are you still planning to read it, or are you here for something new?</p>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+      <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
+      <button class="penny-action-btn" onclick="pennyNotYetBranch('stillplanning','${aid}',this)">"Still planning to read it."</button>
+      <button class="penny-action-btn" onclick="pennyNotYetBranch('somethingdifferent','${aid}',this)">"I think I'd like something different."</button>
+    </div>
+  `;
+}
+window._pennyFollowUpNotYet = _pennyFollowUpNotYet;
+
+function pennyNotYetBranch(choice, areaId, el) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  if (el) { el.disabled = true; el.style.opacity = '.5'; }
+  const aid = area.id;
+  setTimeout(() => {
+    if (choice === 'stillplanning') {
+      area.innerHTML = `
+        <div class="penny-storybook">
+          <div class="penny-storybook-inner">
+            <span class="penny-action">Penny smiles.</span>
+            <p class="penny-speech">Good! Don't let me rush you. It'll be there when you're ready.</p>
+            <span class="penny-action" style="margin-top:.4rem;">She leans on the desk warmly.</span>
+            <p class="penny-speech">Come back and tell me what you thought when you're done. I mean it — I want to know.</p>
+            <span class="penny-action" style="margin-top:.4rem;">She gives a small wave.</span>
+          </div>
+        </div>
+        <p class="penny-closer">The door closes softly behind you.</p>
+      `;
+    } else {
+      area.innerHTML = `
+        <div class="penny-storybook">
+          <div class="penny-storybook-inner">
+            <span class="penny-action">Penny nods, completely unbothered.</span>
+            <p class="penny-speech">Of course! Sometimes a book just isn't the right fit for the right moment. That's not a failure — that's just timing.</p>
+            <span class="penny-action" style="margin-top:.4rem;">She tucks the previous recommendation away mentally and looks at you with fresh eyes.</span>
+            <p class="penny-speech">Let's find you something better. You already know how this works — same three options. What's it going to be?</p>
+            <span class="penny-action" style="margin-top:.4rem;">She gives a small conspiratorial smile.</span>
+            <p class="penny-speech">The catalog has been particularly interesting lately, just saying.</p>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+          <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
+          <button class="penny-action-btn" onclick="pennySelectOption('trust','${aid}',this)">"I trust you, Penny."</button>
+          <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
+          <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
+        </div>
+      `;
+    }
+  }, 300);
+}
+window.pennyNotYetBranch = pennyNotYetBranch;
+
+function pennyFollowUpReaction(reaction, areaId, el) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  if (el) { el.disabled = true; el.style.opacity = '.5'; }
+  setTimeout(() => _pennyFollowUpReactionScene(area, reaction), 300);
+}
+window.pennyFollowUpReaction = pennyFollowUpReaction;
+
+function _pennyFollowUpReactionScene(area, reaction) {
+  const aid = area.id;
+  const scenes = {
+    loved: {
+      action: 'She claps her hands together once, delighted.',
+      line: "I knew it. I just knew it. That one had your name on it from the moment I pulled it.",
+      closer: 'Are you here for another, or did you just want to share the good news?'
+    },
+    good: {
+      action: 'Penny nods warmly.',
+      line: "Pretty good! I'll take it. Not every book is a lightning strike — sometimes pretty good is exactly what you needed.",
+      closer: 'Are you here for another recommendation, or just stopping by?'
+    },
+    notforme: {
+      action: "Penny pauses for just a moment. She takes it in stride but she's clearly filing this information away.",
+      line: "Ah. Well — I appreciate you telling me. Truly. That's useful to know.",
+      closer: "Are you here for another recommendation? Because I think I can do better for you this time. Now that I know a little more."
+    }
+  };
+  const s = scenes[reaction] || scenes.good;
+  area.innerHTML = `
+    <div class="penny-storybook">
+      <div class="penny-storybook-inner">
+        <span class="penny-action">${s.action}</span>
+        <p class="penny-speech">${s.line}</p>
+        <p class="penny-speech">${s.closer}</p>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+      <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
+      <button class="penny-action-btn" onclick="pennyReactionAnother('${reaction}','${aid}',this)">"I'd love another recommendation."</button>
+      <button class="penny-action-btn" onclick="pennyJustStopping('${aid}',this)">"Just wanted to let you know!"</button>
+    </div>
+  `;
+}
+
+function pennyReactionAnother(reaction, areaId, el) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  if (el) { el.disabled = true; el.style.opacity = '.5'; }
+  const aid = area.id;
+  const scenes = {
+    loved:    { action: "Penny's face lights up.", line: "Oh wonderful! Let's find you something else then.", bridge: "You already know how this works, so I'll let you lead. Same three options as before — though don't feel like you have to pick the same one twice.", nudge: "The catalog has been particularly interesting lately, just saying." },
+    good:     { action: "Penny claps her hands together.", line: "Wonderful! Let's find you something else then.", bridge: "You already know how this works, so I'll let you lead. Same three options as before — though don't feel like you have to pick the same one twice.", nudge: "The catalog has been particularly interesting lately, just saying." },
+    notforme: { action: "Penny straightens up, newly determined.", line: "Right then. Let's try this again. I have a feeling about you — I just needed a little more information.", bridge: "Same three options, but I promise I'm approaching this differently this time.", nudge: null }
+  };
+  const s = scenes[reaction] || scenes.good;
+  setTimeout(() => {
+    area.innerHTML = `
+      <div class="penny-storybook">
+        <div class="penny-storybook-inner">
+          <span class="penny-action">${s.action}</span>
+          <p class="penny-speech">${s.line}</p>
+          <span class="penny-action" style="margin-top:.4rem;">She moves behind the desk, looking at you warmly.</span>
+          <p class="penny-speech">${s.bridge}</p>
+          ${s.nudge ? `<span class="penny-action" style="margin-top:.4rem;">She gives a small conspiratorial smile.</span><p class="penny-speech">${s.nudge}</p>` : ''}
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+        <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
+        <button class="penny-action-btn" onclick="pennySelectOption('trust','${aid}',this)">"I trust you, Penny."</button>
+        <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
+        <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
+      </div>
+    `;
+  }, 300);
+}
+window.pennyReactionAnother = pennyReactionAnother;
+
+function pennyJustStopping(areaId, el) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  if (el) { el.disabled = true; el.style.opacity = '.5'; }
+  setTimeout(() => {
+    const stoppingLines = [
+      { action: "Penny presses a hand to her heart.", line: "That is — well. That's very kind of you. You didn't have to do that.", close: "Come back whenever you're ready for another one. I'll be here." },
+      { action: "She smiles warmly.", line: "Well I appreciate that. I really do. Come back whenever you're ready for the next one.", close: null },
+      { action: "Penny nods.", line: "Of course. Come back when you're ready. And thank you for being honest with me — it means more than you'd think.", close: null }
+    ];
+    const s = stoppingLines[Math.floor(Math.random() * stoppingLines.length)];
+    area.innerHTML = `
+      <div class="penny-storybook">
+        <div class="penny-storybook-inner">
+          <span class="penny-action">${s.action}</span>
+          <p class="penny-speech">${s.line}</p>
+          ${s.close ? `<span class="penny-action" style="margin-top:.4rem;">She smiles warmly.</span><p class="penny-speech">${s.close}</p>` : ''}
+          <span class="penny-action" style="margin-top:.4rem;">She gives a small wave.</span>
+        </div>
+      </div>
+      <p class="penny-closer">The door closes softly behind you.</p>
+    `;
+  }, 300);
+}
+window.pennyJustStopping = pennyJustStopping;
+
 
 function _pennyShowOptions(area) {
   const aid = area.id;
@@ -8853,7 +9093,7 @@ function pennyAccept(areaId) {
   if (!area) return;
   // Store last rec in Firestore if identity known
   if (_profileIdentity && _profileIdentity.key && area._pennyLastRec) {
-    fbSet(PENNY_REF, { [_profileIdentity.key]: { lastRec: { title: area._pennyLastRec.title, month: area._pennyLastRec.month, ts: Date.now() } } }).catch(()=>{});
+    fbSet(PENNY_REF, { [_profileIdentity.key]: { lastRec: { title: area._pennyLastRec.title, month: area._pennyLastRec.month, ts: Date.now() }, lastRecAsked: false } }).catch(()=>{});
   }
 
   // Rare stacks hint — only on return visits, ~1 in 20 chance
