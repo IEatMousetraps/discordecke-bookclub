@@ -8608,7 +8608,6 @@ function _pennyShowReturnGreeting(area, memberName) {
   // No pending follow-up — show short return options intro
   const returnLines = [
     `Back again. Good.`,
-    `I thought I heard the door. What is it this time?`,
     `I was just thinking about you, actually. Well — thinking about a book. But you're here now.`,
     `Come in. I was hoping someone would stop by.`
   ];
@@ -9278,20 +9277,32 @@ function pennyCatalogPick(zone, areaId) {
   const zoneData = PENNY_CATALOG_ZONES.find(z => z.id === zone) || PENNY_CATALOG_ZONES[2];
   const book = available[Math.floor(Math.random() * available.length)];
 
+  area._pennyCatalogBook = book;
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
         <span class="penny-action">You reach out and pull open a drawer from the ${zoneData.label.toLowerCase()}. Inside is a single card. You take it and bring it back to the desk.</span>
+        <span class="penny-action" style="margin-top:.4rem;">${zoneData.reaction}</span>
         <span class="penny-action" style="margin-top:.4rem;">Penny takes it from you, turns it over, and studies it for a moment.</span>
         <p class="penny-speech">Now let's see what we have here... oh!! Oh this is a <em>good</em> one. Give me just a moment.</p>
         <span class="penny-action" style="margin-top:.4rem;">She disappears briefly into the stacks. She returns holding a book and places it on the desk in front of you with quiet triumph.</span>
         <p class="penny-speech">See? The catalog knew. It always knows.</p>
       </div>
     </div>
+    <div style="text-align:center;padding:.5rem 1.5rem 1.5rem;">
+      <button class="penny-action-btn" onclick="pennyCatalogReveal('${aid}')">You pick it up.</button>
+    </div>
   `;
-  setTimeout(() => _pennyShowRecommendation(area, book, 'catalog'), 1000);
 }
 window.pennyCatalogPick = pennyCatalogPick;
+
+window.pennyCatalogReveal = function(areaId) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  const book = area._pennyCatalogBook;
+  if (!book) return;
+  _pennyShowRecommendation(area, book, 'catalog');
+};
 
 // ── Branch 3: Quiz ───────────────────────────────────
 // Pool of 7 questions — Penny picks 3 randomly, then always asks the closer last
