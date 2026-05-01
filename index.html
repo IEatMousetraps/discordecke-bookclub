@@ -1508,14 +1508,6 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 <div id="tab-penny" class="section">
 <div class="penny-page" id="penny-page">
 
-  <!-- Header -->
-  <div class="penny-header">
-    <span class="penny-plaque">Recommended Reading</span>
-    <h2 class="penny-page-title">Penny's</h2>
-    <span class="penny-est">Est. 2026</span>
-    <div class="penny-header-divider"></div>
-  </div>
-
   <!-- Silhouette -->
   <div class="penny-silhouette-zone">
     <svg width="380" height="220" viewBox="0 0 380 220" role="img" aria-label="An empty desk with a lamp and books">
@@ -7030,7 +7022,7 @@ function renderProfileOverview() {
     });
   });
   // Add historical pool books matched to this member
-  const myNormName = normId(myName);
+  const myNormName = normId(discord || email || '');
   (CACHE.pennyHistorical || []).forEach(b => {
     if (!b.suggestedBy) return;
     const normSugg = normId(b.suggestedBy);
