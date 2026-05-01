@@ -8653,7 +8653,7 @@ async function renderPennyTabInto(area) {
   }
 
   // Store state on the area element so stage functions can read it
-  area._pennyState = { isFirstVisit, memberName, lastRec, lastRecAsked };
+  area._pennyState = { isFirstVisit, memberName, lastRec, lastRecAsked, visitCount: newCount };
 
   // Always start at the door — first visit or return
   _pennyShowDoor(area);
@@ -9292,7 +9292,27 @@ window.pennyWalkOut = function() {
 
 function _pennyMaybeStacksHint(state) {
   const isReturn = state && state.isFirstVisit === false;
-  if (!isReturn || Math.random() >= 0.2) return '';
+  if (!isReturn) return '';
+
+  // Check if member has found the stacks yet
+  let hasFound = false;
+  if (_profileIdentity && _profileIdentity.key) {
+    const overrides = (getBadgeConfig().overrides || {})[_profileIdentity.key] || {};
+    hasFound = !!(overrides['ee_found']?.granted);
+  }
+
+  // Scale probability by visit count if they haven't found it yet:
+  // visit 2 → 20%, visit 3 → 35%, visit 4 → 50%, visit 5+ → 70%
+  // Once found, flat 20% for layer 2/3 hints
+  const visits = state.visitCount || 2;
+  let chance;
+  if (!hasFound) {
+    chance = Math.min(0.20 + (visits - 2) * 0.15, 0.70);
+  } else {
+    chance = 0.20;
+  }
+
+  if (Math.random() >= chance) return '';
   const line = _pennyBuildStacksHint();
   if (!line) return '';
   return `<p class="penny-speech" style="margin-top:.6rem;color:rgba(180,60,60,.8);font-style:italic;">${line}</p>`;
