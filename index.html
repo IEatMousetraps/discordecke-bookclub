@@ -5156,6 +5156,27 @@ function _doRenderMemberDirectory() {
   // Filter + search state
   let _dirQuery = '';
 
+  const _dirExtractYear = str => { const m = String(str||'').match(/\b(20\d\d)\b/); return m ? m[1] : '?'; };
+  const _dirCurrentYear = String(new Date().getFullYear());
+  const _dirYearSection = (items, keyFn, rowFn, prefix) => {
+    if (!items.length) return null;
+    const groups = {};
+    items.forEach(item => { const y = _dirExtractYear(keyFn(item)); (groups[y] = groups[y]||[]).push(item); });
+    const years = Object.keys(groups).sort();
+    return years.map(yr => {
+      const rows = groups[yr].map(rowFn).join('');
+      const isOpen = yr === _dirCurrentYear;
+      const uid = `${prefix}-${yr}`;
+      return `<div style="margin-bottom:.2rem;">
+        <div onclick="(function(el){const b=document.getElementById('${uid}');const open=b.style.display!=='none';b.style.display=open?'none':'';el.querySelector('.ychev').textContent=open?'▸':'▾';})(this)" style="display:flex;align-items:center;gap:.35rem;cursor:pointer;padding:.15rem 0;user-select:none;">
+          <span class="ychev" style="font-size:.7rem;color:var(--soft);">${isOpen?'▾':'▸'}</span>
+          <span style="font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);">${yr}</span>
+        </div>
+        <div id="${uid}" style="display:${isOpen?'':'none'};">${rows}</div>
+      </div>`;
+    }).join('');
+  };
+
   const renderCards = (query) => {
     const members = Object.entries(memberData)
       .map(([key, m]) => ({ key, ...m }))
@@ -5184,15 +5205,17 @@ function _doRenderMemberDirectory() {
         : '<p style="font-size:.82rem;color:var(--soft);margin:0;">No votes recorded.</p>';
 
       // ── Suggested books ──
-      const suggestedHtml = m.suggestedBooks.length
-        ? m.suggestedBooks.map(b =>
-            `<div style="display:flex;align-items:baseline;gap:.5rem;padding:.35rem 0;border-bottom:1px solid var(--border);">
-              <div style="flex:1;font-size:.83rem;">${esc(b.title)} <span style="color:var(--soft);font-size:.78rem;">by ${esc(b.author)}</span></div>
-              <span style="font-size:.73rem;color:var(--soft);white-space:nowrap;">${esc(b.month)}</span>
-              ${b.won ? '<span style="font-size:.7rem;background:#fff8e1;border:1px solid var(--gold);color:#b8860b;padding:.1rem .4rem;border-radius:10px;white-space:nowrap;">won</span>' : ''}
-            </div>`
-          ).join('')
-        : '<p style="font-size:.82rem;color:var(--soft);margin:0;">No suggestions recorded.</p>';
+      const suggestedYears = _dirYearSection(
+        m.suggestedBooks,
+        b => b.month,
+        b => `<div style="display:flex;align-items:baseline;gap:.5rem;padding:.35rem 0;border-bottom:1px solid var(--border);">
+          <div style="flex:1;font-size:.83rem;">${esc(b.title)} <span style="color:var(--soft);font-size:.78rem;">by ${esc(b.author)}</span></div>
+          <span style="font-size:.73rem;color:var(--soft);white-space:nowrap;">${esc(b.month)}</span>
+          ${b.won ? '<span style="font-size:.7rem;background:#fff8e1;border:1px solid var(--gold);color:#b8860b;padding:.1rem .4rem;border-radius:10px;white-space:nowrap;">won</span>' : ''}
+        </div>`,
+        `mdir-sug-${safeKey}`
+      );
+      const suggestedHtml = suggestedYears || '<p style="font-size:.82rem;color:var(--soft);margin:0;">No suggestions recorded.</p>';
 
       // ── Reading progress on winner books ──
       const progressRows = allWinnerBooks.map(wb => {
@@ -5209,15 +5232,19 @@ function _doRenderMemberDirectory() {
         : '<p style="font-size:.82rem;color:var(--soft);margin:0;">No winning books archived yet.</p>';
 
       // ── Reviews ──
-      const reviewHtml = m.reviewedMonths.length
-        ? m.reviewedMonths.map(r => {
-            const stars = r.rating && r.rating !== 'opt-out' ? '★'.repeat(Number(r.rating)) + '☆'.repeat(5 - Number(r.rating)) : r.rating === 'opt-out' ? 'opted out' : '—';
-            return `<div style="display:flex;align-items:center;gap:.5rem;padding:.3rem 0;border-bottom:1px solid var(--border);">
-              <div style="flex:1;font-size:.83rem;">${esc(r.month)}</div>
-              <span style="font-size:.78rem;color:var(--soft);">${stars}</span>
-            </div>`;
-          }).join('')
-        : '<p style="font-size:.82rem;color:var(--soft);margin:0;">No reviews submitted.</p>';
+      const reviewYears = _dirYearSection(
+        m.reviewedMonths,
+        r => r.month,
+        r => {
+          const stars = r.rating && r.rating !== 'opt-out' ? '★'.repeat(Number(r.rating)) + '☆'.repeat(5 - Number(r.rating)) : r.rating === 'opt-out' ? 'opted out' : '—';
+          return `<div style="display:flex;align-items:center;gap:.5rem;padding:.3rem 0;border-bottom:1px solid var(--border);">
+            <div style="flex:1;font-size:.83rem;">${esc(r.month)}</div>
+            <span style="font-size:.78rem;color:var(--soft);">${stars}</span>
+          </div>`;
+        },
+        `mdir-rev-${safeKey}`
+      );
+      const reviewHtml = reviewYears || '<p style="font-size:.82rem;color:var(--soft);margin:0;">No reviews submitted.</p>';
 
       return `<div style="border:1px solid var(--border);border-radius:8px;margin-bottom:.6rem;overflow:hidden;">
         <div onclick="toggleMemberCard('${safeKey}')" style="display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;cursor:pointer;background:var(--cream);user-select:none;">
@@ -6933,21 +6960,49 @@ function renderProfileOverview() {
     });
   });
   myReviews.sort((a, b) => (archiveOrderMap[a.monthLabel] ?? 999) - (archiveOrderMap[b.monthLabel] ?? 999));
+
+  const _extractYear = str => { const m = String(str||'').match(/\b(20\d\d)\b/); return m ? m[1] : '?'; };
+  const _groupByYear = (items, keyFn) => {
+    const groups = {};
+    items.forEach(item => { const y = _extractYear(keyFn(item)); (groups[y] = groups[y]||[]).push(item); });
+    return groups;
+  };
+  const currentYear = String(new Date().getFullYear());
+  const _yearCollapsible = (groups, rowFn, prefix) => {
+    const years = Object.keys(groups).sort();
+    if (!years.length) return '';
+    return years.map(yr => {
+      const rows = groups[yr].map(rowFn).join('');
+      const isOpen = yr === currentYear;
+      const uid = `${prefix}-yr-${yr}`;
+      return `<div style="margin-bottom:.25rem;">
+        <div onclick="(function(el){const b=document.getElementById('${uid}');const open=b.style.display!=='none';b.style.display=open?'none':'';el.querySelector('.yr-chev').textContent=open?'▸':'▾';})(this)" style="display:flex;align-items:center;gap:.4rem;cursor:pointer;padding:.2rem 0;user-select:none;">
+          <span class="yr-chev" style="font-size:.75rem;color:var(--soft);">${isOpen?'▾':'▸'}</span>
+          <span style="font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);">${yr}</span>
+        </div>
+        <div id="${uid}" style="display:${isOpen?'':'none'};">${rows}</div>
+      </div>`;
+    }).join('');
+  };
+
   const reviewsHtml = myReviews.length
-    ? myReviews.map(r => {
-        const rat = Number(r.rating);
-        const stars = (rat >= 1 && rat <= 5)
-          ? `<span style="color:var(--gold);letter-spacing:.05em;">${'★'.repeat(rat)}${'☆'.repeat(5 - rat)}</span>`
-          : '—';
-        // Find book title from archive entry for this month
-        const archiveEntry = archives.find(a => a.label === r.monthLabel);
-        const bookEntry = archiveEntry ? (archiveEntry.books || []).find(b => String(b.id) === String(r.bookId) || b.title === r.bookTitle) : null;
-        const title = (bookEntry && bookEntry.title) || r.bookTitle || r.book || r.monthLabel || '';
-        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:.35rem 0;border-bottom:.5px solid var(--border);font-size:.88rem;">
-          <span>${esc(title)}</span>
-          <span style="font-size:.9rem;white-space:nowrap;">${stars}</span>
-        </div>`;
-      }).join('')
+    ? _yearCollapsible(
+        _groupByYear(myReviews, r => r.monthLabel),
+        r => {
+          const rat = Number(r.rating);
+          const stars = (rat >= 1 && rat <= 5)
+            ? `<span style="color:var(--gold);letter-spacing:.05em;">${'★'.repeat(rat)}${'☆'.repeat(5 - rat)}</span>`
+            : '—';
+          const archiveEntry = archives.find(a => a.label === r.monthLabel);
+          const bookEntry = archiveEntry ? (archiveEntry.books || []).find(b => String(b.id) === String(r.bookId) || b.title === r.bookTitle) : null;
+          const title = (bookEntry && bookEntry.title) || r.bookTitle || r.book || r.monthLabel || '';
+          return `<div style="display:flex;justify-content:space-between;align-items:center;padding:.35rem 0;border-bottom:.5px solid var(--border);font-size:.88rem;">
+            <span>${esc(title)}</span>
+            <span style="font-size:.9rem;white-space:nowrap;">${stars}</span>
+          </div>`;
+        },
+        `prof-rev-${myKey.replace(/[^a-z0-9]/gi,'_')}`
+      )
     : `<p style="font-size:.85rem;color:var(--soft);margin:0;">No reviews submitted yet.</p>`;
 
   // ── Books suggested — build winner ID set first for the "won" pill ──
@@ -6985,13 +7040,17 @@ function renderProfileOverview() {
   // Sort by archive order (historical books with no archive entry sort to front as they're oldest)
   mySuggestions.sort((a, b) => (archiveOrderMap[a.monthLabel] ?? -1) - (archiveOrderMap[b.monthLabel] ?? -1));
   const suggestionsHtml = mySuggestions.length
-    ? mySuggestions.map(b => {
-        const wonPill = b.won ? `<span style="font-size:.7rem;background:#fff8e1;border:1px solid var(--gold);color:#b8860b;padding:.1rem .4rem;border-radius:10px;white-space:nowrap;margin-left:.5rem;">won</span>` : '';
-        return `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:.35rem 0;border-bottom:.5px solid var(--border);font-size:.88rem;">
-          <span><strong>${esc(b.title||'')}</strong>${b.author ? ` <span style="color:var(--soft);font-size:.8rem;">by ${esc(b.author)}</span>` : ''}${wonPill}</span>
-          <span style="font-size:.75rem;color:var(--soft);white-space:nowrap;margin-left:.5rem;">${esc(b.monthLabel||'')}</span>
-        </div>`;
-      }).join('')
+    ? _yearCollapsible(
+        _groupByYear(mySuggestions, b => b.monthLabel),
+        b => {
+          const wonPill = b.won ? `<span style="font-size:.7rem;background:#fff8e1;border:1px solid var(--gold);color:#b8860b;padding:.1rem .4rem;border-radius:10px;white-space:nowrap;margin-left:.5rem;">won</span>` : '';
+          return `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:.35rem 0;border-bottom:.5px solid var(--border);font-size:.88rem;">
+            <span><strong>${esc(b.title||'')}</strong>${b.author ? ` <span style="color:var(--soft);font-size:.8rem;">by ${esc(b.author)}</span>` : ''}${wonPill}</span>
+            <span style="font-size:.75rem;color:var(--soft);white-space:nowrap;margin-left:.5rem;">${esc(b.monthLabel||'')}</span>
+          </div>`;
+        },
+        `prof-sug-${myKey.replace(/[^a-z0-9]/gi,'_')}`
+      )
     : `<p style="font-size:.85rem;color:var(--soft);margin:0;">No books suggested yet.</p>`;
 
   // ── Progress breakdown text ──
