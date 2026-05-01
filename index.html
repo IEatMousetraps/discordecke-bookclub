@@ -7086,6 +7086,43 @@ function renderProfileOverview() {
 
       <hr style="border:none;border-top:.5px solid var(--border);margin:.75rem 0;">
 
+      <!-- Penny's corner -->
+      ${(() => {
+        const pr = (CACHE.pennyMembers || {})[myKey] || {};
+        const visits = pr.visitCount || 0;
+        if (!visits) return '';
+        const fmt = ts => ts ? new Date(ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—';
+        const lastRecTitle = pr.lastRec && pr.lastRec.title ? pr.lastRec.title : null;
+        const lastRecMonth = pr.lastRec && pr.lastRec.month ? pr.lastRec.month : null;
+        const lastVisitStr = fmt(pr.lastVisit);
+        return `<div style="border-radius:8px;overflow:hidden;margin-bottom:.1rem;">
+          <div style="background:#1a1208;padding:.55rem 1rem .45rem;display:flex;align-items:center;gap:.6rem;">
+            <span style="font-size:1rem;">🕯️</span>
+            <span style="font-family:'Playfair Display',serif;font-size:.82rem;font-style:italic;color:rgba(240,180,41,.85);letter-spacing:.04em;">Penny's Recommended Reading</span>
+            <span style="margin-left:auto;display:flex;align-items:center;gap:.25rem;">
+              <span style="width:60px;height:1px;background:linear-gradient(90deg,transparent,rgba(240,180,41,.3));display:inline-block;"></span>
+              <span style="font-family:'Playfair Display',serif;font-size:.68rem;font-style:italic;color:rgba(240,180,41,.4);">Est. 2026</span>
+            </span>
+          </div>
+          <div style="background:rgba(26,18,8,.06);border:1px solid rgba(26,18,8,.12);border-top:none;border-radius:0 0 8px 8px;padding:.6rem 1rem;display:flex;gap:1.25rem;flex-wrap:wrap;">
+            <div>
+              <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.15rem;">Visits</div>
+              <div style="font-size:.9rem;font-weight:600;">${visits}</div>
+            </div>
+            <div>
+              <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.15rem;">Last visit</div>
+              <div style="font-size:.9rem;">${lastVisitStr}</div>
+            </div>
+            ${lastRecTitle ? `<div style="flex:1;min-width:120px;">
+              <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.15rem;">Last recommendation</div>
+              <div style="font-size:.88rem;font-style:italic;">"${esc(lastRecTitle)}"${lastRecMonth ? `<span style="font-size:.75rem;color:var(--soft);font-style:normal;"> · ${esc(lastRecMonth)}</span>` : ''}</div>
+            </div>` : ''}
+          </div>
+        </div>`;
+      })()}
+
+      <hr style="border:none;border-top:.5px solid var(--border);margin:.75rem 0;">
+
       <!-- Reading progress -->
       <div style="margin-bottom:.5rem;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);">Reading progress</div>
       <div style="font-size:.9rem;">${progressText}</div>
@@ -8941,8 +8978,9 @@ function pennyFollowUp(response, areaId, el) {
   if (el) { el.disabled = true; el.style.opacity = '.5'; }
 
   // Mark as asked in Firestore so it doesn't repeat
-  if (_profileIdentity && _profileIdentity.key) {
-    fbSet(PENNY_REF, { [_profileIdentity.key]: { lastRecAsked: true } }).catch(()=>{});
+  const _pfuKey = _pennyActiveKey(area);
+  if (_pfuKey) {
+    fbSet(PENNY_REF, { [_pfuKey]: { lastRecAsked: true } }).catch(()=>{});
   }
 
   setTimeout(() => {
@@ -9179,10 +9217,11 @@ function pennySelectOption(optionId, areaId, el) {
   if (!area) return;
   if (el) { el.disabled = true; el.style.opacity = '.5'; }
   // Track badge events
-  if (_profileIdentity && _profileIdentity.key) {
+  const _psoKey = _pennyActiveKey(area);
+  if (_psoKey) {
     const flagMap = { trust: 'usedTrust', catalog: 'usedCatalog', quiz: 'usedQuiz' };
     const flag = flagMap[optionId];
-    if (flag) fbSet(PENNY_REF, { [_profileIdentity.key]: { [flag]: true, [flag+'_ts']: Date.now() } }).catch(()=>{});
+    if (flag) fbSet(PENNY_REF, { [_psoKey]: { [flag]: true, [flag+'_ts']: Date.now() } }).catch(()=>{});
   }
   setTimeout(() => {
     if (optionId === 'trust') _pennyBranchTrust(area);
@@ -9553,8 +9592,9 @@ function pennyAccept(areaId) {
   const area = document.getElementById(areaId);
   if (!area) return;
   // Store last rec in Firestore if identity known
-  if (_profileIdentity && _profileIdentity.key && area._pennyLastRec) {
-    fbSet(PENNY_REF, { [_profileIdentity.key]: { lastRec: { title: area._pennyLastRec.title, month: area._pennyLastRec.month, ts: Date.now() }, lastRecAsked: false, acceptedRec: true, acceptedRec_ts: Date.now() } }).catch(()=>{});
+  const _paKey = _pennyActiveKey(area);
+  if (_paKey && area._pennyLastRec) {
+    fbSet(PENNY_REF, { [_paKey]: { lastRec: { title: area._pennyLastRec.title, month: area._pennyLastRec.month, ts: Date.now() }, lastRecAsked: false, acceptedRec: true, acceptedRec_ts: Date.now() } }).catch(()=>{});
   }
 
   // Rare stacks hint — only on return visits, ~1 in 20 chance
@@ -9671,8 +9711,9 @@ function pennyDecline(areaId, fromBranch) {
   if (!area._pennyExcluded) area._pennyExcluded = [];
   if (area._pennyLastRec) area._pennyExcluded.push(area._pennyLastRec.id);
   // Track badge event
-  if (_profileIdentity && _profileIdentity.key) {
-    fbSet(PENNY_REF, { [_profileIdentity.key]: { declinedRec: true, declinedRec_ts: Date.now() } }).catch(()=>{});
+  const _pdKey = _pennyActiveKey(area);
+  if (_pdKey) {
+    fbSet(PENNY_REF, { [_pdKey]: { declinedRec: true, declinedRec_ts: Date.now() } }).catch(()=>{});
   }
 
   const isQuiz = fromBranch === 'quiz';
@@ -10106,12 +10147,37 @@ function updatePennyNavVisibility() {
 }
 window.updatePennyNavVisibility = updatePennyNavVisibility;
 
+const _PENNY_PREVIEW_IDENTITY = { email: '', discord: '__preview__', key: '__admin_preview__' };
+
+// Returns the correct Penny member key for writes — always uses the dummy
+// when the admin preview area is active, so real member data is never touched.
+function _pennyActiveKey(areaEl) {
+  // If the write originates from inside the preview area, use the dummy key.
+  if (areaEl && areaEl.closest && areaEl.closest('#admin-penny-preview-inner')) {
+    return '__admin_preview__';
+  }
+  // Also guard by checking if the preview area exists and the real identity
+  // has been restored — if areaEl is the preview area itself, use dummy.
+  if (areaEl && areaEl.id === 'penny-interaction-area-preview') {
+    return '__admin_preview__';
+  }
+  return _profileIdentity && _profileIdentity.key ? _profileIdentity.key : null;
+}
+
 async function loadAdminPennyPreview() {
   const area = document.getElementById('admin-penny-preview-area');
   if (!area) return;
-  // Temporarily redirect penny render into the admin area
-  const realArea = document.getElementById('penny-interaction-area');
-  // Clone Penny's tab structure into the preview area
+
+  // Swap to dummy identity so all Penny writes go to __admin_preview__ in Firestore
+  // and never touch any real member's record.
+  const _savedIdentity = _profileIdentity;
+  const _savedPgIdentity = _pgIdentity;
+  const _savedBgIdentity = _bgIdentity;
+  _profileIdentity = _PENNY_PREVIEW_IDENTITY;
+  // _pennyCountedThisSession tracks per-session dedup — reset it so each
+  // preview load counts as a fresh visit for the dummy (matching real member behaviour).
+  _pennyCountedThisSession = false;
+
   area.innerHTML = `
     <div id="admin-penny-preview-inner" style="background:#1a1208;">
       <div id="penny-interaction-area-preview" class="penny-loading">
@@ -10119,21 +10185,33 @@ async function loadAdminPennyPreview() {
       </div>
     </div>
   `;
-  // Run a version of renderPennyTab targeting the preview div
+
   await renderPennyTabInto(document.getElementById('penny-interaction-area-preview'));
+
+  // Restore real identity after render — Penny's ongoing interaction functions
+  // read _profileIdentity at call time, so they'll continue using the dummy
+  // for the lifetime of this preview session (area stays mounted).
+  // We only restore for the outer app context.
+  _profileIdentity = _savedIdentity;
+  _pgIdentity      = _savedPgIdentity;
+  _bgIdentity      = _savedBgIdentity;
 }
+window._pennyPreviewActive = () => !!document.getElementById('penny-interaction-area-preview');
 window.loadAdminPennyPreview = loadAdminPennyPreview;
 
 async function adminResetPennyVisit() {
   const msg = document.getElementById('penny-reset-msg');
-  if (!_profileIdentity || !_profileIdentity.key) {
+  // If the preview area is mounted, reset the dummy — otherwise reset the real identity
+  const previewActive = !!document.getElementById('penny-interaction-area-preview');
+  const keyToReset = previewActive ? '__admin_preview__' : (_profileIdentity && _profileIdentity.key);
+  if (!keyToReset) {
     if (msg) msg.textContent = 'No identity loaded — visit the main site as yourself first.';
     return;
   }
   try {
-    await fbSet(PENNY_REF, { [_profileIdentity.key]: { visitCount: 0, lastVisit: null } });
-    if (msg) { msg.textContent = 'Visit history reset. Reload the preview to see first-visit flow.'; }
-    // Also reset the render guard so preview re-runs cleanly
+    await fbSet(PENNY_REF, { [keyToReset]: { visitCount: 0, lastVisit: null } });
+    _pennyCountedThisSession = false;
+    if (msg) { msg.textContent = previewActive ? 'Preview reset. Click Load Preview to restart.' : 'Visit history reset. Reload the preview to see first-visit flow.'; }
     _pennyRendering = false;
   } catch(e) {
     if (msg) msg.textContent = 'Error resetting: ' + e.message;
