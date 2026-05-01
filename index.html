@@ -9065,7 +9065,7 @@ function _pennyShowRecommendation(area, book, fromBranch) {
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
         <span class="penny-action">She pauses, then leans forward slightly.</span>
-        <p class="penny-speech">Let me tell you a little something about this one before you go...</p>
+        <p class="penny-speech">Let me tell you a little something about this one before you take it...</p>
         ${factSection}
         <span class="penny-action" style="margin-top:.4rem;">She slides the recommendation card across the desk.</span>
       </div>
@@ -9159,6 +9159,9 @@ function pennyAccept(areaId) {
     </div>
     <p class="penny-closer">The door closes softly behind you.</p>
     ${stacksHint}
+    <div style="text-align:center;padding:.5rem 1.5rem 1.5rem;">
+      <button class="penny-action-btn" onclick="goTab('submit',document.querySelector('nav button[data-tab=submit]'))">Walk out the front door.</button>
+    </div>
   `;
 }
 window.pennyAccept = pennyAccept;
