@@ -1027,6 +1027,90 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   line-height: 1.5;
 }
 
+/* recommendation card */
+.penny-rec-card {
+  max-width: 520px;
+  width: calc(100% - 3rem);
+  margin: 0 1.5rem 1.2rem;
+  border: 1px solid rgba(240,180,41,.5);
+  border-radius: 2px;
+  padding: 1.2rem 1.5rem 1rem;
+  background: rgba(240,180,41,.04);
+  box-shadow: 0 0 0 4px #1a1208, 0 0 0 5px rgba(240,180,41,.15);
+  position: relative;
+  z-index: 2;
+}
+.penny-rec-card-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.1rem;
+  color: var(--gold);
+  margin-bottom: .2rem;
+  line-height: 1.3;
+}
+.penny-rec-card-author {
+  font-family: 'DM Sans', sans-serif;
+  font-size: .8rem;
+  color: rgba(240,180,41,.6);
+  margin-bottom: .5rem;
+}
+.penny-rec-card-meta {
+  font-family: 'DM Sans', sans-serif;
+  font-size: .72rem;
+  color: rgba(240,180,41,.4);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  margin-bottom: .75rem;
+}
+.penny-rec-card-quote {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: .85rem;
+  color: rgba(240,180,41,.7);
+  line-height: 1.55;
+  border-top: 1px solid rgba(240,180,41,.15);
+  padding-top: .65rem;
+}
+.penny-rec-card-sig {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: .75rem;
+  color: rgba(240,180,41,.4);
+  text-align: right;
+  margin-top: .3rem;
+}
+
+/* card catalog drawers */
+.penny-catalog-drawers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+  max-width: 520px;
+  width: calc(100% - 3rem);
+  margin: 0 1.5rem 1.2rem;
+  position: relative;
+  z-index: 2;
+}
+.penny-catalog-drawer {
+  background: transparent;
+  border: 1px solid rgba(240,180,41,.3);
+  border-radius: 2px;
+  color: rgba(240,180,41,.75);
+  font-family: 'DM Sans', sans-serif;
+  font-size: .75rem;
+  font-weight: 600;
+  letter-spacing: .1em;
+  padding: .4rem .65rem;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+  min-width: 2.2rem;
+  text-align: center;
+}
+.penny-catalog-drawer:hover {
+  background: rgba(240,180,41,.1);
+  border-color: rgba(240,180,41,.8);
+  color: var(--gold);
+}
+
 /* closer line */
 .penny-closer {
   font-family: 'Playfair Display', serif;
@@ -8489,31 +8573,330 @@ function pennySelectOption(optionId, areaId, el) {
 }
 window.pennySelectOption = pennySelectOption;
 
-function _pennyBranchTrust(area) {
+// ══════════════════════════════════════════════════════
+// PENNY CHUNK 3 — Branch engines + recommendation card
+// ══════════════════════════════════════════════════════
+
+// Build the full pool of recommendable books from archives
+// (all submitted books — not just winners — with their metadata)
+function _pennyBuildPool() {
+  const archives = getArchives();
+  const pool = [];
+  archives.forEach(a => {
+    const winnerIds = a.dualWinners ? a.dualWinners.map(String) : (a.winner ? [String(a.winner)] : []);
+    const nb = (a.books || []).length;
+    // Compute borda scores for this month
+    const scores = {};
+    (a.books || []).forEach(b => { scores[String(b.id)] = 0; });
+    Object.values(a.votes || {}).forEach(vd => {
+      const ranking = vd.ranking || vd;
+      if (Array.isArray(ranking)) {
+        ranking.forEach((id, idx) => { if (scores[String(id)] !== undefined) scores[String(id)] += (nb - idx); });
+      }
+    });
+    const voterCount = Object.keys(a.votes || {}).length;
+    const maxScore = Math.max(...Object.values(scores), 0);
+
+    (a.books || []).forEach(b => {
+      const bid = String(b.id);
+      const bookScore = scores[bid] || 0;
+      const isWinner = winnerIds.includes(bid);
+      // Count how many voters ranked this book
+      let rankedByCount = 0;
+      Object.values(a.votes || {}).forEach(vd => {
+        const ranking = vd.ranking || vd;
+        if (Array.isArray(ranking) && ranking.map(String).includes(bid)) rankedByCount++;
+      });
+      // Count submissions (how many times this title appears across archives)
+      let submissionCount = 0;
+      archives.forEach(a2 => { (a2.books||[]).forEach(b2 => { if (b2.title === b.title) submissionCount++; }); });
+
+      pool.push({
+        id: bid, title: b.title, author: b.author || '',
+        genre: b.genre || '', pageCount: b.pageCount || null,
+        suggesters: (b.suggesters || [{ discord: b.discord||b.suggester||'', email: b.email||'' }]),
+        month: a.label, isWinner,
+        bordaScore: bookScore, maxScore, voterCount, rankedByCount,
+        submissionCount, pointsBehind: maxScore - bookScore
+      });
+    });
+  });
+  return pool;
+}
+
+// Pick a random "interesting fact" line Penny says about the book
+function _pennyPickFact(book) {
+  const facts = [];
+  // Data-driven facts
+  if (book.pointsBehind > 0 && book.pointsBehind <= 8) {
+    facts.push(`This one lost by just ${book.pointsBehind} Borda point${book.pointsBehind===1?'':'s'}. A handful. It still thinks about it, I'm sure.`);
+  }
+  if (book.rankedByCount > 0 && book.voterCount > 1) {
+    if (book.rankedByCount >= book.voterCount) {
+      facts.push(`Nearly everyone who voted that month ranked this one. Nearly everyone. And still.`);
+    } else if (book.rankedByCount >= Math.ceil(book.voterCount * 0.6)) {
+      facts.push(`More people than you'd think ranked this one. It has fans. Quiet ones, but fans.`);
+    }
+  }
+  if (book.submissionCount >= 3) {
+    facts.push(`This book has been put forward ${book.submissionCount} times. ${book.submissionCount} times! It's persistent. I respect that.`);
+  } else if (book.submissionCount === 2) {
+    facts.push(`This one was put forward twice. Someone really believed in it.`);
+  }
+  if (book.genre) {
+    const obscureGenres = ['Poetry','Western','Supernatural','Mythology'];
+    const popularGenres = ['Fiction','Mystery','Thriller / Suspense','Romance'];
+    if (obscureGenres.some(g => book.genre.includes(g))) {
+      facts.push(`${book.genre} — not exactly a common pick for this club. That's part of why I like it.`);
+    } else if (popularGenres.some(g => book.genre.includes(g))) {
+      facts.push(`${book.genre}. A reliable genre in this club, but this one does something a little different with it.`);
+    }
+  }
+  if (book.isWinner) {
+    facts.push(`This one actually won its month. A proven pick. Sometimes the classics are classic for a reason.`);
+  }
+
+  // Penny's personal lore facts (always available as fallbacks)
+  const loreFacts = [
+    `I read this one on a very rainy Tuesday. I didn't move until I'd finished it.`,
+    `Someone left this in the book return with a note inside. The note just said "you'll understand." I did.`,
+    `A friend recommended this to me years ago. I finally got to it last winter. I owe her an apology for waiting so long.`,
+    `I found this one face-down on a park bench. Someone had dog-eared nearly every page. Good instincts, whoever you were.`,
+    `I've recommended this three times this year. You're in good company.`,
+    `This was the first book I unpacked when I set up this shop. That probably means something.`
+  ];
+  facts.push(...loreFacts);
+
+  // Pick one at random, preferring data-driven if available
+  const dataDriven = facts.filter(f => !loreFacts.includes(f));
+  if (dataDriven.length && Math.random() < 0.65) {
+    return dataDriven[Math.floor(Math.random() * dataDriven.length)];
+  }
+  return facts[Math.floor(Math.random() * facts.length)];
+}
+
+// Penny's quote for the recommendation card (her little sign-off)
+const PENNY_CARD_QUOTES = [
+  `Second place is just first place for people with patience.`,
+  `Runner-up is just a label. This one never acted like it.`,
+  `The catalog knew. It always knows.`,
+  `Some books find their reader eventually. Today is that day.`,
+  `I don't make recommendations lightly. This one I'm sure of.`,
+  `Trust the process. And me. Mostly me.`
+];
+
+// Render the recommendation card + accept/decline buttons
+function _pennyShowRecommendation(area, book, fromBranch) {
+  const aid = area.id;
+  const suggester = (book.suggesters || []).find(s => s.discord || s.email);
+  const suggesterName = suggester ? (suggester.discord || suggester.email || '') : '';
+  const fact = _pennyPickFact(book);
+  const quote = PENNY_CARD_QUOTES[Math.floor(Math.random() * PENNY_CARD_QUOTES.length)];
+
+  // Store the recommendation so return visits can reference it
+  area._pennyLastRec = book;
+
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
-        <span class="penny-action">Penny disappears briefly into the stacks. A moment passes. She returns and places a book on the desk in front of you with quiet triumph.</span>
+        <span class="penny-action">She places the book on the desk in front of you.</span>
+        <p class="penny-speech">Here. This one.</p>
+        <span class="penny-action" style="margin-top:.4rem;">She leans forward slightly.</span>
+        <p class="penny-speech">${fact}</p>
+      </div>
+    </div>
+    <div class="penny-rec-card">
+      <div class="penny-rec-card-title">${esc(book.title)}</div>
+      ${book.author ? `<div class="penny-rec-card-author">${esc(book.author)}</div>` : ''}
+      <div class="penny-rec-card-meta">
+        ${suggesterName ? `Suggested by ${esc(suggesterName)}` : ''}${suggesterName && book.month ? ' · ' : ''}${book.month ? esc(book.month) : ''}
+      </div>
+      <div class="penny-rec-card-quote">"${quote}"</div>
+      <div class="penny-rec-card-sig">— Penny</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+      <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you do?</em></p>
+      <button class="penny-action-btn" onclick="pennyAccept('${aid}')">"Thank you, Penny. I'll give it a read."</button>
+      <button class="penny-action-btn" onclick="pennyDecline('${aid}','${fromBranch}')">"Thank you, Penny, but I don't think this one is for me. Could we try again?"</button>
+    </div>
+  `;
+}
+window._pennyShowRecommendation = _pennyShowRecommendation;
+
+function pennyAccept(areaId) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  // Store last rec in Firestore if identity known
+  if (_profileIdentity && _profileIdentity.key && area._pennyLastRec) {
+    fbSet(PENNY_REF, { [_profileIdentity.key]: { lastRec: { title: area._pennyLastRec.title, month: area._pennyLastRec.month, ts: Date.now() } } }).catch(()=>{});
+  }
+  area.innerHTML = `
+    <div class="penny-storybook">
+      <div class="penny-storybook-inner">
+        <span class="penny-action">Penny beams.</span>
+        <p class="penny-speech">Oh wonderful! I just know you're going to love it. I really do.</p>
+        <span class="penny-action" style="margin-top:.4rem;">She straightens up the desk, then looks back at you warmly.</span>
+        <p class="penny-speech">Come back and tell me what you thought, yes? I mean it. Good or bad — I want to know. The books and I will be here.</p>
+        <span class="penny-action" style="margin-top:.4rem;">She gives a small wave as you head for the door.</span>
+      </div>
+    </div>
+    <p class="penny-closer">The door closes softly behind you.</p>
+  `;
+}
+window.pennyAccept = pennyAccept;
+
+function pennyDecline(areaId, fromBranch) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  const aid = area.id;
+  // Remove the declined book from future picks this session
+  if (!area._pennyExcluded) area._pennyExcluded = [];
+  if (area._pennyLastRec) area._pennyExcluded.push(area._pennyLastRec.id);
+
+  const isQuiz = fromBranch === 'quiz';
+  area.innerHTML = `
+    <div class="penny-storybook">
+      <div class="penny-storybook-inner">
+        <span class="penny-action">Penny nods${isQuiz ? ', completely unbothered. She glances briefly at her notepad, then tucks it away' : ', completely unbothered'}.</span>
+        <p class="penny-speech">${isQuiz ? 'Oh! Well. That\'s — yes, of course. Let\'s find you something better.' : 'Of course! That\'s what I\'m here for. Let\'s find you something better.'}</p>
+        ${isQuiz ? `<p class="penny-speech">Same question as before — how shall we do this? Though between you and me, I stand by the quiz.</p>` : `<p class="penny-speech">Same question as before — how shall we do this? Though I'll admit, I may steer you slightly differently this time.</p>`}
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+      <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you do?</em></p>
+      <button class="penny-action-btn" onclick="pennySelectOption('trust','${aid}',this)">"I trust you, Penny."</button>
+      <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
+      <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
+    </div>
+  `;
+}
+window.pennyDecline = pennyDecline;
+
+// ── Branch 1: Trust ──────────────────────────────────
+function _pennyBranchTrust(area) {
+  const pool = _pennyBuildPool().filter(b => !b.isWinner);
+  const excluded = area._pennyExcluded || [];
+  const available = pool.filter(b => !excluded.includes(b.id));
+  if (!available.length) {
+    area.innerHTML = `<div class="penny-storybook"><div class="penny-storybook-inner"><p class="penny-speech">Oh my. I think we've gone through quite a few already. Come back another time — I'll have fresh ideas.</p></div></div>`;
+    return;
+  }
+  const book = available[Math.floor(Math.random() * available.length)];
+
+  area.innerHTML = `
+    <div class="penny-storybook">
+      <div class="penny-storybook-inner">
+        <span class="penny-action">Penny disappears briefly into the stacks. A moment passes. She returns with quiet triumph.</span>
         <p class="penny-speech">Here. This one. I knew it the moment you walked in the door.</p>
       </div>
     </div>
-    <p class="penny-closer" style="margin-top:1rem;">— Coming soon in the next build —</p>
+    <p class="penny-closer" style="margin-top:.5rem;margin-bottom:1.5rem;">She sets the book on the desk.</p>
   `;
+  setTimeout(() => _pennyShowRecommendation(area, book, 'trust'), 800);
 }
 
+// ── Branch 2: Card Catalog ───────────────────────────
 function _pennyBranchCatalog(area) {
+  const aid = area.id;
+  // Build letter groups from pool
+  const pool = _pennyBuildPool();
+  const excluded = area._pennyExcluded || [];
+  const available = pool.filter(b => !excluded.includes(b.id));
+  // Group by first letter of title (ignore leading "The ", "A ", "An ")
+  const normalize = t => t.replace(/^(the |a |an )/i,'').trim();
+  const byLetter = {};
+  available.forEach(b => {
+    const letter = normalize(b.title)[0]?.toUpperCase() || '#';
+    if (!byLetter[letter]) byLetter[letter] = [];
+    byLetter[letter].push(b);
+  });
+  const letters = Object.keys(byLetter).sort();
+
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
         <span class="penny-action">Penny smiles and gestures toward the card catalog on the wall behind her.</span>
         <p class="penny-speech">Ooh, the card catalog. Bold choice. Let's see what fate has in store...</p>
+        <span class="penny-action" style="margin-top:.4rem;">She steps aside. The catalog waits.</span>
+        <p class="penny-speech">Pick a drawer. Any drawer.</p>
       </div>
     </div>
-    <p class="penny-closer" style="margin-top:1rem;">— Coming soon in the next build —</p>
+    <div class="penny-catalog-drawers">
+      ${letters.map(l => `<button class="penny-catalog-drawer" onclick="pennyCatalogPick('${l}','${aid}')">${l}</button>`).join('')}
+    </div>
+    <p class="penny-closer">The catalog has never steered me wrong.</p>
   `;
 }
 
+function pennyCatalogPick(letter, areaId) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  const pool = _pennyBuildPool();
+  const excluded = area._pennyExcluded || [];
+  const normalize = t => t.replace(/^(the |a |an )/i,'').trim();
+  const available = pool.filter(b => !excluded.includes(b.id) && normalize(b.title)[0]?.toUpperCase() === letter);
+  if (!available.length) {
+    area.querySelector('.penny-catalog-drawers') && (area.querySelector('.penny-catalog-drawers').innerHTML = `<p class="penny-door-prompt">That drawer seems to be empty. Try another.</p>`);
+    return;
+  }
+  const book = available[Math.floor(Math.random() * available.length)];
+  area.innerHTML = `
+    <div class="penny-storybook">
+      <div class="penny-storybook-inner">
+        <span class="penny-action">Penny watches which drawer you open. Her eyebrows go up.</span>
+        <p class="penny-speech">Ah — ${letter}. Interesting. Very interesting.</p>
+        <span class="penny-action" style="margin-top:.4rem;">She turns to the stacks, finds the book quickly — like she already knew.</span>
+      </div>
+    </div>
+    <p class="penny-closer" style="margin-top:.5rem;margin-bottom:1.5rem;">She sets it on the desk. "The catalog knew. It always knows."</p>
+  `;
+  setTimeout(() => _pennyShowRecommendation(area, book, 'catalog'), 900);
+}
+window.pennyCatalogPick = pennyCatalogPick;
+
+// ── Branch 3: Quiz ───────────────────────────────────
+const PENNY_QUIZ = [
+  {
+    q: 'When you sit down with a book, what are you really looking for?',
+    options: [
+      { label: 'To escape somewhere completely different', tag: 'escape' },
+      { label: 'To understand something I couldn\'t on my own', tag: 'learn' },
+      { label: 'To feel something — anything', tag: 'emotional' },
+      { label: 'To be kept on the edge of my seat', tag: 'tension' }
+    ]
+  },
+  {
+    q: 'How do you feel about a slow start?',
+    options: [
+      { label: 'Fine — I trust the author', tag: 'patient' },
+      { label: 'Nervous, but I\'ll give it a chapter or two', tag: 'patient' },
+      { label: 'I need something to hook me early', tag: 'fastpaced' },
+      { label: 'I\'ve DNF\'d books for less', tag: 'fastpaced' }
+    ]
+  },
+  {
+    q: 'What did the last book you loved do that you weren\'t expecting?',
+    options: [
+      { label: 'It surprised me with the ending', tag: 'twist' },
+      { label: 'It made me care about characters I didn\'t expect to', tag: 'emotional' },
+      { label: 'It changed how I think about something real', tag: 'learn' },
+      { label: 'It pulled me in and didn\'t let go', tag: 'tension' }
+    ]
+  },
+  {
+    q: 'Be honest. What\'s your relationship with non-fiction?',
+    options: [
+      { label: 'I love it — give me facts and ideas', tag: 'nonfiction' },
+      { label: 'It depends on the subject', tag: 'mixed' },
+      { label: 'I prefer fiction but I\'ll read it', tag: 'mixed' },
+      { label: 'I\'m here to escape, not study', tag: 'fiction' }
+    ]
+  }
+];
+
 function _pennyBranchQuiz(area) {
+  const aid = area.id;
+  area._pennyQuizAnswers = [];
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
@@ -8522,10 +8905,123 @@ function _pennyBranchQuiz(area) {
       </div>
     </div>
     <div style="text-align:center;padding:.5rem 1.5rem 1.5rem;">
-      <button class="penny-action-btn" style="max-width:200px;" onclick="alert('Quiz coming in next build!')">Let\'s do it!</button>
+      <button class="penny-action-btn" style="max-width:220px;" onclick="pennyQuizStart('${aid}')">Let's do it!</button>
     </div>
-    <p class="penny-closer">— Coming soon in the next build —</p>
   `;
+}
+
+function pennyQuizStart(areaId) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  area._pennyQuizAnswers = [];
+  _pennyQuizQuestion(area, 0);
+}
+window.pennyQuizStart = pennyQuizStart;
+
+function _pennyQuizQuestion(area, qIndex) {
+  const aid = area.id;
+  const q = PENNY_QUIZ[qIndex];
+  const total = PENNY_QUIZ.length;
+  area.innerHTML = `
+    <div class="penny-storybook">
+      <div class="penny-storybook-inner">
+        <span class="penny-action">Penny flips open her notepad. Pencil poised. Question ${qIndex + 1} of ${total}.</span>
+        <p class="penny-speech">${q.q}</p>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 1.5rem;position:relative;z-index:2;">
+      ${q.options.map((opt, i) => `
+        <button class="penny-action-btn" onclick="pennyQuizAnswer('${aid}',${qIndex},'${opt.tag}',this)">${opt.label}</button>
+      `).join('')}
+    </div>
+  `;
+}
+
+function pennyQuizAnswer(areaId, qIndex, tag, el) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  if (el) { el.disabled = true; el.style.opacity = '.5'; }
+  if (!area._pennyQuizAnswers) area._pennyQuizAnswers = [];
+  area._pennyQuizAnswers.push(tag);
+
+  const nextIndex = qIndex + 1;
+  if (nextIndex < PENNY_QUIZ.length) {
+    // Brief reaction before next question
+    const reactions = [
+      'She nods and makes a note.',
+      'She writes something down, the pencil moving quickly.',
+      'She underlines something. Twice.',
+      'She makes a small sound — not quite a word — and writes.'
+    ];
+    const reaction = reactions[qIndex % reactions.length];
+    const storybook = area.querySelector('.penny-storybook');
+    if (storybook) {
+      const inner = storybook.querySelector('.penny-storybook-inner');
+      if (inner) {
+        const r = document.createElement('span');
+        r.className = 'penny-action';
+        r.style.marginTop = '.4rem';
+        r.textContent = reaction;
+        inner.appendChild(r);
+      }
+    }
+    setTimeout(() => _pennyQuizQuestion(area, nextIndex), 500);
+  } else {
+    setTimeout(() => _pennyQuizFinish(area), 500);
+  }
+}
+window.pennyQuizAnswer = pennyQuizAnswer;
+
+function _pennyQuizFinish(area) {
+  const answers = area._pennyQuizAnswers || [];
+  const pool = _pennyBuildPool();
+  const excluded = area._pennyExcluded || [];
+  const available = pool.filter(b => !excluded.includes(b.id));
+
+  // Score books against quiz answers
+  // Tags: escape, learn, emotional, tension, patient, fastpaced, twist, nonfiction, mixed, fiction
+  const wantNonFiction = answers.includes('nonfiction');
+  const wantFiction = answers.includes('fiction') || answers.includes('escape');
+  const wantTension = answers.filter(a => a === 'tension').length >= 1;
+  const wantEmotional = answers.filter(a => a === 'emotional').length >= 1;
+  const wantLearn = answers.filter(a => a === 'learn').length >= 1;
+
+  const nonfictionGenres = ['Non-Fiction','Self-Help / Personal Growth','Biography','History'];
+  const tensionGenres = ['Thriller / Suspense','Mystery','Horror','Crime'];
+  const emotionalGenres = ['Fiction','Literary Fiction','Romance','Drama'];
+
+  const scored = available.map(b => {
+    let score = 0;
+    const genre = b.genre || '';
+    if (wantNonFiction && nonfictionGenres.some(g => genre.includes(g))) score += 3;
+    if (wantFiction && !nonfictionGenres.some(g => genre.includes(g))) score += 2;
+    if (wantTension && tensionGenres.some(g => genre.includes(g))) score += 3;
+    if (wantEmotional && emotionalGenres.some(g => genre.includes(g))) score += 2;
+    if (wantLearn) score += 1; // most books teach something
+    // Add some randomness so it doesn't always pick the same book
+    score += Math.random() * 2;
+    return { book: b, score };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  const pick = scored[0]?.book;
+
+  if (!pick) {
+    area.innerHTML = `<div class="penny-storybook"><div class="penny-storybook-inner"><p class="penny-speech">Hm. My notes say quite a lot, but nothing's jumping out. Come back tomorrow — I'll have had time to think.</p></div></div>`;
+    return;
+  }
+
+  area.innerHTML = `
+    <div class="penny-storybook">
+      <div class="penny-storybook-inner">
+        <span class="penny-action">Penny reviews her notes. A moment passes. She closes the notepad.</span>
+        <p class="penny-speech">Right. Yes. I know exactly the one.</p>
+        <span class="penny-action" style="margin-top:.4rem;">She disappears into the stacks and returns quickly, placing a book on the desk.</span>
+      </div>
+    </div>
+    <p class="penny-closer" style="margin-top:.5rem;margin-bottom:1rem;">The quiz worked. It always works.</p>
+  `;
+  setTimeout(() => _pennyShowRecommendation(area, pick, 'quiz'), 900);
 }
 
 // ── Penny visibility & admin tools ────────────────────
