@@ -9042,7 +9042,84 @@ window.pennySelectOption = pennySelectOption;
 
 // Build the full pool of recommendable books from archives
 // (all submitted non-winning books + manually added historical books)
-function _pennyBuildPool() {
+// ── Member context for Penny recommendations ──────────
+function _pennyGetMemberContext() {
+  if (!_profileIdentity) return { lastPlaceIds: new Set(), suggestedTitles: new Set(), preferredGenres: [], avoidGenres: [] };
+
+  const { email, discord, key: myKey } = _profileIdentity;
+  const archives = getArchives();
+  const allReviews = getReviews();
+
+  // Last-place ballot entries across all months this member voted
+  const lastPlaceIds = new Set();
+  archives.forEach(a => {
+    const myVote = Object.values(a.votes || {}).find(vd => {
+      const k = normEmail(vd.email) || normId(vd.discord);
+      return k === myKey;
+    });
+    if (myVote) {
+      const ranking = myVote.ranking || myVote;
+      if (Array.isArray(ranking) && ranking.length) {
+        lastPlaceIds.add(String(ranking[ranking.length - 1]));
+      }
+    }
+  });
+
+  // Books this member suggested (by title, lowercased)
+  const suggestedTitles = new Set();
+  archives.forEach(a => {
+    (a.books || []).map(normBook).forEach(b => {
+      const isMine = b.suggesters.some(s => (normEmail(s.email) || normId(s.discord)) === myKey);
+      if (isMine) suggestedTitles.add(b.title.trim().toLowerCase());
+    });
+  });
+  (CACHE.pennyHistorical || []).forEach(b => {
+    if (b.suggestedBy && normId(b.suggestedBy) === normId(discord || email || '')) {
+      suggestedTitles.add((b.title || '').trim().toLowerCase());
+    }
+  });
+
+  // Genre preferences from star ratings — 4-5★ = preferred, 1-2★ = avoid
+  // Non-Fiction used only as fallback (per design) — use secondary genre labels first
+  const genreScores = {};
+  const addGenre = (genreStr, delta) => {
+    if (!genreStr) return;
+    const parts = genreStr.split('/').map(g => g.trim()).filter(Boolean);
+    // Filter out bare "Non-Fiction" if there are other genre labels
+    const filtered = parts.length > 1 ? parts.filter(g => g.toLowerCase() !== 'non-fiction') : parts;
+    filtered.forEach(g => { genreScores[g] = (genreScores[g] || 0) + delta; });
+  };
+  Object.entries(allReviews).forEach(([monthLabel, entries]) => {
+    (entries || []).forEach(r => {
+      const rKey = normEmail(r.email) || normId(r.discord);
+      if (rKey !== myKey) return;
+      const rat = Number(r.rating);
+      if (rat < 1 || rat > 5) return;
+      // Find book genre from archive
+      const arc = archives.find(a => a.label === monthLabel);
+      const book = arc ? (arc.books || []).find(b => String(b.id) === String(r.bookId) || b.title === r.bookTitle) : null;
+      const genre = book ? (book.genre || '') : '';
+      if (!genre) return;
+      if (rat >= 4) addGenre(genre, 1);
+      else if (rat <= 2) addGenre(genre, -1);
+    });
+  });
+  // Also add genres they've suggested (C — weaker positive signal)
+  archives.forEach(a => {
+    (a.books || []).map(normBook).forEach(b => {
+      const isMine = b.suggesters.some(s => (normEmail(s.email) || normId(s.discord)) === myKey);
+      if (isMine && b.genre) addGenre(b.genre, 0.5);
+    });
+  });
+
+  const preferredGenres = Object.entries(genreScores).filter(([,v]) => v > 0).map(([g]) => g);
+  const avoidGenres    = Object.entries(genreScores).filter(([,v]) => v < 0).map(([g]) => g);
+
+  return { lastPlaceIds, suggestedTitles, preferredGenres, avoidGenres };
+}
+
+function _pennyBuildPool(memberCtx) {
+  const lastPlaceIds = memberCtx ? memberCtx.lastPlaceIds : new Set();
   const archives = getArchives();
 
   // Build a global set of ALL winning titles across all months
@@ -9089,6 +9166,8 @@ function _pennyBuildPool() {
       const bid = String(b.id);
       // Exclude if this book won in any month (by title)
       if (winningTitles.has(b.title.trim().toLowerCase())) return;
+      // Exclude if this member put it last on their ballot
+      if (lastPlaceIds.has(bid)) return;
 
       const bookScore = scores[bid] || 0;
       let rankedByCount = 0;
@@ -9206,6 +9285,72 @@ const PENNY_CARD_QUOTES = [
 ];
 
 // Render the recommendation card + accept/decline buttons
+// ── Own-book dialog ───────────────────────────────────
+function _pennyOwnBookDialog(area, book, pool, fromBranch) {
+  const aid = area.id;
+  area._pennyOwnBook = book;
+  area._pennyOwnPool = pool;
+  area._pennyOwnBranch = fromBranch;
+  area.innerHTML = `
+    <div class="penny-storybook">
+      <div class="penny-storybook-inner">
+        <span class="penny-action">Penny sets the book on the desk. You glance at the cover — and something about it is familiar.</span>
+        <p class="penny-speech">Huh. It looks like you actually made this suggestion. What do you think — want to give it a go now?</p>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 1.5rem;position:relative;z-index:2;">
+      <button class="penny-action-btn" onclick="pennyOwnBookYes('${aid}')">Yes — let's do it.</button>
+      <button class="penny-action-btn" onclick="pennyOwnBookNo('${aid}')">No, not right now.</button>
+    </div>
+  `;
+}
+
+window.pennyOwnBookYes = function(areaId) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  _pennyShowRecommendation(area, area._pennyOwnBook, area._pennyOwnBranch);
+};
+
+window.pennyOwnBookNo = function(areaId) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  const excluded = area._pennyExcluded || [];
+  excluded.push(area._pennyOwnBook.id);
+  area._pennyExcluded = excluded;
+  const pool = (area._pennyOwnPool || []).filter(b => !excluded.includes(b.id));
+  const fromBranch = area._pennyOwnBranch;
+  if (!pool.length) {
+    area.innerHTML = `<div class="penny-storybook"><div class="penny-storybook-inner"><p class="penny-speech">All right, not right now — got it. I'd have a second pick ready, but it seems we've gone through quite a few today. Come back soon.</p></div></div><div style="text-align:center;padding:.5rem 1.5rem 1.5rem;"><button class="penny-action-btn" onclick="pennyWalkOut()">Walk out the front door.</button></div>`;
+    return;
+  }
+  const backup = pool[Math.floor(Math.random() * pool.length)];
+  const ctx = area._pennyMemberCtx || _pennyGetMemberContext();
+  area.innerHTML = `
+    <div class="penny-storybook">
+      <div class="penny-storybook-inner">
+        <span class="penny-action">Penny nods and tucks the book back under her arm.</span>
+        <p class="penny-speech">All right, not right now — got it. You're in luck. I picked a second one up just in case.</p>
+        <span class="penny-action" style="margin-top:.4rem;">She reaches back and produces another book, setting it on the desk.</span>
+      </div>
+    </div>
+    <div style="text-align:center;padding:.5rem 1.5rem 1.5rem;">
+      <button class="penny-action-btn" onclick="pennyOwnBookBackupReveal('${areaId}')">You pick it up.</button>
+    </div>
+  `;
+  area._pennyBackupBook = backup;
+  area._pennyBackupPool = pool;
+};
+
+window.pennyOwnBookBackupReveal = function(areaId) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  const book = area._pennyBackupBook;
+  if (!book) return;
+  const ctx = area._pennyMemberCtx || _pennyGetMemberContext();
+  // No own-book loop here — backup is shown directly
+  _pennyShowRecommendation(area, book, area._pennyOwnBranch);
+};
+
 function _pennyShowRecommendation(area, book, fromBranch) {
   const aid = area.id;
   const suggester = (book.suggesters || []).find(s => s.discord || s.email);
@@ -9380,7 +9525,8 @@ window.pennyDecline = pennyDecline;
 
 // ── Branch 1: Trust ──────────────────────────────────
 function _pennyBranchTrust(area) {
-  const pool = _pennyBuildPool(); // full pool — historical included
+  const ctx = _pennyGetMemberContext();
+  const pool = _pennyBuildPool(ctx);
   const excluded = area._pennyExcluded || [];
   const available = pool.filter(b => !excluded.includes(b.id));
   if (!available.length) {
@@ -9391,6 +9537,8 @@ function _pennyBranchTrust(area) {
 
   const aid = area.id;
   area._pennyTrustBook = book;
+  area._pennyTrustPool = available;
+  area._pennyMemberCtx = ctx;
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
@@ -9409,7 +9557,12 @@ window.pennyTrustReveal = function(areaId) {
   if (!area) return;
   const book = area._pennyTrustBook;
   if (!book) return;
-  _pennyShowRecommendation(area, book, 'trust');
+  const ctx = area._pennyMemberCtx || _pennyGetMemberContext();
+  if (ctx.suggestedTitles.has(book.title.trim().toLowerCase())) {
+    _pennyOwnBookDialog(area, book, area._pennyTrustPool || [], 'trust');
+  } else {
+    _pennyShowRecommendation(area, book, 'trust');
+  }
 };
 
 // ── Branch 2: Card Catalog ───────────────────────────
@@ -9451,7 +9604,8 @@ function _pennyBranchCatalog(area) {
 function pennyCatalogPick(zone, areaId) {
   const area = document.getElementById(areaId);
   if (!area) return;
-  const pool = _pennyBuildPool();
+  const ctx = _pennyGetMemberContext();
+  const pool = _pennyBuildPool(ctx);
   const excluded = area._pennyExcluded || [];
   const available = pool.filter(b => !excluded.includes(b.id));
   if (!available.length) {
@@ -9462,6 +9616,8 @@ function pennyCatalogPick(zone, areaId) {
   const book = available[Math.floor(Math.random() * available.length)];
 
   area._pennyCatalogBook = book;
+  area._pennyCatalogPool = available;
+  area._pennyMemberCtx = ctx;
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
@@ -9485,7 +9641,12 @@ window.pennyCatalogReveal = function(areaId) {
   if (!area) return;
   const book = area._pennyCatalogBook;
   if (!book) return;
-  _pennyShowRecommendation(area, book, 'catalog');
+  const ctx = area._pennyMemberCtx || _pennyGetMemberContext();
+  if (ctx.suggestedTitles.has(book.title.trim().toLowerCase())) {
+    _pennyOwnBookDialog(area, book, area._pennyCatalogPool || [], 'catalog');
+  } else {
+    _pennyShowRecommendation(area, book, 'catalog');
+  }
 };
 
 // ── Branch 3: Quiz ───────────────────────────────────
@@ -9659,9 +9820,10 @@ window.pennyQuizAnswer = pennyQuizAnswer;
 function _pennyQuizFinish(area) {
   const answers = area._pennyQuizAnswers || [];
   const excluded = area._pennyExcluded || [];
+  const ctx = _pennyGetMemberContext();
 
   // Quiz uses live archive pool only — historical books are wildcards, not data-scored
-  const fullPool = _pennyBuildPool();
+  const fullPool = _pennyBuildPool(ctx);
   const historical = fullPool.filter(b => b.id.startsWith('hist_') && !excluded.includes(b.id));
   const livePool = fullPool.filter(b => !b.id.startsWith('hist_') && !excluded.includes(b.id));
 
@@ -9710,6 +9872,12 @@ function _pennyQuizFinish(area) {
     if (wantShort && b.pageCount && b.pageCount < 250) score += 2;
     if (wantHyped) score += (b.rankedByCount || 0) * 0.3;
     if (wantContrarian) score += b.voterCount > 0 ? ((b.voterCount - (b.rankedByCount || 0)) * 0.3) : 0;
+    // Member genre preference from reviews (B) and suggestions (C)
+    const bookGenreParts = genre.split('/').map(g => g.trim()).filter(Boolean);
+    const nonFictionOnly = bookGenreParts.length === 1 && bookGenreParts[0].toLowerCase() === 'non-fiction';
+    const compareParts = nonFictionOnly ? bookGenreParts : bookGenreParts.filter(g => g.toLowerCase() !== 'non-fiction');
+    if (ctx.preferredGenres.some(g => compareParts.includes(g))) score += 1.5;
+    if (ctx.avoidGenres.some(g => compareParts.includes(g))) score -= 2;
     return { book: b, score };
   });
   scored.sort((a, b) => b.score - a.score);
@@ -9721,6 +9889,8 @@ function _pennyQuizFinish(area) {
   }
 
   area._pennyQuizBook = pick;
+  area._pennyQuizPool = livePool;
+  area._pennyMemberCtx = ctx;
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
@@ -9741,7 +9911,12 @@ window.pennyQuizReveal = function(areaId) {
   if (!area) return;
   const book = area._pennyQuizBook;
   if (!book) return;
-  _pennyShowRecommendation(area, book, 'quiz');
+  const ctx = area._pennyMemberCtx || _pennyGetMemberContext();
+  if (ctx.suggestedTitles.has(book.title.trim().toLowerCase())) {
+    _pennyOwnBookDialog(area, book, area._pennyQuizPool || [], 'quiz');
+  } else {
+    _pennyShowRecommendation(area, book, 'quiz');
+  }
 };
 
 // ── Penny visibility & admin tools ────────────────────
