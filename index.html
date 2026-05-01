@@ -5030,6 +5030,9 @@ function _doRenderMemberDirectory() {
   const idMap         = buildIdentityMap();
   const archiveWinners = getArchiveWinners();
   const totalMonths   = archives.filter(a => !a.memberPick).length;
+  // Month order map for sorting: label → index in archives array
+  const monthOrderMap = {};
+  archives.forEach((a, i) => { monthOrderMap[a.label] = i; });
 
   if (!archives.length) {
     area.innerHTML = '<p style="font-size:.85rem;color:var(--soft);">No archived months yet.</p>';
@@ -5120,6 +5123,34 @@ function _doRenderMemberDirectory() {
   Object.entries(allProgress).forEach(([memberKey, memberProg]) => {
     if (!memberData[memberKey]) return; // only show members we already know
     memberData[memberKey].progress = memberProg;
+  });
+
+  // ── Append historical pool books to each member's suggestions ─────────────
+  const idMap2 = buildIdentityMap();
+  const historicalPool = CACHE.pennyHistorical || [];
+  historicalPool.forEach(b => {
+    if (!b.suggestedBy) return;
+    // Fuzzy match suggestedBy against known member keys
+    const normSuggester = normId(b.suggestedBy);
+    const matchedKey = Object.keys(memberData).find(key => {
+      const m = memberData[key];
+      if (normId(m.name) === normSuggester) return true;
+      if (normId(m.email) === normSuggester) return true;
+      // Levenshtein fallback
+      if (levenshtein(normId(m.name), normSuggester) <= 2) return true;
+      return false;
+    });
+    if (matchedKey) {
+      memberData[matchedKey].suggestedBooks.push({
+        title: b.title, author: b.author || '', month: b.month || '2025', won: false, historical: true
+      });
+    }
+  });
+
+  // ── Sort each member's reviews and suggestions by month order ─────────────
+  Object.values(memberData).forEach(m => {
+    m.reviewedMonths.sort((a, b) => (monthOrderMap[a.month] ?? 999) - (monthOrderMap[b.month] ?? 999));
+    m.suggestedBooks.sort((a, b) => (monthOrderMap[a.month] ?? -1) - (monthOrderMap[b.month] ?? -1));
   });
 
   // Filter + search state
@@ -6890,6 +6921,8 @@ function renderProfileOverview() {
 
   // ── Reviews submitted (only reviewed, not opted out) ──
   const allReviews = getReviews();
+  const archiveOrderMap = {};
+  archives.forEach((a, i) => { archiveOrderMap[a.label] = i; });
   const myReviews = [];
   Object.entries(allReviews).forEach(([monthLabel, entries]) => {
     (entries || []).forEach(r => {
@@ -6899,6 +6932,7 @@ function renderProfileOverview() {
       }
     });
   });
+  myReviews.sort((a, b) => (archiveOrderMap[a.monthLabel] ?? 999) - (archiveOrderMap[b.monthLabel] ?? 999));
   const reviewsHtml = myReviews.length
     ? myReviews.map(r => {
         const rat = Number(r.rating);
@@ -6940,6 +6974,16 @@ function renderProfileOverview() {
       if (isMine) mySuggestions.push({ ...b, monthLabel: a.label, won: winnerBookIds.has(String(b.id)) });
     });
   });
+  // Add historical pool books matched to this member
+  const myNormName = normId(myName);
+  (CACHE.pennyHistorical || []).forEach(b => {
+    if (!b.suggestedBy) return;
+    const normSugg = normId(b.suggestedBy);
+    const isMe = normSugg === myNormName || levenshtein(normSugg, myNormName) <= 2;
+    if (isMe) mySuggestions.push({ title: b.title, author: b.author || '', monthLabel: b.month || '2025', won: false, historical: true });
+  });
+  // Sort by archive order (historical books with no archive entry sort to front as they're oldest)
+  mySuggestions.sort((a, b) => (archiveOrderMap[a.monthLabel] ?? -1) - (archiveOrderMap[b.monthLabel] ?? -1));
   const suggestionsHtml = mySuggestions.length
     ? mySuggestions.map(b => {
         const wonPill = b.won ? `<span style="font-size:.7rem;background:#fff8e1;border:1px solid var(--gold);color:#b8860b;padding:.1rem .4rem;border-radius:10px;white-space:nowrap;margin-left:.5rem;">won</span>` : '';
