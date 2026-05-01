@@ -6882,6 +6882,7 @@ function updateProfileSubBadgeDot() {
   if (!subDot || !_bgIdentity) return;
   const myKey  = normEmail(_bgIdentity.email) || normId(_bgIdentity.discord);
   const profile = computeMemberProfile(_bgIdentity.discord, _bgIdentity.email);
+  _maybeClearPennyBadgesFromSnapshot(myKey);
   const newBadges = getNewBadgesSinceLastVisit(myKey, profile);
   subDot.style.display = newBadges.length ? 'inline-block' : 'none';
 }
@@ -7172,6 +7173,7 @@ function renderBadgesTab() {
 
   const profile  = computeMemberProfile(_bgIdentity.discord, _bgIdentity.email);
   const myKey    = normEmail(_bgIdentity.email) || normId(_bgIdentity.discord);
+  _maybeClearPennyBadgesFromSnapshot(myKey);
   const visibleBadges = getAllBadges();
 
   const tierLabel = { bronze:'🥉 Bronze', silver:'🥈 Silver', gold:'🥇 Gold' };
@@ -8339,6 +8341,24 @@ function clearIdentityCookie() {
 
 // ── Badge notification (new-since-last-visit) ────────────────────────────────
 function _badgeSeenKey(memberKey) { return 'dbc_badges_seen_' + memberKey; }
+function _pennyBadgeResetKey(memberKey) { return 'dbc_badges_penny_reset_' + memberKey; }
+
+const PENNY_BADGE_IDS = ['penny-met','penny-trust','penny-catalog','penny-quiz','penny-accepted','penny-declined','penny-returned'];
+
+// If admin has reset this member's Penny history since they last visited badges,
+// scrub penny badge IDs from their local seen-snapshot so they re-alert when re-earned.
+function _maybeClearPennyBadgesFromSnapshot(memberKey) {
+  const pennyRecord = (CACHE.pennyMembers || {})[memberKey] || {};
+  const resetTs = pennyRecord.badgeResetTs || 0;
+  if (!resetTs) return;
+  const lastClearedTs = parseInt(localStorage.getItem(_pennyBadgeResetKey(memberKey)) || '0', 10);
+  if (resetTs <= lastClearedTs) return;
+  // Reset is newer than last clear — scrub penny IDs from seen snapshot
+  const seenIds = _getSeenBadgeIds(memberKey);
+  PENNY_BADGE_IDS.forEach(id => seenIds.delete(id));
+  try { localStorage.setItem(_badgeSeenKey(memberKey), JSON.stringify([...seenIds])); } catch {}
+  try { localStorage.setItem(_pennyBadgeResetKey(memberKey), String(resetTs)); } catch {}
+}
 
 function _getSeenBadgeIds(memberKey) {
   try { return new Set(JSON.parse(localStorage.getItem(_badgeSeenKey(memberKey)) || '[]')); }
@@ -10083,7 +10103,7 @@ async function adminResetMemberPenny() {
   area.innerHTML = '<em style="color:var(--gold);">Resetting…</em>';
   try {
     // Set member's penny data to a clean slate (visitCount 0, clear lastRec/lastRecAsked)
-    await fbSet(PENNY_REF, { [memberKey]: { visitCount: 0, lastVisit: null, lastRec: null, lastRecAsked: false, visitLog: [] } });
+    await fbSet(PENNY_REF, { [memberKey]: { visitCount: 0, lastVisit: null, lastRec: null, lastRecAsked: false, visitLog: [], badgeResetTs: Date.now() } });
     area.innerHTML = `<p style="color:var(--gold);">✓ ${esc(memberName)}'s Penny history has been cleared. Their next visit will be treated as a first visit.</p>`;
   } catch(e) {
     area.innerHTML = `<span style="color:#c55;">Error resetting: ${esc(e.message)}</span>`;
