@@ -9201,17 +9201,28 @@ function _pennyBranchTrust(area) {
   }
   const book = available[Math.floor(Math.random() * available.length)];
 
+  const aid = area.id;
+  area._pennyTrustBook = book;
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
         <span class="penny-action">Penny disappears briefly into the stacks. A moment passes.</span>
-        <span class="penny-action" style="margin-top:.4rem;">She returns and places the book on the desk in front of you with quiet triumph.</span>
+        <span class="penny-action" style="margin-top:.4rem;">She returns and places a book on the desk in front of you with quiet triumph.</span>
         <p class="penny-speech">Here. This one. I knew it the moment you walked in the door.</p>
       </div>
     </div>
+    <div style="text-align:center;padding:.5rem 1.5rem 1.5rem;">
+      <button class="penny-action-btn" onclick="pennyTrustReveal('${aid}')">You lean in to look.</button>
+    </div>
   `;
-  setTimeout(() => _pennyShowRecommendation(area, book, 'trust'), 1000);
 }
+window.pennyTrustReveal = function(areaId) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  const book = area._pennyTrustBook;
+  if (!book) return;
+  _pennyShowRecommendation(area, book, 'trust');
+};
 
 // ── Branch 2: Card Catalog ───────────────────────────
 const PENNY_CATALOG_ZONES = [
