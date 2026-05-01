@@ -2197,6 +2197,9 @@ function startListeners() {
     const memberRecords = {};
     Object.entries(data).forEach(([k,v]) => { if (k !== 'historicalPool') memberRecords[k] = v; });
     CACHE.pennyMembers = memberRecords;
+    // Refresh badge dots now that penny data has updated
+    if (typeof updateBadgeNavDot === 'function') updateBadgeNavDot();
+    if (typeof updateProfileSubBadgeDot === 'function') updateProfileSubBadgeDot();
   });
 }
 
@@ -7422,6 +7425,37 @@ function _buildBadgeFeedEvents() {
     }
   });
 
+  // ── 4. Penny badges — from CACHE.pennyMembers directly ─────────────────────
+  const pennyBadgeDefs = [
+    { id:'penny-met',      name:'Meet Penny',           emoji:'🕯️', tsKey:'lastVisit',      check: r => (r.visitCount||0) >= 1 },
+    { id:'penny-returned', name:'Back Again',            emoji:'🔁', tsKey:'lastVisit',      check: r => (r.visitCount||0) >= 2 },
+    { id:'penny-trust',    name:'Trust Penny',           emoji:'🤝', tsKey:'usedTrust_ts',   check: r => !!r.usedTrust },
+    { id:'penny-catalog',  name:'The Card Catalog',      emoji:'🗂️', tsKey:'usedCatalog_ts', check: r => !!r.usedCatalog },
+    { id:'penny-quiz',     name:'Ask Me Your Questions', emoji:'📝', tsKey:'usedQuiz_ts',    check: r => !!r.usedQuiz },
+    { id:'penny-accepted', name:"I'll Take It",          emoji:'📖', tsKey:'acceptedRec_ts', check: r => !!r.acceptedRec },
+    { id:'penny-declined', name:'Not Quite',             emoji:'🙈', tsKey:'declinedRec_ts', check: r => !!r.declinedRec },
+  ];
+  const pennyMembers = CACHE.pennyMembers || {};
+  Object.entries(pennyMembers).forEach(([memberKey, record]) => {
+    if (!record || typeof record !== 'object') return;
+    const entry = idMap.get(memberKey);
+    const memberName = (entry || {}).displayName || memberKey;
+    pennyBadgeDefs.forEach(pb => {
+      if (!pb.check(record)) return;
+      const ov = overrides[memberKey]?.[pb.id];
+      if (ov === false) return;
+      const at = record[pb.tsKey] || record.lastVisit || null;
+      if (!at) return;
+      events.push({
+        at, member: memberName,
+        badge: pb.name,
+        emoji: pb.emoji,
+        iconUrl: null,
+        source: 'earned'
+      });
+    });
+  });
+
   return events;
 }
 
@@ -8650,6 +8684,8 @@ async function renderPennyTabInto(area) {
     const saved = loadIdentityCookie();
     if (saved && (saved.email || saved.discord)) {
       _profileIdentity = { email: saved.email || '', discord: saved.discord || '', key: pgKey(saved.email, saved.discord) };
+      if (!_bgIdentity) _bgIdentity = { email: saved.email || '', discord: saved.discord || '' };
+      if (!_pgIdentity) _pgIdentity = _profileIdentity;
     }
   }
 
@@ -9060,7 +9096,7 @@ function pennySelectOption(optionId, areaId, el) {
   if (_profileIdentity && _profileIdentity.key) {
     const flagMap = { trust: 'usedTrust', catalog: 'usedCatalog', quiz: 'usedQuiz' };
     const flag = flagMap[optionId];
-    if (flag) fbSet(PENNY_REF, { [_profileIdentity.key]: { [flag]: true } }).catch(()=>{});
+    if (flag) fbSet(PENNY_REF, { [_profileIdentity.key]: { [flag]: true, [flag+'_ts']: Date.now() } }).catch(()=>{});
   }
   setTimeout(() => {
     if (optionId === 'trust') _pennyBranchTrust(area);
@@ -9432,7 +9468,7 @@ function pennyAccept(areaId) {
   if (!area) return;
   // Store last rec in Firestore if identity known
   if (_profileIdentity && _profileIdentity.key && area._pennyLastRec) {
-    fbSet(PENNY_REF, { [_profileIdentity.key]: { lastRec: { title: area._pennyLastRec.title, month: area._pennyLastRec.month, ts: Date.now() }, lastRecAsked: false, acceptedRec: true } }).catch(()=>{});
+    fbSet(PENNY_REF, { [_profileIdentity.key]: { lastRec: { title: area._pennyLastRec.title, month: area._pennyLastRec.month, ts: Date.now() }, lastRecAsked: false, acceptedRec: true, acceptedRec_ts: Date.now() } }).catch(()=>{});
   }
 
   // Rare stacks hint — only on return visits, ~1 in 20 chance
@@ -9550,7 +9586,7 @@ function pennyDecline(areaId, fromBranch) {
   if (area._pennyLastRec) area._pennyExcluded.push(area._pennyLastRec.id);
   // Track badge event
   if (_profileIdentity && _profileIdentity.key) {
-    fbSet(PENNY_REF, { [_profileIdentity.key]: { declinedRec: true } }).catch(()=>{});
+    fbSet(PENNY_REF, { [_profileIdentity.key]: { declinedRec: true, declinedRec_ts: Date.now() } }).catch(()=>{});
   }
 
   const isQuiz = fromBranch === 'quiz';
