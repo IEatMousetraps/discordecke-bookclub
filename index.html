@@ -8417,7 +8417,7 @@ const PENNY_SCENARIOS = [
     // Scenario 1: Reading her book
     entering: 'The door swings open. Inside is a small, warm library. A woman in glasses is sitting in an armchair, deeply absorbed in a book. She doesn\'t notice you at first. A few seconds pass. She turns a page.',
     action:   'You clear your throat.',
-    startle:  'She startles slightly, looks up over her glasses, and her face breaks into a warm smile.',
+    prompt:   'What do you do?',
     greeting: 'Oh! Oh goodness — sorry, I was just at a very good part. Actually, do you want to know what happens? No. No, I won\'t do that to you. How can I help?',
     setup:    'She sets her book down, stands up, and moves behind a small wooden desk. There\'s a card catalog against the wall behind her. The whole place smells like old paper and something vaguely like tea. She looks at you expectantly.',
     return:   'Penny is at the shelves with a duster, working her way along a row of books. She doesn\'t notice you at first. A moment passes. You step further inside. She turns around and spots you, her face breaking into a warm smile of recognition.'
@@ -8426,6 +8426,7 @@ const PENNY_SCENARIOS = [
     // Scenario 2: Dusting shelves
     entering: 'The door swings open. The shop is small and warm. Every wall is shelves. A woman in glasses is on a stepstool near the back, dusting her way along a high row of books.',
     action:   'You clear your throat.',
+    prompt:   'What do you do?',
     startle:  'She turns, sees you, and nearly loses her grip on the duster.',
     greeting: 'Oh! Sorry, I get a bit focused when I\'m dusting. Come in — I think I got everything, but don\'t look too closely at the top row.',
     setup:    'She steps down from the stool and moves behind the desk, straightening her cardigan. She gives you her full attention.',
@@ -8435,7 +8436,7 @@ const PENNY_SCENARIOS = [
     // Scenario 3: Tea and sorting
     entering: 'The door swings open. The smell of tea hits you before anything else. A woman in glasses is at a wooden desk in the corner, mid-pour, a small pot in one hand and a stack of books beside her.',
     action:   'She looks up.',
-    startle:  'She sets the pot down and straightens up.',
+    prompt:   '',
     greeting: 'Come in, come in — I just made tea. I\'d offer you some but I only have the one cup, which in retrospect was poor planning.',
     setup:    'She gestures to the space around her with the easy confidence of someone who has arranged it exactly as she likes it.',
     return:   'Penny is at the desk with a cup of tea and an open book. She looks up when you come in and sets the cup down.'
@@ -8537,7 +8538,7 @@ function pennyAdvance(stage, areaId) {
         </div>
       </div>
       <div style="text-align:center;padding:.5rem 1.5rem 1.5rem;">
-        <p class="penny-door-prompt" style="margin-bottom:1.2rem;"><em>What do you do?</em></p>
+        ${scenario.prompt ? `<p class="penny-door-prompt" style="margin-bottom:1.2rem;"><em>${scenario.prompt}</em></p>` : ''}
         <button class="penny-action-btn" onclick="pennyAdvance('greeting','${aid}')">${scenario.action}</button>
       </div>
     `;
