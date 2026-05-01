@@ -852,7 +852,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 .penny-action {
   font-family: 'Playfair Display', serif;
   font-style: italic;
-  font-size: 12px;
+  font-size: 13px;
   color: #8a6d3b;
   margin: 0 0 .75rem;
   display: block;
@@ -9160,7 +9160,7 @@ function pennyAccept(areaId) {
 
   // Rare stacks hint — only on return visits, ~1 in 20 chance
   const state = area._pennyState || {};
-  const showStacksHint = !state.isFirstVisit && Math.random() < 0.05;
+  const showStacksHint = !state.isFirstVisit && Math.random() < 0.2;
 
   let stacksHint = '';
   if (showStacksHint) {
@@ -9205,7 +9205,7 @@ function pennyAccept(areaId) {
 
     if (hintLines.length) {
       const line = hintLines[Math.floor(Math.random() * hintLines.length)];
-      stacksHint = `<p class="penny-closer" style="margin-top:.75rem;font-size:13px;color:rgba(240,180,41,.6);max-width:400px;margin-left:auto;margin-right:auto;text-align:center;">${line}</p>`;
+      stacksHint = `<p class="penny-closer" style="margin-top:.75rem;font-size:13px;color:rgba(180,60,60,.75);max-width:400px;margin-left:auto;margin-right:auto;text-align:center;">${line}</p>`;
     }
   }
 
