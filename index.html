@@ -8687,7 +8687,9 @@ function pennyNotYetBranch(choice, areaId, el) {
             <span class="penny-action" style="margin-top:.4rem;">She gives a small wave.</span>
           </div>
         </div>
-        <p class="penny-closer">The door closes softly behind you.</p>
+        <div style="text-align:center;padding:.5rem 1.5rem 1.5rem;">
+          <button class="penny-action-btn" onclick="pennyWalkOut()">Walk out the front door.</button>
+        </div>
       `;
     } else {
       area.innerHTML = `
@@ -8810,7 +8812,9 @@ function pennyJustStopping(areaId, el) {
           <span class="penny-action" style="margin-top:.4rem;">She gives a small wave.</span>
         </div>
       </div>
-      <p class="penny-closer">The door closes softly behind you.</p>
+      <div style="text-align:center;padding:.5rem 1.5rem 1.5rem;">
+        <button class="penny-action-btn" onclick="pennyWalkOut()">Walk out the front door.</button>
+      </div>
     `;
   }, 300);
 }
