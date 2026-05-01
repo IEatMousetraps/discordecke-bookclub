@@ -9478,6 +9478,7 @@ function _pennyQuizFinish(area) {
   // 25% wildcard chance if open and historical books exist
   if (memberIsOpen && historical.length && Math.random() < 0.25) {
     const wildcard = historical[Math.floor(Math.random() * historical.length)];
+    area._pennyQuizBook = wildcard;
     area.innerHTML = `
       <div class="penny-storybook">
         <div class="penny-storybook-inner">
@@ -9487,8 +9488,10 @@ function _pennyQuizFinish(area) {
           <p class="penny-speech">Here it is. You know... I think this one has been waiting for you.</p>
         </div>
       </div>
+      <div style="text-align:center;padding:.5rem 1.5rem 1.5rem;">
+        <button class="penny-action-btn" onclick="pennyQuizReveal('${area.id}')">You lean in to look.</button>
+      </div>
     `;
-    setTimeout(() => _pennyShowRecommendation(area, wildcard, 'quiz'), 1000);
     return;
   }
 
@@ -9524,6 +9527,7 @@ function _pennyQuizFinish(area) {
     return;
   }
 
+  area._pennyQuizBook = pick;
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
@@ -9533,9 +9537,19 @@ function _pennyQuizFinish(area) {
         <p class="penny-speech">Here it is. You know... I think this one has been waiting for you.</p>
       </div>
     </div>
+    <div style="text-align:center;padding:.5rem 1.5rem 1.5rem;">
+      <button class="penny-action-btn" onclick="pennyQuizReveal('${area.id}')">You lean in to look.</button>
+    </div>
   `;
-  setTimeout(() => _pennyShowRecommendation(area, pick, 'quiz'), 1000);
 }
+
+window.pennyQuizReveal = function(areaId) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  const book = area._pennyQuizBook;
+  if (!book) return;
+  _pennyShowRecommendation(area, book, 'quiz');
+};
 
 // ── Penny visibility & admin tools ────────────────────
 function updatePennyNavVisibility() {
