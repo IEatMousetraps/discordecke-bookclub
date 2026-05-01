@@ -8277,23 +8277,29 @@ window.qaDrawerCheck = function() {
 // ── Penny: arrival scenarios ───────────────────────────
 const PENNY_SCENARIOS = [
   {
-    interior: 'The door swings open. Inside is a small, warm library. Shelves line the walls. A grandfather clock ticks in the corner. A woman in glasses is sitting in an armchair, deeply absorbed in a book. She doesn\'t notice you at first.\n\nA few seconds pass.\n\nShe turns a page.',
+    // Scenario 1: Reading her book
+    entering: 'The door swings open. Inside is a small, warm library. A woman in glasses is sitting in an armchair, deeply absorbed in a book. She doesn\'t notice you at first. A few seconds pass. She turns a page.',
+    action:   'You clear your throat.',
     startle:  'She startles slightly, looks up over her glasses, and her face breaks into a warm smile.',
-    greeting: 'Oh! Oh goodness — sorry, I was just at a very good part. Actually, do you want to know what happens? No. No, I won\'t do that to you.',
+    greeting: 'Oh! Oh goodness — sorry, I was just at a very good part. Actually, do you want to know what happens? No. No, I won\'t do that to you. How can I help?',
     setup:    'She sets her book down, stands up, and moves behind a small wooden desk. There\'s a card catalog against the wall behind her. The whole place smells like old paper and something vaguely like tea. She looks at you expectantly.',
-    return:   'Penny is at the shelves with a duster, working her way along a row of books. She doesn\'t notice you at first. A moment passes. She moves to the next shelf. You step further inside. She turns around and spots you, her face breaking into a warm smile of recognition.'
+    return:   'Penny is at the shelves with a duster, working her way along a row of books. She doesn\'t notice you at first. A moment passes. You step further inside. She turns around and spots you, her face breaking into a warm smile of recognition.'
   },
   {
-    interior: 'The door swings open. The shop is small and warm. Every wall is shelves. A single lamp glows on a wooden desk in the corner. A woman in glasses is standing on a stepstool, carefully reshelving a stack of books. She\'s humming something quietly to herself. She doesn\'t notice you.',
-    startle:  'She reaches for the next book, turns slightly, and sees you. She nearly drops the stack.',
-    greeting: 'Oh! Sorry — I didn\'t hear you come in. I get a bit lost in the organizing.',
-    setup:    'She steps down from the stool and moves behind the desk, straightening her cardigan. She sets the books aside and gives you her full attention.',
+    // Scenario 2: Dusting shelves
+    entering: 'The door swings open. The shop is small and warm. Every wall is shelves. A woman in glasses is on a stepstool near the back, dusting her way along a high row of books.',
+    action:   'You clear your throat.',
+    startle:  'She turns, sees you, and nearly loses her grip on the duster.',
+    greeting: 'Oh! Sorry, I get a bit focused when I\'m dusting. Come in — I think I got everything, but don\'t look too closely at the top row.',
+    setup:    'She steps down from the stool and moves behind the desk, straightening her cardigan. She gives you her full attention.',
     return:   'Penny is halfway up a stepstool, working on the high shelf. She steps down when she hears the door and turns to see you. Her face settles into a look of pleased recognition.'
   },
   {
-    interior: 'The door swings open. The smell of tea hits you before anything else. The shop is warm and quiet. A small pot sits on the corner of a wooden desk, sending up a thin curl of steam. A woman in glasses is at the desk, pouring herself a cup and reading a folded piece of paper — a letter, maybe. She looks up.',
-    startle:  'She sets the teapot down a little quickly and tucks the paper away.',
-    greeting: 'Oh — sorry, come in. I was just — catching up on some correspondence. Nothing important.',
+    // Scenario 3: Tea and sorting
+    entering: 'The door swings open. The smell of tea hits you before anything else. A woman in glasses is at a wooden desk in the corner, mid-pour, a small pot in one hand and a stack of books beside her.',
+    action:   'She looks up.',
+    startle:  'She sets the pot down and straightens up.',
+    greeting: 'Come in, come in — I just made tea. I\'d offer you some but I only have the one cup, which in retrospect was poor planning.',
     setup:    'She gestures to the space around her with the easy confidence of someone who has arranged it exactly as she likes it.',
     return:   'Penny is at the desk with a cup of tea and an open book. She looks up when you come in and sets the cup down.'
   }
@@ -8364,12 +8370,12 @@ function _pennyShowDoor(area) {
   area.className = '';
   area.innerHTML = `
     <div class="penny-door-scene">
+      <p class="penny-door-prompt">You find a door. There's a small sign on it.</p>
       <div class="penny-door-sign">
         <span class="penny-door-sign-title">Penny's</span>
         <span class="penny-door-sign-sub">Recommended Reading</span>
         <span class="penny-door-sign-est">Est. 2026</span>
       </div>
-      <p class="penny-door-prompt">You find a door. There's a small sign on it.</p>
       <p class="penny-door-prompt"><em>What do you do?</em></p>
       <button class="penny-action-btn" onclick="pennyAdvance('entering','${aid}')">Let's explore! — open the door and walk in</button>
     </div>
@@ -8390,12 +8396,12 @@ function pennyAdvance(stage, areaId) {
     area.innerHTML = `
       <div class="penny-storybook">
         <div class="penny-storybook-inner">
-          <span class="penny-action">${scenario.interior}</span>
+          <span class="penny-action">${scenario.entering}</span>
         </div>
       </div>
       <div style="text-align:center;padding:.5rem 1.5rem 1.5rem;">
         <p class="penny-door-prompt" style="margin-bottom:1.2rem;"><em>What do you do?</em></p>
-        <button class="penny-action-btn" onclick="pennyAdvance('greeting','${aid}')">You clear your throat.</button>
+        <button class="penny-action-btn" onclick="pennyAdvance('greeting','${aid}')">${scenario.action}</button>
       </div>
     `;
   } else if (stage === 'greeting') {
@@ -8406,7 +8412,6 @@ function pennyAdvance(stage, areaId) {
           <span class="penny-action">${scenario.startle}</span>
           <p class="penny-speech">${scenario.greeting}</p>
           <span class="penny-action">${scenario.setup}</span>
-          <p class="penny-speech">How can I help?</p>
         </div>
       </div>
       <div style="text-align:center;padding:.5rem 1.5rem 1.5rem;">
@@ -8456,13 +8461,10 @@ function _pennyShowOptions(area) {
       <div class="penny-storybook-inner">
         <span class="penny-action">Penny's face lights up. She clasps her hands together.</span>
         <p class="penny-speech">Oh, well you've come to exactly the right place. The question is how we find it. I have a few ways we can do this.</p>
-        <span class="penny-action" style="margin-top:.6rem;">She holds up one finger.</span>
-        <p class="penny-speech">Trust me completely and I'll find you something. No questions, no hints — I know these books like old friends, and I have a feeling one of them has been waiting for you.</p>
-        <span class="penny-action" style="margin-top:.6rem;">She holds up a second finger.</span>
-        <p class="penny-speech">Or — let fate decide. Pick a drawer, any drawer — the catalog has never steered me wrong!</p>
-        <span class="penny-action" style="margin-top:.6rem;">A third finger.</span>
-        <p class="penny-speech">Or answer a few questions for me first. I like to know who I'm recommending to. It makes all the difference, I promise.</p>
-        <span class="penny-action" style="margin-top:.6rem;">She folds her hands on the desk and waits.</span>
+        <p class="penny-speech">One — you could simply trust me. No questions, no hints — I know these books like old friends, and I have a feeling one of them has been waiting for you.</p>
+        <p class="penny-speech">Two — let fate decide. Pick a drawer, any drawer — the catalog has never steered me wrong!</p>
+        <p class="penny-speech">Or three — answer a few questions for me first. I like to know who I'm recommending to. It makes all the difference, I promise.</p>
+        <span class="penny-action">She folds her hands on the desk and waits.</span>
         <p class="penny-speech" style="font-style:italic;font-size:13px;color:#8a6d3b;">Any of them will work. I do have a preference but I'll keep it to myself.</p>
       </div>
     </div>
