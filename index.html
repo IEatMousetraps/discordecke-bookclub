@@ -8637,13 +8637,14 @@ async function renderPennyTabInto(area) {
   let memberName = '';
   let lastRec = null;
   let lastRecAsked = false;
+  let newCount = 1;
   if (_profileIdentity && _profileIdentity.key) {
     try {
       const snap = await getDoc(PENNY_REF);
       const data = snap.exists() ? snap.data() : {};
       const memberKey = _profileIdentity.key;
       const prev = (data[memberKey] || {});
-      const newCount = (prev.visitCount || 0) + 1;
+      newCount = (prev.visitCount || 0) + 1;
       await fbSet(PENNY_REF, { [memberKey]: { visitCount: newCount, lastVisit: Date.now() } });
       isFirstVisit = (newCount === 1);
       memberName = _profileIdentity.discord || _profileIdentity.email || '';
