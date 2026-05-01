@@ -8609,6 +8609,7 @@ const PENNY_OPTIONS = [
 ];
 
 let _pennyRendering = false;
+let _pennyCountedThisSession = false; // prevents visit count incrementing more than once per session
 async function renderPennyTab() {
   const area = document.getElementById('penny-interaction-area');
   if (!area) return;
@@ -8624,6 +8625,14 @@ async function renderPennyTabInto(area) {
   area.className = 'penny-loading';
   area.innerHTML = '<p style="font-family:\'Playfair Display\',serif;font-style:italic;color:rgba(240,180,41,.5);font-size:14px;text-align:center;padding:2rem 1.5rem;">…</p>';
 
+  // Auto-load identity from cookie if profile tab hasn't been opened this session
+  if (!_profileIdentity || !_profileIdentity.key) {
+    const saved = loadIdentityCookie();
+    if (saved && (saved.email || saved.discord)) {
+      _profileIdentity = { email: saved.email || '', discord: saved.discord || '', key: pgKey(saved.email, saved.discord) };
+    }
+  }
+
   // Check visit history
   let isFirstVisit = true;
   let memberName = '';
@@ -8636,8 +8645,13 @@ async function renderPennyTabInto(area) {
       const data = snap.exists() ? snap.data() : {};
       const memberKey = _profileIdentity.key;
       const prev = (data[memberKey] || {});
-      newCount = (prev.visitCount || 0) + 1;
-      await fbSet(PENNY_REF, { [memberKey]: { visitCount: newCount, lastVisit: Date.now() } });
+      if (!_pennyCountedThisSession) {
+        newCount = (prev.visitCount || 0) + 1;
+        await fbSet(PENNY_REF, { [memberKey]: { visitCount: newCount, lastVisit: Date.now() } });
+        _pennyCountedThisSession = true;
+      } else {
+        newCount = prev.visitCount || 1;
+      }
       isFirstVisit = (newCount === 1);
       memberName = _profileIdentity.discord || _profileIdentity.email || '';
       lastRec = prev.lastRec || null;
@@ -9451,11 +9465,11 @@ function _pennyMaybeStacksHint(state) {
   }
 
   if (Math.random() >= chance) return '';
-  const line = _pennyBuildStacksHint();
+  const line = _pennyBuildStacksHint(visits);
   if (!line) return '';
   return `<p class="penny-speech" style="margin-top:.6rem;color:rgba(180,60,60,.8);font-style:italic;">${line}</p>`;
 }
-function _pennyBuildStacksHint() {
+function _pennyBuildStacksHint(visits = 2) {
   let hasFound = false, hasAide = false, hasHistorian = false;
   if (_profileIdentity && _profileIdentity.key) {
     const overrides = (getBadgeConfig().overrides || {})[_profileIdentity.key] || {};
@@ -9465,11 +9479,26 @@ function _pennyBuildStacksHint() {
   }
   let hintLines;
   if (!hasFound) {
-    hintLines = [
+    const cryptic = [
       `Some members have been coming here for months and still haven't seen everything.`,
       `Have you ever wondered what's in the back rooms around here? I have. I love exploring.`,
-      `I've worked in a lot of shops. The interesting ones always have a back.`
+      `I've worked in a lot of shops. The interesting ones always have a back.`,
+      `Most people come in, get their book, and leave. Nothing wrong with that. But some people poke around first.`,
+      `There are rooms in this place even I don't fully understand yet. And in the most unusual places...`,
+      `Kaitlin built this place a lot bigger than anyone realizes. It's got more to it than just what you can see.`,
+      `I've never worked somewhere so thoroughly stocked. Some of it took me a while to find.`,
+      `Do you ever just… poke around? In a new place? I always do. Can't help it.`,
+      `I used to think I knew every corner of this place. Then I found another one.`
     ];
+    const nudge = [
+      `I always pay attention to the small text. The bits people don't bother to read. Those are usually the interesting ones.`,
+      `When I first arrived here, I spent a long time just reading the sign out front. There's more to it than you'd think.`,
+      `Someone put a lot of care into the details of this place. Even the parts that just sit there looking decorative.`,
+      `Kaitlin's got a sense of humor about things. You notice it if you slow down and actually look at what she's put where.`,
+      `I have a habit — when I don't know what I want, I start at the top of the shelf and work my way down. I've never actually made it past the first one.`
+    ];
+    // visits 2-4: cryptic only. visits 5+: draw from full pool
+    hintLines = (visits >= 5) ? [...cryptic, ...nudge] : cryptic;
   } else if (!hasAide) {
     hintLines = [
       `You found it. Good. Now the real question is whether you're going to do anything about it.`,
