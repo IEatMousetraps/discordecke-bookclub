@@ -1079,6 +1079,31 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   margin-top: .3rem;
 }
 
+/* card catalog zones */
+.penny-catalog-zones {
+  max-width: 520px;
+  width: calc(100% - 3rem);
+  margin: 0 1.5rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+  position: relative;
+  z-index: 2;
+}
+.penny-catalog-zone-row {
+  display: flex;
+  gap: .4rem;
+  justify-content: center;
+}
+.penny-catalog-zone-top .penny-catalog-drawer,
+.penny-catalog-zone-bottom .penny-catalog-drawer {
+  width: 100%;
+  max-width: 180px;
+}
+.penny-catalog-zone-middle .penny-catalog-drawer {
+  flex: 1;
+}
+
 /* card catalog drawers */
 .penny-catalog-drawers {
   display: flex;
@@ -8699,10 +8724,10 @@ function _pennyShowRecommendation(area, book, fromBranch) {
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
-        <span class="penny-action">She places the book on the desk in front of you.</span>
-        <p class="penny-speech">Here. This one.</p>
-        <span class="penny-action" style="margin-top:.4rem;">She leans forward slightly.</span>
+        <span class="penny-action">She pauses, then leans forward slightly.</span>
+        <p class="penny-speech">Let me tell you a little something about this one before you go...</p>
         <p class="penny-speech">${fact}</p>
+        <span class="penny-action" style="margin-top:.4rem;">She slides the recommendation card across the desk.</span>
       </div>
     </div>
     <div class="penny-rec-card">
@@ -8774,7 +8799,7 @@ window.pennyDecline = pennyDecline;
 
 // ── Branch 1: Trust ──────────────────────────────────
 function _pennyBranchTrust(area) {
-  const pool = _pennyBuildPool().filter(b => !b.isWinner);
+  const pool = _pennyBuildPool();
   const excluded = area._pennyExcluded || [];
   const available = pool.filter(b => !excluded.includes(b.id));
   if (!available.length) {
@@ -8786,113 +8811,157 @@ function _pennyBranchTrust(area) {
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
-        <span class="penny-action">Penny disappears briefly into the stacks. A moment passes. She returns with quiet triumph.</span>
+        <span class="penny-action">Penny disappears briefly into the stacks. A moment passes.</span>
+        <span class="penny-action" style="margin-top:.4rem;">She returns and places the book on the desk in front of you with quiet triumph.</span>
         <p class="penny-speech">Here. This one. I knew it the moment you walked in the door.</p>
       </div>
     </div>
-    <p class="penny-closer" style="margin-top:.5rem;margin-bottom:1.5rem;">She sets the book on the desk.</p>
   `;
-  setTimeout(() => _pennyShowRecommendation(area, book, 'trust'), 800);
+  setTimeout(() => _pennyShowRecommendation(area, book, 'trust'), 1000);
 }
 
 // ── Branch 2: Card Catalog ───────────────────────────
+const PENNY_CATALOG_ZONES = [
+  { id: 'top',    label: 'Top',      reaction: 'The top drawers. Ambitious.' },
+  { id: 'left',   label: 'Far Left', reaction: 'Far left. Interesting instinct.' },
+  { id: 'center', label: 'Center',   reaction: 'The center. Very decisive of you.' },
+  { id: 'right',  label: 'Far Right',reaction: 'Far right. I like the commitment.' },
+  { id: 'bottom', label: 'Bottom',   reaction: 'The bottom drawers. Most people skip those.' }
+];
+
 function _pennyBranchCatalog(area) {
   const aid = area.id;
-  // Build letter groups from pool
-  const pool = _pennyBuildPool();
-  const excluded = area._pennyExcluded || [];
-  const available = pool.filter(b => !excluded.includes(b.id));
-  // Group by first letter of title (ignore leading "The ", "A ", "An ")
-  const normalize = t => t.replace(/^(the |a |an )/i,'').trim();
-  const byLetter = {};
-  available.forEach(b => {
-    const letter = normalize(b.title)[0]?.toUpperCase() || '#';
-    if (!byLetter[letter]) byLetter[letter] = [];
-    byLetter[letter].push(b);
-  });
-  const letters = Object.keys(byLetter).sort();
-
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
-        <span class="penny-action">Penny smiles and gestures toward the card catalog on the wall behind her.</span>
-        <p class="penny-speech">Ooh, the card catalog. Bold choice. Let's see what fate has in store...</p>
-        <span class="penny-action" style="margin-top:.4rem;">She steps aside. The catalog waits.</span>
-        <p class="penny-speech">Pick a drawer. Any drawer.</p>
+        <span class="penny-action">Penny's face lights up.</span>
+        <p class="penny-speech">Ah, the catalog! Good instinct. Let the library guide you. Pick a card from any one of the drawers. Once you have your card, bring it to me and we'll find your book.</p>
+        <span class="penny-action" style="margin-top:.4rem;">She steps aside and gestures toward the card catalog on the wall behind her. It's a beautiful old thing — dozens of small wooden drawers, each with a tiny brass handle.</span>
       </div>
     </div>
-    <div class="penny-catalog-drawers">
-      ${letters.map(l => `<button class="penny-catalog-drawer" onclick="pennyCatalogPick('${l}','${aid}')">${l}</button>`).join('')}
+    <div class="penny-catalog-zones">
+      <div class="penny-catalog-zone-row penny-catalog-zone-top">
+        <button class="penny-catalog-drawer" onclick="pennyCatalogPick('top','${aid}')">Top</button>
+      </div>
+      <div class="penny-catalog-zone-row penny-catalog-zone-middle">
+        <button class="penny-catalog-drawer" onclick="pennyCatalogPick('left','${aid}')">Far Left</button>
+        <button class="penny-catalog-drawer" onclick="pennyCatalogPick('center','${aid}')">Center</button>
+        <button class="penny-catalog-drawer" onclick="pennyCatalogPick('right','${aid}')">Far Right</button>
+      </div>
+      <div class="penny-catalog-zone-row penny-catalog-zone-bottom">
+        <button class="penny-catalog-drawer" onclick="pennyCatalogPick('bottom','${aid}')">Bottom</button>
+      </div>
     </div>
     <p class="penny-closer">The catalog has never steered me wrong.</p>
   `;
 }
 
-function pennyCatalogPick(letter, areaId) {
+function pennyCatalogPick(zone, areaId) {
   const area = document.getElementById(areaId);
   if (!area) return;
   const pool = _pennyBuildPool();
   const excluded = area._pennyExcluded || [];
-  const normalize = t => t.replace(/^(the |a |an )/i,'').trim();
-  const available = pool.filter(b => !excluded.includes(b.id) && normalize(b.title)[0]?.toUpperCase() === letter);
+  const available = pool.filter(b => !excluded.includes(b.id));
   if (!available.length) {
-    area.querySelector('.penny-catalog-drawers') && (area.querySelector('.penny-catalog-drawers').innerHTML = `<p class="penny-door-prompt">That drawer seems to be empty. Try another.</p>`);
+    area.innerHTML = `<div class="penny-storybook"><div class="penny-storybook-inner"><p class="penny-speech">Oh my. I think we've gone through quite a few. Come back another time.</p></div></div>`;
     return;
   }
+  const zoneData = PENNY_CATALOG_ZONES.find(z => z.id === zone) || PENNY_CATALOG_ZONES[2];
   const book = available[Math.floor(Math.random() * available.length)];
+
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
-        <span class="penny-action">Penny watches which drawer you open. Her eyebrows go up.</span>
-        <p class="penny-speech">Ah — ${letter}. Interesting. Very interesting.</p>
-        <span class="penny-action" style="margin-top:.4rem;">She turns to the stacks, finds the book quickly — like she already knew.</span>
+        <span class="penny-action">You reach out and pull open a drawer from the ${zoneData.label.toLowerCase()}. Inside is a single card. You take it and bring it back to the desk.</span>
+        <span class="penny-action" style="margin-top:.4rem;">Penny takes it from you, turns it over, and studies it for a moment.</span>
+        <p class="penny-speech">Now let's see what we have here... oh!! Oh this is a <em>good</em> one. Give me just a moment.</p>
+        <span class="penny-action" style="margin-top:.4rem;">She disappears briefly into the stacks. She returns holding a book and places it on the desk in front of you with quiet triumph.</span>
+        <p class="penny-speech">See? The catalog knew. It always knows.</p>
       </div>
     </div>
-    <p class="penny-closer" style="margin-top:.5rem;margin-bottom:1.5rem;">She sets it on the desk. "The catalog knew. It always knows."</p>
   `;
-  setTimeout(() => _pennyShowRecommendation(area, book, 'catalog'), 900);
+  setTimeout(() => _pennyShowRecommendation(area, book, 'catalog'), 1000);
 }
 window.pennyCatalogPick = pennyCatalogPick;
 
 // ── Branch 3: Quiz ───────────────────────────────────
-const PENNY_QUIZ = [
+// Pool of 7 questions — Penny picks 3 randomly, then always asks the closer last
+const PENNY_QUIZ_POOL = [
   {
-    q: 'When you sit down with a book, what are you really looking for?',
+    id: 'q1', q: 'How are you feeling right now, honestly?',
     options: [
-      { label: 'To escape somewhere completely different', tag: 'escape' },
-      { label: 'To understand something I couldn\'t on my own', tag: 'learn' },
-      { label: 'To feel something — anything', tag: 'emotional' },
-      { label: 'To be kept on the edge of my seat', tag: 'tension' }
+      { label: 'Cozy and calm',        tag: 'cozy' },
+      { label: 'Restless and ready',   tag: 'restless' },
+      { label: 'A little overwhelmed', tag: 'overwhelmed' },
+      { label: 'Honestly? Undefined',  tag: 'undefined' }
     ]
   },
   {
-    q: 'How do you feel about a slow start?',
+    id: 'q2', q: 'What do you need from a book right now?',
     options: [
-      { label: 'Fine — I trust the author', tag: 'patient' },
-      { label: 'Nervous, but I\'ll give it a chapter or two', tag: 'patient' },
-      { label: 'I need something to hook me early', tag: 'fastpaced' },
-      { label: 'I\'ve DNF\'d books for less', tag: 'fastpaced' }
+      { label: 'To escape completely',              tag: 'escape' },
+      { label: 'To think about something real',     tag: 'learn' },
+      { label: 'To feel something',                 tag: 'emotional' },
+      { label: 'To be entertained, nothing more',   tag: 'entertainment' }
     ]
   },
   {
-    q: 'What did the last book you loved do that you weren\'t expecting?',
+    id: 'q3', q: 'How do you feel about a challenge?',
     options: [
-      { label: 'It surprised me with the ending', tag: 'twist' },
-      { label: 'It made me care about characters I didn\'t expect to', tag: 'emotional' },
-      { label: 'It changed how I think about something real', tag: 'learn' },
-      { label: 'It pulled me in and didn\'t let go', tag: 'tension' }
+      { label: 'Bring it on',                   tag: 'challenge' },
+      { label: 'Medium. I\'m not a hero',       tag: 'medium' },
+      { label: 'I\'d prefer comfortable',       tag: 'easy' },
+      { label: 'I don\'t know yet, surprise me',tag: 'any' }
     ]
   },
   {
-    q: 'Be honest. What\'s your relationship with non-fiction?',
+    id: 'q4', q: 'How much time are you willing to give this?',
     options: [
-      { label: 'I love it — give me facts and ideas', tag: 'nonfiction' },
-      { label: 'It depends on the subject', tag: 'mixed' },
-      { label: 'I prefer fiction but I\'ll read it', tag: 'mixed' },
-      { label: 'I\'m here to escape, not study', tag: 'fiction' }
+      { label: 'I\'ll read anything, length doesn\'t scare me', tag: 'anyLength' },
+      { label: 'Medium length please',                          tag: 'medium' },
+      { label: 'Short and good',                               tag: 'short' },
+      { label: 'I genuinely have no idea',                     tag: 'any' }
+    ]
+  },
+  {
+    id: 'q5', q: 'How do you feel about the club\'s taste generally?',
+    options: [
+      { label: 'I trust it completely',     tag: 'trustClub' },
+      { label: 'Hit or miss, honestly',     tag: 'mixed' },
+      { label: 'I usually disagree',        tag: 'contrarian' },
+      { label: 'I\'ve never thought about it', tag: 'any' }
+    ]
+  },
+  {
+    id: 'q6', q: 'How adventurous are you feeling about genre?',
+    options: [
+      { label: 'Completely open, anything goes',  tag: 'adventurous' },
+      { label: 'Familiar territory please',       tag: 'familiar' },
+      { label: 'Surprise me but don\'t scare me', tag: 'gentle' },
+      { label: 'I have a type and I know it',     tag: 'specific' }
+    ]
+  },
+  {
+    id: 'q8', q: 'When a book gets a lot of buzz, how do you feel about it?',
+    options: [
+      { label: 'I\'m first in line — I love the excitement',          tag: 'hyped' },
+      { label: 'I\'ll get to it eventually',                          tag: 'casual' },
+      { label: 'I actively avoid anything too popular',               tag: 'contrarian' },
+      { label: 'I never know what\'s popular until after I\'ve read it', tag: 'oblivious' }
     ]
   }
 ];
+
+// Always the final question
+const PENNY_QUIZ_CLOSER = {
+  id: 'q7', q: 'Last question. And this one is important. Which one of these best describes you?',
+  options: [
+    { label: 'I finish what I start, no matter what',         tag: 'finisher' },
+    { label: 'I have approximately forty things on the go at once', tag: 'multireader' },
+    { label: 'I need a recommendation or I\'ll never decide', tag: 'indecisive' },
+    { label: 'I always think the movie was pretty good too',  tag: 'filmlover' }
+  ]
+};
 
 function _pennyBranchQuiz(area) {
   const aid = area.id;
@@ -8914,14 +8983,25 @@ function pennyQuizStart(areaId) {
   const area = document.getElementById(areaId);
   if (!area) return;
   area._pennyQuizAnswers = [];
+  // Pick 3 random questions from pool, then always append the closer
+  const pool = [...PENNY_QUIZ_POOL];
+  const picked = [];
+  while (picked.length < 3 && pool.length) {
+    const idx = Math.floor(Math.random() * pool.length);
+    picked.push(pool.splice(idx, 1)[0]);
+  }
+  picked.push(PENNY_QUIZ_CLOSER);
+  area._pennyQuizQuestions = picked;
   _pennyQuizQuestion(area, 0);
 }
 window.pennyQuizStart = pennyQuizStart;
 
 function _pennyQuizQuestion(area, qIndex) {
   const aid = area.id;
-  const q = PENNY_QUIZ[qIndex];
-  const total = PENNY_QUIZ.length;
+  const questions = area._pennyQuizQuestions || [];
+  const q = questions[qIndex];
+  if (!q) { _pennyQuizFinish(area); return; }
+  const total = questions.length;
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
@@ -8945,7 +9025,7 @@ function pennyQuizAnswer(areaId, qIndex, tag, el) {
   area._pennyQuizAnswers.push(tag);
 
   const nextIndex = qIndex + 1;
-  if (nextIndex < PENNY_QUIZ.length) {
+  if (nextIndex < (area._pennyQuizQuestions || []).length) {
     // Brief reaction before next question
     const reactions = [
       'She nods and makes a note.',
@@ -8978,31 +9058,32 @@ function _pennyQuizFinish(area) {
   const excluded = area._pennyExcluded || [];
   const available = pool.filter(b => !excluded.includes(b.id));
 
-  // Score books against quiz answers
-  // Tags: escape, learn, emotional, tension, patient, fastpaced, twist, nonfiction, mixed, fiction
-  const wantNonFiction = answers.includes('nonfiction');
-  const wantFiction = answers.includes('fiction') || answers.includes('escape');
-  const wantTension = answers.filter(a => a === 'tension').length >= 1;
-  const wantEmotional = answers.filter(a => a === 'emotional').length >= 1;
-  const wantLearn = answers.filter(a => a === 'learn').length >= 1;
+  const wantEscape = answers.includes('escape') || answers.includes('cozy');
+  const wantLearn = answers.includes('learn') || answers.includes('overwhelmed');
+  const wantEmotional = answers.includes('emotional') || answers.includes('undefined');
+  const wantLight = answers.includes('entertainment') || answers.includes('filmlover');
+  const wantContrarian = answers.includes('contrarian');
+  const wantHyped = answers.includes('hyped');
+  const wantShort = answers.includes('short');
 
-  const nonfictionGenres = ['Non-Fiction','Self-Help / Personal Growth','Biography','History'];
-  const tensionGenres = ['Thriller / Suspense','Mystery','Horror','Crime'];
-  const emotionalGenres = ['Fiction','Literary Fiction','Romance','Drama'];
+  const nonfictionGenres = ['Non-Fiction','Self-Help / Personal Growth'];
+  const emotionalGenres = ['Fiction','Literary Fiction','Romance'];
+  const lightGenres = ['Humour','Graphic Novel','Short Stories'];
 
   const scored = available.map(b => {
-    let score = 0;
+    let score = Math.random() * 1.5; // base randomness keeps it fresh
     const genre = b.genre || '';
-    if (wantNonFiction && nonfictionGenres.some(g => genre.includes(g))) score += 3;
-    if (wantFiction && !nonfictionGenres.some(g => genre.includes(g))) score += 2;
-    if (wantTension && tensionGenres.some(g => genre.includes(g))) score += 3;
+    if (wantLearn && nonfictionGenres.some(g => genre.includes(g))) score += 2;
     if (wantEmotional && emotionalGenres.some(g => genre.includes(g))) score += 2;
-    if (wantLearn) score += 1; // most books teach something
-    // Add some randomness so it doesn't always pick the same book
-    score += Math.random() * 2;
+    if (wantLight && lightGenres.some(g => genre.includes(g))) score += 2;
+    if (wantEscape && !nonfictionGenres.some(g => genre.includes(g))) score += 1;
+    if (wantShort && b.pageCount && b.pageCount < 250) score += 2;
+    // Hype filtering: use first-place vote count as proxy for "buzz"
+    // rankedByCount at rank 0 approximates first-place enthusiasm
+    if (wantHyped) score += (b.rankedByCount || 0) * 0.3;
+    if (wantContrarian) score += b.voterCount > 0 ? ((b.voterCount - (b.rankedByCount || 0)) * 0.3) : 0;
     return { book: b, score };
   });
-
   scored.sort((a, b) => b.score - a.score);
   const pick = scored[0]?.book;
 
@@ -9014,14 +9095,14 @@ function _pennyQuizFinish(area) {
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
-        <span class="penny-action">Penny reviews her notes. A moment passes. She closes the notepad.</span>
-        <p class="penny-speech">Right. Yes. I know exactly the one.</p>
-        <span class="penny-action" style="margin-top:.4rem;">She disappears into the stacks and returns quickly, placing a book on the desk.</span>
+        <span class="penny-action">Penny looks up from her notepad with a knowing expression.</span>
+        <p class="penny-speech">Just as I suspected. You're going to love this one. I just know it.</p>
+        <span class="penny-action" style="margin-top:.4rem;">She disappears briefly into the stacks. A moment passes. She returns and places the book on the desk in front of you.</span>
+        <p class="penny-speech">Here it is. You know... I think this one has been waiting for you.</p>
       </div>
     </div>
-    <p class="penny-closer" style="margin-top:.5rem;margin-bottom:1rem;">The quiz worked. It always works.</p>
   `;
-  setTimeout(() => _pennyShowRecommendation(area, pick, 'quiz'), 900);
+  setTimeout(() => _pennyShowRecommendation(area, pick, 'quiz'), 1000);
 }
 
 // ── Penny visibility & admin tools ────────────────────
