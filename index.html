@@ -8605,7 +8605,7 @@ function _pennyShowReturnGreeting(area, memberName) {
     return;
   }
 
-  // No pending follow-up — go straight to options
+  // No pending follow-up — show short return options intro
   const returnLines = [
     `Back again. Good.`,
     `I thought I heard the door. What is it this time?`,
@@ -8619,7 +8619,9 @@ function _pennyShowReturnGreeting(area, memberName) {
       <div class="penny-storybook-inner">
         <span class="penny-action">${scenario.return}</span>
         <p class="penny-speech">${returnLine}</p>
-        <p class="penny-speech">What can I do for you?</p>
+        <p class="penny-speech">Another recommendation? Same three ways as before — I can just give you one, let the catalog decide, or ask you a few questions first.</p>
+        <span class="penny-action" style="margin-top:.4rem;">She gives a small conspiratorial smile.</span>
+        <p class="penny-speech">The quiz is... well. It's still my favorite. Just putting that out there.</p>
       </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
