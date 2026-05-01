@@ -8795,18 +8795,23 @@ function _pennyShowRecommendation(area, book, fromBranch) {
   const aid = area.id;
   const suggester = (book.suggesters || []).find(s => s.discord || s.email);
   const suggesterName = suggester ? (suggester.discord || suggester.email || '') : '';
-  const fact = _pennyPickFact(book);
+  const isHistorical = book.id.startsWith('hist_');
   const quote = PENNY_CARD_QUOTES[Math.floor(Math.random() * PENNY_CARD_QUOTES.length)];
 
   // Store the recommendation so return visits can reference it
   area._pennyLastRec = book;
+
+  // Historical books get a warm personal disclosure instead of data facts
+  const factSection = isHistorical
+    ? `<p class="penny-speech">I should mention — I don't have the club's voting record on this one. It came through before things were tracked the way they are now. But I read it, and I think you should too.</p>`
+    : `<p class="penny-speech">${_pennyPickFact(book)}</p>`;
 
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
         <span class="penny-action">She pauses, then leans forward slightly.</span>
         <p class="penny-speech">Let me tell you a little something about this one before you go...</p>
-        <p class="penny-speech">${fact}</p>
+        ${factSection}
         <span class="penny-action" style="margin-top:.4rem;">She slides the recommendation card across the desk.</span>
       </div>
     </div>
@@ -8835,6 +8840,58 @@ function pennyAccept(areaId) {
   if (_profileIdentity && _profileIdentity.key && area._pennyLastRec) {
     fbSet(PENNY_REF, { [_profileIdentity.key]: { lastRec: { title: area._pennyLastRec.title, month: area._pennyLastRec.month, ts: Date.now() } } }).catch(()=>{});
   }
+
+  // Rare stacks hint — only on return visits, ~1 in 20 chance
+  const state = area._pennyState || {};
+  const showStacksHint = !state.isFirstVisit && Math.random() < 0.05;
+
+  let stacksHint = '';
+  if (showStacksHint) {
+    // Check which easter egg badges the member has earned
+    let hasFound = false, hasAide = false, hasHistorian = false;
+    if (_profileIdentity && _profileIdentity.key) {
+      const overrides = (getBadgeConfig().overrides || {})[_profileIdentity.key] || {};
+      hasFound     = !!(overrides['ee_found']     ?.granted);
+      hasAide      = !!(overrides['ee_librarian']  ?.granted);
+      hasHistorian = !!(overrides['ee_curator']    ?.granted);
+    }
+
+    let hintLines;
+    if (!hasFound) {
+      // Layer 1 — hasn't found the stacks yet
+      hintLines = [
+        `Some members have been coming here for months and still haven't seen everything.`,
+        `Have you ever wondered what's in the back rooms around here? I have. I love exploring.`,
+        `I've worked in a lot of shops. The interesting ones always have a back.`
+      ];
+    } else if (!hasAide) {
+      // Layer 2 — found it but hasn't reshelved all books
+      hintLines = [
+        `You found it. Good. Now the real question is whether you're going to do anything about it.`,
+        `The mess doesn't fix itself, you know. I've tried waiting.`,
+        `Someone left things in quite a state back there. I keep meaning to deal with it.`,
+        `A library only works if the books are where they're supposed to be. Just a thought.`
+      ];
+    } else if (!hasHistorian) {
+      // Layer 3 — reshelved but not in order
+      hintLines = [
+        `Close. But a library isn't just about putting things away — it's about putting them in the right place.`,
+        `Someone once told me the order of things matters as much as the things themselves. I think about that a lot.`,
+        `The books are back, but they're telling the wrong story. Order matters more than you'd think.`,
+        `History has a sequence. The shelf should too.`,
+        `Almost. There's a difference between tidy and correct.`
+      ];
+    } else {
+      // All badges earned — no hint needed
+      hintLines = [];
+    }
+
+    if (hintLines.length) {
+      const line = hintLines[Math.floor(Math.random() * hintLines.length)];
+      stacksHint = `<p class="penny-closer" style="margin-top:.75rem;font-size:13px;color:rgba(240,180,41,.6);max-width:400px;margin-left:auto;margin-right:auto;text-align:center;">${line}</p>`;
+    }
+  }
+
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
@@ -8846,6 +8903,7 @@ function pennyAccept(areaId) {
       </div>
     </div>
     <p class="penny-closer">The door closes softly behind you.</p>
+    ${stacksHint}
   `;
 }
 window.pennyAccept = pennyAccept;
@@ -8879,7 +8937,7 @@ window.pennyDecline = pennyDecline;
 
 // ── Branch 1: Trust ──────────────────────────────────
 function _pennyBranchTrust(area) {
-  const pool = _pennyBuildPool();
+  const pool = _pennyBuildPool(); // full pool — historical included
   const excluded = area._pennyExcluded || [];
   if (!available.length) {
     area.innerHTML = `<div class="penny-storybook"><div class="penny-storybook-inner"><p class="penny-speech">Oh my. I think we've gone through quite a few already. Come back another time — I'll have fresh ideas.</p></div></div>`;
@@ -9133,9 +9191,32 @@ window.pennyQuizAnswer = pennyQuizAnswer;
 
 function _pennyQuizFinish(area) {
   const answers = area._pennyQuizAnswers || [];
-  const pool = _pennyBuildPool();
   const excluded = area._pennyExcluded || [];
-  const available = pool.filter(b => !excluded.includes(b.id));
+
+  // Quiz uses live archive pool only — historical books are wildcards, not data-scored
+  const fullPool = _pennyBuildPool();
+  const historical = fullPool.filter(b => b.id.startsWith('hist_') && !excluded.includes(b.id));
+  const livePool = fullPool.filter(b => !b.id.startsWith('hist_') && !excluded.includes(b.id));
+
+  // Detect openness signals — if the member is broadly open, historical wildcard is eligible
+  const opensignals = ['any','adventurous','undefined','oblivious','gentle'];
+  const memberIsOpen = answers.some(a => opensignals.includes(a));
+  // 25% wildcard chance if open and historical books exist
+  if (memberIsOpen && historical.length && Math.random() < 0.25) {
+    const wildcard = historical[Math.floor(Math.random() * historical.length)];
+    area.innerHTML = `
+      <div class="penny-storybook">
+        <div class="penny-storybook-inner">
+          <span class="penny-action">Penny looks up from her notepad. She pauses for a moment, tapping her pencil.</span>
+          <p class="penny-speech">You know what — the quiz is telling me one thing, but I keep thinking about something else entirely. Bear with me.</p>
+          <span class="penny-action" style="margin-top:.4rem;">She disappears into the stacks and returns with a book you weren't expecting.</span>
+          <p class="penny-speech">Here it is. You know... I think this one has been waiting for you.</p>
+        </div>
+      </div>
+    `;
+    setTimeout(() => _pennyShowRecommendation(area, wildcard, 'quiz'), 1000);
+    return;
+  }
 
   const wantEscape = answers.includes('escape') || answers.includes('cozy');
   const wantLearn = answers.includes('learn') || answers.includes('overwhelmed');
@@ -9149,16 +9230,14 @@ function _pennyQuizFinish(area) {
   const emotionalGenres = ['Fiction','Literary Fiction','Romance'];
   const lightGenres = ['Humour','Graphic Novel','Short Stories'];
 
-  const scored = available.map(b => {
-    let score = Math.random() * 1.5; // base randomness keeps it fresh
+  const scored = livePool.map(b => {
+    let score = Math.random() * 1.5;
     const genre = b.genre || '';
     if (wantLearn && nonfictionGenres.some(g => genre.includes(g))) score += 2;
     if (wantEmotional && emotionalGenres.some(g => genre.includes(g))) score += 2;
     if (wantLight && lightGenres.some(g => genre.includes(g))) score += 2;
     if (wantEscape && !nonfictionGenres.some(g => genre.includes(g))) score += 1;
     if (wantShort && b.pageCount && b.pageCount < 250) score += 2;
-    // Hype filtering: use first-place vote count as proxy for "buzz"
-    // rankedByCount at rank 0 approximates first-place enthusiasm
     if (wantHyped) score += (b.rankedByCount || 0) * 0.3;
     if (wantContrarian) score += b.voterCount > 0 ? ((b.voterCount - (b.rankedByCount || 0)) * 0.3) : 0;
     return { book: b, score };
@@ -12300,12 +12379,22 @@ if (location.hash === '#quarterly') {
 
     const hint = document.getElementById('ap-hint');
     if (hint) {
-      hint.textContent = 'Click the shelf to send the books tumbling — then drag them back where they belong.';
+      hint.textContent = 'The books are getting restless...';
       hint.classList.remove('fade-out');
     }
 
     overlay.classList.add('ap-visible');
     document.body.style.overflow = 'hidden';
+
+    // Auto-fall timer — books fall after 4 seconds if user hasn't clicked yet
+    const autoFallTimer = setTimeout(() => {
+      if (!hasFallen) knockBooks();
+    }, 4000);
+
+    // Clear the timer if user clicks first (knockBooks handles the hasFallen guard)
+    overlay.addEventListener('click', () => {
+      clearTimeout(autoFallTimer);
+    }, { once: true });
 
     // Small delay to ensure Firestore onSnapshot has populated CACHE.archives
     await new Promise(r => setTimeout(r, 300));
