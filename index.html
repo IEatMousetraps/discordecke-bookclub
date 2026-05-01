@@ -9833,11 +9833,28 @@ async function adminLoadMemberPennyData() {
     const lastRecTitle = record.lastRec?.title || null;
     const lastRecTs = record.lastRec?.ts || null;
     const lastRecAsked = record.lastRecAsked || false;
+    const visits = record.visitCount ?? 0;
+
+    // Compute current hint probability same logic as _pennyMaybeStacksHint
+    let hasFound = false;
+    const overrides = (getBadgeConfig().overrides || {})[memberKey] || {};
+    hasFound = !!(overrides['ee_found']?.granted);
+    let hintChance;
+    if (visits <= 1) {
+      hintChance = 0;
+    } else if (!hasFound) {
+      hintChance = Math.min(0.20 + (visits - 2) * 0.15, 0.70);
+    } else {
+      hintChance = 0.20;
+    }
+    const hintPct = Math.round(hintChance * 100);
+    const hintLabel = visits <= 1 ? 'N/A (first visit)' : `${hintPct}% per goodbye${hasFound ? ' (stacks found)' : ''}`;
     let html = `<div style="border:1px solid rgba(240,180,41,.18);border-radius:6px;padding:.75rem 1rem;background:rgba(0,0,0,.2);">`;
     html += `<p style="margin:0 0 .5rem;"><strong style="color:var(--fg);">${esc(memberName)}</strong></p>`;
     html += `<table style="width:100%;border-collapse:collapse;font-size:.83rem;">`;
-    html += `<tr><td style="padding:.2rem .5rem .2rem 0;color:var(--soft);width:140px;">Visit count</td><td style="color:var(--fg);">${record.visitCount ?? 0}</td></tr>`;
+    html += `<tr><td style="padding:.2rem .5rem .2rem 0;color:var(--soft);width:140px;">Visit count</td><td style="color:var(--fg);">${visits}</td></tr>`;
     html += `<tr><td style="padding:.2rem .5rem .2rem 0;color:var(--soft);">Last visit</td><td style="color:var(--fg);">${fmt(record.lastVisit)}</td></tr>`;
+    html += `<tr><td style="padding:.2rem .5rem .2rem 0;color:var(--soft);">Stacks hint chance</td><td style="color:${hintPct >= 50 ? '#c06060' : hintPct > 0 ? 'var(--gold)' : 'var(--soft)'};">${hintLabel}</td></tr>`;
     if (lastRecTitle) {
       html += `<tr><td style="padding:.2rem .5rem .2rem 0;color:var(--soft);">Last rec</td><td style="color:var(--fg);">${esc(lastRecTitle)}${lastRecTs ? ` <span style="color:var(--soft);font-size:.8em;">· ${fmt(lastRecTs)}</span>` : ''}</td></tr>`;
       html += `<tr><td style="padding:.2rem .5rem .2rem 0;color:var(--soft);">Follow-up asked</td><td style="color:var(--fg);">${lastRecAsked ? 'Yes' : 'Not yet'}</td></tr>`;
