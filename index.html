@@ -8647,7 +8647,19 @@ function _pennyBuildPool() {
   // A book is excluded if it won in ANY month, regardless of which month we're pulling it from
   const winningTitles = new Set();
   archives.forEach(a => {
-    const winnerIds = a.dualWinners ? a.dualWinners.map(String) : (a.winner ? [String(a.winner)] : []);
+    let winnerIds = a.dualWinners ? a.dualWinners.map(String) : (a.winner ? [String(a.winner)] : []);
+    // If no explicit winner stored, compute from votes (highest Borda score)
+    if (!winnerIds.length && a.votes && a.books && a.books.length) {
+      const nb = a.books.length;
+      const sc = {};
+      a.books.forEach(b => { sc[String(b.id)] = 0; });
+      Object.values(a.votes).forEach(vd => {
+        const r = vd.ranking || vd;
+        if (Array.isArray(r)) r.forEach((id, idx) => { if (sc[String(id)] !== undefined) sc[String(id)] += (nb - idx); });
+      });
+      const top = Object.entries(sc).sort((a, b) => b[1] - a[1]);
+      if (top.length) winnerIds = [top[0][0]];
+    }
     (a.books || []).forEach(b => {
       if (winnerIds.includes(String(b.id))) winningTitles.add(b.title.trim().toLowerCase());
     });
@@ -8820,7 +8832,7 @@ function _pennyShowRecommendation(area, book, fromBranch) {
       <div class="penny-rec-card-title">${esc(book.title)}</div>
       ${book.author ? `<div class="penny-rec-card-author">${esc(book.author)}</div>` : ''}
       <div class="penny-rec-card-meta">
-        ${suggesterName ? `Suggested by ${esc(suggesterName)}` : ''}${suggesterName && book.month ? ' · ' : ''}${book.month ? esc(book.month) : ''}
+        ${suggesterName ? `Suggested by ${esc(suggesterName)}` : ''}${suggesterName && book.month ? ' · ' : ''}${book.month ? esc(book.month.replace(/\s*[-–—].*$/, '').trim()) : ''}
       </div>
       <div class="penny-rec-card-quote">"${quote}"</div>
       <div class="penny-rec-card-sig">— Penny</div>
