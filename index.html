@@ -9194,6 +9194,7 @@ window.pennyDecline = pennyDecline;
 function _pennyBranchTrust(area) {
   const pool = _pennyBuildPool(); // full pool — historical included
   const excluded = area._pennyExcluded || [];
+  const available = pool.filter(b => !excluded.includes(b.id));
   if (!available.length) {
     area.innerHTML = `<div class="penny-storybook"><div class="penny-storybook-inner"><p class="penny-speech">Oh my. I think we've gone through quite a few already. Come back another time — I'll have fresh ideas.</p></div></div>`;
     return;
