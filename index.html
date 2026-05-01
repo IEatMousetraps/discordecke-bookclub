@@ -1230,7 +1230,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   <button data-tab="rankings" onclick="goTab('rankings',this)">2026 Books</button>
   <button data-tab="analysis" onclick="goTab('analysis',this)">Book Club Metrics</button>
   <button data-tab="quarterly" id="quarterly-nav-btn" onclick="goTab('quarterly',this)" style="display:none;">🎯 Quarterly Activity</button>
-  <button data-tab="penny" id="penny-nav-btn" onclick="goTab('penny',this)">📚 Penny's</button>
+  <button data-tab="penny" id="penny-nav-btn" onclick="goTab('penny',this)">🍵 Penny's</button>
 </nav>
 
 <main id="app-main">
@@ -1530,7 +1530,20 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       <path d="M92 132 L114 132 L120 152 L84 152 Z" fill="#7a5530" opacity="0.6"/>
       <path d="M84 155 L122 155 L136 205 L70 205 Z" fill="#f0b429" opacity="0.05"/>
       <ellipse cx="103" cy="204" rx="26" ry="4" fill="#f0b429" opacity="0.09"/>
-      <!-- Desk -->
+      <!-- Chair — drawn before desk so desk edge occludes the bottom -->
+      <!-- Left arm -->
+      <rect x="196" y="178" width="9" height="30" rx="3" fill="#5a3e20"/>
+      <rect x="194" y="175" width="13" height="6" rx="3" fill="#6b4b26"/>
+      <!-- Right arm -->
+      <rect x="239" y="178" width="9" height="30" rx="3" fill="#5a3e20"/>
+      <rect x="237" y="175" width="13" height="6" rx="3" fill="#6b4b26"/>
+      <!-- Back cushion -->
+      <rect x="198" y="130" width="48" height="74" rx="7" fill="#5a3e20"/>
+      <rect x="201" y="133" width="42" height="69" rx="5" fill="#6b4b26"/>
+      <line x1="202" y1="165" x2="242" y2="165" stroke="#4a3018" stroke-width="1" opacity="0.3"/>
+      <line x1="222" y1="134" x2="222" y2="200" stroke="#4a3018" stroke-width="1" opacity="0.25"/>
+      <rect x="208" y="135" width="27" height="5" rx="2" fill="#7a5530" opacity="0.35"/>
+      <!-- Desk drawn over chair bottom -->
       <rect x="38" y="202" width="304" height="9" rx="2" fill="#4a3018"/>
       <rect x="38" y="209" width="304" height="11" rx="1" fill="#3a2410"/>
       <!-- Books on desk -->
@@ -1538,19 +1551,6 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       <rect x="154" y="176" width="9" height="26" rx="1" fill="#c8853a" opacity="0.8"/>
       <rect x="164" y="183" width="7" height="19" rx="1" fill="#f0b429" opacity="0.5"/>
       <rect x="172" y="178" width="8" height="24" rx="1" fill="#8a5a20" opacity="0.7"/>
-      <!-- Chair -->
-      <!-- seat -->
-      <rect x="196" y="168" width="52" height="8" rx="2" fill="#4a3018"/>
-      <!-- back rest -->
-      <rect x="200" y="128" width="44" height="6" rx="2" fill="#4a3018"/>
-      <!-- back uprights -->
-      <rect x="204" y="134" width="6" height="34" rx="2" fill="#3a2410"/>
-      <rect x="234" y="134" width="6" height="34" rx="2" fill="#3a2410"/>
-      <!-- legs -->
-      <rect x="200" y="176" width="5" height="26" rx="2" fill="#3a2410"/>
-      <rect x="239" y="176" width="5" height="26" rx="2" fill="#3a2410"/>
-      <!-- chair shadow -->
-      <ellipse cx="222" cy="203" rx="28" ry="3" fill="#1a1208" opacity="0.4"/>
     </svg>
   </div>
 
