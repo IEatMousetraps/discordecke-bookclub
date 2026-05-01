@@ -8434,9 +8434,10 @@ const PENNY_SCENARIOS = [
   },
   {
     // Scenario 3: Tea and sorting
-    entering: 'The door swings open. The smell of tea hits you before anything else. A woman in glasses is at a wooden desk in the corner, mid-pour, a small pot in one hand and a stack of books beside her.',
-    action:   'She looks up.',
+    entering: 'The door swings open. The smell of tea hits you before anything else. A woman in glasses is at a wooden desk in the corner, mid-pour, a small pot in one hand and a stack of books beside her. She looks up.',
+    action:   'You give a sheepish wave.',
     prompt:   '',
+    startle:  'She sets the pot down carefully and gives you a warm, unhurried smile.',
     greeting: 'Come in, come in — I just made tea. I\'d offer you some but I only have the one cup, which in retrospect was poor planning.',
     setup:    'She gestures to the space around her with the easy confidence of someone who has arranged it exactly as she likes it.',
     return:   'Penny is at the desk with a cup of tea and an open book. She looks up when you come in and sets the cup down.'
@@ -8496,11 +8497,8 @@ async function renderPennyTabInto(area) {
   // Store state on the area element so stage functions can read it
   area._pennyState = { isFirstVisit, memberName };
 
-  if (isFirstVisit) {
-    _pennyShowDoor(area);
-  } else {
-    _pennyShowReturnGreeting(area, memberName);
-  }
+  // Always start at the door — first visit or return
+  _pennyShowDoor(area);
 }
 
 function _pennyShowDoor(area) {
@@ -8531,6 +8529,8 @@ function pennyAdvance(stage, areaId) {
   if (stage === 'entering') {
     const scenario = PENNY_SCENARIOS[Math.floor(Math.random() * PENNY_SCENARIOS.length)];
     area._pennyScenario = scenario;
+    const isFirstVisit = (area._pennyState || {}).isFirstVisit !== false;
+    const nextStage = isFirstVisit ? 'greeting' : 'return-greeting';
     area.innerHTML = `
       <div class="penny-storybook">
         <div class="penny-storybook-inner">
@@ -8539,7 +8539,7 @@ function pennyAdvance(stage, areaId) {
       </div>
       <div style="text-align:center;padding:.5rem 1.5rem 1.5rem;">
         ${scenario.prompt ? `<p class="penny-door-prompt" style="margin-bottom:1.2rem;"><em>${scenario.prompt}</em></p>` : ''}
-        <button class="penny-action-btn" onclick="pennyAdvance('greeting','${aid}')">${scenario.action}</button>
+        <button class="penny-action-btn" onclick="pennyAdvance('${nextStage}','${aid}')">${scenario.action}</button>
       </div>
     `;
   } else if (stage === 'greeting') {
@@ -8558,6 +8558,8 @@ function pennyAdvance(stage, areaId) {
         <button class="penny-action-btn" onclick="pennyAdvance('options','${aid}')">"I'm here to find a book. I need something new to read."</button>
       </div>
     `;
+  } else if (stage === 'return-greeting') {
+    _pennyShowReturnGreeting(area, (area._pennyState || {}).memberName || '');
   } else if (stage === 'options') {
     _pennyShowOptions(area);
   }
