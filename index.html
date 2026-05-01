@@ -8755,6 +8755,7 @@ function pennyNotYetBranch(choice, areaId, el) {
             <span class="penny-action" style="margin-top:.4rem;">She leans on the desk warmly.</span>
             <p class="penny-speech">Come back and tell me what you thought when you're done. I mean it — I want to know.</p>
             <span class="penny-action" style="margin-top:.4rem;">She gives a small wave.</span>
+            ${_pennyMaybeStacksHint(area._pennyState)}
           </div>
         </div>
         <div style="text-align:center;padding:.5rem 1.5rem 1.5rem;">
@@ -8880,6 +8881,7 @@ function pennyJustStopping(areaId, el) {
           <p class="penny-speech">${s.line}</p>
           ${s.close ? `<span class="penny-action" style="margin-top:.4rem;">She smiles warmly.</span><p class="penny-speech">${s.close}</p>` : ''}
           <span class="penny-action" style="margin-top:.4rem;">She gives a small wave.</span>
+          ${_pennyMaybeStacksHint(area._pennyState)}
         </div>
       </div>
       <div style="text-align:center;padding:.5rem 1.5rem 1.5rem;">
@@ -9160,55 +9162,6 @@ function pennyAccept(areaId) {
 
   // Rare stacks hint — only on return visits, ~1 in 20 chance
   const state = area._pennyState || {};
-  const showStacksHint = !state.isFirstVisit && Math.random() < 0.2;
-
-  let stacksHint = '';
-  if (showStacksHint) {
-    // Check which easter egg badges the member has earned
-    let hasFound = false, hasAide = false, hasHistorian = false;
-    if (_profileIdentity && _profileIdentity.key) {
-      const overrides = (getBadgeConfig().overrides || {})[_profileIdentity.key] || {};
-      hasFound     = !!(overrides['ee_found']     ?.granted);
-      hasAide      = !!(overrides['ee_librarian']  ?.granted);
-      hasHistorian = !!(overrides['ee_curator']    ?.granted);
-    }
-
-    let hintLines;
-    if (!hasFound) {
-      // Layer 1 — hasn't found the stacks yet
-      hintLines = [
-        `Some members have been coming here for months and still haven't seen everything.`,
-        `Have you ever wondered what's in the back rooms around here? I have. I love exploring.`,
-        `I've worked in a lot of shops. The interesting ones always have a back.`
-      ];
-    } else if (!hasAide) {
-      // Layer 2 — found it but hasn't reshelved all books
-      hintLines = [
-        `You found it. Good. Now the real question is whether you're going to do anything about it.`,
-        `The mess doesn't fix itself, you know. I've tried waiting.`,
-        `Someone left things in quite a state back there. I keep meaning to deal with it.`,
-        `A library only works if the books are where they're supposed to be. Just a thought.`
-      ];
-    } else if (!hasHistorian) {
-      // Layer 3 — reshelved but not in order
-      hintLines = [
-        `Close. But a library isn't just about putting things away — it's about putting them in the right place.`,
-        `Someone once told me the order of things matters as much as the things themselves. I think about that a lot.`,
-        `The books are back, but they're telling the wrong story. Order matters more than you'd think.`,
-        `History has a sequence. The shelf should too.`,
-        `Almost. There's a difference between tidy and correct.`
-      ];
-    } else {
-      // All badges earned — no hint needed
-      hintLines = [];
-    }
-
-    if (hintLines.length) {
-      const line = hintLines[Math.floor(Math.random() * hintLines.length)];
-      stacksHint = `<p class="penny-closer" style="margin-top:.75rem;font-size:13px;color:rgba(180,60,60,.75);max-width:400px;margin-left:auto;margin-right:auto;text-align:center;">${line}</p>`;
-    }
-  }
-
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
@@ -9217,9 +9170,9 @@ function pennyAccept(areaId) {
         <span class="penny-action" style="margin-top:.4rem;">She straightens up the desk, then looks back at you warmly.</span>
         <p class="penny-speech">Come back and tell me what you thought, yes? I mean it. Good or bad — I want to know. The books and I will be here.</p>
         <span class="penny-action" style="margin-top:.4rem;">She gives a small wave as you head for the door.</span>
+        ${_pennyMaybeStacksHint(area._pennyState)}
       </div>
     </div>
-    ${stacksHint}
     <div style="text-align:center;padding:.5rem 1.5rem 1.5rem;">
       <button class="penny-action-btn" onclick="pennyWalkOut()">Walk out the front door.</button>
     </div>
@@ -9233,6 +9186,50 @@ window.pennyWalkOut = function() {
   if (area) _pennyShowDoor(area);
   goTab('submit', document.querySelector('nav button[data-tab=submit]'));
 };
+
+function _pennyMaybeStacksHint(state) {
+  const isReturn = state && state.isFirstVisit === false;
+  if (!isReturn || Math.random() >= 0.2) return '';
+  const line = _pennyBuildStacksHint();
+  if (!line) return '';
+  return `<p class="penny-speech" style="margin-top:.6rem;color:rgba(180,60,60,.8);font-style:italic;">${line}</p>`;
+}
+function _pennyBuildStacksHint() {
+  let hasFound = false, hasAide = false, hasHistorian = false;
+  if (_profileIdentity && _profileIdentity.key) {
+    const overrides = (getBadgeConfig().overrides || {})[_profileIdentity.key] || {};
+    hasFound     = !!(overrides['ee_found']     ?.granted);
+    hasAide      = !!(overrides['ee_librarian']  ?.granted);
+    hasHistorian = !!(overrides['ee_curator']    ?.granted);
+  }
+  let hintLines;
+  if (!hasFound) {
+    hintLines = [
+      `Some members have been coming here for months and still haven't seen everything.`,
+      `Have you ever wondered what's in the back rooms around here? I have. I love exploring.`,
+      `I've worked in a lot of shops. The interesting ones always have a back.`
+    ];
+  } else if (!hasAide) {
+    hintLines = [
+      `You found it. Good. Now the real question is whether you're going to do anything about it.`,
+      `The mess doesn't fix itself, you know. I've tried waiting.`,
+      `Someone left things in quite a state back there. I keep meaning to deal with it.`,
+      `A library only works if the books are where they're supposed to be. Just a thought.`
+    ];
+  } else if (!hasHistorian) {
+    hintLines = [
+      `Close. But a library isn't just about putting things away — it's about putting them in the right place.`,
+      `Someone once told me the order of things matters as much as the things themselves. I think about that a lot.`,
+      `The books are back, but they're telling the wrong story. Order matters more than you'd think.`,
+      `History has a sequence. The shelf should too.`,
+      `Almost. There's a difference between tidy and correct.`
+    ];
+  } else {
+    hintLines = [];
+  }
+  if (!hintLines.length) return null;
+  return hintLines[Math.floor(Math.random() * hintLines.length)];
+}
 
 function pennyDecline(areaId, fromBranch) {
   const area = document.getElementById(areaId);
