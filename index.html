@@ -8521,10 +8521,13 @@ function pennyAdvance(stage, areaId) {
           <span class="penny-action">${scenario.startle}</span>
           <p class="penny-speech">${scenario.greeting}</p>
           <span class="penny-action">${scenario.setup}</span>
+          <p class="penny-speech">I'm Penny, by the way. I run the recommended reading here. Kaitlin brought me on to help members find their next great read — she gave me access to all the club's records, so I know quite a lot about what's been suggested, how things voted, all of it. Very thorough operation you've got here.</p>
+          <span class="penny-action" style="margin-top:.4rem;">She leans forward with a conspiratorial smile.</span>
+          <p class="penny-speech">I should mention — I only recommend books that your fellow members have suggested. I make it my business to read everything that comes through. It's a lot, honestly, but I wouldn't have it any other way. This is why recommendations are so important — the more your members suggest, the larger my TBR grows!</p>
         </div>
       </div>
       <div style="text-align:center;padding:.5rem 1.5rem 1.5rem;">
-        <p class="penny-door-prompt" style="margin-bottom:1.2rem;"><em>What do you do?</em></p>
+        <p class="penny-door-prompt" style="margin-bottom:1.2rem;"><em>What do you say?</em></p>
         <button class="penny-action-btn" onclick="pennyAdvance('options','${aid}')">"I'm here to find a book. I need something new to read."</button>
       </div>
     `;
@@ -8555,7 +8558,7 @@ function _pennyShowReturnGreeting(area, memberName) {
       </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
-      <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you do?</em></p>
+      <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
       <button class="penny-action-btn" onclick="pennySelectOption('trust','${aid}',this)">"I trust you, Penny."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
@@ -8578,7 +8581,7 @@ function _pennyShowOptions(area) {
       </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
-      <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you do?</em></p>
+      <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
       <button class="penny-action-btn" onclick="pennySelectOption('trust','${aid}',this)">"I trust you, Penny."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
@@ -8610,7 +8613,6 @@ function _pennyBuildPool() {
   archives.forEach(a => {
     const winnerIds = a.dualWinners ? a.dualWinners.map(String) : (a.winner ? [String(a.winner)] : []);
     const nb = (a.books || []).length;
-    // Compute borda scores for this month
     const scores = {};
     (a.books || []).forEach(b => { scores[String(b.id)] = 0; });
     Object.values(a.votes || {}).forEach(vd => {
@@ -8622,17 +8624,22 @@ function _pennyBuildPool() {
     const voterCount = Object.keys(a.votes || {}).length;
     const maxScore = Math.max(...Object.values(scores), 0);
 
+    // Sort books by score to get rank positions
+    const sortedByScore = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+    const rankMap = {};
+    sortedByScore.forEach(([id], i) => { rankMap[id] = i + 1; });
+
     (a.books || []).forEach(b => {
       const bid = String(b.id);
       const bookScore = scores[bid] || 0;
       const isWinner = winnerIds.includes(bid);
-      // Count how many voters ranked this book
+      if (isWinner) return; // Penny only recommends non-winners
+
       let rankedByCount = 0;
       Object.values(a.votes || {}).forEach(vd => {
         const ranking = vd.ranking || vd;
         if (Array.isArray(ranking) && ranking.map(String).includes(bid)) rankedByCount++;
       });
-      // Count submissions (how many times this title appears across archives)
       let submissionCount = 0;
       archives.forEach(a2 => { (a2.books||[]).forEach(b2 => { if (b2.title === b.title) submissionCount++; }); });
 
@@ -8640,8 +8647,9 @@ function _pennyBuildPool() {
         id: bid, title: b.title, author: b.author || '',
         genre: b.genre || '', pageCount: b.pageCount || null,
         suggesters: (b.suggesters || [{ discord: b.discord||b.suggester||'', email: b.email||'' }]),
-        month: a.label, isWinner,
+        month: a.label, isWinner: false,
         bordaScore: bookScore, maxScore, voterCount, rankedByCount,
+        rankPosition: rankMap[bid] || nb, totalBooks: nb,
         submissionCount, pointsBehind: maxScore - bookScore
       });
     });
@@ -8652,22 +8660,30 @@ function _pennyBuildPool() {
 // Pick a random "interesting fact" line Penny says about the book
 function _pennyPickFact(book) {
   const facts = [];
-  // Data-driven facts
-  if (book.pointsBehind > 0 && book.pointsBehind <= 8) {
-    facts.push(`This one lost by just ${book.pointsBehind} Borda point${book.pointsBehind===1?'':'s'}. A handful. It still thinks about it, I'm sure.`);
+  const ordinal = n => n === 2 ? 'second' : n === 3 ? 'third' : n === 4 ? 'fourth' : n === 5 ? 'fifth' : `${n}th`;
+
+  // Data-driven facts — all framed around not winning despite doing well
+  if (book.rankPosition === 2) {
+    facts.push(`It came in second that month. Right behind the winner. Second place is just first place for people with patience.`);
+    facts.push(`Runner-up. The gap between it and the winner was ${book.pointsBehind} Borda point${book.pointsBehind===1?'':'s'}. A handful.`);
+  } else if (book.rankPosition === 3) {
+    facts.push(`It finished third that month — which in a Borda count means it was consistently near the top of a lot of people's lists. That's not nothing.`);
+  } else if (book.rankPosition >= 4 && book.rankPosition <= 5) {
+    facts.push(`It finished ${ordinal(book.rankPosition)} out of ${book.totalBooks} that month. Not a top finisher, but it earned every point it got.`);
   }
-  if (book.rankedByCount > 0 && book.voterCount > 1) {
-    if (book.rankedByCount >= book.voterCount) {
-      facts.push(`Nearly everyone who voted that month ranked this one. Nearly everyone. And still.`);
-    } else if (book.rankedByCount >= Math.ceil(book.voterCount * 0.6)) {
-      facts.push(`More people than you'd think ranked this one. It has fans. Quiet ones, but fans.`);
-    }
+
+  if (book.pointsBehind > 0 && book.pointsBehind <= 5 && book.rankPosition === 2) {
+    facts.push(`It lost by ${book.pointsBehind} point${book.pointsBehind===1?'':'s'}. ${book.pointsBehind===1?'One point.':book.pointsBehind+' points.'} I think about it sometimes.`);
+  } else if (book.pointsBehind > 5 && book.pointsBehind <= 15) {
+    facts.push(`It finished ${book.pointsBehind} Borda points behind the winner. Close enough to feel it.`);
   }
+
   if (book.submissionCount >= 3) {
     facts.push(`This book has been put forward ${book.submissionCount} times. ${book.submissionCount} times! It's persistent. I respect that.`);
   } else if (book.submissionCount === 2) {
-    facts.push(`This one was put forward twice. Someone really believed in it.`);
+    facts.push(`This one was submitted twice. Someone really believed in it.`);
   }
+
   if (book.genre) {
     const obscureGenres = ['Poetry','Western','Supernatural','Mythology'];
     const popularGenres = ['Fiction','Mystery','Thriller / Suspense','Romance'];
@@ -8677,9 +8693,6 @@ function _pennyPickFact(book) {
       facts.push(`${book.genre}. A reliable genre in this club, but this one does something a little different with it.`);
     }
   }
-  if (book.isWinner) {
-    facts.push(`This one actually won its month. A proven pick. Sometimes the classics are classic for a reason.`);
-  }
 
   // Penny's personal lore facts (always available as fallbacks)
   const loreFacts = [
@@ -8687,12 +8700,12 @@ function _pennyPickFact(book) {
     `Someone left this in the book return with a note inside. The note just said "you'll understand." I did.`,
     `A friend recommended this to me years ago. I finally got to it last winter. I owe her an apology for waiting so long.`,
     `I found this one face-down on a park bench. Someone had dog-eared nearly every page. Good instincts, whoever you were.`,
-    `I've recommended this three times this year. You're in good company.`,
+    `I've recommended this a few times now. You're in good company.`,
     `This was the first book I unpacked when I set up this shop. That probably means something.`
   ];
   facts.push(...loreFacts);
 
-  // Pick one at random, preferring data-driven if available
+  // Prefer data-driven facts when available
   const dataDriven = facts.filter(f => !loreFacts.includes(f));
   if (dataDriven.length && Math.random() < 0.65) {
     return dataDriven[Math.floor(Math.random() * dataDriven.length)];
@@ -8740,7 +8753,7 @@ function _pennyShowRecommendation(area, book, fromBranch) {
       <div class="penny-rec-card-sig">— Penny</div>
     </div>
     <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
-      <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you do?</em></p>
+      <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
       <button class="penny-action-btn" onclick="pennyAccept('${aid}')">"Thank you, Penny. I'll give it a read."</button>
       <button class="penny-action-btn" onclick="pennyDecline('${aid}','${fromBranch}')">"Thank you, Penny, but I don't think this one is for me. Could we try again?"</button>
     </div>
@@ -8788,7 +8801,7 @@ function pennyDecline(areaId, fromBranch) {
       </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
-      <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you do?</em></p>
+      <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
       <button class="penny-action-btn" onclick="pennySelectOption('trust','${aid}',this)">"I trust you, Penny."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
@@ -8801,7 +8814,6 @@ window.pennyDecline = pennyDecline;
 function _pennyBranchTrust(area) {
   const pool = _pennyBuildPool();
   const excluded = area._pennyExcluded || [];
-  const available = pool.filter(b => !excluded.includes(b.id));
   if (!available.length) {
     area.innerHTML = `<div class="penny-storybook"><div class="penny-storybook-inner"><p class="penny-speech">Oh my. I think we've gone through quite a few already. Come back another time — I'll have fresh ideas.</p></div></div>`;
     return;
