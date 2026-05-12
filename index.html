@@ -2751,7 +2751,7 @@ function renderVote() {
       if (cv.showPalette) parts.push('colour palettes');
       const desc = parts.length ? parts.join(' + ') : 'cover art';
       cmBanner.style.display = 'block';
-      cmBanner.innerHTML = \`<div style="background:#fffbef;border-left:3px solid var(--gold);padding:.75rem 1rem;border-radius:0 6px 6px 0;font-size:.88rem;color:#7a5f1a;">🎨 <strong>Cover Voting Mode</strong> — Voting on \${desc} this month. Rank your favourites using the arrows.</div>\`;
+      cmBanner.innerHTML = `<div style="background:#fffbef;border-left:3px solid var(--gold);padding:.75rem 1rem;border-radius:0 6px 6px 0;font-size:.88rem;color:#7a5f1a;">🎨 <strong>Cover Voting Mode</strong> — Voting on ${desc} this month. Rank your favourites using the arrows.</div>`;
     } else {
       cmBanner.style.display = 'none';
     }
