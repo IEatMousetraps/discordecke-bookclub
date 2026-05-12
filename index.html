@@ -8300,10 +8300,15 @@ function editBookCard(book, onSave, onCancel, context) {
     <div class="f-group" style="margin-bottom:.5rem;">
       <label>Cover Image URL <span style="font-weight:400;font-size:.78rem;color:var(--soft);">Open Library: covers.openlibrary.org/b/isbn/{ISBN}-L.jpg</span></label>
       <input type="url" id="${uid}-coverUrl" value="${esc(book.coverUrl||'')}" placeholder="https://covers.openlibrary.org/b/isbn/9780385737951-L.jpg" style="font-size:.85rem;padding:.4rem .7rem;">
-      ${book.coverUrl ? `<div style="margin-top:.4rem;"><img src="${esc(book.coverUrl)}" alt="preview" style="height:90px;border-radius:4px;border:1px solid var(--border);object-fit:cover;"></div>` : ''}
-      ${book.palette && book.palette.length
-        ? `<div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.4rem;">${book.palette.map(h=>`<div style="width:28px;height:28px;border-radius:4px;background:#${h};border:1px solid rgba(0,0,0,.15);" title="#${h}"></div>`).join('')}</div><div style="font-size:.72rem;color:var(--soft);margin-top:.2rem;">Auto-detected palette — re-save to refresh</div>`
-        : book.coverUrl ? `<div style="font-size:.72rem;color:var(--soft);margin-top:.3rem;">Palette will auto-detect on save</div>` : ''}
+      ${book.coverUrl ? '<div style="margin-top:.4rem;"><img src="' + esc(book.coverUrl) + '" alt="preview" style="height:90px;border-radius:4px;border:1px solid var(--border);object-fit:cover;"></div>' : ''}
+      ${(function(){
+        if (book.palette && book.palette.length) {
+          var swatches = book.palette.map(function(h){ return '<div style="width:28px;height:28px;border-radius:4px;background:#'+h+';border:1px solid rgba(0,0,0,.15);" title="#'+h+'"></div>'; }).join('');
+          return '<div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.4rem;">' + swatches + '</div><div style="font-size:.72rem;color:var(--soft);margin-top:.2rem;">Auto-detected palette — re-save to refresh</div>';
+        }
+        if (book.coverUrl) return '<div style="font-size:.72rem;color:var(--soft);margin-top:.3rem;">Palette will auto-detect on save</div>';
+        return '';
+      })()}
     </div>
     <div id="${uid}-msg"></div>
     <div style="display:flex;gap:.5rem;margin-top:.4rem;">
