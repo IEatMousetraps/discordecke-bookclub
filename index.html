@@ -1618,34 +1618,20 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
     <!-- Cover Voting Mode -->
     <div class="card" id="cover-voting-admin-card">
       <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.4rem;">Cover Voting Mode</h3>
-      <p style="font-size:.85rem;color:var(--soft);margin-bottom:.9rem;">When enabled, the vote page shows cover art and/or colour palettes instead of titles. Configure the layers below — changes save immediately.</p>
+      <p style="font-size:.85rem;color:var(--soft);margin-bottom:.9rem;">When enabled, the vote page hides book titles and shows cover art only. Configure obfuscation below — changes save immediately.</p>
       <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;">
         <div style="font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--soft);">Cover Voting</div>
         <span id="a-covervoting-pill" class="pill pill-closed">Off</span>
         <button class="btn btn-secondary btn-sm" onclick="toggleCoverVoting()">Toggle</button>
       </div>
       <div id="cover-voting-layers" style="display:none;border-top:1px solid var(--border);padding-top:.9rem;">
-        <p style="font-size:.78rem;color:var(--soft);margin-bottom:.9rem;">All layers are independent unless noted. Cover image is required for blur/pixelate.</p>
-        <div style="display:flex;align-items:flex-start;gap:.75rem;margin-bottom:.85rem;">
-          <input type="checkbox" id="cv-show-cover" onchange="saveCoverVotingSettings()" style="margin-top:.2rem;flex-shrink:0;">
-          <div>
-            <label for="cv-show-cover" style="font-size:.88rem;font-weight:600;cursor:pointer;">Show cover image</label>
-            <div style="font-size:.78rem;color:var(--soft);">Displays the full cover. Required for blur or pixelate.</div>
-          </div>
-        </div>
-        <div id="cv-obfuscation-row" style="margin-left:1.5rem;margin-bottom:.85rem;padding:.6rem .75rem;background:var(--cream);border-radius:6px;border:1px solid var(--border);">
+        <p style="font-size:.78rem;color:var(--soft);margin-bottom:.75rem;">Cover images are always shown. Choose whether to obfuscate them.</p>
+        <div style="padding:.6rem .75rem;background:var(--cream);border-radius:6px;border:1px solid var(--border);">
           <div style="font-size:.8rem;font-weight:600;margin-bottom:.5rem;color:var(--soft);text-transform:uppercase;letter-spacing:.05em;">Obfuscation — pick one</div>
           <div style="display:flex;flex-direction:column;gap:.4rem;">
             <label style="font-size:.85rem;display:flex;align-items:center;gap:.5rem;cursor:pointer;"><input type="radio" name="cv-obfuscation" value="none" onchange="saveCoverVotingSettings()"> None — show cover as-is</label>
             <label style="font-size:.85rem;display:flex;align-items:center;gap:.5rem;cursor:pointer;"><input type="radio" name="cv-obfuscation" value="blur" onchange="saveCoverVotingSettings()"> Blur — obscures text, keeps colour feel <span style="font-size:.75rem;color:var(--soft);">(members may right-click to bypass)</span></label>
-            <label style="font-size:.85rem;display:flex;align-items:center;gap:.5rem;cursor:pointer;"><input type="radio" name="cv-obfuscation" value="pixelate" onchange="saveCoverVotingSettings()"> Pixelate — blocky, impressionistic <span style="font-size:.75rem;color:var(--soft);">(same caveat)</span></label>
-          </div>
-        </div>
-        <div style="display:flex;align-items:flex-start;gap:.75rem;">
-          <input type="checkbox" id="cv-show-palette" onchange="saveCoverVotingSettings()" style="margin-top:.2rem;flex-shrink:0;">
-          <div>
-            <label for="cv-show-palette" style="font-size:.88rem;font-weight:600;cursor:pointer;">Show colour palette</label>
-            <div style="font-size:.78rem;color:var(--soft);">Displays up to 5 hex swatches per book. Enter colours in Edit Books. Works with or without the cover image.</div>
+            <label style="font-size:.85rem;display:flex;align-items:center;gap:.5rem;cursor:pointer;"><input type="radio" name="cv-obfuscation" value="pixelate" onchange="saveCoverVotingSettings()"> Pixelate — blocky, impressionistic <span style="font-size:.75rem;color:var(--soft);">(use Open Library URLs — required for canvas)</span></label>
           </div>
         </div>
       </div>
@@ -2073,7 +2059,7 @@ const PENNY_REF            = doc(db, 'club', 'pennyData');
 
 // ── In-memory cache kept fresh by real-time listeners ──
 let CACHE = {
-  settings: {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,reviewsOpen:false,pennyVisible:false,coverVoting:{enabled:false,showCover:true,obfuscation:'none',showPalette:false},password:'bookclub123'},
+  settings: {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,reviewsOpen:false,pennyVisible:false,coverVoting:{enabled:false,showCover:true,obfuscation:'none'},password:'bookclub123'},
   books: [], votes: {}, archives: [], surveys: [], surveyResponses: {}, reviews: {},
   readingProgress: {}, meetingInfo: {},
   badgeConfig: { disabled:{}, hidden:{}, organic:{}, customBadges:[], overrides:{} },
@@ -2158,7 +2144,7 @@ function startListeners() {
 
   onSnapshot(SETTINGS_REF, snap => {
     CACHE.settings = Object.assign(
-      {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,reviewsOpen:false,pennyVisible:false,coverVoting:{enabled:false,showCover:true,obfuscation:'none',showPalette:false},password:'bookclub123'},
+      {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,reviewsOpen:false,pennyVisible:false,coverVoting:{enabled:false,showCover:true,obfuscation:'none'},password:'bookclub123'},
       snap.exists() ? snap.data() : {}
     );
     updatePennyNavVisibility();
@@ -2741,14 +2727,9 @@ function renderVote() {
   const cmBanner = document.getElementById('cover-mode-banner');
   if (cmBanner) {
     if (s.votingOpen && cv.enabled) {
-      const parts = [];
-      if (cv.showCover && cv.obfuscation === 'blur') parts.push('blurred covers');
-      else if (cv.showCover && cv.obfuscation === 'pixelate') parts.push('pixelated covers');
-      else if (cv.showCover) parts.push('cover images');
-      if (cv.showPalette) parts.push('colour palettes');
-      const desc = parts.length ? parts.join(' + ') : 'cover art';
+      const obfDesc = cv.obfuscation === 'blur' ? 'blurred covers' : cv.obfuscation === 'pixelate' ? 'pixelated covers' : 'cover images';
       cmBanner.style.display = 'block';
-      cmBanner.innerHTML = '<div style="background:#fffbef;border-left:3px solid var(--gold);padding:.75rem 1rem;border-radius:0 6px 6px 0;font-size:.88rem;color:#7a5f1a;">&#127912; <strong>Cover Voting Mode</strong> — Voting on ' + desc + ' this month. Rank your favourites using the arrows.</div>';
+      cmBanner.innerHTML = '<div style="background:#fffbef;border-left:3px solid var(--gold);padding:.75rem 1rem;border-radius:0 6px 6px 0;font-size:.88rem;color:#7a5f1a;">&#127912; <strong>Cover Voting Mode</strong> &#8212; Voting on ' + obfDesc + ' this month. Rank your favourites using the arrows.</div>';
     } else {
       cmBanner.style.display = 'none';
     }
@@ -2816,50 +2797,36 @@ function buildSortable(books) {
   books.map(normBook).forEach((b, i) => {
     const d = document.createElement('div');
     d.className = 'sort-item'; d.dataset.id = b.id;
-    if (coverMode) {
-      let coverHtml = '';
-      if (cv.showCover) {
-        if (b.coverUrl) {
-          if (cv.obfuscation === 'pixelate') {
-            coverHtml = '<div style="width:200px;height:300px;border-radius:6px;overflow:hidden;flex-shrink:0;background:var(--cream);">' +
-              '<canvas id="px-' + b.id + '" width="200" height="300" style="width:200px;height:300px;border-radius:6px;" data-src="' + esc(b.coverUrl) + '"></canvas>' +
-              '</div>';
-          } else {
-            let imgStyle = 'width:100%;height:100%;object-fit:cover;border-radius:6px;display:block;';
-            if (cv.obfuscation === 'blur') imgStyle += 'filter:blur(14px);transform:scale(1.08);';
-            coverHtml = '<div style="width:200px;height:300px;border-radius:6px;overflow:hidden;flex-shrink:0;background:var(--cream);">' +
-              '<img src="' + esc(b.coverUrl) + '" alt="Book cover" style="' + imgStyle + '" onerror="this.parentElement.innerHTML=&quot;<div style=&apos;width:200px;height:300px;display:flex;align-items:center;justify-content:center;font-size:3rem;&apos;>&#128214;</div>&quot;">' +
-              '</div>';
-          }
-        } else {
-          coverHtml = '<div style="width:200px;height:300px;border-radius:6px;border:2px dashed var(--border);background:var(--cream);display:flex;align-items:center;justify-content:center;font-size:3rem;flex-shrink:0;">&#128214;</div>';
-        }
-      }
-      let paletteHtml = '';
-      if (cv.showPalette && b.palette && b.palette.length) {
-        paletteHtml = '<div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.6rem;">' +
-          b.palette.map(function(hex) {
-            const h = hex.replace('#','');
-            return '<div title="#' + h + '" style="width:36px;height:36px;border-radius:4px;background:#' + h + ';border:1px solid rgba(0,0,0,.12);flex-shrink:0;"></div>';
-          }).join('') +
+
+    // Cover block — used in both modes, 200x300
+    let coverHtml = '';
+    if (b.coverUrl) {
+      if (coverMode && cv.obfuscation === 'pixelate') {
+        coverHtml = '<div style="width:200px;height:300px;border-radius:6px;overflow:hidden;flex-shrink:0;background:var(--cream);">' +
+          '<canvas id="px-' + b.id + '" width="200" height="300" style="width:200px;height:300px;border-radius:6px;" data-src="' + esc(b.coverUrl) + '"></canvas>' +
+          '</div>';
+      } else {
+        let imgStyle = 'width:100%;height:100%;object-fit:cover;border-radius:6px;display:block;';
+        if (coverMode && cv.obfuscation === 'blur') imgStyle += 'filter:blur(14px);transform:scale(1.08);';
+        coverHtml = '<div style="width:200px;height:300px;border-radius:6px;overflow:hidden;flex-shrink:0;background:var(--cream);">' +
+          '<img src="' + esc(b.coverUrl) + '" alt="Book cover" style="' + imgStyle + '" onerror="this.parentElement.style.background='var(--cream)'">' +
           '</div>';
       }
-      const hasContent = cv.showCover || (cv.showPalette && b.palette && b.palette.length);
+    } else if (coverMode) {
+      coverHtml = '<div style="width:200px;height:300px;border-radius:6px;border:2px dashed var(--border);background:var(--cream);display:flex;align-items:center;justify-content:center;font-size:3rem;flex-shrink:0;">&#128214;</div>';
+    }
+
+    if (coverMode) {
       d.innerHTML =
         '<div class="rank-badge">' + (i+1) + '</div>' +
-        '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:.5rem 0;gap:.4rem;">' +
-          coverHtml + paletteHtml +
-          (!hasContent ? '<div style="font-size:.85rem;color:var(--soft);font-style:italic;">No cover data added yet</div>' : '') +
+        '<div style="flex:1;display:flex;align-items:center;justify-content:center;padding:.5rem 0;">' +
+          coverHtml +
         '</div>' +
         '<div class="move-btns">' +
           '<button class="move-btn" onclick="moveItem(this,-1)" title="Move up">&#x25b2;</button>' +
           '<button class="move-btn" onclick="moveItem(this,1)" title="Move down">&#x25bc;</button>' +
         '</div>';
     } else {
-      // Standard mode — small thumbnail + full book info
-      const thumbHtml = b.coverUrl
-        ? '<img src="' + esc(b.coverUrl) + '" alt="" style="width:52px;height:78px;object-fit:cover;border-radius:4px;border:1px solid var(--border);flex-shrink:0;" onerror="this.style.display=&apos;none&apos;">'
-        : '';
       const reasons = b.suggesters.filter(s => s.reason);
       const blurbs = reasons.map(s =>
         `<div class="book-sub" style="margin-top:.3rem;"><strong>Why are you recommending this book?</strong></div>` +
@@ -2867,7 +2834,7 @@ function buildSortable(books) {
       ).join('');
       d.innerHTML = `
         <div class="rank-badge">${i+1}</div>
-        ${thumbHtml}
+        ${coverHtml}
         <div class="book-info" style="flex:1">
           <div class="book-title">${esc(b.title)}</div>
           <div class="book-sub">${esc(b.author)}</div>
@@ -2883,8 +2850,8 @@ function buildSortable(books) {
     c.appendChild(d);
   });
   updateMoveButtons();
-  // Pixelate pass after DOM insertion
-  if ((getSettings().coverVoting||{}).obfuscation === 'pixelate') {
+  // Pixelate canvas pass
+  if (coverMode && cv.obfuscation === 'pixelate') {
     document.querySelectorAll('[id^="px-"]').forEach(function(canvas) {
       const img = new Image();
       img.crossOrigin = 'anonymous';
@@ -2899,7 +2866,7 @@ function buildSortable(books) {
       };
       img.onerror = function() {
         const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#e0d8c0'; ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle = '#e0d8c0'; ctx.fillRect(0, 0, canvas.width, canvas.height);
       };
       img.src = canvas.dataset.src;
     });
@@ -5672,20 +5639,14 @@ function renderCoverVotingAdmin() {
   if (pill) { pill.textContent = cv.enabled ? 'On' : 'Off'; pill.className = 'pill ' + (cv.enabled ? 'pill-open' : 'pill-closed'); }
   const layers = document.getElementById('cover-voting-layers');
   if (layers) layers.style.display = cv.enabled ? 'block' : 'none';
-  const showCoverCb = document.getElementById('cv-show-cover');
-  if (showCoverCb) showCoverCb.checked = cv.showCover !== false;
-  const obRow = document.getElementById('cv-obfuscation-row');
-  if (obRow) obRow.style.display = (cv.showCover !== false) ? 'block' : 'none';
   const obVal = cv.obfuscation || 'none';
   document.querySelectorAll('input[name="cv-obfuscation"]').forEach(r => { r.checked = r.value === obVal; });
-  const palCb = document.getElementById('cv-show-palette');
-  if (palCb) palCb.checked = !!cv.showPalette;
 }
 window.renderCoverVotingAdmin = renderCoverVotingAdmin;
 
 async function toggleCoverVoting() {
   const s = getSettings();
-  const cv = Object.assign({enabled:false,showCover:true,obfuscation:'none',showPalette:false}, s.coverVoting || {});
+  const cv = Object.assign({enabled:false,showCover:true,obfuscation:'none'}, s.coverVoting || {});
   cv.enabled = !cv.enabled;
   s.coverVoting = cv;
   showLoading('Saving…');
@@ -5697,18 +5658,13 @@ window.toggleCoverVoting = toggleCoverVoting;
 
 async function saveCoverVotingSettings() {
   const s = getSettings();
-  const cv = Object.assign({enabled:true,showCover:true,obfuscation:'none',showPalette:false}, s.coverVoting || {});
-  cv.showCover = !!(document.getElementById('cv-show-cover')?.checked);
+  const cv = Object.assign({enabled:true,obfuscation:'none'}, s.coverVoting || {});
   const obEl = document.querySelector('input[name="cv-obfuscation"]:checked');
   cv.obfuscation = obEl ? obEl.value : 'none';
-  if (!cv.showCover) cv.obfuscation = 'none';
-  cv.showPalette = !!(document.getElementById('cv-show-palette')?.checked);
   s.coverVoting = cv;
   showLoading('Saving…');
   await fbSetFull(SETTINGS_REF, s);
   hideLoading();
-  const obRow = document.getElementById('cv-obfuscation-row');
-  if (obRow) obRow.style.display = cv.showCover ? 'block' : 'none';
 }
 window.saveCoverVotingSettings = saveCoverVotingSettings;
 
@@ -8243,16 +8199,9 @@ function editBookCard(book, onSave, onCancel, context) {
     <div style="border-top:1px solid var(--border);margin:.6rem 0;"></div>
     <div style="font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);margin-bottom:.5rem;">Cover Voting Data</div>
     <div class="f-group" style="margin-bottom:.5rem;">
-      <label>Cover Image URL <span style="font-weight:400;font-size:.78rem;color:var(--soft);">(paste any direct image link)</span></label>
-      <input type="url" id="${uid}-coverUrl" value="${esc(book.coverUrl||'')}" placeholder="https://..." style="font-size:.85rem;padding:.4rem .7rem;">
+      <label>Cover Image URL <span style="font-weight:400;font-size:.78rem;color:var(--soft);">Use Open Library: covers.openlibrary.org/b/isbn/{ISBN}-L.jpg</span></label>
+      <input type="url" id="${uid}-coverUrl" value="${esc(book.coverUrl||'')}" placeholder="https://covers.openlibrary.org/b/isbn/9780385737951-L.jpg" style="font-size:.85rem;padding:.4rem .7rem;">
       ${book.coverUrl ? `<div style="margin-top:.4rem;"><img src="${esc(book.coverUrl)}" alt="preview" style="height:90px;border-radius:4px;border:1px solid var(--border);object-fit:cover;" onerror="this.style.display='none'"></div>` : ''}
-    </div>
-    <div class="f-group" style="margin-bottom:.5rem;">
-      <label>Colour Palette <span style="font-weight:400;font-size:.78rem;color:var(--soft);">Up to 5 hex codes, comma-separated — e.g. AA594E, 114847, D39389</span></label>
-      <input type="text" id="${uid}-palette" value="${esc((book.palette||[]).join(', '))}" placeholder="AA594E, 114847, D39389" style="font-size:.85rem;padding:.4rem .7rem;">
-      <div style="display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.4rem;">
-        ${(book.palette||[]).map(h=>`<div style="width:32px;height:32px;border-radius:4px;background:#${h.replace('#','')};border:1px solid rgba(0,0,0,.15);" title="#${h}"></div>`).join('')}
-      </div>
     </div>
     <div id="${uid}-msg"></div>
     <div style="display:flex;gap:.5rem;margin-top:.4rem;">
@@ -8336,11 +8285,6 @@ async function saveCurrentBook(bookId, uid) {
   else { delete books[idx].pageCount; delete books[idx].pagesFormat; }
   const coverUrl = document.getElementById(uid+'-coverUrl')?.value.trim();
   if (coverUrl) books[idx].coverUrl = coverUrl; else delete books[idx].coverUrl;
-  const paletteRaw = document.getElementById(uid+'-palette')?.value.trim();
-  if (paletteRaw) {
-    books[idx].palette = paletteRaw.split(',').map(h=>h.trim().replace('#','')).filter(h=>/^[0-9a-fA-F]{3,6}$/.test(h)).slice(0,5);
-    if (!books[idx].palette.length) delete books[idx].palette;
-  } else { delete books[idx].palette; }
   const nb = normBook(books[idx]);
   if (suggester && nb.suggesters.length > 0) nb.suggesters[0].discord = suggester;
   books[idx].suggesters = nb.suggesters;
@@ -8431,11 +8375,6 @@ async function saveArchiveBook(label, bookId, uid) {
   else { delete books[bIdx].pageCount; delete books[bIdx].pagesFormat; }
   const aCoverUrl = document.getElementById(uid+'-coverUrl')?.value.trim();
   if (aCoverUrl) books[bIdx].coverUrl = aCoverUrl; else delete books[bIdx].coverUrl;
-  const aPaletteRaw = document.getElementById(uid+'-palette')?.value.trim();
-  if (aPaletteRaw) {
-    books[bIdx].palette = aPaletteRaw.split(',').map(h=>h.trim().replace('#','')).filter(h=>/^[0-9a-fA-F]{3,6}$/.test(h)).slice(0,5);
-    if (!books[bIdx].palette.length) delete books[bIdx].palette;
-  } else { delete books[bIdx].palette; }
   const nb = normBook(books[bIdx]);
   if (suggester && nb.suggesters.length > 0) nb.suggesters[0].discord = suggester;
   books[bIdx].suggesters = nb.suggesters;
