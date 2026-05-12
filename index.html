@@ -2808,12 +2808,10 @@ function buildSortable(books) {
     let coverHtml = '';
     if (!paletteOnly) {
       if (b.coverUrl) {
+      if (b.coverUrl) {
         if (coverMode && cv.obfuscation === 'pixelate') {
-          // Use CSS pixelation — no canvas, no CORS issues
           coverHtml = '<div style="width:200px;height:300px;border-radius:6px;overflow:hidden;flex-shrink:0;background:var(--cream);">' +
-            '<img src="' + esc(b.coverUrl) + '" alt="Book cover" data-coverimg="1" ' +
-            'style="width:200px;height:300px;object-fit:cover;border-radius:6px;image-rendering:pixelated;filter:blur(1px);transform:scale(1) translateZ(0);" ' +
-            'onload="(function(img){var c=document.createElement('canvas');c.width=20;c.height=30;c.getContext('2d').drawImage(img,0,0,20,30);img.src=c.toDataURL();img.style.imageRendering='pixelated';})(this)" >' +
+            '<img src="' + esc(b.coverUrl) + '" alt="Book cover" data-coverimg="1" data-pixelate="1" style="width:200px;height:300px;object-fit:cover;border-radius:6px;">' +
             '</div>';
         } else {
           let imgStyle = 'width:100%;height:100%;object-fit:cover;border-radius:6px;display:block;';
@@ -2886,6 +2884,26 @@ function buildSortable(books) {
   // JS-based error handler for cover imgs (avoids onerror attribute quote issues)
   c.querySelectorAll('img[data-coverimg]').forEach(function(img) {
     img.onerror = function() { this.parentElement.style.opacity = '0'; };
+  });
+  // Pixelate: draw to tiny canvas and scale up — pure JS, no inline attributes
+  c.querySelectorAll('img[data-pixelate]').forEach(function(img) {
+    function doPixelate() {
+      try {
+        var W = 200, H = 300, BLOCK = 12;
+        var off = document.createElement('canvas');
+        off.width = Math.ceil(W/BLOCK); off.height = Math.ceil(H/BLOCK);
+        off.getContext('2d').drawImage(img, 0, 0, off.width, off.height);
+        var out = document.createElement('canvas');
+        out.width = W; out.height = H;
+        out.style.cssText = 'width:200px;height:300px;border-radius:6px;display:block;';
+        var ctx = out.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(off, 0, 0, W, H);
+        img.parentElement.replaceChild(out, img);
+      } catch(e) {}
+    }
+    if (img.complete && img.naturalWidth) { doPixelate(); }
+    else { img.onload = doPixelate; }
   });
 }
 function moveItem(btn, dir) {
