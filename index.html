@@ -2795,26 +2795,25 @@ function genrePillsHtml(genreStr) {
 }
 
 function buildSortable(books) {
-  const c = document.getElementById('sortable-list');
-  const cv = (getSettings().coverVoting) || {};
-  const coverMode = cv.enabled;
-  const paletteOnly = coverMode && cv.obfuscation === 'palette-only';
+  var c = document.getElementById('sortable-list');
+  var cv = (getSettings().coverVoting) || {};
+  var coverMode = cv.enabled;
+  var paletteOnly = coverMode && cv.obfuscation === 'palette-only';
   c.innerHTML = '';
-  books.map(normBook).forEach((b, i) => {
-    const d = document.createElement('div');
+  books.map(normBook).forEach(function(b, i) {
+    var d = document.createElement('div');
     d.className = 'sort-item'; d.dataset.id = b.id;
 
-    // Cover image block (skipped in palette-only mode)
-    let coverHtml = '';
+    // Cover image block
+    var coverHtml = '';
     if (!paletteOnly) {
-      if (b.coverUrl) {
       if (b.coverUrl) {
         if (coverMode && cv.obfuscation === 'pixelate') {
           coverHtml = '<div style="width:200px;height:300px;border-radius:6px;overflow:hidden;flex-shrink:0;background:var(--cream);">' +
             '<img src="' + esc(b.coverUrl) + '" alt="Book cover" data-coverimg="1" data-pixelate="1" style="width:200px;height:300px;object-fit:cover;border-radius:6px;">' +
             '</div>';
         } else {
-          let imgStyle = 'width:100%;height:100%;object-fit:cover;border-radius:6px;display:block;';
+          var imgStyle = 'width:100%;height:100%;object-fit:cover;border-radius:6px;display:block;';
           if (coverMode && cv.obfuscation === 'blur') imgStyle += 'filter:blur(14px);transform:scale(1.08);';
           coverHtml = '<div style="width:200px;height:300px;border-radius:6px;overflow:hidden;flex-shrink:0;background:var(--cream);">' +
             '<img src="' + esc(b.coverUrl) + '" alt="Book cover" data-coverimg="1" style="' + imgStyle + '">' +
@@ -2826,23 +2825,24 @@ function buildSortable(books) {
     }
 
     // Palette swatches
-    const paletteSwatches = (cv.showPalette && b.palette && b.palette.length)
-      ? '<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.6rem;">' +
-          b.palette.map(function(h) {
-            h = h.replace('#','');
-            var r=parseInt(h.slice(0,2),16), g=parseInt(h.slice(2,4),16), b2=parseInt(h.slice(4,6),16);
-            var lum = (0.299*r + 0.587*g + 0.114*b2) / 255;
-            var textCol = lum > 0.5 ? 'rgba(0,0,0,.75)' : 'rgba(255,255,255,.9)';
-            return '<div style="width:64px;height:56px;border-radius:6px;background:#'+h+';border:1px solid rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:600;color:'+textCol+';letter-spacing:.04em;font-family:monospace;">#'+h+'</div>';
-          }).join('') +
-        '</div>'
-      : '';
+    var paletteSwatches = '';
+    if (cv.showPalette && b.palette && b.palette.length) {
+      var swatchInner = b.palette.map(function(h) {
+        h = h.replace('#', '');
+        var r = parseInt(h.slice(0,2),16), g = parseInt(h.slice(2,4),16), b2 = parseInt(h.slice(4,6),16);
+        var lum = (0.299*r + 0.587*g + 0.114*b2) / 255;
+        var textCol = lum > 0.5 ? 'rgba(0,0,0,.75)' : 'rgba(255,255,255,.9)';
+        return '<div style="width:64px;height:56px;border-radius:6px;background:#' + h + ';border:1px solid rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:600;color:' + textCol + ';letter-spacing:.04em;font-family:monospace;">#' + h + '</div>';
+      }).join('');
+      paletteSwatches = '<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.6rem;">' + swatchInner + '</div>';
+    }
 
     if (coverMode) {
-      const metaHtml =
-        (b.genre ? genrePillsHtml(b.genre) : '') +
-        (b.pageCount ? '<div class="book-sub" style="margin-top:.35rem;">📄 ' + b.pageCount + ' pages <span style="color:var(--soft);font-size:.78em;">(' + (b.pagesFormat||'') + ')</span>' + (b.pageCountAlt ? ' &middot; ' + b.pageCountAlt + ' pages (' + (b.pagesFormatAlt||'') + ')' : '') + '</div>' : '') +
-        paletteSwatches;
+      var pageCountHtml = '';
+      if (b.pageCount) {
+        pageCountHtml = '<div class="book-sub" style="margin-top:.35rem;">\uD83D\uDCC4 ' + b.pageCount + ' pages <span style="color:var(--soft);font-size:.78em;">(' + (b.pagesFormat||'') + ')</span>' + (b.pageCountAlt ? ' &middot; ' + b.pageCountAlt + ' pages (' + (b.pagesFormatAlt||'') + ')' : '') + '</div>';
+      }
+      var metaHtml = (b.genre ? genrePillsHtml(b.genre) : '') + pageCountHtml + paletteSwatches;
       d.innerHTML =
         '<div class="rank-badge">' + (i+1) + '</div>' +
         '<div style="flex:1;display:flex;align-items:center;gap:1rem;padding:.5rem 0;">' +
@@ -2854,38 +2854,41 @@ function buildSortable(books) {
           '<button class="move-btn" onclick="moveItem(this,1)" title="Move down">&#x25bc;</button>' +
         '</div>';
     } else {
-      // Standard mode — cover thumbnail + full info
-      const thumbHtml = b.coverUrl
+      var thumbHtml = b.coverUrl
         ? '<img src="' + esc(b.coverUrl) + '" alt="" data-coverimg="1" style="width:200px;height:300px;object-fit:cover;border-radius:6px;flex-shrink:0;">'
         : '';
-      const reasons = b.suggesters.filter(s => s.reason);
-      const blurbs = reasons.map(s =>
-        `<div class="book-sub" style="margin-top:.3rem;"><strong>Why are you recommending this book?</strong></div>` +
-        `<div class="book-sub" style="margin-left:.75rem;font-style:italic;">"${esc(s.reason)}"</div>`
-      ).join('');
-      d.innerHTML = `
-        <div class="rank-badge">${i+1}</div>
-        ${thumbHtml}
-        <div class="book-info" style="flex:1">
-          <div class="book-title">${esc(b.title)}</div>
-          <div class="book-sub">${esc(b.author)}</div>
-          ${genrePillsHtml(b.genre)}
-          ${b.pageCount ? `<div class="book-sub" style="margin-top:.25rem;">📄 ${b.pageCount} pages <span style="color:var(--soft);font-size:.78em;">(${b.pagesFormat})</span>${b.pageCountAlt ? ` · ${b.pageCountAlt} pages (${b.pagesFormatAlt})` : ''}</div>` : ''}
-          ${blurbs}
-        </div>
-        <div class="move-btns">
-          <button class="move-btn" onclick="moveItem(this,-1)" title="Move up">&#x25b2;</button>
-          <button class="move-btn" onclick="moveItem(this,1)" title="Move down">&#x25bc;</button>
-        </div>`;
+      var reasons = b.suggesters.filter(function(s) { return s.reason; });
+      var blurbs = reasons.map(function(s) {
+        return '<div class="book-sub" style="margin-top:.3rem;"><strong>Why are you recommending this book?</strong></div>' +
+               '<div class="book-sub" style="margin-left:.75rem;font-style:italic;">"' + esc(s.reason) + '"</div>';
+      }).join('');
+      var pcHtml = '';
+      if (b.pageCount) {
+        pcHtml = '<div class="book-sub" style="margin-top:.25rem;">\uD83D\uDCC4 ' + b.pageCount + ' pages <span style="color:var(--soft);font-size:.78em;">(' + (b.pagesFormat||'') + ')</span>' + (b.pageCountAlt ? ' \xB7 ' + b.pageCountAlt + ' pages (' + (b.pagesFormatAlt||'') + ')' : '') + '</div>';
+      }
+      d.innerHTML =
+        '<div class="rank-badge">' + (i+1) + '</div>' +
+        thumbHtml +
+        '<div class="book-info" style="flex:1">' +
+          '<div class="book-title">' + esc(b.title) + '</div>' +
+          '<div class="book-sub">' + esc(b.author) + '</div>' +
+          genrePillsHtml(b.genre) +
+          pcHtml +
+          blurbs +
+        '</div>' +
+        '<div class="move-btns">' +
+          '<button class="move-btn" onclick="moveItem(this,-1)" title="Move up">&#x25b2;</button>' +
+          '<button class="move-btn" onclick="moveItem(this,1)" title="Move down">&#x25bc;</button>' +
+        '</div>';
     }
     c.appendChild(d);
   });
   updateMoveButtons();
-  // JS-based error handler for cover imgs (avoids onerror attribute quote issues)
+  // JS error handler for cover imgs
   c.querySelectorAll('img[data-coverimg]').forEach(function(img) {
     img.onerror = function() { this.parentElement.style.opacity = '0'; };
   });
-  // Pixelate: draw to tiny canvas and scale up — pure JS, no inline attributes
+  // Pixelate: draw to tiny canvas and scale up
   c.querySelectorAll('img[data-pixelate]').forEach(function(img) {
     function doPixelate() {
       try {
@@ -2906,6 +2909,7 @@ function buildSortable(books) {
     else { img.onload = doPixelate; }
   });
 }
+
 function moveItem(btn, dir) {
   const item = btn.closest('.sort-item');
   const c = document.getElementById('sortable-list');
