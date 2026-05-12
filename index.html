@@ -1287,6 +1287,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   <div class="sec-head"><h2>Cast Your Vote</h2><p>Drag books to rank them. #1 is your top choice.</p></div>
   <p style="font-size:.8rem;color:var(--soft);margin-bottom:1.25rem;">📊 Want to see how past votes played out? <a href="#" style="color:var(--gold);text-decoration:none;font-weight:600;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" onclick="event.preventDefault();const ab=document.querySelector('nav button[data-tab=analysis]');goTab('analysis',ab);setTimeout(()=>{const sb=document.querySelector('#tab-analysis .sub-tab:nth-child(3)');goSubTab('rank-dist',sb);},80);">Visit the Voting Results Breakdown →</a></p>
   <div id="vote-closed-banner" style="display:none;"><div class="msg msg-err" style="margin-bottom:1rem;">Voting is currently closed.</div></div>
+  <div id="cover-vote-banner" style="display:none;"><div class="msg" style="background:#fffbef;border-left:3px solid var(--gold);padding:.75rem 1rem;border-radius:0 6px 6px 0;margin-bottom:1rem;font-size:.88rem;">🎨 <strong>Cover Voting Mode</strong> — Judge each book by its cover only. Rank them using the arrows below.</div></div>
   <div id="vote-content">
     <div class="card" style="padding:1.25rem;" id="vote-identity-card">
       <div class="grid3">
@@ -1596,6 +1597,11 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
           <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.3rem;">Voting</div>
           <span id="a-voting-pill" class="pill pill-open">Open</span>
           <button class="btn btn-secondary btn-sm" style="margin-left:.5rem;" onclick="toggleSetting('votingOpen')">Toggle</button>
+        </div>
+        <div>
+          <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.3rem;">Cover Voting Mode</div>
+          <span id="a-covervoting-pill" class="pill pill-closed">Off</span>
+          <button class="btn btn-secondary btn-sm" style="margin-left:.5rem;" onclick="toggleSetting('coverVoting')">Toggle</button>
         </div>
         <div>
           <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.3rem;">Results Visible</div>
@@ -2036,7 +2042,7 @@ const PENNY_REF            = doc(db, 'club', 'pennyData');
 
 // ── In-memory cache kept fresh by real-time listeners ──
 let CACHE = {
-  settings: {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,reviewsOpen:false,pennyVisible:false,password:'bookclub123'},
+  settings: {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,reviewsOpen:false,pennyVisible:false,coverVoting:false,password:'bookclub123'},
   books: [], votes: {}, archives: [], surveys: [], surveyResponses: {}, reviews: {},
   readingProgress: {}, meetingInfo: {},
   badgeConfig: { disabled:{}, hidden:{}, organic:{}, customBadges:[], overrides:{} },
@@ -2121,7 +2127,7 @@ function startListeners() {
 
   onSnapshot(SETTINGS_REF, snap => {
     CACHE.settings = Object.assign(
-      {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,reviewsOpen:false,pennyVisible:false,password:'bookclub123'},
+      {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,reviewsOpen:false,pennyVisible:false,coverVoting:false,password:'bookclub123'},
       snap.exists() ? snap.data() : {}
     );
     updatePennyNavVisibility();
@@ -2699,6 +2705,7 @@ function renderSuggest() {
 function renderVote() {
   const s = getSettings(), books = getBooks();
   document.getElementById('vote-closed-banner').style.display = s.votingOpen ? 'none' : 'block';
+  document.getElementById('cover-vote-banner').style.display = (s.votingOpen && s.coverVoting) ? 'block' : 'none';
   document.getElementById('vote-content').style.display = s.votingOpen ? 'block' : 'none';
   if (!s.votingOpen) return;
   if (!books.length) { document.getElementById('sortable-list').innerHTML = '<div class="empty"><div class="icon">📖</div><p>No books yet.</p></div>'; return; }
@@ -2757,28 +2764,44 @@ function genrePillsHtml(genreStr) {
 
 function buildSortable(books) {
   const c = document.getElementById('sortable-list');
+  const coverMode = getSettings().coverVoting;
   c.innerHTML = '';
   books.map(normBook).forEach((b, i) => {
     const d = document.createElement('div');
     d.className = 'sort-item'; d.dataset.id = b.id;
-    const reasons = b.suggesters.filter(s => s.reason);
-    const blurbs = reasons.map(s =>
-      `<div class="book-sub" style="margin-top:.3rem;"><strong>Why are you recommending this book?</strong></div>` +
-      `<div class="book-sub" style="margin-left:.75rem;font-style:italic;">"${esc(s.reason)}"</div>`
-    ).join('');
-    d.innerHTML = `
-      <div class="rank-badge">${i+1}</div>
-      <div class="book-info" style="flex:1">
-        <div class="book-title">${esc(b.title)}</div>
-        <div class="book-sub">${esc(b.author)}</div>
-        ${genrePillsHtml(b.genre)}
-        ${b.pageCount ? `<div class="book-sub" style="margin-top:.25rem;">📄 ${b.pageCount} pages <span style="color:var(--soft);font-size:.78em;">(${b.pagesFormat})</span>${b.pageCountAlt ? ` · ${b.pageCountAlt} pages (${b.pagesFormatAlt})` : ''}</div>` : ''}
-        ${blurbs}
-      </div>
-      <div class="move-btns">
-        <button class="move-btn" onclick="moveItem(this,-1)" title="Move up">&#x25b2;</button>
-        <button class="move-btn" onclick="moveItem(this,1)" title="Move down">&#x25bc;</button>
-      </div>`;
+    if (coverMode) {
+      const imgHtml = b.coverUrl
+        ? `<img src="${esc(b.coverUrl)}" alt="Book cover" style="height:120px;width:80px;object-fit:cover;border-radius:4px;border:1px solid var(--border);display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div style="display:none;height:120px;width:80px;background:var(--cream);border:2px dashed var(--border);border-radius:4px;align-items:center;justify-content:center;font-size:1.8rem;">📖</div>`
+        : `<div style="height:120px;width:80px;background:var(--cream);border:2px dashed var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:1.8rem;">📖</div>`;
+      d.innerHTML = `
+        <div class="rank-badge">${i+1}</div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:.25rem 0;">
+          ${imgHtml}
+        </div>
+        <div class="move-btns">
+          <button class="move-btn" onclick="moveItem(this,-1)" title="Move up">&#x25b2;</button>
+          <button class="move-btn" onclick="moveItem(this,1)" title="Move down">&#x25bc;</button>
+        </div>`;
+    } else {
+      const reasons = b.suggesters.filter(s => s.reason);
+      const blurbs = reasons.map(s =>
+        `<div class="book-sub" style="margin-top:.3rem;"><strong>Why are you recommending this book?</strong></div>` +
+        `<div class="book-sub" style="margin-left:.75rem;font-style:italic;">"${esc(s.reason)}"</div>`
+      ).join('');
+      d.innerHTML = `
+        <div class="rank-badge">${i+1}</div>
+        <div class="book-info" style="flex:1">
+          <div class="book-title">${esc(b.title)}</div>
+          <div class="book-sub">${esc(b.author)}</div>
+          ${genrePillsHtml(b.genre)}
+          ${b.pageCount ? `<div class="book-sub" style="margin-top:.25rem;">📄 ${b.pageCount} pages <span style="color:var(--soft);font-size:.78em;">(${b.pagesFormat})</span>${b.pageCountAlt ? ` · ${b.pageCountAlt} pages (${b.pagesFormatAlt})` : ''}</div>` : ''}
+          ${blurbs}
+        </div>
+        <div class="move-btns">
+          <button class="move-btn" onclick="moveItem(this,-1)" title="Move up">&#x25b2;</button>
+          <button class="move-btn" onclick="moveItem(this,1)" title="Move down">&#x25bc;</button>
+        </div>`;
+    }
     c.appendChild(d);
   });
   updateMoveButtons();
@@ -4616,6 +4639,7 @@ function renderAdmin() {
   setPill('a-suggest-pill',    s.suggestionsOpen,    'Open',    'Closed',  'pill-open', 'pill-closed');
   setPill('a-suggestvis-pill', s.suggestionsVisible, 'Visible', 'Hidden',  'pill-open', 'pill-closed');
   setPill('a-voting-pill',     s.votingOpen,         'Open',    'Closed',  'pill-open', 'pill-closed');
+  setPill('a-covervoting-pill',s.coverVoting,        'On',      'Off',     'pill-open', 'pill-closed');
   setPill('a-results-pill',    s.resultsVisible,     'Visible', 'Hidden',  'pill-open', 'pill-closed');
   setPill('a-review-pill',     s.reviewsOpen,        'Open',    'Closed',  'pill-open', 'pill-closed');
   setPill('a-penny-pill',      s.pennyVisible,       'Visible', 'Hidden',  'pill-open', 'pill-closed');
@@ -8071,6 +8095,11 @@ function editBookCard(book, onSave, onCancel, context) {
         </select>
       </div>
     </div>
+    <div class="f-group" style="margin-bottom:.5rem;">
+      <label>Cover Image URL <span style="font-weight:400;color:var(--soft);font-size:.78rem;">(optional — for Cover Voting Mode)</span></label>
+      <input type="url" id="${uid}-coverUrl" value="${esc(book.coverUrl||'')}" placeholder="https://..." style="font-size:.85rem;padding:.4rem .7rem;">
+      ${book.coverUrl ? `<div style="margin-top:.4rem;"><img src="${esc(book.coverUrl)}" alt="cover preview" style="height:80px;border-radius:4px;border:1px solid var(--border);object-fit:cover;" onerror="this.style.display='none'"></div>` : ''}
+    </div>
     <div id="${uid}-msg"></div>
     <div style="display:flex;gap:.5rem;margin-top:.4rem;">
       <button class="btn btn-primary btn-sm" onclick="${onSave}('${book.id}','${uid}')">Save</button>
@@ -8151,6 +8180,8 @@ async function saveCurrentBook(bookId, uid) {
   if (genre) books[idx].genre = genre; else delete books[idx].genre;
   if (pageCount) { books[idx].pageCount = pageCount; books[idx].pagesFormat = pagesFormat || undefined; }
   else { delete books[idx].pageCount; delete books[idx].pagesFormat; }
+  const coverUrl = document.getElementById(uid+'-coverUrl')?.value.trim();
+  if (coverUrl) books[idx].coverUrl = coverUrl; else delete books[idx].coverUrl;
   const nb = normBook(books[idx]);
   if (suggester && nb.suggesters.length > 0) nb.suggesters[0].discord = suggester;
   books[idx].suggesters = nb.suggesters;
@@ -8239,6 +8270,8 @@ async function saveArchiveBook(label, bookId, uid) {
   if (genre) books[bIdx].genre = genre; else delete books[bIdx].genre;
   if (aPageCount) { books[bIdx].pageCount = aPageCount; books[bIdx].pagesFormat = aPagesFormat || undefined; }
   else { delete books[bIdx].pageCount; delete books[bIdx].pagesFormat; }
+  const aCoverUrl = document.getElementById(uid+'-coverUrl')?.value.trim();
+  if (aCoverUrl) books[bIdx].coverUrl = aCoverUrl; else delete books[bIdx].coverUrl;
   const nb = normBook(books[bIdx]);
   if (suggester && nb.suggesters.length > 0) nb.suggesters[0].discord = suggester;
   books[bIdx].suggesters = nb.suggesters;
