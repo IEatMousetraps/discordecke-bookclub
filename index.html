@@ -2734,7 +2734,7 @@ function renderVote() {
   const cmBanner = document.getElementById('cover-mode-banner');
   if (cmBanner) {
     if (s.votingOpen && cv.enabled) {
-      const obfDesc = cv.obfuscation === 'blur' ? 'blurred covers' : cv.obfuscation === 'pixelate' ? 'pixelated covers' : 'cover images';
+      const obfDesc = cv.obfuscation === 'blur' ? 'blurred covers' : cv.obfuscation === 'pixelate' ? 'pixelated covers' : cv.obfuscation === 'palette-only' ? 'colour palettes only' : 'cover images';
       cmBanner.style.display = 'block';
       cmBanner.innerHTML = '<div style="background:#fffbef;border-left:3px solid var(--gold);padding:.75rem 1rem;border-radius:0 6px 6px 0;font-size:.88rem;color:#7a5f1a;">&#127912; <strong>Cover Voting Mode</strong> &#8212; Voting on ' + obfDesc + ' this month. Rank your favourites using the arrows.</div>';
     } else {
@@ -2872,7 +2872,7 @@ function buildSortable(books) {
     img.onerror = function() { this.parentElement.style.opacity = '0'; };
   });
   // Pixelate canvas pass
-  if (coverMode && cv.obfuscation === 'pixelate') {
+  if (coverMode && cv.obfuscation === 'pixelate' && !paletteOnly) {
     document.querySelectorAll('[id^="px-"]').forEach(function(canvas) {
       const img = new Image();
       img.crossOrigin = 'anonymous';
