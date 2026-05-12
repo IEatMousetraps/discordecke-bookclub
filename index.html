@@ -1634,6 +1634,13 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
             <label style="font-size:.85rem;display:flex;align-items:center;gap:.5rem;cursor:pointer;"><input type="radio" name="cv-obfuscation" value="pixelate" onchange="saveCoverVotingSettings()"> Pixelate — blocky, impressionistic <span style="font-size:.75rem;color:var(--soft);">(use Open Library URLs — required for canvas)</span></label>
           </div>
         </div>
+        <div style="display:flex;align-items:flex-start;gap:.75rem;margin-top:.85rem;">
+          <input type="checkbox" id="cv-show-palette" onchange="saveCoverVotingSettings()" style="margin-top:.2rem;flex-shrink:0;">
+          <div>
+            <label for="cv-show-palette" style="font-size:.88rem;font-weight:600;cursor:pointer;">Show colour palette</label>
+            <div style="font-size:.78rem;color:var(--soft);">Auto-extracted from the cover image on save. Displays up to 5 dominant colour swatches alongside the cover.</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -2059,7 +2066,7 @@ const PENNY_REF            = doc(db, 'club', 'pennyData');
 
 // ── In-memory cache kept fresh by real-time listeners ──
 let CACHE = {
-  settings: {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,reviewsOpen:false,pennyVisible:false,coverVoting:{enabled:false,showCover:true,obfuscation:'none'},password:'bookclub123'},
+  settings: {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,reviewsOpen:false,pennyVisible:false,coverVoting:{enabled:false,showCover:true,obfuscation:'none',showPalette:false},password:'bookclub123'},
   books: [], votes: {}, archives: [], surveys: [], surveyResponses: {}, reviews: {},
   readingProgress: {}, meetingInfo: {},
   badgeConfig: { disabled:{}, hidden:{}, organic:{}, customBadges:[], overrides:{} },
@@ -2144,7 +2151,7 @@ function startListeners() {
 
   onSnapshot(SETTINGS_REF, snap => {
     CACHE.settings = Object.assign(
-      {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,reviewsOpen:false,pennyVisible:false,coverVoting:{enabled:false,showCover:true,obfuscation:'none'},password:'bookclub123'},
+      {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,reviewsOpen:false,pennyVisible:false,coverVoting:{enabled:false,showCover:true,obfuscation:'none',showPalette:false},password:'bookclub123'},
       snap.exists() ? snap.data() : {}
     );
     updatePennyNavVisibility();
@@ -2817,9 +2824,15 @@ function buildSortable(books) {
     }
 
     if (coverMode) {
+      const paletteSwatches = (cv.showPalette && b.palette && b.palette.length)
+        ? '<div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.5rem;">' +
+            b.palette.map(function(h){ h=h.replace('#',''); return '<div style="width:28px;height:28px;border-radius:4px;background:#'+h+';border:1px solid rgba(0,0,0,.15);" title="#'+h+'"></div>'; }).join('') +
+          '</div>'
+        : '';
       const metaHtml =
         (b.genre ? genrePillsHtml(b.genre) : '') +
-        (b.pageCount ? '<div class="book-sub" style="margin-top:.35rem;">📄 ' + b.pageCount + ' pages <span style="color:var(--soft);font-size:.78em;">(' + (b.pagesFormat||'') + ')</span>' + (b.pageCountAlt ? ' &middot; ' + b.pageCountAlt + ' pages (' + (b.pagesFormatAlt||'') + ')' : '') + '</div>' : '');
+        (b.pageCount ? '<div class="book-sub" style="margin-top:.35rem;">📄 ' + b.pageCount + ' pages <span style="color:var(--soft);font-size:.78em;">(' + (b.pagesFormat||'') + ')</span>' + (b.pageCountAlt ? ' &middot; ' + b.pageCountAlt + ' pages (' + (b.pagesFormatAlt||'') + ')' : '') + '</div>' : '') +
+        paletteSwatches;
       d.innerHTML =
         '<div class="rank-badge">' + (i+1) + '</div>' +
         '<div style="flex:1;display:flex;align-items:center;gap:1rem;padding:.5rem 0;">' +
@@ -5649,6 +5662,8 @@ function renderCoverVotingAdmin() {
   if (layers) layers.style.display = cv.enabled ? 'block' : 'none';
   const obVal = cv.obfuscation || 'none';
   document.querySelectorAll('input[name="cv-obfuscation"]').forEach(r => { r.checked = r.value === obVal; });
+  const palCb = document.getElementById('cv-show-palette');
+  if (palCb) palCb.checked = !!cv.showPalette;
 }
 window.renderCoverVotingAdmin = renderCoverVotingAdmin;
 
@@ -5666,9 +5681,10 @@ window.toggleCoverVoting = toggleCoverVoting;
 
 async function saveCoverVotingSettings() {
   const s = getSettings();
-  const cv = Object.assign({enabled:true,obfuscation:'none'}, s.coverVoting || {});
+  const cv = Object.assign({enabled:true,obfuscation:'none',showPalette:false}, s.coverVoting || {});
   const obEl = document.querySelector('input[name="cv-obfuscation"]:checked');
   cv.obfuscation = obEl ? obEl.value : 'none';
+  cv.showPalette = !!(document.getElementById('cv-show-palette')?.checked);
   s.coverVoting = cv;
   showLoading('Saving…');
   await fbSetFull(SETTINGS_REF, s);
@@ -8210,6 +8226,7 @@ function editBookCard(book, onSave, onCancel, context) {
       <label>Cover Image URL <span style="font-weight:400;font-size:.78rem;color:var(--soft);">Use Open Library: covers.openlibrary.org/b/isbn/{ISBN}-L.jpg</span></label>
       <input type="url" id="${uid}-coverUrl" value="${esc(book.coverUrl||'')}" placeholder="https://covers.openlibrary.org/b/isbn/9780385737951-L.jpg" style="font-size:.85rem;padding:.4rem .7rem;">
       ${book.coverUrl ? `<div style="margin-top:.4rem;"><img src="${esc(book.coverUrl)}" alt="preview" style="height:90px;border-radius:4px;border:1px solid var(--border);object-fit:cover;" data-previewimg="1"></div>` : ''}
+      ${book.palette && book.palette.length ? `<div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.4rem;">${book.palette.map(h=>`<div style="width:24px;height:24px;border-radius:3px;background:#${h};border:1px solid rgba(0,0,0,.15);" title="#${h}"></div>`).join('')}</div><div style="font-size:.72rem;color:var(--soft);margin-top:.2rem;">Auto-detected palette — re-save cover URL to refresh</div>` : (book.coverUrl ? `<div style="font-size:.72rem;color:var(--soft);margin-top:.3rem;">Palette will auto-detect on save</div>` : '')}
     </div>
     <div id="${uid}-msg"></div>
     <div style="display:flex;gap:.5rem;margin-top:.4rem;">
@@ -8271,6 +8288,73 @@ function cancelEditCurrentBook() {
 }
 window.cancelEditCurrentBook = cancelEditCurrentBook;
 
+function extractPalette(imageUrl) {
+  return new Promise(function(resolve) {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = function() {
+      try {
+        const SIZE = 80;
+        const canvas = document.createElement('canvas');
+        canvas.width = SIZE; canvas.height = SIZE;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, SIZE, SIZE);
+        const data = ctx.getImageData(0, 0, SIZE, SIZE).data;
+        // Sample pixels on a grid, skip near-white and near-black
+        const samples = [];
+        for (let y = 4; y < SIZE; y += 8) {
+          for (let x = 4; x < SIZE; x += 8) {
+            const i = (y * SIZE + x) * 4;
+            const r = data[i], g = data[i+1], b = data[i+2];
+            const brightness = (r + g + b) / 3;
+            const saturation = Math.max(r,g,b) - Math.min(r,g,b);
+            if (brightness > 20 && brightness < 240 && saturation > 15) {
+              samples.push([r, g, b]);
+            }
+          }
+        }
+        if (!samples.length) { resolve([]); return; }
+        // Simple k-means-lite: pick 5 seeds, assign, update centroids x3
+        let centroids = [];
+        const step = Math.floor(samples.length / 5);
+        for (let k = 0; k < 5; k++) centroids.push([...samples[Math.min(k*step, samples.length-1)]]);
+        for (let iter = 0; iter < 4; iter++) {
+          const clusters = [[], [], [], [], []];
+          samples.forEach(function(s) {
+            let best = 0, bestD = Infinity;
+            centroids.forEach(function(c, ci) {
+              const d = (s[0]-c[0])**2 + (s[1]-c[1])**2 + (s[2]-c[2])**2;
+              if (d < bestD) { bestD = d; best = ci; }
+            });
+            clusters[best].push(s);
+          });
+          centroids = clusters.map(function(cl, ci) {
+            if (!cl.length) return centroids[ci];
+            return [
+              Math.round(cl.reduce((a,s)=>a+s[0],0)/cl.length),
+              Math.round(cl.reduce((a,s)=>a+s[1],0)/cl.length),
+              Math.round(cl.reduce((a,s)=>a+s[2],0)/cl.length)
+            ];
+          });
+        }
+        // Convert to hex, dedupe near-identical colors
+        const hexes = [];
+        centroids.forEach(function(c) {
+          const hex = ((1<<24)+(c[0]<<16)+(c[1]<<8)+c[2]).toString(16).slice(1).toUpperCase();
+          const isDupe = hexes.some(function(h) {
+            const r2=parseInt(h.slice(0,2),16), g2=parseInt(h.slice(2,4),16), b2=parseInt(h.slice(4,6),16);
+            return (c[0]-r2)**2+(c[1]-g2)**2+(c[2]-b2)**2 < 2000;
+          });
+          if (!isDupe) hexes.push(hex);
+        });
+        resolve(hexes.slice(0, 5));
+      } catch(e) { resolve([]); }
+    };
+    img.onerror = function() { resolve([]); };
+    img.src = imageUrl;
+  });
+}
+
 async function saveCurrentBook(bookId, uid) {
   const title     = document.getElementById(uid+'-title')?.value.trim();
   const author    = document.getElementById(uid+'-author')?.value.trim();
@@ -8292,7 +8376,14 @@ async function saveCurrentBook(bookId, uid) {
   if (pageCount) { books[idx].pageCount = pageCount; books[idx].pagesFormat = pagesFormat || undefined; }
   else { delete books[idx].pageCount; delete books[idx].pagesFormat; }
   const coverUrl = document.getElementById(uid+'-coverUrl')?.value.trim();
-  if (coverUrl) books[idx].coverUrl = coverUrl; else delete books[idx].coverUrl;
+  if (coverUrl) {
+    books[idx].coverUrl = coverUrl;
+    const palette = await extractPalette(coverUrl);
+    if (palette.length) books[idx].palette = palette; else delete books[idx].palette;
+  } else {
+    delete books[idx].coverUrl;
+    delete books[idx].palette;
+  }
   const nb = normBook(books[idx]);
   if (suggester && nb.suggesters.length > 0) nb.suggesters[0].discord = suggester;
   books[idx].suggesters = nb.suggesters;
@@ -8382,7 +8473,14 @@ async function saveArchiveBook(label, bookId, uid) {
   if (aPageCount) { books[bIdx].pageCount = aPageCount; books[bIdx].pagesFormat = aPagesFormat || undefined; }
   else { delete books[bIdx].pageCount; delete books[bIdx].pagesFormat; }
   const aCoverUrl = document.getElementById(uid+'-coverUrl')?.value.trim();
-  if (aCoverUrl) books[bIdx].coverUrl = aCoverUrl; else delete books[bIdx].coverUrl;
+  if (aCoverUrl) {
+    books[bIdx].coverUrl = aCoverUrl;
+    const aPalette = await extractPalette(aCoverUrl);
+    if (aPalette.length) books[bIdx].palette = aPalette; else delete books[bIdx].palette;
+  } else {
+    delete books[bIdx].coverUrl;
+    delete books[bIdx].palette;
+  }
   const nb = normBook(books[bIdx]);
   if (suggester && nb.suggesters.length > 0) nb.suggesters[0].discord = suggester;
   books[bIdx].suggesters = nb.suggesters;
