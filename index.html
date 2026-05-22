@@ -1620,6 +1620,35 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       </div>
     </div>
 
+    <!-- Cover Voting Mode -->
+    <div class="card" id="cover-voting-admin-card">
+      <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.4rem;">Cover Voting Mode</h3>
+      <p style="font-size:.85rem;color:var(--soft);margin-bottom:.9rem;">When enabled, the vote page hides book titles and shows cover art only. Changes save immediately.</p>
+      <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;">
+        <div style="font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--soft);">Cover Voting</div>
+        <span id="a-covervoting-pill" class="pill pill-closed">Off</span>
+        <button class="btn btn-secondary btn-sm" onclick="toggleCoverVoting()">Toggle</button>
+      </div>
+      <div id="cover-voting-layers" style="display:none;border-top:1px solid var(--border);padding-top:.9rem;">
+        <div style="padding:.6rem .75rem;background:var(--cream);border-radius:6px;border:1px solid var(--border);margin-bottom:.85rem;">
+          <div style="font-size:.8rem;font-weight:600;margin-bottom:.5rem;color:var(--soft);text-transform:uppercase;letter-spacing:.05em;">Cover display — pick one</div>
+          <div style="display:flex;flex-direction:column;gap:.4rem;">
+            <label style="font-size:.85rem;display:flex;align-items:center;gap:.5rem;cursor:pointer;"><input type="radio" name="cv-obfuscation" value="none" onchange="saveCoverVotingSettings()"> Show cover as-is</label>
+            <label style="font-size:.85rem;display:flex;align-items:center;gap:.5rem;cursor:pointer;"><input type="radio" name="cv-obfuscation" value="blur" onchange="saveCoverVotingSettings()"> Blur cover <span style="font-size:.75rem;color:var(--soft);">(members may right-click to bypass)</span></label>
+            <label style="font-size:.85rem;display:flex;align-items:center;gap:.5rem;cursor:pointer;"><input type="radio" name="cv-obfuscation" value="pixelate" onchange="saveCoverVotingSettings()"> Pixelate cover <span style="font-size:.75rem;color:var(--soft);">(use Open Library URLs)</span></label>
+            <label style="font-size:.85rem;display:flex;align-items:center;gap:.5rem;cursor:pointer;"><input type="radio" name="cv-obfuscation" value="palette-only" onchange="saveCoverVotingSettings()"> Palette swatches only <span style="font-size:.75rem;color:var(--soft);">(enable palette below)</span></label>
+          </div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:.75rem;">
+          <input type="checkbox" id="cv-show-palette" onchange="saveCoverVotingSettings()" style="margin-top:.2rem;flex-shrink:0;">
+          <div>
+            <label for="cv-show-palette" style="font-size:.88rem;font-weight:600;cursor:pointer;">Show colour palette</label>
+            <div style="font-size:.78rem;color:var(--soft);">Auto-extracted from cover on save. Displays up to 5 dominant colour swatches with hex codes.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Meeting countdown -->
     <div class="card">
       <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Meeting Countdown Banner</h3>
