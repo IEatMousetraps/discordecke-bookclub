@@ -1620,35 +1620,6 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       </div>
     </div>
 
-    <!-- Cover Voting Mode -->
-    <div class="card" id="cover-voting-admin-card">
-      <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.4rem;">Cover Voting Mode</h3>
-      <p style="font-size:.85rem;color:var(--soft);margin-bottom:.9rem;">When enabled, the vote page hides book titles and shows cover art only. Changes save immediately.</p>
-      <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;">
-        <div style="font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--soft);">Cover Voting</div>
-        <span id="a-covervoting-pill" class="pill pill-closed">Off</span>
-        <button class="btn btn-secondary btn-sm" onclick="toggleCoverVoting()">Toggle</button>
-      </div>
-      <div id="cover-voting-layers" style="display:none;border-top:1px solid var(--border);padding-top:.9rem;">
-        <div style="padding:.6rem .75rem;background:var(--cream);border-radius:6px;border:1px solid var(--border);margin-bottom:.85rem;">
-          <div style="font-size:.8rem;font-weight:600;margin-bottom:.5rem;color:var(--soft);text-transform:uppercase;letter-spacing:.05em;">Cover display — pick one</div>
-          <div style="display:flex;flex-direction:column;gap:.4rem;">
-            <label style="font-size:.85rem;display:flex;align-items:center;gap:.5rem;cursor:pointer;"><input type="radio" name="cv-obfuscation" value="none" onchange="saveCoverVotingSettings()"> Show cover as-is</label>
-            <label style="font-size:.85rem;display:flex;align-items:center;gap:.5rem;cursor:pointer;"><input type="radio" name="cv-obfuscation" value="blur" onchange="saveCoverVotingSettings()"> Blur cover <span style="font-size:.75rem;color:var(--soft);">(members may right-click to bypass)</span></label>
-            <label style="font-size:.85rem;display:flex;align-items:center;gap:.5rem;cursor:pointer;"><input type="radio" name="cv-obfuscation" value="pixelate" onchange="saveCoverVotingSettings()"> Pixelate cover <span style="font-size:.75rem;color:var(--soft);">(use Open Library URLs)</span></label>
-            <label style="font-size:.85rem;display:flex;align-items:center;gap:.5rem;cursor:pointer;"><input type="radio" name="cv-obfuscation" value="palette-only" onchange="saveCoverVotingSettings()"> Palette swatches only <span style="font-size:.75rem;color:var(--soft);">(enable palette below)</span></label>
-          </div>
-        </div>
-        <div style="display:flex;align-items:flex-start;gap:.75rem;">
-          <input type="checkbox" id="cv-show-palette" onchange="saveCoverVotingSettings()" style="margin-top:.2rem;flex-shrink:0;">
-          <div>
-            <label for="cv-show-palette" style="font-size:.88rem;font-weight:600;cursor:pointer;">Show colour palette</label>
-            <div style="font-size:.78rem;color:var(--soft);">Auto-extracted from cover on save. Displays up to 5 dominant colour swatches with hex codes.</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Meeting countdown -->
     <div class="card">
       <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Meeting Countdown Banner</h3>
@@ -8222,12 +8193,65 @@ function renderEditBooksTab() {
 }
 window.renderEditBooksTab = renderEditBooksTab;
 
+async function mergeDuplicateBooks(idsJson) {
+  var ids = JSON.parse(idsJson);
+  var books = getBooks();
+  var targets = ids.map(function(id) { return books.find(function(b) { return String(b.id) === String(id); }); }).filter(Boolean);
+  if (targets.length < 2) return;
+  if (!confirm('Merge ' + targets.length + ' copies of "' + targets[0].title + '" into one? All suggesters and their blurbs will be combined. This cannot be undone.')) return;
+  // Keep first book, merge all suggesters+blurbs from duplicates in
+  var primary = JSON.parse(JSON.stringify(targets[0]));
+  if (!primary.suggesters) primary.suggesters = [];
+  targets.slice(1).forEach(function(b) {
+    (b.suggesters || []).forEach(function(s) {
+      var already = primary.suggesters.some(function(ps) {
+        return normId(ps.discord) === normId(s.discord) || (s.email && ps.email && normEmail(ps.email) === normEmail(s.email));
+      });
+      if (!already) primary.suggesters.push(s);
+    });
+    // Also merge genre/pageCount if primary is missing them
+    if (!primary.genre && b.genre) primary.genre = b.genre;
+    if (!primary.pageCount && b.pageCount) { primary.pageCount = b.pageCount; primary.pagesFormat = b.pagesFormat; }
+  });
+  var removeIds = new Set(ids.map(String));
+  var remaining = books.filter(function(b) { return !removeIds.has(String(b.id)); });
+  remaining.splice(books.indexOf(targets[0]), 0, primary);
+  showLoading('Merging…');
+  await fbSet(BOOKS_REF, { list: remaining });
+  hideLoading();
+  renderEditCurrentBooks();
+}
+window.mergeDuplicateBooks = mergeDuplicateBooks;
+
 function renderEditCurrentBooks() {
   const area = document.getElementById('edit-current-books-area');
   if (!area) return;
   const books = getBooks();
   if (!books.length) { area.innerHTML = '<p style="font-size:.85rem;color:var(--soft);">No books submitted this month yet.</p>'; return; }
-  area.innerHTML = books.map(b => {
+  // Detect duplicates by normalised title + author
+  const normStr = s => (s||'').trim().toLowerCase().replace(/[^a-z0-9]/g,'');
+  const seen = new Map();
+  books.forEach(b => {
+    const key = normStr(b.title) + '||' + normStr(b.author);
+    if (!seen.has(key)) seen.set(key, []);
+    seen.get(key).push(b);
+  });
+  const dupGroups = [];
+  seen.forEach(group => { if (group.length > 1) dupGroups.push(group); });
+  const dupHtml = dupGroups.length
+    ? '<div style="background:#fffbef;border-left:3px solid var(--gold);border-radius:0 6px 6px 0;padding:.75rem 1rem;margin-bottom:.85rem;font-size:.85rem;">' +
+        '<strong>&#x26A0; Duplicate books detected</strong> — same title and author submitted more than once. Merging will combine all suggesters and their blurbs onto one entry.' +
+        dupGroups.map(function(group) {
+          var ids = JSON.stringify(group.map(function(b) { return b.id; }));
+          var suggesters = group.map(function(b) { return normBook(b).suggesters.map(function(s) { return s.discord; }).join(', '); }).join(' + ');
+          return '<div style="margin-top:.5rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">' +
+            '<span>' + esc(group[0].title) + ' <span style="color:var(--soft);font-size:.8rem;">(' + esc(suggesters) + ')</span></span>' +
+            '<button class="btn btn-secondary btn-sm" onclick="mergeDuplicateBooks(' + "'" + ids.replace(/'/g, "\'") + "'" + ')">Merge</button>' +
+          '</div>';
+        }).join('') +
+      '</div>'
+    : '';
+  area.innerHTML = dupHtml + books.map(b => {
     const nb = normBook(b);
     const genreTag = b.genre ? `<span style="font-size:.7rem;background:var(--cream);border:1px solid var(--border);padding:.1rem .5rem;border-radius:12px;color:var(--soft);">${esc(b.genre)}</span>` : '<span style="font-size:.7rem;color:var(--red);">no genre</span>';
     return `<div id="ecb-row-${b.id}" style="display:flex;align-items:center;gap:.75rem;padding:.65rem .75rem;background:var(--cream);border-radius:6px;margin-bottom:.4rem;flex-wrap:wrap;">
