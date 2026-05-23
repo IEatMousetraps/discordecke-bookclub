@@ -7137,9 +7137,21 @@ function renderMyReviews() {
       var bk = (arc.books || []).find(function(b) { return String(b.id) === String(r.bookId); });
       return bk ? (normBook(bk).title || null) : null;
     }
-    // Single-winner month — find the winner
+    // Try dualWinners first
+    if (arc.dualWinners && arc.dualWinners.length) {
+      var dualBooks = (arc.books || []).filter(function(b) { return arc.dualWinners.map(String).indexOf(String(b.id)) !== -1; });
+      if (dualBooks.length) return dualBooks.map(function(b) { return normBook(b).title; }).join(' & ');
+    }
+    // Try winner flag
     var winner = (arc.books || []).find(function(b) { return b.winner; });
-    return winner ? normBook(winner).title : (arc.books && arc.books[0] ? normBook(arc.books[0]).title : null);
+    if (winner) return normBook(winner).title;
+    // Try archive-level winner field
+    if (arc.winner) {
+      var winnerBook = (arc.books || []).find(function(b) { return String(b.id) === String(arc.winner); });
+      if (winnerBook) return normBook(winnerBook).title;
+    }
+    // No winner data — return null rather than guessing first book
+    return null;
   }
 
   function starHtml(rating) {
