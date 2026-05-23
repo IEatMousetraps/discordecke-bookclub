@@ -2210,6 +2210,7 @@ function startListeners() {
       { mode:'bingo', active:false, hidden:true, staticBoard:false, prompts:[], passportStamps:[] },
       snap.exists() ? snap.data() : {}
     );
+    CACHE.quarterlyConfigLoaded = true; // mark as confirmed-loaded from Firestore
     // Show/hide quarterly nav button
     const qBtn = document.getElementById('quarterly-nav-btn');
     if (qBtn) qBtn.style.display = (CACHE.quarterlyConfig.active && !CACHE.quarterlyConfig.hidden) ? '' : 'none';
@@ -7753,8 +7754,8 @@ function _buildBadgeFeedEvents() {
 
   // ── 4. Penny badges — from CACHE.pennyMembers directly ─────────────────────
   const pennyBadgeDefs = [
-    { id:'penny-met',      name:'Meet Penny',           emoji:'🕯️', tsKey:'lastVisit',      check: r => (r.visitCount||0) >= 1 },
-    { id:'penny-returned', name:'Back Again',            emoji:'🔁', tsKey:'lastVisit',      check: r => (r.visitCount||0) >= 2 },
+    { id:'penny-met',      name:'Meet Penny',           emoji:'🕯️', tsKey:'firstVisit',     check: r => (r.visitCount||0) >= 1 },
+    { id:'penny-returned', name:'Back Again',            emoji:'🔁', tsKey:'secondVisit',    check: r => (r.visitCount||0) >= 2 },
     { id:'penny-trust',    name:'Trust Penny',           emoji:'🤝', tsKey:'usedTrust_ts',   check: r => !!r.usedTrust },
     { id:'penny-catalog',  name:'The Card Catalog',      emoji:'🗂️', tsKey:'usedCatalog_ts', check: r => !!r.usedCatalog },
     { id:'penny-quiz',     name:'Ask Me Your Questions', emoji:'📝', tsKey:'usedQuiz_ts',    check: r => !!r.usedQuiz },
@@ -9188,7 +9189,11 @@ async function renderPennyTabInto(area) {
       const prev = (data[memberKey] || {});
       if (!_pennyCountedThisSession) {
         newCount = (prev.visitCount || 0) + 1;
-        await fbSet(PENNY_REF, { [memberKey]: { visitCount: newCount, lastVisit: Date.now() } });
+        const now = Date.now();
+        const visitUpdate = { visitCount: newCount, lastVisit: now };
+        if (!prev.firstVisit) visitUpdate.firstVisit = now; // store once, never overwrite
+        if (newCount === 2 && !prev.secondVisit) visitUpdate.secondVisit = now; // second visit timestamp
+        await fbSet(PENNY_REF, { [memberKey]: visitUpdate });
         _pennyCountedThisSession = true;
       } else {
         newCount = prev.visitCount || 1;
@@ -10854,6 +10859,10 @@ function renderQuarterlyTab() {
   const main  = document.getElementById('quarterly-main');
   if (!main) return;
 
+  if (!CACHE.quarterlyConfigLoaded) {
+    main.innerHTML = '<div class="pending-box"><div class="icon">📅</div><p style="color:var(--soft);font-size:.9rem;">Loading…</p></div>';
+    return;
+  }
   if (!cfg.active) {
     main.innerHTML = `<div class="pending-box"><div class="icon">📅</div><h3>No Active Quarter</h3><p>Check back when the next quarterly activity is announced!</p></div>`;
     return;
