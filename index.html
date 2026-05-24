@@ -3650,11 +3650,18 @@ async function submitReview() {
   if (!read)  { showMsg('review-msg', 'Please answer question 1.', 'err'); return; }
   if (read === 'Yes' && !finished) { showMsg('review-msg', 'Please answer question 2.', 'err'); return; }
 
+  // Find winner title for single months too, so MyReviews can always show the right title
+  let singleBookTitle = null;
+  if (!isDualMonth) {
+    const arcWinners = getArchiveWinners();
+    const arcMatch = arcWinners.find(function(w) { return w.archive.label === month; });
+    if (arcMatch && arcMatch.winnerBooks.length) singleBookTitle = arcMatch.winnerBooks[0].title;
+  }
   const entry = {
     name: discord, email, discord,
     month, read, finished, dnfWhy, liked, why,
     rating: rating || 'opt-out',
-    ...(isDualMonth ? { bookId: String(bookId), bookTitle } : {}),
+    ...(isDualMonth ? { bookId: String(bookId), bookTitle } : { bookTitle: singleBookTitle }),
     ts: Date.now()
   };
 
@@ -7130,28 +7137,24 @@ function renderMyReviews() {
 
   // Helper: look up book title from archive if not stored on review
   function getBookTitle(r) {
+    // Always prefer the stored bookTitle on the review record
     if (r.bookTitle) return r.bookTitle;
+    // For dual months with a bookId, look up that specific book in the archive
     var arc = archives.find(function(a) { return a.label === r.month; });
     if (!arc) return null;
     if (r.bookId) {
       var bk = (arc.books || []).find(function(b) { return String(b.id) === String(r.bookId); });
-      return bk ? (normBook(bk).title || null) : null;
+      return bk ? normBook(bk).title : null;
     }
-    // Try dualWinners first
-    if (arc.dualWinners && arc.dualWinners.length) {
-      var dualBooks = (arc.books || []).filter(function(b) { return arc.dualWinners.map(String).indexOf(String(b.id)) !== -1; });
-      if (dualBooks.length) return dualBooks.map(function(b) { return normBook(b).title; }).join(' & ');
+    // Use getArchiveWinners() — same robust logic the Results page uses
+    var arcWinners = getArchiveWinners();
+    var arcMatch = arcWinners.find(function(w) { return w.archive.label === r.month; });
+    if (!arcMatch || !arcMatch.winnerBooks.length) return null;
+    // For dual months show both titles; single winner show one
+    if (arcMatch.winnerBooks.length > 1) {
+      return arcMatch.winnerBooks.map(function(b) { return normBook(b).title; }).join(' & ');
     }
-    // Try winner flag
-    var winner = (arc.books || []).find(function(b) { return b.winner; });
-    if (winner) return normBook(winner).title;
-    // Try archive-level winner field
-    if (arc.winner) {
-      var winnerBook = (arc.books || []).find(function(b) { return String(b.id) === String(arc.winner); });
-      if (winnerBook) return normBook(winnerBook).title;
-    }
-    // No winner data — return null rather than guessing first book
-    return null;
+    return normBook(arcMatch.winnerBooks[0]).title;
   }
 
   function starHtml(rating) {
@@ -12722,7 +12725,7 @@ async function qaAdminDeleteCard(key) {
   if (!confirm(`Delete ${name}'s card? This allows them to resubmit. This cannot be undone.`)) return;
   const newMap = Object.assign({}, cards);
   delete newMap[key];
-  await fbSet(QUARTERLY_CARDS_REF, { map: newMap });
+  await fbSetFull(QUARTERLY_CARDS_REF, { map: newMap });
   showMsg('qa-admin-ctrl-msg', `Deleted card for ${esc(name)}.`, 'ok');
   renderQuarterlyAdmin();
 }
