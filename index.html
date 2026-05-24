@@ -10913,15 +10913,18 @@ function renderBingoCard(container, cfg, card, memberKey) {
       : rowCount === 12
         ? '🎉 Maximum 12 rows — perfect card!'
         : `${rowCount} bingo row${rowCount !== 1 ? 's' : ''} = <strong>${rowCount} drawing entr${rowCount !== 1 ? 'ies' : 'y'}</strong> in the prize drawing.`;
-    html += `<div class="qa-submitted-banner">
-      <span class="icon">${approved ? '🏆' : '✅'}</span>
+    html += `<div class="qa-submitted-banner" style="margin-bottom:1.25rem;padding:1rem 1.25rem;border-radius:10px;${approved ? 'background:linear-gradient(135deg,#fff8e1,#fffde7);border:2px solid var(--gold);' : 'background:linear-gradient(135deg,#e8f5e9,#f1f8e9);border:2px solid var(--green);'}">
+      <span class="icon" style="font-size:2rem;">${approved ? '🏆' : '✅'}</span>
       <div style="flex:1;">
-        <strong style="font-size:.95rem;">${approved ? 'Approved!' : 'Card Submitted & Locked'}</strong>
-        <div style="font-size:.82rem;color:var(--soft);margin-top:.2rem;">
-          ${approved ? 'Your card has been reviewed and approved by admin.' : 'Your card is locked in and awaiting admin review.'}
+        <strong style="font-size:1.05rem;display:block;margin-bottom:.3rem;">${approved ? 'Bingo Card Approved!' : 'Bingo Card Successfully Submitted'}</strong>
+        <div style="font-size:.85rem;color:var(--soft);margin-bottom:.5rem;">
+          ${approved ? 'Your card has been reviewed and approved by an admin. No further action needed!' : 'Your card is locked in and awaiting admin review. You are all set — nothing left to do!'}
         </div>
-        <div style="margin-top:.45rem;padding:.4rem .65rem;background:rgba(240,180,41,.12);border-radius:5px;border:1px solid rgba(240,180,41,.3);font-size:.85rem;">${rowMsg}</div>
+        <div style="margin-top:.35rem;padding:.4rem .65rem;background:rgba(240,180,41,.12);border-radius:5px;border:1px solid rgba(240,180,41,.3);font-size:.85rem;">${rowMsg}</div>
       </div>
+    </div>
+    <div style="font-size:.8rem;color:var(--soft);text-align:center;margin-bottom:1rem;padding:.5rem;background:var(--cream);border-radius:6px;">
+      Your card is shown below in read-only mode for reference.
     </div>`;
   }
 
@@ -11102,16 +11105,23 @@ function renderPassportCard(container, cfg, card, memberKey) {
 
   if (isSubmitted) {
     const approved = card.approved;
-    html += `<div class="qa-submitted-banner">
-      <span class="icon">${approved ? '🏆' : '✅'}</span>
-      <div>
-        <strong>${approved ? 'Approved!' : 'Passport Submitted'}</strong>
-        <div style="font-size:.78rem;color:var(--soft);">
-          ${approved ? 'Your passport has been approved by admin.' : 'Your passport is locked and awaiting review.'}
-          &nbsp; <strong style="color:var(--ink);">${claimedCount} / ${total} stamps</strong>
-          ${claimedCount >= required ? ' — <span style="color:var(--green);">Completed! ✓</span>' : ''}
+    html += `<div class="qa-submitted-banner" style="margin-bottom:1.25rem;padding:1rem 1.25rem;border-radius:10px;${approved ? 'background:linear-gradient(135deg,#fff8e1,#fffde7);border:2px solid var(--gold);' : 'background:linear-gradient(135deg,#e8f5e9,#f1f8e9);border:2px solid var(--green);'}">
+      <span class="icon" style="font-size:2rem;">${approved ? '🏆' : '✅'}</span>
+      <div style="flex:1;">
+        <strong style="font-size:1.05rem;display:block;margin-bottom:.3rem;">${approved ? 'Passport Approved!' : 'Passport Successfully Submitted'}</strong>
+        <div style="font-size:.85rem;color:var(--soft);margin-bottom:.5rem;">
+          ${approved
+            ? 'Your passport has been reviewed and approved by an admin. No further action needed!'
+            : 'Your passport is locked in and awaiting admin review. You are all set — nothing left to do!'}
+        </div>
+        <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
+          <span style="font-size:.88rem;"><strong>${claimedCount} / ${total} stamps</strong> collected</span>
+          ${claimedCount >= required ? '<span style="color:var(--green);font-size:.88rem;font-weight:600;">✓ Completed!</span>' : `<span style="color:var(--soft);font-size:.83rem;">${required - claimedCount} more needed to qualify</span>`}
         </div>
       </div>
+    </div>
+    <div style="font-size:.8rem;color:var(--soft);text-align:center;margin-bottom:1rem;padding:.5rem;background:var(--cream);border-radius:6px;">
+      Your stamps are shown below in read-only mode for reference.
     </div>`;
   }
 
