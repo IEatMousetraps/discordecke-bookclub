@@ -4613,7 +4613,7 @@ function renderRankings() {
           : '';
         const coverUrl = bookCoverMap[rankKey] || '';
         const pageInfo = bookPageMap[rankKey] || null;
-        const pagePill = pageInfo ? `<div style="background:var(--cream);border-radius:6px;padding:.55rem;text-align:center;"><div style="font-family:'Playfair Display',serif;font-size:1.25rem;font-weight:700;color:var(--gold);">${pageInfo.pageCount}</div><div style="font-size:.65rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Pages</div></div>` : '';
+        const pageCountLine = pageInfo ? `<div style="font-size:.72rem;color:var(--soft);margin-bottom:.6rem;">📄 ${pageInfo.pageCount} pages</div>` : '';
         return `
         <div class="chart-wrap" style="margin-bottom:1rem;">
           <div style="display:flex;gap:1rem;align-items:flex-start;">
@@ -4626,7 +4626,8 @@ function renderRankings() {
               </div>
               <div style="font-size:.72rem;color:var(--soft);font-style:italic;margin-bottom:.75rem;padding-left:2.1rem;">👑 Co-winner · ${esc(cleanMonthLabel)}</div>
               ${recommenderHtml}
-              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:.5rem;margin-bottom:.65rem;">
+              ${pageCountLine}
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(95px,1fr));gap:.5rem;margin-bottom:.65rem;">
                 <div style="background:var(--cream);border-radius:6px;padding:.55rem;text-align:center;">
                   <div style="font-size:.95rem;margin-bottom:.2rem;">${starDisplay(d.avgRating)}</div>
                   <div style="font-size:.65rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Avg Rating</div>
@@ -4647,7 +4648,6 @@ function renderRankings() {
                   <div style="font-family:'Playfair Display',serif;font-size:1.25rem;font-weight:700;color:var(--gold);">${d.total}</div>
                   <div style="font-size:.65rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Reviews</div>
                 </div>
-                ${pagePill}
               </div>
               <button onclick="toggleRankingReviews('${reviewToggleId}', this)"
                 style="background:none;border:1px solid var(--border);border-radius:20px;cursor:pointer;font-size:.75rem;color:var(--soft);padding:.3rem .85rem;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:.35rem;transition:all .2s;"
@@ -4675,7 +4675,7 @@ function renderRankings() {
       : '';
     const coverUrl = bookCoverMap[rankKey] || '';
     const pageInfo = bookPageMap[rankKey] || null;
-    const pagePill = pageInfo ? `<div style="background:var(--cream);border-radius:6px;padding:.65rem;text-align:center;"><div style="font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--gold);">${pageInfo.pageCount}</div><div style="font-size:.68rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Pages</div></div>` : '';
+    const pageCountLine = pageInfo ? `<div style="font-size:.72rem;color:var(--soft);margin-bottom:.6rem;">📄 ${pageInfo.pageCount} pages</div>` : '';
     // Header: for dual months show "March 2026" label + book title on next line; for single months show month label as before
     const headerHtml = isSingleOfDual
       ? `<div style="display:flex;align-items:baseline;gap:.75rem;margin-bottom:.35rem;">
@@ -4698,7 +4698,8 @@ function renderRankings() {
         <div style="flex:1;min-width:0;">
           ${headerHtml}
           ${recommenderHtml}
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.6rem;margin-bottom:.75rem;">
+          ${pageCountLine}
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(95px,1fr));gap:.5rem;margin-bottom:.75rem;">
             <div style="background:var(--cream);border-radius:6px;padding:.65rem;text-align:center;">
               <div style="font-size:1rem;margin-bottom:.2rem;">${starDisplay(d.avgRating)}</div>
               <div style="font-size:.68rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Avg Rating</div>
@@ -4719,7 +4720,6 @@ function renderRankings() {
               <div style="font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--gold);">${d.total}</div>
               <div style="font-size:.68rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Reviews</div>
             </div>
-            ${pagePill}
           </div>
           <button onclick="toggleRankingReviews('${reviewToggleId}', this)"
             style="background:none;border:1px solid var(--border);border-radius:20px;cursor:pointer;font-size:.75rem;color:var(--soft);padding:.3rem .85rem;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:.35rem;transition:all .2s;"
