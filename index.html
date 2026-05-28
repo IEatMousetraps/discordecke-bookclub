@@ -4619,14 +4619,16 @@ function renderRankings() {
           <div style="display:flex;gap:1rem;align-items:flex-start;">
             ${coverUrl ? `<img src="${esc(coverUrl)}" alt="Cover" style="width:80px;height:120px;object-fit:cover;border-radius:5px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.18);">` : ''}
             <div style="flex:1;min-width:0;">
-              <div style="display:flex;align-items:baseline;gap:.75rem;margin-bottom:.2rem;">
-                <span style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--gold);">${rank}.</span>
-                <span style="font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:600;">${esc(meta.bookTitle)}</span>
+              <div style="display:flex;gap:.75rem;margin-bottom:.75rem;">
+                <span style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--gold);flex-shrink:0;">${rank}.</span>
+                <div style="min-width:0;">
+                  <div style="font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:600;margin-bottom:.25rem;">${esc(meta.bookTitle)}</div>
+                  ${meta.genre ? `<div style="margin-bottom:.3rem;">${genrePillsHtml(meta.genre)}</div>` : ''}
+                  <div style="font-size:.72rem;color:var(--soft);font-style:italic;margin-bottom:.4rem;">👑 Co-winner · ${esc(cleanMonthLabel)}</div>
+                  ${recommenderHtml}
+                  ${pageCountLine}
+                </div>
               </div>
-              ${meta.genre ? `<div style="margin-bottom:.3rem;margin-left:2.1rem;">${genrePillsHtml(meta.genre)}</div>` : ''}
-              <div style="font-size:.72rem;color:var(--soft);font-style:italic;margin-bottom:.75rem;margin-left:2.1rem;">👑 Co-winner · ${esc(cleanMonthLabel)}</div>
-              ${recommenderHtml}
-              ${pageCountLine}
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(95px,1fr));gap:.5rem;margin-bottom:.65rem;">
                 <div style="background:var(--cream);border-radius:6px;padding:.55rem;text-align:center;">
                   <div style="font-size:.95rem;margin-bottom:.2rem;">${starDisplay(d.avgRating)}</div>
@@ -4678,27 +4680,29 @@ function renderRankings() {
     const pageCountLine = pageInfo ? `<div style="font-size:.72rem;color:var(--soft);margin-bottom:.6rem;">📄 ${pageInfo.pageCount} pages</div>` : '';
     // Header: for dual months show "March 2026" label + book title on next line; for single months show month label as before
     const headerHtml = isSingleOfDual
-      ? `<div style="display:flex;align-items:baseline;gap:.75rem;margin-bottom:.2rem;">
-          <span style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--gold);">${rank}.</span>
-          <span style="font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:600;">${esc(meta.bookTitle)}</span>
-        </div>
-        ${meta.genre ? `<div style="margin-bottom:.3rem;margin-left:2.1rem;">${genrePillsHtml(meta.genre)}</div>` : ''}
-        <div style="font-size:.72rem;color:var(--soft);margin-bottom:.85rem;margin-left:2.1rem;">
-          👑 ${esc(cleanMonthLabel)} · <em style="font-style:italic;">Co-winner month</em>
+      ? `<div style="display:flex;gap:.75rem;margin-bottom:.75rem;">
+          <span style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--gold);flex-shrink:0;">${rank}.</span>
+          <div style="min-width:0;">
+            <div style="font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:600;margin-bottom:.25rem;">${esc(meta.bookTitle)}</div>
+            ${meta.genre ? `<div style="margin-bottom:.3rem;">${genrePillsHtml(meta.genre)}</div>` : ''}
+            <div style="font-size:.72rem;color:var(--soft);font-style:italic;">👑 ${esc(cleanMonthLabel)} · Co-winner month</div>
+          </div>
         </div>`
-      : `<div style="display:flex;align-items:baseline;gap:.75rem;margin-bottom:.2rem;">
-          <span style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--gold);">${rank}.</span>
-          <span style="font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:600;">${esc(monthLabel)}</span>
-        </div>
-        ${meta.genre ? `<div style="margin-bottom:.6rem;margin-left:2.1rem;">${genrePillsHtml(meta.genre)}</div>` : ''}`;
+      : `<div style="display:flex;gap:.75rem;margin-bottom:.75rem;">
+          <span style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--gold);flex-shrink:0;">${rank}.</span>
+          <div style="min-width:0;">
+            <div style="font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:600;margin-bottom:.25rem;">${esc(monthLabel)}</div>
+            ${meta.genre ? `<div style="margin-bottom:.3rem;">${genrePillsHtml(meta.genre)}</div>` : ''}
+            ${recommenderHtml}
+            ${pageCountLine}
+          </div>
+        </div>`;
     return `
     <div class="chart-wrap" style="margin-bottom:1rem;">
       <div style="display:flex;gap:1rem;align-items:flex-start;">
         ${coverUrl ? `<img src="${esc(coverUrl)}" alt="Cover" style="width:80px;height:120px;object-fit:cover;border-radius:5px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.18);">` : ''}
         <div style="flex:1;min-width:0;">
           ${headerHtml}
-          ${recommenderHtml}
-          ${pageCountLine}
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(95px,1fr));gap:.5rem;margin-bottom:.75rem;">
             <div style="background:var(--cream);border-radius:6px;padding:.65rem;text-align:center;">
               <div style="font-size:1rem;margin-bottom:.2rem;">${starDisplay(d.avgRating)}</div>
