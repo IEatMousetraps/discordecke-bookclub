@@ -3020,16 +3020,76 @@ function computeBordaScores(books, votes) {
 
 function renderResults() {
   const s = getSettings(), books = getBooks(), votes = getVotes();
-  const n = Object.keys(votes).length;
-  document.getElementById('res-subtitle').textContent = `Borda count · ${n} voter${n !== 1 ? 's' : ''} · ${books.length} book${books.length !== 1 ? 's' : ''}`;
   const area = document.getElementById('results-area');
+  const subtitleEl = document.getElementById('res-subtitle');
+  const hasActiveVote = books.length > 0 && Object.keys(votes).length > 0;
+  const hasActiveBooks = books.length > 0; // books loaded even if no votes yet
+
+  // Determine what to show based on state:
+  // - resultsVisible=true → show results (active vote if present, else most recent archive)
+  // - resultsVisible=false + active books/votes exist → Results Pending (vote in progress)
+  // - resultsVisible=false + no active books/votes → quiet period, show most recent archive
+
   if (!s.resultsVisible) {
-    area.innerHTML = `<div class="pending-box"><div class="icon">🔒</div><h3>Results Pending</h3><p>The admin hasn't released results yet.<br>Check back after voting closes!</p></div>`;
-    return;
+    if (hasActiveBooks) {
+      // Something is in progress — don't reveal it
+      subtitleEl.textContent = 'Results will be posted when voting concludes';
+      area.innerHTML = `<div class="pending-box"><div class="icon">🔒</div><h3>Results Pending</h3><p>The admin hasn't released results yet.<br>Check back soon!</p></div>`;
+      return;
+    } else {
+      // Quiet period — show most recent archive as context
+      const archives = getArchives();
+      if (!archives.length) {
+        subtitleEl.textContent = 'No results yet';
+        area.innerHTML = '<div class="empty"><div class="icon">🏆</div><p>No results posted yet. Check back after the first vote!</p></div>';
+        return;
+      }
+      const latest = archives[archives.length - 1];
+      const archBooks = latest.books || [];
+      const archVotes = latest.votes || {};
+      const nv = Object.keys(archVotes).length;
+      subtitleEl.textContent = `${latest.label} · final results · ${nv} voter${nv !== 1 ? 's' : ''}`;
+      if (!archBooks.length || !nv) {
+        area.innerHTML = '<div class="empty"><div class="icon">🗳️</div><p>No vote data for the most recent month.</p></div>';
+        return;
+      }
+      renderResultsHtml(area, archBooks, archVotes);
+      return;
+    }
   }
-  if (!books.length) { area.innerHTML = '<div class="empty"><div class="icon">📚</div><p>No books yet.</p></div>'; return; }
+
+  // resultsVisible = true — show the results we want to reveal
+  // Prefer active vote; fall back to most recent archive if active vote is empty
+  let displayBooks = books, displayVotes = votes;
+  let isArchiveFallback = false, archiveLabel = '';
+  if (!hasActiveVote) {
+    const archives = getArchives();
+    if (!archives.length) {
+      subtitleEl.textContent = 'No results yet';
+      area.innerHTML = '<div class="empty"><div class="icon">🏆</div><p>No results to display yet.</p></div>';
+      return;
+    }
+    const latest = archives[archives.length - 1];
+    displayBooks = latest.books || [];
+    displayVotes = latest.votes || {};
+    isArchiveFallback = true;
+    archiveLabel = latest.label;
+  }
+
+  const n = Object.keys(displayVotes).length;
+  if (isArchiveFallback) {
+    subtitleEl.textContent = `${archiveLabel} · final results · ${n} voter${n !== 1 ? 's' : ''}`;
+  } else {
+    subtitleEl.textContent = `Borda count · ${n} voter${n !== 1 ? 's' : ''} · ${displayBooks.length} book${displayBooks.length !== 1 ? 's' : ''}`;
+  }
+
+  if (!displayBooks.length) { area.innerHTML = '<div class="empty"><div class="icon">📚</div><p>No books yet.</p></div>'; return; }
   if (!n) { area.innerHTML = '<div class="empty"><div class="icon">🗳️</div><p>No votes cast yet.</p></div>'; return; }
 
+  renderResultsHtml(area, displayBooks, displayVotes);
+}
+
+function renderResultsHtml(area, books, votes) {
   const { sorted, scores, rankCounts, nb, isTied, tiedBooks } = computeBordaScores(books, votes);
   const max = scores[sorted[0]?.id] || 1;
   const ordinal = r => r === 1 ? '1st' : r === 2 ? '2nd' : r === 3 ? '3rd' : `${r}th`;
@@ -4412,7 +4472,6 @@ function renderRankings() {
         if (n && !names.includes(n)) names.push(n);
       });
       if (names.length) recommenderMap[rankKey] = names.sort((x,y) => x.localeCompare(y));
-      // Store cover image and page count keyed by rankKey
       if (b.coverUrl) bookCoverMap[rankKey] = b.coverUrl;
       if (b.pageCount) bookPageMap[rankKey] = { pageCount: b.pageCount, pagesFormat: b.pagesFormat || '' };
     });
