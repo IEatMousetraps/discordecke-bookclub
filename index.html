@@ -4634,152 +4634,62 @@ function renderRankings() {
     }).join('');
   }
 
-  // Group sorted entries by month so dual-winner siblings render together
-  // Each group: { month, cards: [ {rankKey, d, rank} ] }
-  // Groups are sorted by their highest-rated (lowest rank number) card.
-  const monthGroupMap = {};
-  let globalRank = 0;
-  sorted.forEach(([rankKey, d]) => {
-    globalRank++;
-    const meta = rankKeyMeta[rankKey] || {};
-    const month = meta.month || rankKey;
-    if (!monthGroupMap[month]) {
-      monthGroupMap[month] = { month, cards: [], bestRank: globalRank };
-    }
-    monthGroupMap[month].cards.push({ rankKey, d, rank: globalRank });
-    // bestRank = lowest rank number seen for this month (first card wins since sorted by rating)
-    if (globalRank < monthGroupMap[month].bestRank) monthGroupMap[month].bestRank = globalRank;
-  });
-  // Sort groups by bestRank so the page order matches the rank numbers
-  const groups = Object.values(monthGroupMap).sort((a, b) => a.bestRank - b.bestRank);
-
+  // Render each book as its own card in strict rating order — no grouping
   area.innerHTML = `
   <p style="font-size:.82rem;color:var(--ink);background:rgba(240,180,41,.08);border:1px solid rgba(240,180,41,.25);border-radius:6px;padding:.55rem .9rem;margin-bottom:1.5rem;display:inline-block;">💡 Click <strong>Member Reviews</strong> on any book to see individual responses.</p>
-  ${groups.map(group => {    const isDualGroup = group.cards.length > 1 || (rankKeyMeta[group.cards[0]?.rankKey]?.isDual);
-    const monthLabel  = group.month;
-    const cleanMonthLabel = (archiveLookup[monthLabel]?.cleanLabel) || monthLabel;
-
-    // For dual groups: render each co-winner as its own standalone card
-    if (isDualGroup && group.cards.length > 1) {
-      return group.cards.map(({rankKey, d, rank}) => {
-        const meta          = rankKeyMeta[rankKey] || {};
-        const reviewToggleId = `rkrev_${rankKey.replace(/[^a-z0-9]/gi,'_')}`;
-        const recommenders  = recommenderMap[rankKey] || [];
-        const recommenderHtml = recommenders.length
-          ? `<div style="font-size:.72rem;color:var(--soft);margin-bottom:.65rem;">📌 Recommended by: <strong style="color:var(--ink);">${recommenders.map(r=>esc(r)).join(', ')}</strong></div>`
-          : '';
-        const coverUrl = bookCoverMap[rankKey] || '';
-        const pageInfo = bookPageMap[rankKey] || null;
-        const pageCountLine = pageInfo ? `<div style="font-size:.72rem;color:var(--soft);margin-bottom:.6rem;">📄 ${pageInfo.pageCount} pages</div>` : '';
-        return `
-        <div class="chart-wrap" style="margin-bottom:1rem;">
-          <div style="display:flex;gap:1rem;align-items:flex-start;">
-            ${coverUrl ? `<img src="${esc(coverUrl)}" alt="Cover" style="width:80px;height:120px;object-fit:cover;border-radius:5px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.18);">` : ''}
-            <div style="flex:1;min-width:0;">
-              <div style="display:flex;gap:.75rem;margin-bottom:.75rem;">
-                <span style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--gold);flex-shrink:0;">${rank}.</span>
-                <div style="min-width:0;">
-                  <div style="font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:600;margin-bottom:.25rem;">${esc(meta.bookTitle)}</div>
-                  ${meta.genre ? `<div style="margin-bottom:.3rem;">${genrePillsHtml(meta.genre)}</div>` : ''}
-                  <div style="font-size:.72rem;color:var(--soft);font-style:italic;margin-bottom:.4rem;">👑 Co-winner · ${esc(cleanMonthLabel)}</div>
-                  ${recommenderHtml}
-                  ${pageCountLine}
-                </div>
-              </div>
-              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(95px,1fr));gap:.5rem;margin-bottom:.65rem;">
-                <div style="background:var(--cream);border-radius:6px;padding:.55rem;text-align:center;">
-                  <div style="font-size:.95rem;margin-bottom:.2rem;">${starDisplay(d.avgRating)}</div>
-                  <div style="font-size:.65rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Avg Rating</div>
-                </div>
-                <div style="background:var(--cream);border-radius:6px;padding:.55rem;text-align:center;">
-                  <div style="font-family:'Playfair Display',serif;font-size:1.25rem;font-weight:700;color:var(--gold);">${d.startedPct.toFixed(0)}%</div>
-                  <div style="font-size:.65rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Started</div>
-                </div>
-                <div style="background:var(--cream);border-radius:6px;padding:.55rem;text-align:center;">
-                  <div style="font-family:'Playfair Display',serif;font-size:1.25rem;font-weight:700;color:var(--gold);">${d.finishedPct.toFixed(0)}%</div>
-                  <div style="font-size:.65rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Finished</div>
-                </div>
-                <div style="background:var(--cream);border-radius:6px;padding:.55rem;text-align:center;">
-                  <div style="font-family:'Playfair Display',serif;font-size:1.25rem;font-weight:700;color:var(--gold);">${d.likedPct.toFixed(0)}%</div>
-                  <div style="font-size:.65rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Liked It</div>
-                </div>
-                <div style="background:var(--cream);border-radius:6px;padding:.55rem;text-align:center;">
-                  <div style="font-family:'Playfair Display',serif;font-size:1.25rem;font-weight:700;color:var(--gold);">${d.total}</div>
-                  <div style="font-size:.65rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Reviews</div>
-                </div>
-              </div>
-              <button onclick="toggleRankingReviews('${reviewToggleId}', this)"
-                style="background:none;border:1px solid var(--border);border-radius:20px;cursor:pointer;font-size:.75rem;color:var(--soft);padding:.3rem .85rem;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:.35rem;transition:all .2s;"
-                onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--ink)';"
-                onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--soft)';">
-                <span style="font-size:.65rem;">▶</span> Member Reviews (${d.total})
-              </button>
-              <div id="${reviewToggleId}" style="display:none;margin-top:.75rem;border-top:1px solid var(--border);padding-top:.5rem;">
-                ${buildReviewCards(rankKey)}
-              </div>
-            </div>
-          </div>
-        </div>`;
-      }).join('');
-    }
-
-    // Single book card — may be a true single-winner month, or a dual month where only one book has reviews yet
-    const {rankKey, d, rank} = group.cards[0];
-    const meta          = rankKeyMeta[rankKey] || {};
-    const isSingleOfDual = meta.isDual; // dual month but only one book has reviews
+  ${sorted.map(([rankKey, d], i) => {
+    const rank = i + 1;
+    const meta = rankKeyMeta[rankKey] || {};
+    const month = meta.month || rankKey;
+    const cleanMonthLabel = (archiveLookup[month]?.cleanLabel) || month;
+    const isDual = meta.isDual;
+    const bookTitle = meta.bookTitle || month;
     const reviewToggleId = `rkrev_${rankKey.replace(/[^a-z0-9]/gi,'_')}`;
-    const recommenders  = recommenderMap[rankKey] || [];
+    const recommenders = recommenderMap[rankKey] || [];
     const recommenderHtml = recommenders.length
-      ? `<div style="font-size:.72rem;color:var(--soft);margin-bottom:.75rem;">📌 Recommended by: <strong style="color:var(--ink);">${recommenders.map(r=>esc(r)).join(', ')}</strong></div>`
+      ? `<div style="font-size:.72rem;color:var(--soft);margin-bottom:.4rem;">📌 Recommended by: <strong style="color:var(--ink);">${recommenders.map(r=>esc(r)).join(', ')}</strong></div>`
       : '';
     const coverUrl = bookCoverMap[rankKey] || '';
     const pageInfo = bookPageMap[rankKey] || null;
-    const pageCountLine = pageInfo ? `<div style="font-size:.72rem;color:var(--soft);margin-bottom:.6rem;">📄 ${pageInfo.pageCount} pages</div>` : '';
-    // Header: for dual months show "March 2026" label + book title on next line; for single months show month label as before
-    const headerHtml = isSingleOfDual
-      ? `<div style="display:flex;gap:.75rem;margin-bottom:.75rem;">
-          <span style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--gold);flex-shrink:0;">${rank}.</span>
-          <div style="min-width:0;">
-            <div style="font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:600;margin-bottom:.25rem;">${esc(meta.bookTitle)}</div>
-            ${meta.genre ? `<div style="margin-bottom:.3rem;">${genrePillsHtml(meta.genre)}</div>` : ''}
-            <div style="font-size:.72rem;color:var(--soft);font-style:italic;">👑 ${esc(cleanMonthLabel)} · Co-winner month</div>
-          </div>
-        </div>`
-      : `<div style="display:flex;gap:.75rem;margin-bottom:.75rem;">
-          <span style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--gold);flex-shrink:0;">${rank}.</span>
-          <div style="min-width:0;">
-            <div style="font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:600;margin-bottom:.25rem;">${esc(monthLabel)}</div>
-            ${meta.genre ? `<div style="margin-bottom:.3rem;">${genrePillsHtml(meta.genre)}</div>` : ''}
-            ${recommenderHtml}
-            ${pageCountLine}
-          </div>
-        </div>`;
+    const pageCountLine = pageInfo ? `<div style="font-size:.72rem;color:var(--soft);margin-bottom:.4rem;">📄 ${pageInfo.pageCount} pages</div>` : '';
+    const subtitle = isDual
+      ? `<div style="font-size:.72rem;color:var(--soft);font-style:italic;margin-bottom:.4rem;">👑 Co-winner · ${esc(cleanMonthLabel)}</div>`
+      : `<div style="font-size:.72rem;color:var(--soft);font-style:italic;margin-bottom:.4rem;">${esc(month)}</div>`;
     return `
     <div class="chart-wrap" style="margin-bottom:1rem;">
       <div style="display:flex;gap:1rem;align-items:flex-start;">
         ${coverUrl ? `<img src="${esc(coverUrl)}" alt="Cover" style="width:80px;height:120px;object-fit:cover;border-radius:5px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.18);">` : ''}
         <div style="flex:1;min-width:0;">
-          ${headerHtml}
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(95px,1fr));gap:.5rem;margin-bottom:.75rem;">
-            <div style="background:var(--cream);border-radius:6px;padding:.65rem;text-align:center;">
-              <div style="font-size:1rem;margin-bottom:.2rem;">${starDisplay(d.avgRating)}</div>
-              <div style="font-size:.68rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Avg Rating</div>
+          <div style="display:flex;gap:.75rem;margin-bottom:.75rem;">
+            <span style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--gold);flex-shrink:0;">${rank}.</span>
+            <div style="min-width:0;">
+              <div style="font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:600;margin-bottom:.25rem;">${esc(bookTitle)}</div>
+              ${meta.genre ? `<div style="margin-bottom:.3rem;">${genrePillsHtml(meta.genre)}</div>` : ''}
+              ${subtitle}
+              ${recommenderHtml}
+              ${pageCountLine}
             </div>
-            <div style="background:var(--cream);border-radius:6px;padding:.65rem;text-align:center;">
-              <div style="font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--gold);">${d.startedPct.toFixed(0)}%</div>
-              <div style="font-size:.68rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Started</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(95px,1fr));gap:.5rem;margin-bottom:.65rem;">
+            <div style="background:var(--cream);border-radius:6px;padding:.55rem;text-align:center;">
+              <div style="font-size:.95rem;margin-bottom:.2rem;">${starDisplay(d.avgRating)}</div>
+              <div style="font-size:.65rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Avg Rating</div>
             </div>
-            <div style="background:var(--cream);border-radius:6px;padding:.65rem;text-align:center;">
-              <div style="font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--gold);">${d.finishedPct.toFixed(0)}%</div>
-              <div style="font-size:.68rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Finished</div>
+            <div style="background:var(--cream);border-radius:6px;padding:.55rem;text-align:center;">
+              <div style="font-family:'Playfair Display',serif;font-size:1.25rem;font-weight:700;color:var(--gold);">${d.startedPct.toFixed(0)}%</div>
+              <div style="font-size:.65rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Started</div>
             </div>
-            <div style="background:var(--cream);border-radius:6px;padding:.65rem;text-align:center;">
-              <div style="font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--gold);">${d.likedPct.toFixed(0)}%</div>
-              <div style="font-size:.68rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Liked It</div>
+            <div style="background:var(--cream);border-radius:6px;padding:.55rem;text-align:center;">
+              <div style="font-family:'Playfair Display',serif;font-size:1.25rem;font-weight:700;color:var(--gold);">${d.finishedPct.toFixed(0)}%</div>
+              <div style="font-size:.65rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Finished</div>
             </div>
-            <div style="background:var(--cream);border-radius:6px;padding:.65rem;text-align:center;">
-              <div style="font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--gold);">${d.total}</div>
-              <div style="font-size:.68rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Reviews</div>
+            <div style="background:var(--cream);border-radius:6px;padding:.55rem;text-align:center;">
+              <div style="font-family:'Playfair Display',serif;font-size:1.25rem;font-weight:700;color:var(--gold);">${d.likedPct.toFixed(0)}%</div>
+              <div style="font-size:.65rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Liked It</div>
+            </div>
+            <div style="background:var(--cream);border-radius:6px;padding:.55rem;text-align:center;">
+              <div style="font-family:'Playfair Display',serif;font-size:1.25rem;font-weight:700;color:var(--gold);">${d.total}</div>
+              <div style="font-size:.65rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Reviews</div>
             </div>
           </div>
           <button onclick="toggleRankingReviews('${reviewToggleId}', this)"
