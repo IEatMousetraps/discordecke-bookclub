@@ -1582,6 +1582,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       <button class="sub-tab" onclick="goAdminTab('quarterly-admin',this)">🎯 Quarterly</button>
       <button class="sub-tab" onclick="goAdminTab('surveys-admin',this)">📋 Surveys</button>
       <button class="sub-tab" onclick="goAdminTab('penny-admin',this)">📚 Penny Preview</button>
+      <button class="sub-tab" onclick="goAdminTab('identities-admin',this)">🔗 Identities</button>
     </div>
 
     <div id="admin-sub-manage">
@@ -2031,6 +2032,40 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       </div>
     </div><!-- /admin-sub-penny-admin -->
 
+    <div id="admin-sub-identities-admin" style="display:none;">
+      <h3 style="font-family:'Playfair Display',serif;margin-bottom:.25rem;">Identity Aliases</h3>
+      <p style="font-size:.82rem;color:var(--soft);margin-bottom:1.25rem;">When two entries belong to the same member but use different names or emails, add an alias rule here. The <strong>From</strong> identity will be treated as the <strong>To</strong> identity everywhere — no raw data is changed.</p>
+
+      <div style="background:var(--cream);border-radius:8px;padding:1rem;margin-bottom:1.25rem;">
+        <div style="font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);margin-bottom:.75rem;">Add New Alias Rule</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem;">
+          <div>
+            <label style="font-size:.75rem;color:var(--soft);display:block;margin-bottom:.25rem;">FROM (wrong name or email)</label>
+            <input id="alias-from" type="text" placeholder="e.g. alsochris2 or wrong@email.com" style="width:100%;box-sizing:border-box;padding:.45rem .6rem;border:1px solid var(--border);border-radius:5px;font-size:.82rem;font-family:'DM Sans',sans-serif;">
+          </div>
+          <div>
+            <label style="font-size:.75rem;color:var(--soft);display:block;margin-bottom:.25rem;">TO (correct member name or email)</label>
+            <input id="alias-to" type="text" placeholder="e.g. Also chris or correct@email.com" style="width:100%;box-sizing:border-box;padding:.45rem .6rem;border:1px solid var(--border);border-radius:5px;font-size:.82rem;font-family:'DM Sans',sans-serif;">
+          </div>
+        </div>
+        <button class="btn" onclick="addIdentityAlias()" style="font-size:.8rem;padding:.4rem .9rem;">Add Rule</button>
+        <span id="alias-msg" style="font-size:.78rem;margin-left:.75rem;"></span>
+      </div>
+
+      <div style="margin-bottom:1rem;">
+        <div style="font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);margin-bottom:.75rem;">Current Alias Rules</div>
+        <div id="alias-rules-list"></div>
+      </div>
+
+      <hr style="border:none;border-top:1px solid var(--border);margin:1.5rem 0;">
+
+      <div>
+        <div style="font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);margin-bottom:.75rem;">All Known Identities <span style="font-weight:400;font-style:italic;">(after aliases applied)</span></div>
+        <p style="font-size:.78rem;color:var(--soft);margin-bottom:.75rem;">Use these to find the exact strings to put in alias rules.</p>
+        <div id="identity-list"></div>
+      </div>
+    </div><!-- /admin-sub-identities-admin -->
+
   </div><!-- /admin-panel -->
 </div><!-- /tab-admin -->
 
@@ -2452,19 +2487,40 @@ function buildIdentityMap() {
     }
   }
 
+  // Apply admin alias rules: rewrite 'from' identities to 'to' before building map
+  const aliases = (getSettings().identityAliases || []);
+  function applyAliases(discord, email) {
+    const nd = normId(discord), ne = normEmail(email);
+    for (const rule of aliases) {
+      const rf = normId(rule.from), rfe = normEmail(rule.from);
+      const rt = rule.to || '';
+      // Match on discord name or email
+      if ((nd && nd === rf) || (ne && ne === rfe)) {
+        // 'to' could be an email or a discord name — detect by @ presence
+        if (rt.includes('@')) return { discord, email: rt };
+        else return { discord: rt, email };
+      }
+    }
+    return { discord, email };
+  }
+  function upsertA(discord, email, ts) {
+    const resolved = applyAliases(discord, email);
+    upsert(resolved.discord, resolved.email, ts);
+  }
+
   // Feed all data sources
   const archives = getArchives();
   archives.forEach(a => {
-    Object.values(a.votes || {}).forEach(vd => upsert(vd.discord, vd.email, vd.ts));
-    (a.books || []).map(normBook).forEach(b => b.suggesters.forEach(s => upsert(s.discord, s.email, a.archivedAt)));
+    Object.values(a.votes || {}).forEach(vd => upsertA(vd.discord, vd.email, vd.ts));
+    (a.books || []).map(normBook).forEach(b => b.suggesters.forEach(s => upsertA(s.discord, s.email, a.archivedAt)));
   });
-  getBooks().map(normBook).forEach(b => b.suggesters.forEach(s => upsert(s.discord, s.email, Date.now())));
-  Object.values(getVotes()).forEach(vd => upsert(vd.discord, vd.email, vd.ts));
-  Object.values(getReviews()).forEach(entries => (entries||[]).forEach(r => upsert(r.discord, r.email, r.ts)));
+  getBooks().map(normBook).forEach(b => b.suggesters.forEach(s => upsertA(s.discord, s.email, Date.now())));
+  Object.values(getVotes()).forEach(vd => upsertA(vd.discord, vd.email, vd.ts));
+  Object.values(getReviews()).forEach(entries => (entries||[]).forEach(r => upsertA(r.discord, r.email, r.ts)));
   // Survey responses: use discord field (populated by new submissions) falling back to name
   Object.values(getSurveyResponses()).forEach(resps => (resps||[]).forEach(r => {
     const d = r.discord || r.name || '';
-    if (d || r.email) upsert(d, r.email, r.ts);
+    if (d || r.email) upsertA(d, r.email, r.ts);
   }));
 
   return map;
@@ -4855,7 +4911,7 @@ function renderAdmin() {
 }
 
 function goAdminTab(id, btn) {
-  ['manage','live-results','members-overview','reading-progress-admin','badges-admin','edit-books','quarterly-admin','surveys-admin','penny-admin'].forEach(s => {
+  ['manage','live-results','members-overview','reading-progress-admin','badges-admin','edit-books','quarterly-admin','surveys-admin','penny-admin','identities-admin'].forEach(s => {
     document.getElementById('admin-sub-'+s).style.display = s === id ? '' : 'none';
   });
   document.querySelectorAll('#admin-panel .sub-tab').forEach(b => b.classList.remove('active'));
@@ -4867,6 +4923,7 @@ function goAdminTab(id, btn) {
   else if (id === 'edit-books')               renderEditBooksTab();
   else if (id === 'quarterly-admin')          renderQuarterlyAdmin();
   else if (id === 'surveys-admin')             renderAdminSurveys();
+  else if (id === 'identities-admin')      renderIdentitiesAdmin();
   // penny-admin has no auto-render — content loads on button click
   if (id === 'penny-admin') {
     renderHistoricalBookList();
@@ -4887,6 +4944,71 @@ function goAdminTab(id, btn) {
   }
 }
 window.goAdminTab = goAdminTab;
+
+// ════════════════════════════════════════════════════════
+// ADMIN — IDENTITY ALIASES
+// ════════════════════════════════════════════════════════
+function renderIdentitiesAdmin() {
+  const aliases = getSettings().identityAliases || [];
+  const rulesEl = document.getElementById('alias-rules-list');
+  if (rulesEl) {
+    if (!aliases.length) {
+      rulesEl.innerHTML = '<p style="font-size:.82rem;color:var(--soft);font-style:italic;">No alias rules yet.</p>';
+    } else {
+      rulesEl.innerHTML = aliases.map((r, i) => `
+        <div style="display:flex;align-items:center;gap:.75rem;padding:.5rem .75rem;background:var(--cream);border-radius:6px;margin-bottom:.4rem;font-size:.82rem;">
+          <span style="flex:1;"><strong>${esc(r.from)}</strong> <span style="color:var(--soft);">→</span> <strong>${esc(r.to)}</strong></span>
+          <button onclick="removeIdentityAlias(${i})" style="background:none;border:1px solid #d9534f;color:#d9534f;border-radius:4px;cursor:pointer;font-size:.72rem;padding:.2rem .5rem;">Remove</button>
+        </div>`).join('');
+    }
+  }
+
+  const idEl = document.getElementById('identity-list');
+  if (!idEl) return;
+  const idMap = buildIdentityMap();
+  const entries = [...idMap.values()].sort((a, b) => a.displayName.localeCompare(b.displayName));
+  if (!entries.length) { idEl.innerHTML = '<p style="font-size:.82rem;color:var(--soft);">No identities found.</p>'; return; }
+  idEl.innerHTML = entries.map(e => {
+    const aliases2 = [...e.normIds].filter(n => n !== normId(e.displayName));
+    return `<div style="padding:.5rem .75rem;background:var(--cream);border-radius:6px;margin-bottom:.4rem;font-size:.82rem;">
+      <strong>${esc(e.displayName)}</strong>
+      ${e.email ? `<span style="color:var(--soft);margin-left:.5rem;">${esc(e.email)}</span>` : ''}
+      ${aliases2.length ? `<div style="font-size:.72rem;color:var(--soft);margin-top:.15rem;">Also seen as: ${aliases2.map(a => `<em>${esc(a)}</em>`).join(', ')}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+window.renderIdentitiesAdmin = renderIdentitiesAdmin;
+
+async function addIdentityAlias() {
+  const from = (document.getElementById('alias-from')?.value || '').trim();
+  const to   = (document.getElementById('alias-to')?.value   || '').trim();
+  const msg  = document.getElementById('alias-msg');
+  if (!from || !to) { if (msg) { msg.textContent = 'Both fields are required.'; msg.style.color = '#c0392b'; } return; }
+  if (from === to)  { if (msg) { msg.textContent = 'From and To must be different.'; msg.style.color = '#c0392b'; } return; }
+  const aliases = [...(getSettings().identityAliases || [])];
+  if (aliases.some(r => normId(r.from) === normId(from))) {
+    if (msg) { msg.textContent = 'A rule for that identity already exists.'; msg.style.color = '#c0392b'; } return;
+  }
+  aliases.push({ from, to });
+  showLoading('Saving…');
+  await fbSet(SETTINGS_REF, { identityAliases: aliases });
+  hideLoading();
+  document.getElementById('alias-from').value = '';
+  document.getElementById('alias-to').value = '';
+  if (msg) { msg.textContent = '✓ Rule added.'; msg.style.color = 'green'; setTimeout(() => { if (msg) msg.textContent = ''; }, 3000); }
+  renderIdentitiesAdmin();
+}
+window.addIdentityAlias = addIdentityAlias;
+
+async function removeIdentityAlias(idx) {
+  const aliases = [...(getSettings().identityAliases || [])];
+  aliases.splice(idx, 1);
+  showLoading('Saving…');
+  await fbSet(SETTINGS_REF, { identityAliases: aliases });
+  hideLoading();
+  renderIdentitiesAdmin();
+}
+window.removeIdentityAlias = removeIdentityAlias;
 
 // ════════════════════════════════════════════════════════
 // ADMIN — LIVE RESULTS VIEW
