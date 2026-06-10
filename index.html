@@ -4636,8 +4636,7 @@ function renderRankings() {
 
   // Group sorted entries by month so dual-winner siblings render together
   // Each group: { month, cards: [ {rankKey, d, rank} ] }
-  const groups = [];
-  const monthOrder = []; // track insertion order
+  // Groups are sorted by their highest-rated (lowest rank number) card.
   const monthGroupMap = {};
   let globalRank = 0;
   sorted.forEach(([rankKey, d]) => {
@@ -4645,12 +4644,14 @@ function renderRankings() {
     const meta = rankKeyMeta[rankKey] || {};
     const month = meta.month || rankKey;
     if (!monthGroupMap[month]) {
-      monthGroupMap[month] = { month, cards: [] };
-      monthOrder.push(month);
-      groups.push(monthGroupMap[month]);
+      monthGroupMap[month] = { month, cards: [], bestRank: globalRank };
     }
     monthGroupMap[month].cards.push({ rankKey, d, rank: globalRank });
+    // bestRank = lowest rank number seen for this month (first card wins since sorted by rating)
+    if (globalRank < monthGroupMap[month].bestRank) monthGroupMap[month].bestRank = globalRank;
   });
+  // Sort groups by bestRank so the page order matches the rank numbers
+  const groups = Object.values(monthGroupMap).sort((a, b) => a.bestRank - b.bestRank);
 
   area.innerHTML = `
   <p style="font-size:.82rem;color:var(--ink);background:rgba(240,180,41,.08);border:1px solid rgba(240,180,41,.25);border-radius:6px;padding:.55rem .9rem;margin-bottom:1.5rem;display:inline-block;">💡 Click <strong>Member Reviews</strong> on any book to see individual responses.</p>
