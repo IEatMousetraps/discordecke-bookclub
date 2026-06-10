@@ -5380,6 +5380,9 @@ function _doRenderMemberDirectory() {
   // ── Build per-member data ─────────────────────────────────────────────────
   const memberData = {}; // key → { name, email, votedMonths, suggestedBooks, reviewedMonths, progress }
 
+  // Key memberData by resolved canonical name so alias rules merge duplicates
+  const resolvedKey = (discord, email) => resolveId(discord, email, idMap) || normEmail(email) || normId(discord);
+
   const getOrCreate = (key, name, email) => {
     if (!memberData[key]) memberData[key] = {
       name, email: email || '',
@@ -5388,6 +5391,8 @@ function _doRenderMemberDirectory() {
       reviewedMonths: [], // { month, rating, finished }
       progress: {}        // bookId → status
     };
+    // Update email if we now have one and didn't before
+    if (email && !memberData[key].email) memberData[key].email = email;
     return memberData[key];
   };
 
@@ -5408,9 +5413,9 @@ function _doRenderMemberDirectory() {
     // Voters
     if (!a.memberPick) {
       Object.values(a.votes||{}).forEach(vd => {
-        const key = normEmail(vd.email) || normId(vd.discord);
-        if (!key) return;
         const name = resolveId(vd.discord, vd.email, idMap) || vd.discord || vd.email;
+        const key = resolvedKey(vd.discord, vd.email);
+        if (!key) return;
         const m = getOrCreate(key, name, vd.email);
         m.votedMonths.push(a.label);
       });
@@ -5420,9 +5425,9 @@ function _doRenderMemberDirectory() {
     (a.books||[]).map(normBook).forEach(b => {
       const won = winnerIds.has(String(b.id));
       b.suggesters.forEach(s => {
-        const key = normEmail(s.email) || normId(s.discord);
-        if (!key) return;
         const name = resolveId(s.discord, s.email, idMap) || s.discord || s.email;
+        const key = resolvedKey(s.discord, s.email);
+        if (!key) return;
         const m = getOrCreate(key, name, s.email);
         m.suggestedBooks.push({ title: b.title, author: b.author, month: a.label, won });
       });
@@ -5432,9 +5437,9 @@ function _doRenderMemberDirectory() {
   // Reviewers
   Object.entries(allReviews).forEach(([month, entries]) => {
     (entries||[]).forEach(r => {
-      const key = normEmail(r.email) || normId(r.discord);
-      if (!key) return;
       const name = resolveId(r.discord, r.email, idMap) || r.discord || r.email;
+      const key = resolvedKey(r.discord, r.email);
+      if (!key) return;
       const m = getOrCreate(key, name, r.email);
       m.reviewedMonths.push({ month, rating: r.rating, finished: r.finished });
     });
