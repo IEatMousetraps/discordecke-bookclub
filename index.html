@@ -13652,8 +13652,17 @@ if (location.hash === '#quarterly') {
     if (!dragSrc) return;
     const target = e.currentTarget;
     if (dragSrc === target) { cleanupDrag(); return; }
-    target.parentNode.insertBefore(dragSrc, target);
-    finishReshelve(target.dataset.shelfId);
+    const shelfId = target.dataset.shelfId;
+    // Always insert a fresh shelf book — moving a raw floor element
+    // onto the shelf leaves it absolutely positioned and sideways
+    const book = { title: dragSrc.dataset.title, year: dragSrc.dataset.year || '' };
+    const newEl = makeShelfBook(book, shelfId, 0);
+    target.parentNode.insertBefore(newEl, target);
+    if (dragSrcShelf === null) {
+      floorBooks = floorBooks.filter(fb => fb.el !== dragSrc);
+    }
+    dragSrc.remove();
+    finishReshelve(shelfId);
   }
 
   // ── Drop on a shelf itself (append to end) ────────────────────
@@ -13711,14 +13720,60 @@ if (location.hash === '#quarterly') {
   // ── Touch drag support for mobile ─────────────────────────────
   let touchClone = null;
   let touchOffsetX = 0, touchOffsetY = 0;
+  let touchAutoScrollRAF = null;
+  let touchLastClientY = 0;
+
+  // Remove every drag artifact, everywhere. Safe to call any time —
+  // handles interrupted drags (touchcancel), stale clones from a
+  // previous drag, and cleanup on overlay open/close.
+  function clearTouchArtifacts() {
+    // Nuke ALL clones in the document, not just the tracked one —
+    // an orphaned clone from an interrupted drag may still be on <body>
+    document.querySelectorAll('.ap-touch-clone').forEach(c => c.remove());
+    touchClone = null;
+    if (touchAutoScrollRAF) { cancelAnimationFrame(touchAutoScrollRAF); touchAutoScrollRAF = null; }
+    if (dragSrc) {
+      dragSrc.style.visibility = '';
+      dragSrc.style.display = '';
+    }
+    cleanupDrag();
+  }
+
+  // Auto-scroll the overlay while a touch drag hovers near the
+  // top/bottom edge of the screen — otherwise books can't be carried
+  // to shelves that are off-screen on mobile.
+  function touchAutoScrollLoop() {
+    touchAutoScrollRAF = null;
+    if (!dragSrc || !touchClone) return;
+    const overlay = document.getElementById('aux-panel-overlay');
+    if (overlay) {
+      const EDGE = 90;       // px from screen edge where scrolling kicks in
+      const MAX_SPEED = 14;  // px per frame at the very edge
+      const vh = window.innerHeight;
+      let delta = 0;
+      if (touchLastClientY < EDGE) {
+        delta = -MAX_SPEED * (1 - touchLastClientY / EDGE);
+      } else if (touchLastClientY > vh - EDGE) {
+        delta = MAX_SPEED * (1 - (vh - touchLastClientY) / EDGE);
+      }
+      if (delta !== 0) overlay.scrollTop += delta;
+    }
+    touchAutoScrollRAF = requestAnimationFrame(touchAutoScrollLoop);
+  }
 
   function addTouchDrag(el, isFloor) {
     el.addEventListener('touchstart', (e) => {
       if (e.touches.length !== 1) return;
+
+      // Clear any stale state from a previous interrupted drag FIRST,
+      // so orphaned clones never accumulate
+      clearTouchArtifacts();
+
       const touch = e.touches[0];
       const rect = el.getBoundingClientRect();
       touchOffsetX = touch.clientX - rect.left;
       touchOffsetY = touch.clientY - rect.top;
+      touchLastClientY = touch.clientY;
 
       dragSrc = el;
       dragSrcShelf = isFloor ? null : el.dataset.shelfId;
@@ -13729,6 +13784,7 @@ if (location.hash === '#quarterly') {
 
       // Clone for visual feedback
       touchClone = el.cloneNode(true);
+      touchClone.className = 'ap-touch-clone';
       touchClone.style.cssText = `
         position:fixed; pointer-events:none; z-index:99999;
         width:${rect.width}px; height:${rect.height}px;
@@ -13746,22 +13802,35 @@ if (location.hash === '#quarterly') {
       `;
       touchClone.style.transformOrigin = '';
       document.body.appendChild(touchClone);
+
+      // Start the edge auto-scroll watcher
+      touchAutoScrollRAF = requestAnimationFrame(touchAutoScrollLoop);
+
       e.preventDefault();
     }, { passive: false });
 
     el.addEventListener('touchmove', (e) => {
       if (!dragSrc || !touchClone) return;
       const touch = e.touches[0];
+      touchLastClientY = touch.clientY;
       touchClone.style.left = (touch.clientX - touchOffsetX) + 'px';
       touchClone.style.top  = (touch.clientY - touchOffsetY) + 'px';
       e.preventDefault();
     }, { passive: false });
+
+    // Firefox/Android fires touchcancel (not touchend) when the browser
+    // interrupts a gesture — without this, clones were orphaned on
+    // <body> forever as the "ghost books"
+    el.addEventListener('touchcancel', () => {
+      clearTouchArtifacts();
+    }, { passive: true });
 
     el.addEventListener('touchend', (e) => {
       if (!dragSrc) return;
 
       // Remove clone immediately
       if (touchClone) { touchClone.remove(); touchClone = null; }
+      if (touchAutoScrollRAF) { cancelAnimationFrame(touchAutoScrollRAF); touchAutoScrollRAF = null; }
 
       // Restore visibility
       dragSrc.style.visibility = '';
@@ -13774,12 +13843,20 @@ if (location.hash === '#quarterly') {
       dragSrc.style.display = '';
 
       if (dropTarget) {
-        // Dropped on a shelf book → insert before it
+        // Dropped on a shelf book → insert a fresh shelf book before it.
+        // (Never move the raw floor element onto the shelf — floor books
+        // are absolutely positioned and render sideways/misplaced.)
         const targetBook = dropTarget.closest('.ap-book');
         if (targetBook && targetBook !== dragSrc) {
-          targetBook.parentNode.insertBefore(dragSrc, targetBook);
-          dragSrc.style.visibility = '';
-          finishReshelve(targetBook.dataset.shelfId);
+          const shelfId = targetBook.dataset.shelfId;
+          const book = { title: dragSrc.dataset.title, year: dragSrc.dataset.year || '' };
+          const newEl = makeShelfBook(book, shelfId, 0);
+          targetBook.parentNode.insertBefore(newEl, targetBook);
+          if (dragSrcShelf === null) {
+            floorBooks = floorBooks.filter(fb => fb.el !== dragSrc);
+          }
+          dragSrc.remove();
+          finishReshelve(shelfId);
           return;
         }
         // Dropped on a shelf → append to that shelf's row
@@ -13792,14 +13869,11 @@ if (location.hash === '#quarterly') {
             const year  = dragSrc.dataset.year || '';
             const book  = { title, year };
             if (dragSrcShelf === null) {
-              dragSrc.remove();
               floorBooks = floorBooks.filter(fb => fb.el !== dragSrc);
-            } else {
-              dragSrc.remove();
             }
+            dragSrc.remove();
             const idx = row.querySelectorAll('.ap-book').length;
             const newEl = makeShelfBook(book, shelfId, idx);
-            addTouchDrag(newEl, false);
             row.appendChild(newEl);
             finishReshelve(shelfId);
             return;
@@ -13979,6 +14053,9 @@ if (location.hash === '#quarterly') {
     dragSrc = null;
     dragSrcShelf = null;
 
+    // Purge any drag clones left over from a previous visit
+    clearTouchArtifacts();
+
     // Clear any old floor books
     const floor = document.getElementById('ap-floor');
     if (floor) {
@@ -14056,6 +14133,8 @@ if (location.hash === '#quarterly') {
     document.body.style.overflow = '';
     const toast = document.getElementById('ap-unlock-toast');
     if (toast) toast.classList.remove('visible');
+    // Never let a drag clone follow the member back into the app
+    clearTouchArtifacts();
   };
 
 })();
