@@ -8294,16 +8294,17 @@ function previewCustomIcon(input) {
   reader.onload = e => {
     const img = new Image();
     img.onload = () => {
-      // Downscale to a small square thumbnail (see previewMbbIcon for rationale —
-      // raw uploads can exceed Firestore's 1MB doc limit and hang the save).
-      const SIZE = 64;
+      // Downscale (preserving aspect ratio, no cropping) so the badge icon
+      // stays tiny — see previewMbbIcon for rationale. Not cropping to a
+      // square keeps tall images (e.g. book covers) recognizable.
+      const MAX = 80;
+      const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
       const canvas = document.createElement('canvas');
-      canvas.width = SIZE; canvas.height = SIZE;
+      canvas.width = w; canvas.height = h;
       const ctx = canvas.getContext('2d');
-      const side = Math.min(img.width, img.height);
-      const sx = (img.width - side) / 2;
-      const sy = (img.height - side) / 2;
-      ctx.drawImage(img, sx, sy, side, side, 0, 0, SIZE, SIZE);
+      ctx.drawImage(img, 0, 0, w, h);
       _customIconDataUrl = canvas.toDataURL('image/png');
       const preview = document.getElementById('cb-icon-preview');
       preview.style.display = '';
@@ -8392,18 +8393,19 @@ window.previewMbbIcon = function(input) {
   reader.onload = e => {
     const img = new Image();
     img.onload = () => {
-      // Downscale to a small square thumbnail so the badge icon stays tiny
+      // Downscale (preserving aspect ratio) so the badge icon stays tiny
       // (raw uploaded photos/covers can be several MB, which blows past
       // Firestore's 1MB per-document limit and makes the save hang forever).
-      const SIZE = 64;
+      // We do NOT crop to a square — book covers need to keep their tall
+      // shape so they still read as "a book" in the small badge icon slot.
+      const MAX = 80;
+      const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
       const canvas = document.createElement('canvas');
-      canvas.width = SIZE; canvas.height = SIZE;
+      canvas.width = w; canvas.height = h;
       const ctx = canvas.getContext('2d');
-      // Cover-fit: crop to a centered square, then scale down
-      const side = Math.min(img.width, img.height);
-      const sx = (img.width - side) / 2;
-      const sy = (img.height - side) / 2;
-      ctx.drawImage(img, sx, sy, side, side, 0, 0, SIZE, SIZE);
+      ctx.drawImage(img, 0, 0, w, h);
       _mbbIconDataUrl = canvas.toDataURL('image/png');
       const prev = document.getElementById('mbb-icon-preview');
       if (prev) { prev.style.display='block'; prev.innerHTML=`<img src="${_mbbIconDataUrl}" style="width:40px;height:40px;object-fit:contain;">`; }
