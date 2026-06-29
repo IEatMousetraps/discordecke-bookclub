@@ -6535,9 +6535,31 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
     const nb = (a.books||[]).length;
 
     // ── Member-pick months: book was chosen directly, no voting or nomination round.
-    // Skip all participation stats (vote, suggest, all-rounder streak) but still
-    // credit reading progress and DNF/DNS tracking.
+    // Skip voting/all-rounder/top3/winner-picker stats for everyone, but credit the
+    // member who picked the book with a suggestion month (and its genre/timestamp
+    // side effects), plus reading progress and DNF/DNS tracking for all members.
     if (a.memberPick) {
+      // Credit the picker's suggestion stats (mirrors the normal "Did I suggest?" block,
+      // minus winner/top-3 logic since there's no competition to "win" against)
+      let didSuggestPick = false;
+      (a.books||[]).forEach(b => {
+        normBook(b).suggesters.forEach(s => {
+          if (resolveId(s.discord,s.email,idMap)===myName) {
+            didSuggestPick = true;
+            if (b.genre) {
+              b.genre.split('/').map(g=>g.trim()).filter(Boolean).forEach(g => {
+                genresSuggestedSet.add(g.toLowerCase());
+              });
+            }
+            if (s.ts && s.ts >= BADGE_CUTOFF) {
+              const h = new Date(s.ts).getHours();
+              if (h >= 0 && h < 5) nightOwlCount++;
+            }
+          }
+        });
+      });
+      if (didSuggestPick) suggestedMonths++;
+
       // Reading progress still counts
       const myProgressMap = allProgress[myKey]||{};
       winnerBooks.forEach(b => {
@@ -6562,6 +6584,7 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
       const finishedWinner = winnerBooks.some(b=>(allProgress[myKey]||{})[b.id]==='finished');
       monthReadFinished.push(finishedWinner);
       // Do NOT push to monthVoted or monthAllRounder — month is invisible to those streaks
+      // Do NOT touch pickedWinner / suggestedTop3 — no real competition took place
       return;
     }
 
@@ -12701,8 +12724,9 @@ async function qaAdminApprove(key) {
   const card = cards[key];
   if (!card) return;
   const newMap = Object.assign({}, cards, { [key]: Object.assign({}, card, { approved: true }) });
-  await fbSet(QUARTERLY_CARDS_REF, { map: newMap });
-  showMsg('qa-admin-ctrl-msg', `Approved card for ${esc(card.discord || key)}.`, 'ok');
+  await fbSetFull(QUARTERLY_CARDS_REF, { map: newMap });
+  CACHE.quarterlyCards = newMap;
+  renderQuarterlyAdmin();
 }
 window.qaAdminApprove = qaAdminApprove;
 
@@ -12711,8 +12735,9 @@ async function qaAdminUnapprove(key) {
   const card = cards[key];
   if (!card) return;
   const newMap = Object.assign({}, cards, { [key]: Object.assign({}, card, { approved: false }) });
-  await fbSet(QUARTERLY_CARDS_REF, { map: newMap });
-  showMsg('qa-admin-ctrl-msg', `Approval revoked for ${esc(card.discord || key)}.`, 'ok');
+  await fbSetFull(QUARTERLY_CARDS_REF, { map: newMap });
+  CACHE.quarterlyCards = newMap;
+  renderQuarterlyAdmin();
 }
 window.qaAdminUnapprove = qaAdminUnapprove;
 
@@ -13572,31 +13597,20 @@ if (location.hash === '#quarterly') {
 
   // ── Place a settled book on the floor ────────────────────────
   function spawnFloorBook(book, floor, rot) {
-    // Use the REAL floor width — forcing a 500px minimum spawned books
-    // past the right edge on phones, where overflow-x:hidden made them
-    // unreachable
-    const floorW = Math.max(floor.clientWidth, 280);
+    const floorW = Math.max(floor.clientWidth, 500);
     const floorH = Math.max(floor.clientHeight, 380);
     const [bg, bg2] = bookColour(book);
 
-    // Flat book: wide and short — like a book lying on its cover.
-    // Shrink to fit on narrow floors so every book is always fully visible.
-    const maxBw = Math.max(120, Math.min(220, floorW - 50));
-    const minBw = Math.max(100, Math.min(180, maxBw - 40));
-    const bw = minBw + Math.floor(Math.random() * (maxBw - minBw + 1));
+    // Flat book: wide and short — like a book lying on its cover
+    const bw = 180 + Math.floor(Math.random() * 40); // 180–220px wide
     const bh = 38 + Math.floor(Math.random() * 10);  // 38–48px tall
     // Small tilt: ±12deg so it looks casually tossed, text stays readable
     const flatRot = (Math.random() * 24 - 12).toFixed(1);
 
-    // x is the book's LEFT edge — keep left + width inside the floor,
-    // with a little extra room for the corners the rotation sticks out
-    const rotPad = Math.ceil(bh * 0.22) + 6;
-    const x = rotPad + Math.random() * Math.max(10, floorW - bw - rotPad * 2);
+    // Position with enough margin so rotated book doesn't clip edges
+    const pad = Math.ceil(Math.max(bw, bh) * 0.5 + 12);
+    const x = pad + Math.random() * Math.max(20, floorW - pad * 2);
     const y = 20  + Math.random() * Math.max(20, floorH - bh - 60);
-
-    // Long titles on narrow books need a slightly smaller font to fit
-    const titleLen = (book.title || '').length;
-    const floorFontSize = (titleLen > 24 && bw < 165) ? '.6rem' : '.72rem';
 
     const el = document.createElement('div');
     el.className = 'ap-floor-book';
@@ -13608,7 +13622,7 @@ if (location.hash === '#quarterly') {
       background:linear-gradient(135deg,${bg} 0%,${bg2} 100%);
       transform:rotate(${flatRot}deg);
       transform-origin:center center;
-      font-size:${floorFontSize};
+      font-size:.72rem;
       font-weight:700;
       letter-spacing:.02em;
       line-height:1.2;
@@ -13663,17 +13677,8 @@ if (location.hash === '#quarterly') {
     if (!dragSrc) return;
     const target = e.currentTarget;
     if (dragSrc === target) { cleanupDrag(); return; }
-    const shelfId = target.dataset.shelfId;
-    // Always insert a fresh shelf book — moving a raw floor element
-    // onto the shelf leaves it absolutely positioned and sideways
-    const book = { title: dragSrc.dataset.title, year: dragSrc.dataset.year || '' };
-    const newEl = makeShelfBook(book, shelfId, 0);
-    target.parentNode.insertBefore(newEl, target);
-    if (dragSrcShelf === null) {
-      floorBooks = floorBooks.filter(fb => fb.el !== dragSrc);
-    }
-    dragSrc.remove();
-    finishReshelve(shelfId);
+    target.parentNode.insertBefore(dragSrc, target);
+    finishReshelve(target.dataset.shelfId);
   }
 
   // ── Drop on a shelf itself (append to end) ────────────────────
@@ -13731,60 +13736,14 @@ if (location.hash === '#quarterly') {
   // ── Touch drag support for mobile ─────────────────────────────
   let touchClone = null;
   let touchOffsetX = 0, touchOffsetY = 0;
-  let touchAutoScrollRAF = null;
-  let touchLastClientY = 0;
-
-  // Remove every drag artifact, everywhere. Safe to call any time —
-  // handles interrupted drags (touchcancel), stale clones from a
-  // previous drag, and cleanup on overlay open/close.
-  function clearTouchArtifacts() {
-    // Nuke ALL clones in the document, not just the tracked one —
-    // an orphaned clone from an interrupted drag may still be on <body>
-    document.querySelectorAll('.ap-touch-clone').forEach(c => c.remove());
-    touchClone = null;
-    if (touchAutoScrollRAF) { cancelAnimationFrame(touchAutoScrollRAF); touchAutoScrollRAF = null; }
-    if (dragSrc) {
-      dragSrc.style.visibility = '';
-      dragSrc.style.display = '';
-    }
-    cleanupDrag();
-  }
-
-  // Auto-scroll the overlay while a touch drag hovers near the
-  // top/bottom edge of the screen — otherwise books can't be carried
-  // to shelves that are off-screen on mobile.
-  function touchAutoScrollLoop() {
-    touchAutoScrollRAF = null;
-    if (!dragSrc || !touchClone) return;
-    const overlay = document.getElementById('aux-panel-overlay');
-    if (overlay) {
-      const EDGE = 90;       // px from screen edge where scrolling kicks in
-      const MAX_SPEED = 14;  // px per frame at the very edge
-      const vh = window.innerHeight;
-      let delta = 0;
-      if (touchLastClientY < EDGE) {
-        delta = -MAX_SPEED * (1 - touchLastClientY / EDGE);
-      } else if (touchLastClientY > vh - EDGE) {
-        delta = MAX_SPEED * (1 - (vh - touchLastClientY) / EDGE);
-      }
-      if (delta !== 0) overlay.scrollTop += delta;
-    }
-    touchAutoScrollRAF = requestAnimationFrame(touchAutoScrollLoop);
-  }
 
   function addTouchDrag(el, isFloor) {
     el.addEventListener('touchstart', (e) => {
       if (e.touches.length !== 1) return;
-
-      // Clear any stale state from a previous interrupted drag FIRST,
-      // so orphaned clones never accumulate
-      clearTouchArtifacts();
-
       const touch = e.touches[0];
       const rect = el.getBoundingClientRect();
       touchOffsetX = touch.clientX - rect.left;
       touchOffsetY = touch.clientY - rect.top;
-      touchLastClientY = touch.clientY;
 
       dragSrc = el;
       dragSrcShelf = isFloor ? null : el.dataset.shelfId;
@@ -13795,7 +13754,6 @@ if (location.hash === '#quarterly') {
 
       // Clone for visual feedback
       touchClone = el.cloneNode(true);
-      touchClone.className = 'ap-touch-clone';
       touchClone.style.cssText = `
         position:fixed; pointer-events:none; z-index:99999;
         width:${rect.width}px; height:${rect.height}px;
@@ -13813,35 +13771,22 @@ if (location.hash === '#quarterly') {
       `;
       touchClone.style.transformOrigin = '';
       document.body.appendChild(touchClone);
-
-      // Start the edge auto-scroll watcher
-      touchAutoScrollRAF = requestAnimationFrame(touchAutoScrollLoop);
-
       e.preventDefault();
     }, { passive: false });
 
     el.addEventListener('touchmove', (e) => {
       if (!dragSrc || !touchClone) return;
       const touch = e.touches[0];
-      touchLastClientY = touch.clientY;
       touchClone.style.left = (touch.clientX - touchOffsetX) + 'px';
       touchClone.style.top  = (touch.clientY - touchOffsetY) + 'px';
       e.preventDefault();
     }, { passive: false });
-
-    // Firefox/Android fires touchcancel (not touchend) when the browser
-    // interrupts a gesture — without this, clones were orphaned on
-    // <body> forever as the "ghost books"
-    el.addEventListener('touchcancel', () => {
-      clearTouchArtifacts();
-    }, { passive: true });
 
     el.addEventListener('touchend', (e) => {
       if (!dragSrc) return;
 
       // Remove clone immediately
       if (touchClone) { touchClone.remove(); touchClone = null; }
-      if (touchAutoScrollRAF) { cancelAnimationFrame(touchAutoScrollRAF); touchAutoScrollRAF = null; }
 
       // Restore visibility
       dragSrc.style.visibility = '';
@@ -13854,20 +13799,12 @@ if (location.hash === '#quarterly') {
       dragSrc.style.display = '';
 
       if (dropTarget) {
-        // Dropped on a shelf book → insert a fresh shelf book before it.
-        // (Never move the raw floor element onto the shelf — floor books
-        // are absolutely positioned and render sideways/misplaced.)
+        // Dropped on a shelf book → insert before it
         const targetBook = dropTarget.closest('.ap-book');
         if (targetBook && targetBook !== dragSrc) {
-          const shelfId = targetBook.dataset.shelfId;
-          const book = { title: dragSrc.dataset.title, year: dragSrc.dataset.year || '' };
-          const newEl = makeShelfBook(book, shelfId, 0);
-          targetBook.parentNode.insertBefore(newEl, targetBook);
-          if (dragSrcShelf === null) {
-            floorBooks = floorBooks.filter(fb => fb.el !== dragSrc);
-          }
-          dragSrc.remove();
-          finishReshelve(shelfId);
+          targetBook.parentNode.insertBefore(dragSrc, targetBook);
+          dragSrc.style.visibility = '';
+          finishReshelve(targetBook.dataset.shelfId);
           return;
         }
         // Dropped on a shelf → append to that shelf's row
@@ -13880,11 +13817,14 @@ if (location.hash === '#quarterly') {
             const year  = dragSrc.dataset.year || '';
             const book  = { title, year };
             if (dragSrcShelf === null) {
+              dragSrc.remove();
               floorBooks = floorBooks.filter(fb => fb.el !== dragSrc);
+            } else {
+              dragSrc.remove();
             }
-            dragSrc.remove();
             const idx = row.querySelectorAll('.ap-book').length;
             const newEl = makeShelfBook(book, shelfId, idx);
+            addTouchDrag(newEl, false);
             row.appendChild(newEl);
             finishReshelve(shelfId);
             return;
@@ -14064,9 +14004,6 @@ if (location.hash === '#quarterly') {
     dragSrc = null;
     dragSrcShelf = null;
 
-    // Purge any drag clones left over from a previous visit
-    clearTouchArtifacts();
-
     // Clear any old floor books
     const floor = document.getElementById('ap-floor');
     if (floor) {
@@ -14144,8 +14081,6 @@ if (location.hash === '#quarterly') {
     document.body.style.overflow = '';
     const toast = document.getElementById('ap-unlock-toast');
     if (toast) toast.classList.remove('visible');
-    // Never let a drag clone follow the member back into the app
-    clearTouchArtifacts();
   };
 
 })();
