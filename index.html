@@ -1704,7 +1704,21 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       <div id="archive-msg"></div>
     </div>
 
+    <!-- Rename / fix archived month -->
+    <div class="card">
+      <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.5rem;">Rename / Fix Archived Month</h3>
+      <p style="font-size:.85rem;color:var(--soft);margin-bottom:.75rem;">Use this if a month was archived with the wrong label (e.g. a typo, or two months accidentally sharing a label). Entries are listed by archive date so duplicates aren't confused with each other.</p>
+      <div class="f-group" style="max-width:420px;">
+        <label>Select Archived Entry</label>
+        <select id="rename-archive-sel" onchange="loadRenameArchive()">
+          <option value="">— choose an entry —</option>
+        </select>
+      </div>
+      <div id="rename-archive-area"></div>
+    </div>
+
     <!-- CSV download -->
+
     <div class="card">
       <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Download Data</h3>
       <div style="display:flex;flex-wrap:wrap;gap:.75rem;">
@@ -4819,6 +4833,7 @@ function renderAdmin() {
       <button class="btn btn-danger btn-sm" onclick="deleteBook(${b.id})">Remove</button>
     </div>`).join('') : '<p style="font-size:.85rem;color:var(--soft);">No books.</p>';
   // surveys list now rendered in renderAdminSurveys() on the Surveys sub-tab
+  renderRenameArchiveSelect();
 }
 
 function goAdminTab(id, btn) {
@@ -6002,6 +6017,176 @@ async function archiveMonth() {
   renderAdmin();
 }
 window.archiveMonth = archiveMonth;
+
+// ════════════════════════════════════════════════════════
+// RENAME / FIX ARCHIVED MONTH (handles mislabeled + duplicate-label months)
+// ════════════════════════════════════════════════════════
+let _renameState = null; // { idx, oldLabel, conflictIdx, entries: [...], assign: [...] }
+
+function _archiveDisplayLabel(a, i) {
+  const gw = getArchiveWinners()[i];
+  const winnerTitle = gw && gw.winnerBooks.length ? gw.winnerBooks[0].title : ((a.books||[])[0]?.title || 'no books');
+  const dateStr = a.archivedAt ? new Date(a.archivedAt).toLocaleString('en-US', {month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : 'unknown date';
+  return `${a.label} — archived ${dateStr} — ${winnerTitle}`;
+}
+
+function renderRenameArchiveSelect() {
+  const sel = document.getElementById('rename-archive-sel');
+  if (!sel) return;
+  const archives = getArchives();
+  const current = sel.value;
+  sel.innerHTML = '<option value="">— choose an entry —</option>' +
+    archives.map((a,i) => `<option value="${i}">${esc(_archiveDisplayLabel(a,i))}</option>`).join('');
+  if (current) sel.value = current;
+}
+window.renderRenameArchiveSelect = renderRenameArchiveSelect;
+
+function loadRenameArchive() {
+  const sel = document.getElementById('rename-archive-sel');
+  const area = document.getElementById('rename-archive-area');
+  _renameState = null;
+  if (!sel.value) { area.innerHTML = ''; return; }
+  const idx = parseInt(sel.value, 10);
+  const archives = getArchives();
+  const a = archives[idx];
+  if (!a) { area.innerHTML = ''; return; }
+  area.innerHTML = `
+    <div class="f-group" style="max-width:280px;margin-top:.75rem;">
+      <label>New Label</label>
+      <input type="text" id="rename-new-label" value="${esc(a.label)}" placeholder="e.g. July 2026">
+    </div>
+    <button class="btn btn-secondary btn-sm" style="margin-top:.5rem;" onclick="checkRenameArchive(${idx})">Check &amp; Continue</button>
+    <div id="rename-check-area"></div>
+  `;
+}
+window.loadRenameArchive = loadRenameArchive;
+
+function checkRenameArchive(idx) {
+  const checkArea = document.getElementById('rename-check-area');
+  const archives = getArchives();
+  const a = archives[idx];
+  const newLabel = document.getElementById('rename-new-label').value.trim();
+  if (!newLabel) { checkArea.innerHTML = '<p style="color:var(--red);font-size:.85rem;">Please enter a label.</p>'; return; }
+  const oldLabel = a.label;
+  if (newLabel === oldLabel) { checkArea.innerHTML = '<p style="color:var(--red);font-size:.85rem;">New label is the same as the current one.</p>'; return; }
+
+  const conflictIdx = archives.findIndex((other,i) => i !== idx && other.label === oldLabel);
+
+  if (conflictIdx === -1) {
+    // No duplicate — simple, safe rename. No reviews to split.
+    const reviews = getReviews();
+    const reviewCount = (reviews[oldLabel]||[]).length;
+    checkArea.innerHTML = `
+      <p style="font-size:.85rem;margin-top:.6rem;">No other archive shares this label, so this is a straightforward rename.</p>
+      ${reviewCount ? `<p style="font-size:.82rem;color:var(--soft);">${reviewCount} existing review${reviewCount!==1?'s':''} will move with it to the new label — nothing will be orphaned.</p>` : ''}
+      <button class="btn btn-gold btn-sm" style="margin-top:.5rem;" onclick="doSimpleRenameArchive(${idx}, ${JSON.stringify(newLabel)})">Confirm Rename</button>
+    `;
+    return;
+  }
+
+  // Duplicate label found — need to split reviews between the two entries.
+  const reviews = getReviews();
+  const entries = (reviews[oldLabel]||[]).map((r,i) => ({...r, _i:i}));
+  const cutoff = a.archivedAt || 0;
+  _renameState = { idx, oldLabel, newLabel, conflictIdx, entries,
+    assign: entries.map(r => (r.ts && r.ts >= cutoff) ? 'new' : 'old') };
+  renderReviewSplitPanel();
+}
+window.checkRenameArchive = checkRenameArchive;
+
+async function doSimpleRenameArchive(idx, newLabel) {
+  showLoading('Saving…');
+  const archives = JSON.parse(JSON.stringify(getArchives()));
+  const oldLabel = archives[idx].label;
+  archives[idx].label = newLabel;
+  const reviews = JSON.parse(JSON.stringify(getReviews()));
+  if (reviews[oldLabel]) {
+    const existing = reviews[newLabel] || [];
+    reviews[newLabel] = existing.concat(reviews[oldLabel]);
+    delete reviews[oldLabel];
+  }
+  await fbSetFull(ARCHIVES_REF, { list: archives });
+  await fbSetFull(REVIEWS_REF, { map: reviews });
+  hideLoading();
+  document.getElementById('rename-archive-area').innerHTML = '<p style="color:var(--ok);font-size:.85rem;">✓ Renamed.</p>';
+  renderAdmin();
+}
+window.doSimpleRenameArchive = doSimpleRenameArchive;
+
+function _reviewSplitRowLabel(r) {
+  const dateStr = r.ts ? new Date(r.ts).toLocaleString('en-US', {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : 'unknown date';
+  const bits = [dateStr];
+  if (r.rating && r.rating !== 'opt-out') bits.push('⭐'.repeat(+r.rating));
+  return bits.join(' · ');
+}
+
+function renderReviewSplitPanel() {
+  const checkArea = document.getElementById('rename-check-area');
+  if (!_renameState) return;
+  const { idx, oldLabel, newLabel, conflictIdx, entries, assign } = _renameState;
+  const otherLabelDisplay = _archiveDisplayLabel(getArchives()[conflictIdx], conflictIdx);
+  const thisLabelDisplay = _archiveDisplayLabel(getArchives()[idx], idx);
+  checkArea.innerHTML = `
+    <div style="margin-top:.75rem;padding:.75rem;background:var(--cream);border:1px solid var(--border);border-radius:6px;">
+      <p style="font-size:.85rem;margin-bottom:.5rem;"><strong>Another archived month already uses the label "${esc(oldLabel)}"</strong> (${esc(otherLabelDisplay)}). Reviews submitted under that label may belong to either month. Assign each review below — defaults are guessed from submission date relative to when <em>${esc(thisLabelDisplay)}</em> was archived, but double-check them.</p>
+      ${entries.length ? '' : '<p style="font-size:.82rem;color:var(--soft);">No reviews currently exist under this label — nothing to split.</p>'}
+      <div style="display:flex;flex-direction:column;gap:.5rem;">
+        ${entries.map((r,i) => `
+          <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;padding:.5rem .6rem;background:var(--white);border:1px solid var(--border);border-radius:6px;">
+            <div style="flex:1;min-width:180px;">
+              <div style="font-size:.85rem;font-weight:500;">${esc(r.name || r.discord || 'Unknown')}</div>
+              <div style="font-size:.75rem;color:var(--soft);">${esc(_reviewSplitRowLabel(r))}${r.why ? ' · "' + esc(r.why.slice(0,60)) + (r.why.length>60?'…':'') + '"' : ''}</div>
+            </div>
+            <select id="rename-split-${i}" onchange="_renameState.assign[${i}]=this.value" style="font-size:.8rem;padding:.3rem .5rem;width:auto;">
+              <option value="old" ${assign[i]==='old'?'selected':''}>Keep as "${esc(oldLabel)}"</option>
+              <option value="new" ${assign[i]==='new'?'selected':''}>Move to "${esc(newLabel)}"</option>
+            </select>
+          </div>
+        `).join('')}
+      </div>
+      <button class="btn btn-gold btn-sm" style="margin-top:.75rem;" onclick="saveRenameAndSplit()">Confirm Rename &amp; Split Reviews</button>
+    </div>
+  `;
+}
+window.renderReviewSplitPanel = renderReviewSplitPanel;
+
+async function saveRenameAndSplit() {
+  if (!_renameState) return;
+  const { idx, oldLabel, newLabel, entries, assign } = _renameState;
+  showLoading('Saving…');
+  const archives = JSON.parse(JSON.stringify(getArchives()));
+  archives[idx].label = newLabel;
+
+  // Figure out the correct winner title for the "new" archive, for bookTitle correction
+  const gwList = getArchiveWinners();
+  const newWinnerTitle = gwList[idx] && gwList[idx].winnerBooks.length ? gwList[idx].winnerBooks[0].title : null;
+  const isDualNew = !!(archives[idx].dualWinners && archives[idx].dualWinners.length);
+
+  const reviews = JSON.parse(JSON.stringify(getReviews()));
+  const keptOld = [];
+  const movedNew = [];
+  entries.forEach((r, i) => {
+    const clean = {...r}; delete clean._i;
+    if (assign[i] === 'new') {
+      if (!isDualNew && newWinnerTitle) clean.bookTitle = newWinnerTitle;
+      clean.month = newLabel;
+      movedNew.push(clean);
+    } else {
+      keptOld.push(clean);
+    }
+  });
+  reviews[oldLabel] = keptOld;
+  const existingNew = reviews[newLabel] || [];
+  reviews[newLabel] = existingNew.concat(movedNew);
+
+  await fbSetFull(ARCHIVES_REF, { list: archives });
+  await fbSetFull(REVIEWS_REF, { map: reviews });
+  hideLoading();
+  _renameState = null;
+  document.getElementById('rename-archive-area').innerHTML = '<p style="color:var(--ok);font-size:.85rem;">✓ Renamed and reviews split.</p>';
+  renderAdmin();
+}
+window.saveRenameAndSplit = saveRenameAndSplit;
 
 // ════════════════════════════════════════════════════════
 // MEETING COUNTDOWN BANNER
