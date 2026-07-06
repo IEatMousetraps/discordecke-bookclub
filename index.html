@@ -6079,7 +6079,7 @@ function checkRenameArchive(idx) {
     checkArea.innerHTML = `
       <p style="font-size:.85rem;margin-top:.6rem;">No other archive shares this label, so this is a straightforward rename.</p>
       ${reviewCount ? `<p style="font-size:.82rem;color:var(--soft);">${reviewCount} existing review${reviewCount!==1?'s':''} will move with it to the new label — nothing will be orphaned.</p>` : ''}
-      <button class="btn btn-gold btn-sm" style="margin-top:.5rem;" onclick="doSimpleRenameArchive(${idx}, ${JSON.stringify(newLabel)})">Confirm Rename</button>
+      <button class="btn btn-gold btn-sm" style="margin-top:.5rem;" onclick="doSimpleRenameArchive(${idx}, '${newLabel.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">Confirm Rename</button>
     `;
     return;
   }
