@@ -1336,8 +1336,8 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   <div id="review-form-content">
     <div class="card" id="review-identity-card">
       <div class="grid2">
-        <div class="f-group"><label>Email *</label><input type="email" id="rv-email" placeholder="you@email.com"></div>
-        <div class="f-group"><label>Discord Username *</label><input type="text" id="rv-discord" placeholder="user#0000"></div>
+        <div class="f-group"><label>Email *</label><input type="email" id="rv-email" placeholder="you@email.com" oninput="updateReviewMonthMarks();updateReviewBookMarks();"></div>
+        <div class="f-group"><label>Discord Username *</label><input type="text" id="rv-discord" placeholder="user#0000" oninput="updateReviewMonthMarks();updateReviewBookMarks();"></div>
       </div>
       <div id="review-identity-banner"></div>
       <div class="f-group">
@@ -3711,10 +3711,65 @@ async function publishSurvey() {
 }
 window.publishSurvey = publishSurvey;
 
-// ════════════════════════════════════════════════════════
-// REVIEW
-// ════════════════════════════════════════════════════════
-function renderReview() {
+// Returns a Set of "month::bookId" keys (bookId '' for single-book months) already
+// reviewed by the identity currently entered in the Review form's email/discord fields.
+function getMyReviewedKeys() {
+  const email = v('rv-email'), discord = v('rv-discord');
+  const set = new Set();
+  if (!email && !discord) return set;
+  const idMap = buildIdentityMap();
+  const myResolved = resolveId(discord, email, idMap);
+  if (!myResolved) return set;
+  const reviews = getReviews();
+  Object.entries(reviews).forEach(([month, entries]) => {
+    (entries || []).forEach(r => {
+      if (resolveId(r.discord, r.email, idMap) === myResolved) {
+        set.add(month + '::' + (r.bookId || ''));
+      }
+    });
+  });
+  return set;
+}
+window.getMyReviewedKeys = getMyReviewedKeys;
+
+function updateReviewMonthMarks() {
+  const sel = document.getElementById('rv-month');
+  if (!sel) return;
+  const reviewedKeys = getMyReviewedKeys();
+  const archives = getArchives();
+  Array.from(sel.options).forEach(opt => {
+    if (!opt.value) return;
+    const archive = archives.find(a => a.label === opt.value);
+    const isDual = archive && archive.dualWinners && archive.dualWinners.length;
+    let mark = '';
+    if (isDual) {
+      const winnerBooks = (archive.books || []).filter(b => archive.dualWinners.includes(String(b.id)));
+      const doneCount = winnerBooks.filter(b => reviewedKeys.has(opt.value + '::' + String(b.id))).length;
+      if (doneCount && doneCount === winnerBooks.length) mark = ' — ✓ Reviewed';
+      else if (doneCount) mark = ` — ✓ ${doneCount}/${winnerBooks.length} reviewed`;
+    } else if (reviewedKeys.has(opt.value + '::')) {
+      mark = ' — ✓ Reviewed';
+    }
+    const base = opt.dataset.baseLabel || (opt.dataset.baseLabel = opt.textContent);
+    opt.textContent = base + mark;
+  });
+}
+window.updateReviewMonthMarks = updateReviewMonthMarks;
+
+function updateReviewBookMarks() {
+  const bookSel = document.getElementById('rv-book');
+  if (!bookSel) return;
+  const reviewedKeys = getMyReviewedKeys();
+  const month = v('rv-month');
+  Array.from(bookSel.options).forEach(opt => {
+    if (!opt.value) return;
+    const base = opt.dataset.baseLabel || (opt.dataset.baseLabel = opt.textContent);
+    opt.textContent = reviewedKeys.has(month + '::' + opt.value) ? base + ' — ✓ Reviewed' : base;
+  });
+}
+window.updateReviewBookMarks = updateReviewBookMarks;
+
+
   const s = getSettings();
   const closed = document.getElementById('review-closed-banner');
   const formContent = document.getElementById('review-form-content');
@@ -3737,6 +3792,7 @@ function renderReview() {
     opt.value = '' ; opt.textContent = 'No archived months yet'; opt.disabled = true;
     sel.appendChild(opt);
   }
+  updateReviewMonthMarks();
   updateReviewForm();
 }
 
@@ -3757,6 +3813,7 @@ function updateBookSelector() {
   bookSel.innerHTML = '<option value="">— Select a book —</option>' +
     winnerBooks.map(b => `<option value="${b.id}"${String(b.id)===curBook?' selected':''}>${esc(b.title)}</option>`).join('');
   q0.style.display = 'block';
+  updateReviewBookMarks();
 }
 
 function updateReviewForm() {
@@ -4682,7 +4739,11 @@ function renderRankings() {
     if (!entries.length) return '<p style="font-size:.82rem;color:var(--soft);padding:.5rem 0;">No reviews submitted yet.</p>';
     const safeId = rankKey.replace(/[^a-z0-9]/gi, '_');
 
-    return entries.map((r, ri) => {
+    // Members with a real 1-5 star rating first; "No rating" / opted-out reviews sink to the bottom.
+    const hasRating = r => { const n = +r.rating; return n >= 1 && n <= 5; };
+    const sortedEntries = entries.slice().sort((a, b) => (hasRating(b) ? 1 : 0) - (hasRating(a) ? 1 : 0));
+
+    return sortedEntries.map((r, ri) => {
       const name = resolveId(r.discord||'', r.email||'', idMap) || r.discord || 'Anonymous';
       const statusPills = [
         r.read === 'Yes'
