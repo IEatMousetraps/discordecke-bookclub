@@ -9794,6 +9794,7 @@ window.forgetIdentity = forgetIdentity;
 
 let _qaIdentity = null; // { email, discord }
 let _qaOpenDrawer = null; // index of currently open book drawer
+let _qaActiveContainerId = 'quarterly-main'; // where renderBingoCard/renderPassportCard mount — swapped by admin 'Submit on Behalf' mode
 
 // ── Key helpers ────────────────────────────────────────
 function qaKey(email, discord) {
@@ -12228,7 +12229,7 @@ function _qaGetState() {
   const key   = qaKey(_qaIdentity.email, _qaIdentity.discord);
   const rawCard = cards[key] || {};
   const card  = _qaMergedCard(rawCard, key); // apply any pending book saves
-  const main  = document.getElementById('quarterly-main');
+  const main  = document.getElementById(_qaActiveContainerId);
   return { cfg, cards, key, card, main };
 }
 
@@ -12468,7 +12469,7 @@ async function qaSubmitCard() {
   if (cfg.mode === 'bingo' && board) patch.board = board;
   await qaPersistCard(patch, 'qa-save-msg');
   _qaOpenDrawer = null;
-  const main = document.getElementById('quarterly-main');
+  const main = document.getElementById(_qaActiveContainerId);
   const updatedCard = Object.assign({}, card, patch);
   if (cfg.mode === 'bingo') renderBingoCard(main, cfg, updatedCard, key);
   else renderPassportCard(main, cfg, updatedCard, key);
@@ -12990,7 +12991,20 @@ function renderQAMemberList(cards, cfg) {
   };
 
   let html = `<div class="card">
-    <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Member Cards <span style="font-size:.82rem;color:var(--soft);font-weight:400;">(${entries.length} total · ${submitted.length} submitted)</span></h3>`;
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:.75rem;">
+      <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin:0;">Member Cards <span style="font-size:.82rem;color:var(--soft);font-weight:400;">(${entries.length} total · ${submitted.length} submitted)</span></h3>
+      <button class="btn btn-secondary btn-sm" onclick="qaAdminToggleSubmitForm()">➕ Submit on Behalf of Member</button>
+    </div>
+    <div id="qa-admin-submit-form" style="display:none;margin-bottom:1rem;padding:.85rem 1rem;background:var(--cream);border:1px solid var(--border);border-radius:6px;">
+      <p style="font-size:.8rem;color:var(--soft);margin-bottom:.6rem;">Use this for members who sent their results another way (DM, paper, etc.) — enter their identity to open their card and fill it in for them, exactly as they would.</p>
+      <div class="grid2" style="margin-bottom:.6rem;">
+        <div class="f-group" style="margin:0;"><label>Email</label><input type="email" id="qa-admin-submit-email" placeholder="member@email.com"></div>
+        <div class="f-group" style="margin:0;"><label>Discord Username</label><input type="text" id="qa-admin-submit-discord" placeholder="user#0000"></div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="qaAdminStartSubmitOnBehalf()">Open Their Card</button>
+      <div id="qa-admin-submit-form-msg" style="margin-top:.4rem;"></div>
+    </div>
+    <div id="qa-admin-submit-main" style="display:none;margin-bottom:1.25rem;"></div>`;
 
   if (submitted.length) {
     html += `<div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.4rem;padding:0 .75rem;">Submitted</div>`;
@@ -13047,6 +13061,75 @@ function _attachQAMemberListHandlers(containerEl) {
     if (deleteBtn)    { const k = deleteBtn.dataset.key;    if (k) qaAdminDeleteCard(k); }
   });
 }
+
+// ── Admin: Submit on Behalf of Member ──────────────────
+let _qaAdminSubmitPrevIdentity = null; // saved so we can restore after exiting
+let _qaAdminSubmitActive = false;
+
+function qaAdminToggleSubmitForm() {
+  const form = document.getElementById('qa-admin-submit-form');
+  if (!form) return;
+  form.style.display = form.style.display === 'none' ? '' : 'none';
+}
+window.qaAdminToggleSubmitForm = qaAdminToggleSubmitForm;
+
+// Shared: mount the live, editable card (same UI a member uses) into the admin panel
+function _qaAdminOpenEditPanel(email, discord, key) {
+  _qaAdminSubmitPrevIdentity = _qaIdentity;
+  _qaIdentity = { email, discord };
+  _qaActiveContainerId = 'qa-admin-submit-card';
+  _qaAdminSubmitActive = true;
+
+  const cfg   = getQuarterlyConfig();
+  const cards = getQuarterlyCards();
+  const card  = _qaMergedCard(cards[key] || {}, key);
+  const container = document.getElementById('qa-admin-submit-main');
+  if (!container) return;
+
+  const formEl = document.getElementById('qa-admin-submit-form');
+  if (formEl) formEl.style.display = 'none';
+  container.style.display = '';
+  container.innerHTML = `<div style="margin-bottom:.75rem;padding:.65rem 1rem;background:#fff8e1;border:1px solid var(--gold);border-radius:6px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
+    <span style="font-size:.85rem;">✏️ Editing on behalf of <strong>${esc(discord)}</strong>${email ? ` (${esc(email)})` : ''}</span>
+    <button class="btn btn-secondary btn-sm" onclick="qaAdminExitSubmitOnBehalf()">✕ Done / Close</button>
+  </div><div id="qa-admin-submit-card"></div>`;
+
+  if (cfg.mode === 'bingo') renderBingoCard(document.getElementById('qa-admin-submit-card'), cfg, card, key);
+  else renderPassportCard(document.getElementById('qa-admin-submit-card'), cfg, card, key);
+
+  container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function qaAdminStartSubmitOnBehalf() {
+  const email   = (document.getElementById('qa-admin-submit-email')?.value || '').trim();
+  const discord = (document.getElementById('qa-admin-submit-discord')?.value || '').trim();
+  if (!email || !discord) { showMsg('qa-admin-submit-form-msg', 'Please enter both email and Discord username.', 'err'); return; }
+  _qaAdminOpenEditPanel(email, discord, qaKey(email, discord));
+}
+window.qaAdminStartSubmitOnBehalf = qaAdminStartSubmitOnBehalf;
+
+// Jump straight into editing an existing member card — no retyping identity needed
+function qaAdminEditExistingCard() {
+  const key = _qaAdminViewKey;
+  const cards = getQuarterlyCards();
+  const card = key && cards[key];
+  if (!card) return;
+  window.qaAdminCardClose(); // close the read-only view modal underneath
+  _qaAdminOpenEditPanel(card.email || '', card.discord || key, key);
+}
+window.qaAdminEditExistingCard = qaAdminEditExistingCard;
+
+function qaAdminExitSubmitOnBehalf() {
+  _qaIdentity = _qaAdminSubmitPrevIdentity;
+  _qaActiveContainerId = 'quarterly-main';
+  _qaAdminSubmitActive = false;
+  const email = document.getElementById('qa-admin-submit-email');
+  const discord = document.getElementById('qa-admin-submit-discord');
+  if (email) email.value = '';
+  if (discord) discord.value = '';
+  renderQuarterlyAdmin();
+}
+window.qaAdminExitSubmitOnBehalf = qaAdminExitSubmitOnBehalf;
 
 // ── Admin controls ─────────────────────────────────────
 async function qaAdminToggleActive() {
@@ -13407,6 +13490,7 @@ function _renderAdminCardView() {
       </h3>
       <button class="btn btn-secondary btn-sm" onclick="qaAdminCardClose()">✕ Close</button>
     </div>
+    ${!card.submitted ? `<div style="margin-bottom:.75rem;"><button class="btn btn-primary btn-sm" onclick="qaAdminEditExistingCard()" style="background:var(--green);color:#fff;">✏️ Continue &amp; Submit for Member</button></div>` : ''}
     <p style="font-size:.75rem;color:var(--soft);margin-bottom:.75rem;">Click any square or stamp to see the book assigned to it.</p>`;
 
   if (cfg.mode === 'bingo') {
