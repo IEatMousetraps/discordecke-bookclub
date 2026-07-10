@@ -1704,6 +1704,23 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       <div id="archive-msg"></div>
     </div>
 
+    <!-- Bonus / standalone book -->
+    <div class="card">
+      <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Add a Bonus Book</h3>
+      <p style="font-size:.85rem;color:var(--soft);margin-bottom:.75rem;">Adds a standalone book members can track, review, and earn a badge for, on their own timeline — completely separate from the current month's books/votes. It will <strong>not</strong> affect the live month in progress, and it's automatically excluded from voting stats, streaks, and total-months counts. Reading progress, reviews, and DNF/DNS tracking all still work normally.</p>
+      <div class="grid2">
+        <div class="f-group"><label>Book Title</label><input type="text" id="bonus-title" placeholder="e.g. Open"></div>
+        <div class="f-group"><label>Author</label><input type="text" id="bonus-author" placeholder="e.g. Andre Agassi"></div>
+      </div>
+      <div class="grid2">
+        <div class="f-group"><label>Genre (optional)</label><input type="text" id="bonus-genre" placeholder="e.g. Memoir/Sports"></div>
+        <div class="f-group"><label>Archive Label</label><input type="text" id="bonus-label" placeholder="e.g. Bonus Book: Open" value="Bonus Book"></div>
+      </div>
+      <div class="f-group"><label>Admin Note (optional, not shown to members)</label><input type="text" id="bonus-note" placeholder="e.g. Recommended by a Columbus Crew player"></div>
+      <button class="btn btn-gold" style="margin-top:.75rem;" onclick="addBonusBook()">Add Bonus Book</button>
+      <div id="bonus-book-msg"></div>
+    </div>
+
     <!-- Rename / fix archived month -->
     <div class="card">
       <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.5rem;">Rename / Fix Archived Month</h3>
@@ -6017,6 +6034,51 @@ async function archiveMonth() {
   renderAdmin();
 }
 window.archiveMonth = archiveMonth;
+
+// ════════════════════════════════════════════════════════
+// BONUS / STANDALONE BOOK — adds a book as its own archive entry
+// without touching the live month's books/votes. Uses memberPick:true
+// so it's excluded from voting stats, streaks & totalMonths, but reading
+// progress, reviews, DNF/DNS and monthly book badges all still work.
+// ════════════════════════════════════════════════════════
+async function addBonusBook() {
+  const title  = v('bonus-title');
+  const author = v('bonus-author');
+  const genre  = v('bonus-genre');
+  const note   = v('bonus-note');
+  let label    = v('bonus-label') || 'Bonus Book';
+  if (!title)  { showMsg('bonus-book-msg', 'Please enter a book title.', 'err'); return; }
+  if (!author) { showMsg('bonus-book-msg', 'Please enter an author.', 'err'); return; }
+
+  const archives = getArchives();
+  // Avoid duplicate labels — append the title if the plain label is already taken
+  if (archives.some(a => a.label === label)) label = `${label}: ${title}`;
+
+  const book = {
+    id: Date.now(),
+    title, author,
+    genre: genre || undefined,
+    suggesters: []
+  };
+  const snapshot = {
+    label,
+    books: [book],
+    votes: {},
+    archivedAt: Date.now(),
+    memberPick: true,
+    bonusBook: true,
+    ...(note ? { note } : {})
+  };
+  archives.push(snapshot);
+  showLoading('Adding bonus book…');
+  await fbSet(ARCHIVES_REF, { list: archives });
+  hideLoading();
+  ['bonus-title','bonus-author','bonus-genre','bonus-note'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('bonus-label').value = 'Bonus Book';
+  showMsg('bonus-book-msg', `✓ "${title}" added as a standalone bonus book — members can now track, review, and earn a badge for it anytime.`, 'ok');
+  renderAdmin();
+}
+window.addBonusBook = addBonusBook;
 
 // ════════════════════════════════════════════════════════
 // RENAME / FIX ARCHIVED MONTH (handles mislabeled + duplicate-label months)
