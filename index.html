@@ -4641,13 +4641,23 @@ function renderAnalysisReviews() {
 // ════════════════════════════════════════════════════════
 // RANKINGS PAGE — based on Rank A Book submissions
 // ════════════════════════════════════════════════════════
-let _rankingsSubTab = null; // null = not yet chosen; otherwise a year string (e.g. '2026') or 'bonus'
+let _rankingsSubTab = null; // null = not yet chosen; otherwise 'all', a year string (e.g. '2026'), or 'bonus'
+let _rankingsPage = 0;
+const RANKINGS_PAGE_SIZE = 20;
 
 function setRankingsSubTab(tab) {
   _rankingsSubTab = tab;
+  _rankingsPage = 0;
   renderRankings();
 }
 window.setRankingsSubTab = setRankingsSubTab;
+
+function rankingsGoPage(page) {
+  _rankingsPage = page;
+  renderRankings();
+  document.getElementById('rankings-area')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+window.rankingsGoPage = rankingsGoPage;
 
 function renderRankings() {
   const reviews = getReviews();
@@ -4747,26 +4757,30 @@ function renderRankings() {
     return [rankKey, { ...d, avgRating, startedPct, finishedPct, likedPct }];
   }).sort((a,b) => b[1].avgRating - a[1].avgRating || b[1].startedPct - a[1].startedPct);
 
-  // ── Year / Bonus Books sub-tabs ──
-  const years = [...new Set(sorted
-    .map(([rk]) => rankKeyMeta[rk] || {})
-    .filter(m => !m.isBonus && m.year)
+  // ── All Time / Year / Bonus Books sub-tabs ──
+  // Use archiveLookup (built from every archived winner) rather than only reviewed
+  // rankKeys, so a year or Bonus Books tab still appears even before it has any reviews.
+  const years = [...new Set(Object.values(archiveLookup)
+    .filter(m => !m.memberPick && m.year)
     .map(m => m.year))].sort();
-  const hasBonus = sorted.some(([rk]) => (rankKeyMeta[rk] || {}).isBonus);
+  const hasBonus = Object.values(archiveLookup).some(m => m.memberPick);
 
-  if (!_rankingsSubTab || (!years.includes(_rankingsSubTab) && _rankingsSubTab !== 'bonus')) {
-    _rankingsSubTab = years.length ? years[years.length - 1] : (hasBonus ? 'bonus' : null);
+  if (!_rankingsSubTab || (_rankingsSubTab !== 'all' && !years.includes(_rankingsSubTab) && _rankingsSubTab !== 'bonus')) {
+    _rankingsSubTab = years.length ? years[years.length - 1] : (hasBonus ? 'bonus' : 'all');
   }
 
-  const subTabsHtml = (years.length || hasBonus) ? `
+  const subTabsHtml = `
   <div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:1.25rem;">
+    <button class="month-tab ${_rankingsSubTab==='all'?'active':''}" onclick="setRankingsSubTab('all')">All Time</button>
     ${years.map(y => `<button class="month-tab ${_rankingsSubTab===y?'active':''}" onclick="setRankingsSubTab('${y}')">${esc(y)}</button>`).join('')}
     ${hasBonus ? `<button class="month-tab ${_rankingsSubTab==='bonus'?'active':''}" onclick="setRankingsSubTab('bonus')">🎁 Bonus Books</button>` : ''}
-  </div>` : '';
+  </div>`;
 
   const filteredSorted = sorted.filter(([rk]) => {
     const m = rankKeyMeta[rk] || {};
-    return _rankingsSubTab === 'bonus' ? m.isBonus : (!m.isBonus && m.year === _rankingsSubTab);
+    if (_rankingsSubTab === 'bonus') return m.isBonus;
+    if (_rankingsSubTab === 'all') return !m.isBonus;
+    return !m.isBonus && m.year === _rankingsSubTab;
   });
 
   const starDisplay = avg => {
@@ -4826,13 +4840,28 @@ function renderRankings() {
     }).join('');
   }
 
+  // ── Pagination (20 books per page) ──
+  const totalPages = Math.max(1, Math.ceil(filteredSorted.length / RANKINGS_PAGE_SIZE));
+  _rankingsPage = Math.min(_rankingsPage, totalPages - 1);
+  const pageStart = _rankingsPage * RANKINGS_PAGE_SIZE;
+  const pageItems = filteredSorted.slice(pageStart, pageStart + RANKINGS_PAGE_SIZE);
+  const paginationHtml = filteredSorted.length > RANKINGS_PAGE_SIZE ? `
+    <div style="display:flex;align-items:center;justify-content:center;gap:.75rem;padding:.6rem 0;margin:1rem 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);flex-wrap:wrap;">
+      <button class="btn btn-secondary btn-sm" onclick="rankingsGoPage(0)" ${_rankingsPage===0?'disabled':''}>« First</button>
+      <button class="btn btn-secondary btn-sm" onclick="rankingsGoPage(${_rankingsPage-1})" ${_rankingsPage===0?'disabled':''}>‹ Prev</button>
+      <span style="font-size:.82rem;color:var(--soft);">Page ${_rankingsPage+1} of ${totalPages} &nbsp;·&nbsp; ${pageStart+1}–${Math.min(pageStart+RANKINGS_PAGE_SIZE, filteredSorted.length)} of ${filteredSorted.length}</span>
+      <button class="btn btn-secondary btn-sm" onclick="rankingsGoPage(${_rankingsPage+1})" ${_rankingsPage>=totalPages-1?'disabled':''}>Next ›</button>
+      <button class="btn btn-secondary btn-sm" onclick="rankingsGoPage(${totalPages-1})" ${_rankingsPage>=totalPages-1?'disabled':''}>Last »</button>
+    </div>` : '';
+
   // Render each book as its own card in strict rating order — no grouping
   area.innerHTML = `
   ${subTabsHtml}
   <p style="font-size:.82rem;color:var(--ink);background:rgba(240,180,41,.08);border:1px solid rgba(240,180,41,.25);border-radius:6px;padding:.55rem .9rem;margin-bottom:1.5rem;display:inline-block;">💡 Click <strong>Member Reviews</strong> on any book to see individual responses.</p>
-  ${!filteredSorted.length ? `<div class="empty"><div class="icon">🏆</div><p>${_rankingsSubTab === 'bonus' ? 'No Bonus Books reviewed yet.' : 'No reviews for ' + esc(_rankingsSubTab || '') + ' yet.'}</p></div>` : ''}
-  ${filteredSorted.map(([rankKey, d], i) => {
-    const rank = i + 1;
+  ${!filteredSorted.length ? `<div class="empty"><div class="icon">🏆</div><p>${_rankingsSubTab === 'bonus' ? 'No Bonus Books reviewed yet.' : _rankingsSubTab === 'all' ? 'No reviews yet.' : 'No reviews for ' + esc(_rankingsSubTab || '') + ' yet.'}</p></div>` : ''}
+  ${paginationHtml}
+  ${pageItems.map(([rankKey, d], i) => {
+    const rank = pageStart + i + 1;
     const meta = rankKeyMeta[rankKey] || {};
     const month = meta.month || rankKey;
     const cleanMonthLabel = (archiveLookup[month]?.cleanLabel) || month;
@@ -4898,7 +4927,8 @@ function renderRankings() {
         </div>
       </div>
     </div>`;
-  }).join('')}`;
+  }).join('')}
+  ${paginationHtml}`;
 }
 function toggleRankingReviews(id, btn) {
   const el = document.getElementById(id);
