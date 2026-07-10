@@ -5336,16 +5336,32 @@ function renderAdminReadingProgress() {
     'pre-read':          { label: 'Already Read',        emoji: '⏮️', color: '#e0f4ff', text: '#0077b6' },
   };
 
+  // Group raw keys that resolve to the same real member (e.g. progress saved under
+  // both an email-based key and a discord-based key at different times) so they
+  // render as ONE row with merged book statuses, instead of duplicate rows.
+  const canonicalGroups = new Map(); // canonicalId → { displayName, rawKeys: [] }
+  memberKeys.forEach((displayName, rawKey) => {
+    let canonId = null;
+    for (const [id, e] of idMap) {
+      if ((e.email && normEmail(e.email) === rawKey) || e.normIds.has(rawKey)) { canonId = id; break; }
+    }
+    if (!canonId) canonId = 'name:' + displayName.toLowerCase();
+    if (!canonicalGroups.has(canonId)) canonicalGroups.set(canonId, { displayName, rawKeys: [] });
+    canonicalGroups.get(canonId).rawKeys.push(rawKey);
+  });
+
   // Build rows
   _adminPgRows = [];
-  memberKeys.forEach((displayName, key) => {
-    const memberProgress = progress[key] || {};
+  canonicalGroups.forEach(({ displayName, rawKeys }) => {
+    // Merge progress across every raw key belonging to this identity
+    const mergedProgress = {};
+    rawKeys.forEach(rk => Object.assign(mergedProgress, progress[rk] || {}));
     const bookStatuses = winnerBooks.map(wb => ({
       ...wb,
-      status: memberProgress[wb.bookId] || 'not-started',
+      status: mergedProgress[wb.bookId] || 'not-started',
     }));
     const finished = bookStatuses.filter(b => b.status === 'finished').length;
-    _adminPgRows.push({ key, displayName, bookStatuses, finished, total: winnerBooks.length });
+    _adminPgRows.push({ key: rawKeys[0], displayName, bookStatuses, finished, total: winnerBooks.length });
   });
   _adminPgRows.sort((a, b) => b.finished - a.finished || a.displayName.localeCompare(b.displayName));
 
