@@ -1716,9 +1716,15 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
         <div class="f-group"><label>Genre (optional)</label><input type="text" id="bonus-genre" placeholder="e.g. Memoir/Sports"></div>
         <div class="f-group"><label>Archive Label</label><input type="text" id="bonus-label" placeholder="e.g. Bonus Book: Open" value="Bonus Book"></div>
       </div>
+      <div class="grid2">
+        <div class="f-group"><label>Badge Window — From</label><input type="date" id="bonus-window-start"></div>
+        <div class="f-group"><label>Badge Window — Until</label><input type="date" id="bonus-window-end" value="2026-12-31"></div>
+      </div>
+      <p style="font-size:.75rem;color:var(--soft);margin-top:-.4rem;margin-bottom:.75rem;">Members can read, track, and review this book anytime — the date range only controls the window for earning the limited-time badge. Leave both blank for no deadline.</p>
       <div class="f-group"><label>Admin Note (optional, not shown to members)</label><input type="text" id="bonus-note" placeholder="e.g. Recommended by a Columbus Crew player"></div>
       <button class="btn btn-gold" style="margin-top:.75rem;" onclick="addBonusBook()">Add Bonus Book</button>
       <div id="bonus-book-msg"></div>
+      <div id="bonus-book-caveat" style="display:none;margin-top:.75rem;padding:.75rem;background:var(--cream);border:1px solid var(--border);border-radius:6px;font-size:.82rem;"></div>
     </div>
 
     <!-- Rename / fix archived month -->
@@ -6040,19 +6046,45 @@ window.archiveMonth = archiveMonth;
 // without touching the live month's books/votes. Uses memberPick:true
 // so it's excluded from voting stats, streaks & totalMonths, but reading
 // progress, reviews, DNF/DNS and monthly book badges all still work.
+// windowStart/windowEnd (if set) gate ONLY the limited-time badge —
+// reading, tracking, and reviewing the book always stays open.
 // ════════════════════════════════════════════════════════
+function _fmtBonusDate(ts) {
+  return new Date(ts).toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+}
+
 async function addBonusBook() {
-  const title  = v('bonus-title');
-  const author = v('bonus-author');
-  const genre  = v('bonus-genre');
-  const note   = v('bonus-note');
-  let label    = v('bonus-label') || 'Bonus Book';
+  const title       = v('bonus-title');
+  const author      = v('bonus-author');
+  const genre       = v('bonus-genre');
+  const note        = v('bonus-note');
+  const startStr    = v('bonus-window-start');
+  const endStr      = v('bonus-window-end');
+  let label         = v('bonus-label') || 'Bonus Book';
   if (!title)  { showMsg('bonus-book-msg', 'Please enter a book title.', 'err'); return; }
   if (!author) { showMsg('bonus-book-msg', 'Please enter an author.', 'err'); return; }
+
+  // Window is optional, but if both are given, start must be before end
+  const windowStart = startStr ? new Date(startStr + 'T00:00:00').getTime() : null;
+  const windowEnd   = endStr   ? new Date(endStr   + 'T23:59:59').getTime() : null;
+  if (windowStart && windowEnd && windowStart > windowEnd) {
+    showMsg('bonus-book-msg', 'The "From" date must be before the "Until" date.', 'err');
+    return;
+  }
 
   const archives = getArchives();
   // Avoid duplicate labels — append the title if the plain label is already taken
   if (archives.some(a => a.label === label)) label = `${label}: ${title}`;
+
+  // Build the member-facing caveat text — shown on the Progress tab and handy to paste into Discord
+  let caveat;
+  if (windowStart && windowEnd) {
+    caveat = `Any time between ${_fmtBonusDate(windowStart)} and ${_fmtBonusDate(windowEnd)} you can read "${title}" by ${author} and earn a limited-time badge for completing it. You'll also be able to review the book just like any other. Not reading it will not negatively impact your book club reading numbers.`;
+  } else if (windowEnd) {
+    caveat = `Any time before ${_fmtBonusDate(windowEnd)} you can read "${title}" by ${author} and earn a limited-time badge for completing it. You'll also be able to review the book just like any other. Not reading it will not negatively impact your book club reading numbers.`;
+  } else {
+    caveat = `You can read "${title}" by ${author} any time and earn a badge for completing it. You'll also be able to review the book just like any other. Not reading it will not negatively impact your book club reading numbers.`;
+  }
 
   const book = {
     id: Date.now(),
@@ -6067,6 +6099,9 @@ async function addBonusBook() {
     archivedAt: Date.now(),
     memberPick: true,
     bonusBook: true,
+    caveat,
+    ...(windowStart ? { windowStart } : {}),
+    ...(windowEnd   ? { windowEnd }   : {}),
     ...(note ? { note } : {})
   };
   archives.push(snapshot);
@@ -6075,7 +6110,12 @@ async function addBonusBook() {
   hideLoading();
   ['bonus-title','bonus-author','bonus-genre','bonus-note'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   document.getElementById('bonus-label').value = 'Bonus Book';
-  showMsg('bonus-book-msg', `✓ "${title}" added as a standalone bonus book — members can now track, review, and earn a badge for it anytime.`, 'ok');
+  showMsg('bonus-book-msg', `✓ "${title}" added as a standalone bonus book — members can now track, review, and earn a badge for it.`, 'ok');
+  const caveatBox = document.getElementById('bonus-book-caveat');
+  if (caveatBox) {
+    caveatBox.style.display = 'block';
+    caveatBox.innerHTML = `<strong>Caveat text (copy for Discord):</strong><br>${esc(caveat)}`;
+  }
   renderAdmin();
 }
 window.addBonusBook = addBonusBook;
@@ -6354,7 +6394,7 @@ function renderProgressTab() {
       const sorted = [...(a.books || [])].sort((x, y) => scores[y.id] - scores[x.id]);
       winners = sorted.length ? [sorted[0]] : [];
     }
-    return { month: a.label, winners };
+    return { month: a.label, winners, bonusBook: !!a.bonusBook, caveat: a.caveat || '', windowEnd: a.windowEnd || null };
   }).filter(e => e.winners.length);
 
   renderProgressLeaderboard(winnerEntries);
@@ -6380,13 +6420,14 @@ function renderProgressTab() {
 
   area.innerHTML = `
     <p style="font-size:.82rem;color:var(--soft);margin-bottom:1.25rem;">Track your reading progress on each month's winning pick.</p>
-    ${winnerEntries.slice().reverse().map(({ month, winners }) =>
+    ${winnerEntries.slice().reverse().map(({ month, winners, bonusBook, caveat, windowEnd }) =>
       winners.map(b => {
         const cur = myProgress[b.id] || 'not-started';
-        return `<div class="card" style="padding:1rem 1.25rem;">
+        const windowClosed = bonusBook && windowEnd && Date.now() > windowEnd;
+        return `<div class="card" style="padding:1rem 1.25rem;${bonusBook ? 'border-color:var(--gold);' : ''}">
           <div style="display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap;">
             <div style="flex:1;min-width:150px;">
-              <div style="font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:.2rem;">👑 ${esc(month)}</div>
+              <div style="font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:.2rem;">${bonusBook ? '🎁 Bonus Book' : '👑 ' + esc(month)}</div>
               <div style="font-weight:500;font-size:.95rem;">${esc(b.title)}</div>
               <div style="font-size:.78rem;color:var(--soft);">${esc(b.author)}</div>
             </div>
@@ -6398,6 +6439,7 @@ function renderProgressTab() {
                 </button>`).join('')}
             </div>
           </div>
+          ${bonusBook && caveat ? `<div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border);font-size:.78rem;color:var(--soft);">${windowClosed ? '⏳ The limited-time badge window for this one has closed, but you can still read, track, and review it anytime. ' : ''}${esc(caveat)}</div>` : ''}
         </div>`;
       }).join('')
     ).join('')}`;
@@ -6672,8 +6714,14 @@ function getAllBadges({ includeHidden = false, includeDisabled = false } = {}) {
     desc: cb.desc, check: () => false, adminOnly: true, custom: true,
     iconDataUrl: cb.iconDataUrl || null,
   }));
+  const archivesForBookBadges = getArchives();
   const monthlyBook = (cfg.monthlyBookBadges || []).map(mb => {
     const bookId = String(mb.bookId);
+    // If this book lives on an archive with a badge window (e.g. a bonus book), the
+    // badge is only earnable if the member's finish timestamp falls inside that window.
+    const arc = archivesForBookBadges.find(a => (a.books||[]).some(bk => String(bk.id) === bookId));
+    const windowStart = arc && arc.windowStart ? arc.windowStart : null;
+    const windowEnd   = arc && arc.windowEnd   ? arc.windowEnd   : null;
     return {
       id: mb.id, name: mb.name, emoji: mb.emoji || '📖', tier: null,
       desc: mb.desc || '',
@@ -6683,8 +6731,19 @@ function getAllBadges({ includeHidden = false, includeDisabled = false } = {}) {
       monthLabel: mb.monthLabel || '',
       year: mb.year || '',
       iconDataUrl: mb.iconDataUrl || null,
-      // Live check: badge earned iff book is currently marked finished
-      check: p => !!(p.finishedBookIds && p.finishedBookIds.has(bookId)),
+      windowStart, windowEnd,
+      // Live check: badge earned iff book is currently marked finished, and — if a badge
+      // window is set — the finish timestamp falls within that window.
+      check: p => {
+        if (!p.finishedBookIds || !p.finishedBookIds.has(bookId)) return false;
+        if (windowStart || windowEnd) {
+          const ts = p.bookFinishTs && p.bookFinishTs[bookId];
+          if (!ts) return false;
+          if (windowStart && ts < windowStart) return false;
+          if (windowEnd && ts > windowEnd) return false;
+        }
+        return true;
+      },
     };
   });
   const all = [...BADGE_DEFS, ...monthlyBook, ...custom];
@@ -6754,6 +6813,7 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
   let nightOwlCount=0, earlyBird=0, top1WinCount=0, top1VoteCount=0;
   let oneStarCount=0, genreLoyalist=false, speedFinishCount=0, lastMinuteCount=0;
   const finishedBookIds = new Set(); // all book IDs currently marked finished in My Progress
+  const bookFinishTs = {}; // bookId -> finish timestamp, used for limited-time book badges
   const dnfBookIds = new Set(); // track DNF book IDs from progress to avoid double-counting
   const totalMonths  = archives.filter(a => !a.memberPick).length;
   const totalSurveys = allSurveys.length;
@@ -6810,7 +6870,10 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
       // Reading progress still counts
       const myProgressMap = allProgress[myKey]||{};
       winnerBooks.forEach(b => {
-        if (myProgressMap[b.id] === 'finished') finishedBookIds.add(String(b.id));
+        if (myProgressMap[b.id] === 'finished') {
+          finishedBookIds.add(String(b.id));
+          if (myProgressMap[b.id + '_ts']) bookFinishTs[String(b.id)] = myProgressMap[b.id + '_ts'];
+        }
         if (a.archivedAt) {
           const archiveDate = new Date(a.archivedAt);
           const followMonthStart = new Date(archiveDate.getFullYear(), archiveDate.getMonth()+1, 1);
@@ -6894,7 +6957,10 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
 
     // Track all books currently marked finished (for monthly book badges — live status, no cutoff)
     winnerBooks.forEach(b => {
-      if (myProgressMap[b.id] === 'finished') finishedBookIds.add(String(b.id));
+      if (myProgressMap[b.id] === 'finished') {
+        finishedBookIds.add(String(b.id));
+        if (myProgressMap[b.id + '_ts']) bookFinishTs[String(b.id)] = myProgressMap[b.id + '_ts'];
+      }
     });
 
     if (a.archivedAt) {
@@ -7408,6 +7474,7 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
     qPassportCompleted, qPassportAllBonus,
     qParkTheBus, qCornerKick, qFourCorners, qFourFourTwo, qConsecutiveApprovals,
     finishedBookIds,
+    bookFinishTs,
     // Penny interaction data (sourced from CACHE.pennyMembers at check time)
     get pennyRecord() {
       const pm = (typeof CACHE !== 'undefined' && CACHE.pennyMembers) ? CACHE.pennyMembers : {};
