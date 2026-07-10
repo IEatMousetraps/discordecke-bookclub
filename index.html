@@ -4004,7 +4004,7 @@ window.toggleThoughts = toggleThoughts;
 
 // ── Voting sub-tab ────────────────────────────────────────────────────────────
 function renderAnalysisVoting() {
-  const archives = getArchives();
+  const archives = getArchives().filter(a => !a.memberPick);
   const area = document.getElementById('analysis-voting-area');
   if (!archives.length) { area.innerHTML = '<div class="empty"><div class="icon">📊</div><p>No archived months yet.</p></div>'; return; }
 
@@ -4064,7 +4064,7 @@ let _rankDistMonth = 'all';
 let _rankDistSort = 'avgRank';
 
 function renderAnalysisRankDist() {
-  const archives = getArchives();
+  const archives = getArchives().filter(a => !a.memberPick);
   const area = document.getElementById('analysis-rankdist-area');
   if (!archives.length) { area.innerHTML = '<div class="empty"><div class="icon">📊</div><p>No archived months yet.</p></div>'; return; }
 
@@ -4209,7 +4209,7 @@ window.rankDistGoPage = rankDistGoPage;
 
 // ── Page Count sub-tab ───────────────────────────────────────────────────────
 function renderAnalysisPageCount() {
-  const archives = getArchives();
+  const archives = getArchives().filter(a => !a.memberPick);
   const area = document.getElementById('analysis-pagecount-area');
   if (!archives.length) { area.innerHTML = '<div class="empty"><div class="icon">📄</div><p>No archived months yet.</p></div>'; return; }
 
@@ -9298,7 +9298,7 @@ window.saveArchiveBook = saveArchiveBook;
 function renderGenreDiversity() {
   const area = document.getElementById('analysis-genre-area');
   if (!area) return;
-  const archives = getArchives();
+  const archives = getArchives().filter(a => !a.memberPick);
 
   if (!archives.length) {
     area.innerHTML = '<div class="empty"><div class="icon">🎭</div><p>No archived months yet. Genre data will appear here once books have a genre tag.</p></div>';
