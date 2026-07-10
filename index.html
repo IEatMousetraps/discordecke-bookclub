@@ -11781,7 +11781,7 @@ function renderPassportCard(container, cfg, card, memberKey) {
             : 'Your passport is locked in and awaiting admin review. You are all set — nothing left to do!'}
         </div>
         <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
-          <span style="font-size:.88rem;"><strong>${claimedCount} / ${total} stamps</strong> collected</span>
+          <span style="font-size:.88rem;"><strong>${claimedCount} / ${totalStamps} stamps</strong> collected</span>
           ${claimedCount >= required ? '<span style="color:var(--green);font-size:.88rem;font-weight:600;">✓ Completed!</span>' : `<span style="color:var(--soft);font-size:.83rem;">${required - claimedCount} more needed to qualify</span>`}
         </div>
       </div>
