@@ -1227,7 +1227,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   <button data-tab="review" onclick="goTab('review',this)">Review</button>
   <button data-tab="surveys" onclick="goTab('surveys',this)">Surveys</button>
   <button data-tab="profile" onclick="goTab('profile',this)">👤 My Profile<span id="badge-notify-dot" class="badge-notify-dot" style="display:none;"></span></button>
-  <button data-tab="rankings" onclick="goTab('rankings',this)">2026 Books</button>
+  <button data-tab="rankings" onclick="goTab('rankings',this)">Book Rankings & Reviews</button>
   <button data-tab="analysis" onclick="goTab('analysis',this)">Book Club Metrics</button>
   <button data-tab="quarterly" id="quarterly-nav-btn" onclick="goTab('quarterly',this)" style="display:none;">🎯 Quarterly Activity</button>
   <button data-tab="penny" id="penny-nav-btn" onclick="goTab('penny',this)">🍵 Penny's</button>
@@ -1329,7 +1329,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 <!-- ══════════════ REVIEW ══════════════ -->
 <div id="tab-review" class="section">
   <div class="sec-head"><h2>Review a Book</h2><p>Share your thoughts on this month's selected book.</p></div>
-  <p style="font-size:.8rem;color:var(--soft);margin-bottom:1.25rem;">📖 Want to read what members thought of past books? <a href="#" style="color:var(--gold);text-decoration:none;font-weight:600;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" onclick="event.preventDefault();const rb=document.querySelector('nav button[data-tab=rankings]');goTab('rankings',rb);">Visit 2026 Book Rankings & Reviews →</a></p>
+  <p style="font-size:.8rem;color:var(--soft);margin-bottom:1.25rem;">📖 Want to read what members thought of past books? <a href="#" style="color:var(--gold);text-decoration:none;font-weight:600;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" onclick="event.preventDefault();const rb=document.querySelector('nav button[data-tab=rankings]');goTab('rankings',rb);">Visit Book Rankings & Reviews →</a></p>
   <div id="review-closed-banner" style="display:none;">
     <div class="pending-box"><div class="icon">📖</div><h3>Reviews Closed</h3><p>The admin has closed reviews for now.<br>Check back soon!</p></div>
   </div>
@@ -1467,7 +1467,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 
 <!-- ══════════════ RANKINGS ══════════════ -->
 <div id="tab-rankings" class="section">
-  <div class="sec-head"><h2>2026 Book Rankings & Reviews</h2><p>How every winning book performed across all months, broken down by member star ratings. These are the books that won the vote and the club read together.</p></div>
+  <div class="sec-head"><h2>Book Rankings & Reviews</h2><p>How every winning book performed across all months, broken down by member star ratings. These are the books that won the vote and the club read together.</p></div>
   <div id="rankings-area"></div>
 </div>
 
@@ -4641,6 +4641,14 @@ function renderAnalysisReviews() {
 // ════════════════════════════════════════════════════════
 // RANKINGS PAGE — based on Rank A Book submissions
 // ════════════════════════════════════════════════════════
+let _rankingsSubTab = null; // null = not yet chosen; otherwise a year string (e.g. '2026') or 'bonus'
+
+function setRankingsSubTab(tab) {
+  _rankingsSubTab = tab;
+  renderRankings();
+}
+window.setRankingsSubTab = setRankingsSubTab;
+
 function renderRankings() {
   const reviews = getReviews();
   const area = document.getElementById('rankings-area');
@@ -4677,7 +4685,7 @@ function renderRankings() {
         if (s) cleanLabel = s;
       }
     }
-    archiveLookup[a.label] = { dual: isDual, winnerBooks, cleanLabel };
+    archiveLookup[a.label] = { dual: isDual, winnerBooks, cleanLabel, memberPick: !!a.memberPick, year: (String(a.label).match(/\b(20\d\d)\b/) || [])[1] || null };
     winnerBooks.forEach(b => {
       const rankKey = isDual ? (a.label + '::' + String(b.id)) : a.label;
       const names = [];
@@ -4719,7 +4727,7 @@ function renderRankings() {
 
       if (!bookData[rankKey]) {
         bookData[rankKey] = { ratings:[], started:0, finished:0, liked:0, total:0 };
-        rankKeyMeta[rankKey] = { month, bookTitle, bookId, genre, isDual };
+        rankKeyMeta[rankKey] = { month, bookTitle, bookId, genre, isDual, isBonus: !!archMeta.memberPick, year: archMeta.year || null };
       }
       bookData[rankKey].total++;
       if (r.read === 'Yes') bookData[rankKey].started++;
@@ -4738,6 +4746,28 @@ function renderRankings() {
     const likedPct    = d.started > 0 ? (d.liked/d.started*100) : 0;
     return [rankKey, { ...d, avgRating, startedPct, finishedPct, likedPct }];
   }).sort((a,b) => b[1].avgRating - a[1].avgRating || b[1].startedPct - a[1].startedPct);
+
+  // ── Year / Bonus Books sub-tabs ──
+  const years = [...new Set(sorted
+    .map(([rk]) => rankKeyMeta[rk] || {})
+    .filter(m => !m.isBonus && m.year)
+    .map(m => m.year))].sort();
+  const hasBonus = sorted.some(([rk]) => (rankKeyMeta[rk] || {}).isBonus);
+
+  if (!_rankingsSubTab || (!years.includes(_rankingsSubTab) && _rankingsSubTab !== 'bonus')) {
+    _rankingsSubTab = years.length ? years[years.length - 1] : (hasBonus ? 'bonus' : null);
+  }
+
+  const subTabsHtml = (years.length || hasBonus) ? `
+  <div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:1.25rem;">
+    ${years.map(y => `<button class="month-tab ${_rankingsSubTab===y?'active':''}" onclick="setRankingsSubTab('${y}')">${esc(y)}</button>`).join('')}
+    ${hasBonus ? `<button class="month-tab ${_rankingsSubTab==='bonus'?'active':''}" onclick="setRankingsSubTab('bonus')">🎁 Bonus Books</button>` : ''}
+  </div>` : '';
+
+  const filteredSorted = sorted.filter(([rk]) => {
+    const m = rankKeyMeta[rk] || {};
+    return _rankingsSubTab === 'bonus' ? m.isBonus : (!m.isBonus && m.year === _rankingsSubTab);
+  });
 
   const starDisplay = avg => {
     if (!avg) return '<span style="color:var(--soft);">No ratings</span>';
@@ -4798,8 +4828,10 @@ function renderRankings() {
 
   // Render each book as its own card in strict rating order — no grouping
   area.innerHTML = `
+  ${subTabsHtml}
   <p style="font-size:.82rem;color:var(--ink);background:rgba(240,180,41,.08);border:1px solid rgba(240,180,41,.25);border-radius:6px;padding:.55rem .9rem;margin-bottom:1.5rem;display:inline-block;">💡 Click <strong>Member Reviews</strong> on any book to see individual responses.</p>
-  ${sorted.map(([rankKey, d], i) => {
+  ${!filteredSorted.length ? `<div class="empty"><div class="icon">🏆</div><p>${_rankingsSubTab === 'bonus' ? 'No Bonus Books reviewed yet.' : 'No reviews for ' + esc(_rankingsSubTab || '') + ' yet.'}</p></div>` : ''}
+  ${filteredSorted.map(([rankKey, d], i) => {
     const rank = i + 1;
     const meta = rankKeyMeta[rankKey] || {};
     const month = meta.month || rankKey;
