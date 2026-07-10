@@ -1712,10 +1712,26 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
         <div class="f-group"><label>Book Title</label><input type="text" id="bonus-title" placeholder="e.g. Open"></div>
         <div class="f-group"><label>Author</label><input type="text" id="bonus-author" placeholder="e.g. Andre Agassi"></div>
       </div>
-      <div class="grid2">
-        <div class="f-group"><label>Genre (optional)</label><input type="text" id="bonus-genre" placeholder="e.g. Memoir/Sports"></div>
-        <div class="f-group"><label>Archive Label</label><input type="text" id="bonus-label" placeholder="e.g. Bonus Book: Open" value="Bonus Book"></div>
+      <div class="f-group">
+        <label>Genre <span style="font-size:.7rem;color:var(--soft);text-transform:none;letter-spacing:0;">(optional — pick up to 2)</span></label>
+        <div class="grid2">
+          <select id="bonus-genre"></select>
+          <select id="bonus-genre2"></select>
+        </div>
       </div>
+      <div class="f-group">
+        <label>Page Count <span style="font-size:.7rem;color:var(--soft);text-transform:none;letter-spacing:0;">(optional)</span></label>
+        <div class="grid2">
+          <input type="number" id="bonus-pages" placeholder="e.g. 320" min="1" style="max-width:100%;">
+          <select id="bonus-pages-format">
+            <option value="">Format…</option>
+            <option value="hardcover">Hardcover</option>
+            <option value="paperback">Paperback</option>
+            <option value="digital">Digital / eBook</option>
+          </select>
+        </div>
+      </div>
+      <div class="f-group"><label>Archive Label</label><input type="text" id="bonus-label" placeholder="e.g. Bonus Book: Open" value="Bonus Book"></div>
       <div class="grid2">
         <div class="f-group"><label>Badge Window — From</label><input type="date" id="bonus-window-start"></div>
         <div class="f-group"><label>Badge Window — Until</label><input type="date" id="bonus-window-end" value="2026-12-31"></div>
@@ -4831,6 +4847,11 @@ window.renderAdminSurveys = renderAdminSurveys;
 
 function renderAdmin() {
   const s = getSettings(), votes = getVotes(), books = getBooks(), surveys = getSurveys();
+  // Populate bonus book genre dropdowns from the unified GENRES config
+  const bg1 = document.getElementById('bonus-genre');
+  const bg2 = document.getElementById('bonus-genre2');
+  if (bg1 && !bg1.options.length) bg1.innerHTML = genreOptionsHtml('— Primary —');
+  if (bg2 && !bg2.options.length) bg2.innerHTML = genreOptionsHtml('— Secondary —');
   // Populate meeting fields
   const mi = getMeetingInfo();
   if (mi.title)   { const el = document.getElementById('meeting-title-input'); if (el) el.value = mi.title; }
@@ -6057,13 +6078,19 @@ function _fmtBonusDate(ts) {
 async function addBonusBook() {
   const title       = v('bonus-title');
   const author      = v('bonus-author');
-  const genre       = v('bonus-genre');
+  const genre1      = (document.getElementById('bonus-genre')?.value || '').trim();
+  const genre2      = (document.getElementById('bonus-genre2')?.value || '').trim();
+  const genre       = [genre1, genre2].filter(Boolean).join(' / ');
+  const pagesRaw    = (document.getElementById('bonus-pages')?.value || '').trim();
+  const pagesFormat = (document.getElementById('bonus-pages-format')?.value || '').trim();
+  const pageCount   = pagesRaw ? parseInt(pagesRaw, 10) : null;
   const note        = v('bonus-note');
   const startStr    = v('bonus-window-start');
   const endStr      = v('bonus-window-end');
   let label         = v('bonus-label') || 'Bonus Book';
   if (!title)  { showMsg('bonus-book-msg', 'Please enter a book title.', 'err'); return; }
   if (!author) { showMsg('bonus-book-msg', 'Please enter an author.', 'err'); return; }
+  if (pageCount && !pagesFormat) { showMsg('bonus-book-msg', 'Please select a format (hardcover, paperback, or digital) to go with the page count.', 'err'); return; }
 
   // Window is optional, but if both are given, start must be before end
   const windowStart = startStr ? new Date(startStr + 'T00:00:00').getTime() : null;
@@ -6091,6 +6118,8 @@ async function addBonusBook() {
     id: Date.now(),
     title, author,
     genre: genre || undefined,
+    pageCount: pageCount || undefined,
+    pagesFormat: pageCount ? (pagesFormat || undefined) : undefined,
     suggesters: []
   };
   const snapshot = {
@@ -6109,7 +6138,8 @@ async function addBonusBook() {
   showLoading('Adding bonus book…');
   await fbSet(ARCHIVES_REF, { list: archives });
   hideLoading();
-  ['bonus-title','bonus-author','bonus-genre','bonus-note'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['bonus-title','bonus-author','bonus-note','bonus-pages'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['bonus-genre','bonus-genre2','bonus-pages-format'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   document.getElementById('bonus-label').value = 'Bonus Book';
   showMsg('bonus-book-msg', `✓ "${title}" added as a standalone bonus book — members can now track, review, and earn a badge for it.`, 'ok');
   const caveatBox = document.getElementById('bonus-book-caveat');
