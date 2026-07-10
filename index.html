@@ -2602,6 +2602,31 @@ function resolveId(discord, email, identityMap) {
   return discord || 'unknown';
 }
 
+// Like resolveId, but returns the identity map's stable canonical key (a normalized
+// email or discord id) instead of a display name. Display names can change (most-recent
+// discord wins) and aren't safe to join against other data that's keyed by normalized
+// id — e.g. reading progress, which is always keyed by normEmail(email) || normId(discord).
+function resolveCanonKey(discord, email, identityMap) {
+  const nd = normId(discord), ne = normEmail(email);
+  if (!identityMap) return ne || nd || 'unknown';
+  if (ne) {
+    for (const [canonId, e] of identityMap) {
+      if (e.email && normEmail(e.email) === ne) return canonId;
+    }
+  }
+  for (const [canonId, e] of identityMap) {
+    if (e.normIds.has(nd)) return canonId;
+  }
+  if (nd.length >= 4) {
+    for (const [canonId, e] of identityMap) {
+      for (const alias of e.normIds) {
+        if (alias.length >= 4 && levenshtein(nd, alias, 2) <= 2) return canonId;
+      }
+    }
+  }
+  return ne || nd || 'unknown';
+}
+
 function clearSuggestForm() {
   ['s-title','s-author','s-email','s-discord','s-reason','s-pages'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const g1 = document.getElementById('s-genre');  if (g1) g1.value = '';
@@ -5350,8 +5375,10 @@ function _doRenderMemberDirectory() {
   // ── Build per-member data ─────────────────────────────────────────────────
   const memberData = {}; // key → { name, email, votedMonths, suggestedBooks, reviewedMonths, progress }
 
-  // Key memberData by resolved canonical name so alias rules merge duplicates
-  const resolvedKey = (discord, email) => resolveId(discord, email, idMap) || normEmail(email) || normId(discord);
+  // Key memberData by resolved canonical id (normalized email/discord) so alias rules merge
+  // duplicates AND so this joins correctly against reading progress, which is also keyed
+  // by normalized id. (resolveId returns a display name, which isn't safe to join on.)
+  const resolvedKey = (discord, email) => resolveCanonKey(discord, email, idMap);
 
   const getOrCreate = (key, name, email) => {
     if (!memberData[key]) memberData[key] = {
@@ -5434,8 +5461,19 @@ function _doRenderMemberDirectory() {
   });
 
   Object.entries(allProgress).forEach(([memberKey, memberProg]) => {
-    if (!memberData[memberKey]) return; // only show members we already know
-    memberData[memberKey].progress = memberProg;
+    // memberKey is a normalized id — an email (contains '@') or a discord username otherwise.
+    // Resolve it through the identity map so it lands on the same canonical entry as their
+    // votes/suggestions/reviews, even if they tracked progress under a slightly different
+    // identity (case, alias, etc). Also surfaces members who only ever logged progress.
+    const isEmail = memberKey.includes('@');
+    const guessEmail   = isEmail ? memberKey : '';
+    const guessDiscord = isEmail ? '' : memberKey;
+    const canonKey = resolveCanonKey(guessDiscord, guessEmail, idMap);
+    if (!memberData[canonKey]) {
+      const name = resolveId(guessDiscord, guessEmail, idMap) || guessDiscord || guessEmail;
+      getOrCreate(canonKey, name, guessEmail);
+    }
+    memberData[canonKey].progress = { ...(memberData[canonKey].progress || {}), ...memberProg };
   });
 
   // ── Append historical pool books to each member's suggestions ─────────────
@@ -6761,7 +6799,7 @@ function getAllBadges({ includeHidden = false, includeDisabled = false } = {}) {
       monthlyBook: true,
       bookId,
       monthLabel: mb.monthLabel || '',
-      year: mb.year || '',
+      year: mb.year || (arc && arc.bonusBook ? 'Bonus Books' : ''),
       iconDataUrl: mb.iconDataUrl || null,
       windowStart, windowEnd,
       // Live check: badge earned iff book is currently marked finished, and — if a badge
@@ -8062,7 +8100,13 @@ function renderBadgesTab() {
       const totalCount  = earnedInCat.length + lockedInCat.length;
 
       // Get all distinct years from the full badge set (earned + locked)
-      const allYears = [...new Set(inCat.map(b => b.year || 'Unknown'))].sort((a,b)=>b-a);
+      // Sort numerically-newest-first, but keep non-numeric labels (e.g. "Bonus Books") pinned at the top
+      const allYears = [...new Set(inCat.map(b => b.year || 'Unknown'))].sort((a, b) => {
+        const na = /^\d+$/.test(a), nb = /^\d+$/.test(b);
+        if (na && nb) return b - a;
+        if (na !== nb) return na ? 1 : -1;
+        return String(a).localeCompare(String(b));
+      });
       const currentYear = String(new Date().getFullYear());
       // Only show year headings as collapsible if there are multiple distinct years
       const multiYear = allYears.length > 1;
@@ -8072,7 +8116,7 @@ function renderBadgesTab() {
         const lockedY  = sortMbbByMonth(lockedInCat.filter(b => (b.year||'Unknown') === year));
         if (!earnedY.length && !lockedY.length) return '';
         const yId = 'mbb-year-' + year;
-        const isCurrentYear = year === currentYear;
+        const isCurrentYear = year === currentYear || year === 'Bonus Books';
         // For the current year (or when only one year exists), expand by default; older years collapsed
         const collapsed = multiYear && !isCurrentYear;
         return `<div style="margin-bottom:.75rem;">
@@ -8827,10 +8871,22 @@ function renderAdminMbbList() {
   const cfg = getBadgeConfig();
   const badges = cfg.monthlyBookBadges||[];
   if (!badges.length) { area.innerHTML = '<p style="font-size:.85rem;color:var(--soft);">No monthly book badges created yet.</p>'; return; }
-  // Group by year for display
+  // Group by year for display — badges tied to a bonus book (no real month/year) group under "Bonus Books"
+  const archivesForGrouping = getArchives();
+  const yearFor = b => {
+    if (b.year) return b.year;
+    const arc = archivesForGrouping.find(a => (a.books||[]).some(bk => String(bk.id) === String(b.bookId)));
+    return (arc && arc.bonusBook) ? 'Bonus Books' : 'Unknown';
+  };
   const byYear = {};
-  badges.forEach(b => { const y = b.year||'Unknown'; if(!byYear[y]) byYear[y]=[]; byYear[y].push(b); });
-  area.innerHTML = Object.keys(byYear).sort((a,b)=>b-a).map(year => `
+  badges.forEach(b => { const y = yearFor(b); if(!byYear[y]) byYear[y]=[]; byYear[y].push(b); });
+  const sortedYears = Object.keys(byYear).sort((a, b) => {
+    const na = /^\d+$/.test(a), nb = /^\d+$/.test(b);
+    if (na && nb) return b - a;
+    if (na !== nb) return na ? 1 : -1;
+    return String(a).localeCompare(String(b));
+  });
+  area.innerHTML = sortedYears.map(year => `
     <div style="margin-bottom:.75rem;">
       <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.4rem;">${esc(year)}</div>
       ${sortMbbByMonth(byYear[year]).map(b=>`
