@@ -3172,7 +3172,7 @@ function renderResults() {
       return;
     } else {
       // Quiet period — show most recent archive as context
-      const archives = getArchives();
+      const archives = getArchives().filter(a => !a.memberPick);
       if (!archives.length) {
         subtitleEl.textContent = 'No results yet';
         area.innerHTML = '<div class="empty"><div class="icon">🏆</div><p>No results posted yet. Check back after the first vote!</p></div>';
@@ -3197,7 +3197,7 @@ function renderResults() {
   let displayBooks = books, displayVotes = votes;
   let isArchiveFallback = false, archiveLabel = '';
   if (!hasActiveVote) {
-    const archives = getArchives();
+    const archives = getArchives().filter(a => !a.memberPick);
     if (!archives.length) {
       subtitleEl.textContent = 'No results yet';
       area.innerHTML = '<div class="empty"><div class="icon">🏆</div><p>No results to display yet.</p></div>';
@@ -3778,15 +3778,20 @@ function renderReview() {
   const formContent = document.getElementById('review-form-content');
   if (!s.reviewsOpen) { closed.style.display = 'block'; formContent.style.display = 'none'; return; }
   closed.style.display = 'none'; formContent.style.display = 'block';
-  // Populate month dropdown from archives
-  const archives = getArchives();
+  // Populate month dropdown from archives — real reading months first (chronological),
+  // Bonus Book / member-pick months always pinned to the bottom of the list.
+  const archives   = getArchives();
+  const realMonths = archives.filter(a => !a.memberPick);
+  const bonusMonths = archives.filter(a => a.memberPick);
+  const orderedArchives = [...realMonths, ...bonusMonths];
+  const currentLabel = realMonths.length ? realMonths[realMonths.length - 1].label : null;
   const sel = document.getElementById('rv-month');
   const current = sel.value;
   sel.innerHTML = '<option value="">— Select a month —</option>';
-  archives.forEach((a, i) => {
+  orderedArchives.forEach(a => {
     const opt = document.createElement('option');
     opt.value = a.label;
-    opt.textContent = i === archives.length - 1 ? a.label + ' (current)' : a.label;
+    opt.textContent = a.label === currentLabel ? a.label + ' (current)' : a.label;
     if (a.label === current) opt.selected = true;
     sel.appendChild(opt);
   });
