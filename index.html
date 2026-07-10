@@ -5039,9 +5039,10 @@ function renderAdminLiveResults() {
       }).join('');
 
     const rankIcon = isTopTied ? '⚖️' : win ? '👑' : i + 1;
+    const rankTitle = isTopTied ? 'Tied for first place' : win ? 'Winner' : `${ordinal(i+1)} place`;
     return `<div class="result-item ${win?'winner':''}" style="flex-direction:column;align-items:stretch;gap:.5rem;">
       <div style="display:flex;align-items:center;gap:1rem;">
-        <div class="result-rank" style="min-width:2rem;">${rankIcon}</div>
+        <div class="result-rank" style="min-width:2rem;" title="${esc(rankTitle)}">${rankIcon}</div>
         <div class="book-info" style="flex:1;">
           <div class="book-title">${esc(b.title)}</div>
           <div class="book-sub">${esc(b.author)}</div>
@@ -5187,7 +5188,7 @@ function renderAdminReadingProgress() {
           .filter(s => counts[s])
           .map(s => {
             const sm = statusMeta[s];
-            return `<span style="font-size:.7rem;padding:.1rem .45rem;border-radius:20px;background:${sm.color};color:${sm.text};white-space:nowrap;">${sm.emoji} ${counts[s]}</span>`;
+            return `<span style="font-size:.7rem;padding:.1rem .45rem;border-radius:20px;background:${sm.color};color:${sm.text};white-space:nowrap;" title="${esc(sm.label)}">${sm.emoji} ${counts[s]}</span>`;
           }).join('');
         return `<div onclick="selectPgBook('${wb.bookId}')" style="cursor:pointer;padding:.65rem .75rem;border-radius:6px;border:${isActive ? '2px solid var(--gold)' : '1px solid var(--border)'};background:${isActive ? 'var(--cream)' : 'var(--paper)'};">
           <div style="font-size:.82rem;font-weight:500;margin-bottom:.15rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(wb.title)}</div>
@@ -5542,9 +5543,9 @@ function _doRenderMemberDirectory() {
           <span id="mdir-chevron-${safeKey}" style="font-size:.85rem;color:var(--soft);flex-shrink:0;">▸</span>
           <div style="flex:1;font-weight:500;font-size:.92rem;">${esc(m.name)}</div>
           <div style="display:flex;gap:1rem;font-size:.75rem;color:var(--soft);">
-            <span>🗳️ ${voted}</span>
-            <span>📚 ${suggested}</span>
-            <span>✍️ ${reviewed}</span>
+            <span title="Months voted">🗳️ ${voted}</span>
+            <span title="Books suggested">📚 ${suggested}</span>
+            <span title="Reviews submitted">✍️ ${reviewed}</span>
           </div>
         </div>
         <div id="mdir-body-${safeKey}" style="display:none;padding:1rem;">
@@ -6427,7 +6428,7 @@ function renderProgressTab() {
         return `<div class="card" style="padding:1rem 1.25rem;${bonusBook ? 'border-color:var(--gold);' : ''}">
           <div style="display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap;">
             <div style="flex:1;min-width:150px;">
-              <div style="font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:.2rem;">${bonusBook ? '🎁 Bonus Book' : '👑 ' + esc(month)}</div>
+              <div style="font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:.2rem;" title="${bonusBook ? 'Standalone bonus book — not tied to a monthly vote' : 'Monthly winning pick'}">${bonusBook ? '🎁 Bonus Book' : '👑 ' + esc(month)}</div>
               <div style="font-weight:500;font-size:.95rem;">${esc(b.title)}</div>
               <div style="font-size:.78rem;color:var(--soft);">${esc(b.author)}</div>
             </div>
@@ -6545,15 +6546,16 @@ function renderProgressLeaderboard(winnerEntries) {
     return;
   }
 
-  const statusPip = (count, cls, emoji) => count > 0
-    ? `<span style="display:inline-flex;align-items:center;gap:.25rem;font-size:.75rem;padding:.15rem .5rem;border-radius:12px;background:var(--cream);border:1px solid var(--border);">${emoji} ${count}</span>`
+  const statusPip = (count, label, emoji) => count > 0
+    ? `<span style="display:inline-flex;align-items:center;gap:.25rem;font-size:.75rem;padding:.15rem .5rem;border-radius:12px;background:var(--cream);border:1px solid var(--border);" title="${esc(label)}">${emoji} ${count}</span>`
     : '';
 
   el.innerHTML = rows.map((m, i) => {
     const pct = totalBooks > 0 ? Math.round(m.finished / totalBooks * 100) : 0;
+    const rankTitle = i===0 ? '1st place' : i===1 ? '2nd place' : i===2 ? '3rd place' : `${i+1}th place`;
     return `<div class="card" style="padding:.85rem 1.25rem;margin-bottom:.5rem;">
       <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
-        <div style="font-family:'Playfair Display',serif;font-size:1.2rem;color:var(--gold);min-width:2rem;text-align:center;">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</div>
+        <div style="font-family:'Playfair Display',serif;font-size:1.2rem;color:var(--gold);min-width:2rem;text-align:center;" title="${esc(rankTitle)}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</div>
         <div style="flex:1;min-width:140px;">
           <div style="font-weight:500;font-size:.92rem;margin-bottom:.3rem;">${esc(m.name)}</div>
           <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden;max-width:200px;">
@@ -6561,11 +6563,11 @@ function renderProgressLeaderboard(winnerEntries) {
           </div>
         </div>
         <div style="display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;">
-          ${statusPip(m.finished,        'finished',        '✅')}
-          ${statusPip(m.reading,         'reading',         '👀')}
-          ${statusPip(m.dnf,             'dnf',             '❌')}
-          ${statusPip(m.choseNotToRead,  'choseNotToRead',  '🚫')}
-          ${statusPip(m.preRead,         'preRead',         '⏮️')}
+          ${statusPip(m.finished,        'Finished',           '✅')}
+          ${statusPip(m.reading,         'Reading',            '👀')}
+          ${statusPip(m.dnf,             'DNF',                '❌')}
+          ${statusPip(m.choseNotToRead,  'Chose Not to Read',  '🚫')}
+          ${statusPip(m.preRead,         'Already Read',       '⏮️')}
           <span style="font-size:.72rem;color:var(--soft);margin-left:.2rem;">${m.finished}/${totalBooks} finished</span>
         </div>
       </div>
@@ -7993,7 +7995,7 @@ function renderBadgesTab() {
         <div style="font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);">Badges Earned</div>
       </div>
       <div style="flex:1;min-width:180px;">
-        <div style="font-weight:500;margin-bottom:.3rem;">${earnedBadges.map(b=>b.iconDataUrl?'🖼️':b.emoji).join(' ')||'—'}</div>
+        <div style="font-weight:500;margin-bottom:.3rem;">${earnedBadges.map(b=>`<span title="${esc(b.name)}">${b.iconDataUrl?'🖼️':b.emoji}</span>`).join(' ')||'—'}</div>
         <div style="font-size:.82rem;color:var(--soft);">${profile.voted} months voted · ${profile.suggestedMonths} months suggested · ${profile.reviewed} reviews · ${profile.surveysCompleted} surveys · ${profile.pickedWinner} winning pick${profile.pickedWinner!==1?'s':''}</div>
         <div style="font-size:.78rem;color:var(--soft);margin-top:.2rem;">Longest vote streak: ${profile.longestVoteStreak} · Longest read streak: ${profile.longestReadStreak}</div>
       </div>
