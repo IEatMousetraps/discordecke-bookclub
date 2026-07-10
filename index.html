@@ -3549,18 +3549,33 @@ function renderMySurveyResponses() {
       ? '<span class="pill pill-open">Active</span>'
       : '<span class="pill pill-closed">Closed</span>';
 
-    return `<div class="card" style="margin-bottom:1.25rem;">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem;margin-bottom:1rem;">
-        <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;">${esc(s.title)}</h3>
-        <div style="display:flex;gap:.5rem;align-items:center;flex-shrink:0;">${statusPill}</div>
+    const safeId = String(s.id).replace(/[^a-z0-9]/gi, '_');
+
+    return `<div class="card" style="margin-bottom:1.25rem;overflow:hidden;">
+      <div onclick="toggleSurveyResponse('${safeId}')" style="display:flex;align-items:center;gap:.65rem;cursor:pointer;user-select:none;">
+        <span id="sr-chevron-${safeId}" style="font-size:.8rem;color:var(--soft);flex-shrink:0;">▸</span>
+        <h3 style="flex:1;font-family:'Playfair Display',serif;font-size:1.1rem;margin:0;">${esc(s.title)}</h3>
+        ${statusPill}
       </div>
-      ${responseDivs}
+      <div id="sr-body-${safeId}" style="display:none;margin-top:1rem;">
+        ${responseDivs}
+      </div>
     </div>`;
   }).join('');
 
   main.innerHTML = summaryHtml + responseCards;
 }
 window.renderMySurveyResponses = renderMySurveyResponses;
+
+function toggleSurveyResponse(id) {
+  const body = document.getElementById('sr-body-' + id);
+  const chevron = document.getElementById('sr-chevron-' + id);
+  if (!body) return;
+  const isHidden = body.style.display === 'none';
+  body.style.display = isHidden ? '' : 'none';
+  if (chevron) chevron.textContent = isHidden ? '▾' : '▸';
+}
+window.toggleSurveyResponse = toggleSurveyResponse;
 
 // ════════════════════════════════════════════════════════
 // SURVEY BUILDER
@@ -6579,10 +6594,33 @@ function renderProgressTab() {
             </div>
           </div>
           ${bonusBook && caveat ? `<div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border);font-size:.78rem;color:var(--soft);">${windowClosed ? '⏳ The limited-time badge window for this one has closed, but you can still read, track, and review it anytime. ' : ''}${esc(caveat)}</div>` : ''}
+          <div id="review-hint-${b.id}" style="${cur === 'finished' ? '' : 'display:none;'}margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border);font-size:.85rem;">
+            📝 Want to review this book? <a href="#" onclick="event.preventDefault();goToReviewForm('${String(month).replace(/'/g,"\\'")}','${b.id}');" style="color:var(--gold);font-weight:600;text-decoration:none;">Review it now →</a>
+          </div>
         </div>`;
       }).join('')
     ).join('')}`;
 }
+
+function goToReviewForm(month, bookId) {
+  const rb = document.querySelector('nav button[data-tab=review]');
+  goTab('review', rb);
+  setTimeout(() => {
+    const monthSel = document.getElementById('rv-month');
+    if (monthSel) {
+      monthSel.value = month;
+      updateBookSelector();
+      updateReviewForm();
+    }
+    const bookSel = document.getElementById('rv-book');
+    if (bookSel && bookId) {
+      const opt = Array.from(bookSel.options).find(o => o.value === String(bookId));
+      if (opt) { bookSel.value = String(bookId); updateReviewForm(); }
+    }
+    document.getElementById('review-identity-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 80);
+}
+window.goToReviewForm = goToReviewForm;
 
 async function setProgress(bookId, status, btn) {
   if (!_pgIdentity) return;
@@ -6606,6 +6644,8 @@ async function setProgress(bookId, status, btn) {
     b.className = 'progress-btn';
     if (b.getAttribute('onclick').includes(`'${status}'`)) b.classList.add('active-'+status.replace(/-/g,''));
   });
+  const hint = card.querySelector('[id^="review-hint-"]');
+  if (hint) hint.style.display = status === 'finished' ? '' : 'none';
   await fbSet(PROGRESS_REF, { map: progress });
 }
 window.setProgress = setProgress;
@@ -7766,36 +7806,68 @@ function renderMyReviews() {
 
   var html = '<div class="sec-head" style="margin-bottom:1rem;"><h2>My Reviews</h2><p>All the reviews you have submitted, most recent first.</p></div>';
 
+  // Group by year — collapsible sections, current year expanded by default
+  var extractYear = function(str) { var m = String(str||'').match(/\b(20\d\d)\b/); return m ? m[1] : 'Other'; };
+  var currentYear = String(new Date().getFullYear());
+  var yearGroups = {};
   myReviews.forEach(function(r) {
-    var bookTitle = getBookTitle(r);
-    var titleHtml = bookTitle
-      ? '<div style="font-weight:600;font-size:1rem;font-family:Playfair Display,serif;margin-bottom:.2rem;">' + esc(bookTitle) + '</div>'
-      : '';
-    var monthHtml = '<div style="font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:var(--soft);margin-bottom:.5rem;">' + esc(r.month) + '</div>';
+    var y = extractYear(r.month);
+    if (!yearGroups[y]) yearGroups[y] = [];
+    yearGroups[y].push(r);
+  });
+  var years = Object.keys(yearGroups).sort();
 
-    var details = [];
-    if (r.read === 'yes' && r.finished === 'yes') details.push('Finished ✓');
-    else if (r.read === 'yes' && r.finished === 'no') details.push('Started, did not finish');
-    else if (r.read === 'no') details.push('Did not start');
+  years.forEach(function(yr) {
+    var isOpen = yr === currentYear;
+    var rowsHtml = yearGroups[yr].map(function(r) {
+      var bookTitle = getBookTitle(r);
+      var titleHtml = bookTitle
+        ? '<div style="font-weight:600;font-size:1rem;font-family:Playfair Display,serif;margin-bottom:.2rem;">' + esc(bookTitle) + '</div>'
+        : '';
+      var monthHtml = '<div style="font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:var(--soft);margin-bottom:.5rem;">' + esc(r.month) + '</div>';
 
-    var body = '';
-    if (r.why)    body += '<div style="margin-top:.5rem;font-size:.88rem;"><strong>Thoughts:</strong> <em>"' + esc(r.why) + '"</em></div>';
-    if (r.liked && r.liked !== 'opt-out')  body += '<div style="font-size:.88rem;margin-top:.3rem;"><strong>Liked it?</strong> ' + esc(r.liked) + '</div>';
-    if (r.dnfWhy) body += '<div style="font-size:.88rem;margin-top:.3rem;color:var(--soft);"><strong>DNF reason:</strong> ' + esc(r.dnfWhy) + '</div>';
+      var details = [];
+      if (r.read === 'yes' && r.finished === 'yes') details.push('Finished ✓');
+      else if (r.read === 'yes' && r.finished === 'no') details.push('Started, did not finish');
+      else if (r.read === 'no') details.push('Did not start');
 
-    html +=
-      '<div class="card" style="margin-bottom:.85rem;">' +
+      var body = '';
+      if (r.why)    body += '<div style="margin-top:.5rem;font-size:.88rem;"><strong>Thoughts:</strong> <em>"' + esc(r.why) + '"</em></div>';
+      if (r.liked && r.liked !== 'opt-out')  body += '<div style="font-size:.88rem;margin-top:.3rem;"><strong>Liked it?</strong> ' + esc(r.liked) + '</div>';
+      if (r.dnfWhy) body += '<div style="font-size:.88rem;margin-top:.3rem;color:var(--soft);"><strong>DNF reason:</strong> ' + esc(r.dnfWhy) + '</div>';
+
+      return '<div class="card" style="margin-bottom:.85rem;">' +
         monthHtml +
         titleHtml +
         '<div style="margin-bottom:.4rem;">' + starHtml(r.rating) + '</div>' +
         (details.length ? '<div style="font-size:.83rem;color:var(--soft);">' + details.join(' &middot; ') + '</div>' : '') +
         body +
       '</div>';
+    }).join('');
+
+    html += '<div style="margin-bottom:.5rem;">' +
+      '<div onclick="toggleMyReviewsYear(\'' + yr + '\')" style="display:flex;align-items:center;gap:.5rem;cursor:pointer;user-select:none;padding:.5rem 0;border-bottom:1px solid var(--border);margin-bottom:.75rem;">' +
+        '<span id="myrev-chevron-' + yr + '" style="font-size:.85rem;color:var(--soft);">' + (isOpen ? '▾' : '▸') + '</span>' +
+        '<span style="font-family:Playfair Display,serif;font-size:1.05rem;font-weight:600;">' + yr + '</span>' +
+        '<span style="font-size:.78rem;color:var(--soft);">(' + yearGroups[yr].length + ' review' + (yearGroups[yr].length !== 1 ? 's' : '') + ')</span>' +
+      '</div>' +
+      '<div id="myrev-body-' + yr + '" style="display:' + (isOpen ? '' : 'none') + ';">' + rowsHtml + '</div>' +
+    '</div>';
   });
 
   area.innerHTML = html;
 }
 window.renderMyReviews = renderMyReviews;
+
+function toggleMyReviewsYear(yr) {
+  var body = document.getElementById('myrev-body-' + yr);
+  var chevron = document.getElementById('myrev-chevron-' + yr);
+  if (!body) return;
+  var isHidden = body.style.display === 'none';
+  body.style.display = isHidden ? '' : 'none';
+  if (chevron) chevron.textContent = isHidden ? '▾' : '▸';
+}
+window.toggleMyReviewsYear = toggleMyReviewsYear;
 
 function renderProfileTab() {
   if (!_profileIdentity) return;
