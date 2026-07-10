@@ -7776,7 +7776,7 @@ function renderProfileOverview() {
   // ── Badges teaser ──
   const visibleBadges = getAllBadges();
   const earnedBadges = visibleBadges.filter(b => hasBadge(b.id, profile, myKey));
-  const badgeIcons = earnedBadges.slice(0,8).map(b => `<span style="font-size:1.2rem;">${b.emoji||'🏅'}</span>`).join('');
+  const badgeIcons = earnedBadges.slice(0,8).map(b => `<span style="font-size:1.2rem;" title="${esc(b.name)}">${b.emoji||'🏅'}</span>`).join('');
 
   // ── Reviews submitted (only reviewed, not opted out) ──
   const allReviews = getReviews();
