@@ -2130,23 +2130,6 @@ let CACHE = {
   quarterlyCards: {}
 };
 
-// Debug helper — run debugBookTitles() in the browser console to see the raw
-// title/author strings for every current-month book with hidden characters
-// revealed (JSON.stringify escapes anything that isn't a plain printable
-// character as \uXXXX), plus the computed match-key for each. Two rows with
-// identical-looking text but different keys means there's an invisible
-// character difference somewhere.
-window.debugBookTitles = function() {
-  const rows = (CACHE.books || []).map(b => ({
-    id: b.id,
-    title: JSON.stringify(b.title),
-    author: JSON.stringify(b.author),
-    key: (typeof bookMatchKey === 'function') ? bookMatchKey(b.title, b.author) : null
-  }));
-  console.table(rows);
-  return rows;
-};
-
 // ── Single source of truth for all genres ─────────────────────────────────
 // Each entry: { name, bg, text, border }
 // To add a genre: add one object here. Submit form, Edit Books, and vote pills
@@ -2441,20 +2424,31 @@ window.goTab = goTab;
 // SUGGEST
 // ════════════════════════════════════════════════════════
 // Normalize legacy book entries so suggesters is always an array
+// Robust title/author matching key — used anywhere we need to tell if two
+// suggestions are "the same book". Plain trim+lowercase isn't enough: people
+// on different keyboards/autocorrect can end up with a visually-identical
+// letter that's actually a different Unicode character (e.g. Cyrillic "а"
+// instead of Latin "a"), which would otherwise silently defeat matching.
+const HOMOGLYPH_MAP = {
+  'а':'a','в':'b','е':'e','к':'k','м':'m','н':'h','о':'o','р':'p','с':'c','т':'t','у':'y','х':'x',
+  'і':'i','ј':'j','ѕ':'s','ԁ':'d','ɡ':'g','ⅼ':'l','ⅰ':'i','ο':'o','ѡ':'w'
+};
+function normTitleKey(s) {
+  if (!s) return '';
+  var str = String(s).trim().toLowerCase();
+  // Strip accents/diacritics (é → e, ñ → n, etc.)
+  str = str.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+  // Map common look-alike letters from other scripts back to Latin
+  str = str.replace(/./g, function(ch) { return HOMOGLYPH_MAP[ch] || ch; });
+  // Strip everything except a-z0-9 so punctuation/spacing differences don't matter
+  return str.replace(/[^a-z0-9]/g, '');
+}
+
 function normBook(b) {
   if (!b.suggesters) {
     b.suggesters = [{ discord: b.discord||b.suggester||'', email: b.email||'', reason: b.reason||'' }];
   }
   return b;
-}
-
-// Strip everything except letters/numbers so two titles that only differ by
-// punctuation, extra/odd whitespace, or capitalization are still recognised
-// as "the same book". Used for both the suggest-time auto-merge check and
-// the admin duplicate-detection banner, so they never disagree with each other.
-function bookMatchKey(title, author) {
-  const norm = s => (s||'').trim().toLowerCase().replace(/[^a-z0-9]/g,'');
-  return norm(title) + '||' + norm(author);
 }
 
 // ── Identity resolution ───────────────────────────────────────────────────────
@@ -2610,25 +2604,22 @@ async function suggestBook() {
   if (!pageCount || pageCount < 1) { showMsg('suggest-msg', 'Please enter a page count.', 'err'); return; }
   if (!pagesFormat) { showMsg('suggest-msg', 'Please select a format (hardcover, paperback, or digital).', 'err'); return; }
   if (!email.includes('@')) { showMsg('suggest-msg', 'Please enter a valid email.', 'err'); return; }
-  // Run the whole "does this book already exist?" check + write as a single
-  // Firestore transaction against the live server document (not the local
-  // onSnapshot cache). Two members submitting the same book within moments
-  // of each other could otherwise both read a cache that hasn't yet picked
-  // up the other's write, both conclude "no existing entry", and both add
-  // separate books — which is exactly how a duplicate slips through the
-  // suggest-time auto-merge. The transaction closes that window: whichever
-  // submission commits first is guaranteed to be visible to the second.
+  // Read-check-write happens inside a Firestore transaction so two members
+  // suggesting the same book at nearly the same moment can't both slip past
+  // the duplicate check and create two separate entries (a race condition —
+  // not a matching-logic bug). The transaction re-reads the live doc and
+  // retries automatically if another write lands in between.
+  const idMap = buildIdentityMap();
+  showLoading('Adding recommendation…');
   let outcome;
   try {
-    showLoading('Saving…');
-    outcome = await runTransaction(db, async (transaction) => {
-      const snap = await transaction.get(BOOKS_REF);
-      const books = (snap.exists() ? (snap.data().list || []) : []).map(normBook);
-      const myKey = bookMatchKey(title, author);
-      const existing = books.find(b => bookMatchKey(b.title, b.author) === myKey);
+    outcome = await runTransaction(db, async (tx) => {
+      const snap = await tx.get(BOOKS_REF);
+      const books = ((snap.exists() ? snap.data().list : []) || []).map(normBook);
+      const existing = books.find(b => normTitleKey(b.title) === normTitleKey(title) && normTitleKey(b.author) === normTitleKey(author));
       if (existing) {
-        if (existing.suggesters.some(s => resolveId(s.discord, s.email, buildIdentityMap()) === resolveId(discord, email, buildIdentityMap()))) {
-          return { type: 'already' };
+        if (existing.suggesters.some(s => resolveId(s.discord, s.email, idMap) === resolveId(discord, email, idMap))) {
+          return { status: 'already' };
         }
         existing.suggesters.push({ discord, email, reason });
         if (genre && !existing.genre) existing.genre = genre;
@@ -2653,21 +2644,24 @@ async function suggestBook() {
             }
           }
         }
-        transaction.set(BOOKS_REF, { list: books }, { merge: true });
-        return { type: 'merged' };
+        tx.set(BOOKS_REF, { list: books });
+        return { status: 'merged' };
       }
-      if (books.length >= 30) { return { type: 'max' }; }
+      if (books.length >= 30) return { status: 'max' };
       books.push({ id: Date.now(), title, author, genre: genre || undefined, pageCount, pagesFormat, suggesters: [{ discord, email, reason }] });
-      transaction.set(BOOKS_REF, { list: books }, { merge: true });
-      return { type: 'added' };
+      tx.set(BOOKS_REF, { list: books });
+      return { status: 'added' };
     });
-  } finally {
+  } catch (err) {
     hideLoading();
+    showMsg('suggest-msg', 'Something went wrong submitting your recommendation — please try again.', 'err');
+    return;
   }
-  if (outcome.type === 'already') { showMsg('suggest-msg', "You've already recommended this book!", 'err'); return; }
-  if (outcome.type === 'max') { showMsg('suggest-msg', 'Maximum 30 books reached.', 'err'); return; }
+  hideLoading();
+  if (outcome.status === 'already') { showMsg('suggest-msg', "You've already recommended this book!", 'err'); return; }
+  if (outcome.status === 'max') { showMsg('suggest-msg', 'Maximum 30 books reached.', 'err'); return; }
   clearSuggestForm();
-  showMsg('suggest-msg', outcome.type === 'merged' ? '✓ Your recommendation was added to an existing entry!' : '✓ Book added!', 'ok');
+  showMsg('suggest-msg', outcome.status === 'merged' ? '✓ Your recommendation was added to an existing entry!' : '✓ Book added!', 'ok');
   if (document.getElementById('s-receipt')?.checked) downloadSuggestReceipt({ discord, email, title, author, reason, pageCount, pagesFormat });
 }
 window.suggestBook = suggestBook;
@@ -8865,10 +8859,11 @@ function renderEditCurrentBooks() {
   if (!area) return;
   const books = getBooks();
   if (!books.length) { area.innerHTML = '<p style="font-size:.85rem;color:var(--soft);">No books submitted this month yet.</p>'; return; }
-  // Detect duplicates by normalised title + author (same key used at suggest-time)
+  // Detect duplicates by normalised title + author (see normTitleKey — also
+  // catches accent/homoglyph mismatches, not just spacing/punctuation)
   const seen = new Map();
   books.forEach(b => {
-    const key = bookMatchKey(b.title, b.author);
+    const key = normTitleKey(b.title) + '||' + normTitleKey(b.author);
     if (!seen.has(key)) seen.set(key, []);
     seen.get(key).push(b);
   });
