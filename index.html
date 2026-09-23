@@ -1668,6 +1668,13 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
             <div style="font-size:.78rem;color:var(--soft);">Auto-extracted from cover on save. Displays up to 5 dominant colour swatches with hex codes.</div>
           </div>
         </div>
+        <div style="display:flex;align-items:flex-start;gap:.75rem;margin-top:.75rem;">
+          <input type="checkbox" id="cv-show-reasons" onchange="saveCoverVotingSettings()" style="margin-top:.2rem;flex-shrink:0;">
+          <div>
+            <label for="cv-show-reasons" style="font-size:.88rem;font-weight:600;cursor:pointer;">Show "why recommending" text</label>
+            <div style="font-size:.78rem;color:var(--soft);">Off by default — a member's blurb can sometimes hint at the title or plot, which works against the point of a blind vote. Turn on if you'd rather members see it anyway.</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -2162,7 +2169,7 @@ const PENNY_REF            = doc(db, 'club', 'pennyData');
 
 // ── In-memory cache kept fresh by real-time listeners ──
 let CACHE = {
-  settings: {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,reviewsOpen:false,pennyVisible:false,coverVoting:{enabled:false,obfuscation:'none',showPalette:false},password:'bookclub123'},
+  settings: {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,reviewsOpen:false,pennyVisible:false,coverVoting:{enabled:false,obfuscation:'none',showPalette:false,showReasons:false},password:'bookclub123'},
   books: [], votes: {}, archives: [], surveys: [], surveyResponses: {}, reviews: {},
   readingProgress: {}, meetingInfo: {},
   badgeConfig: { disabled:{}, hidden:{}, organic:{}, customBadges:[], overrides:{} },
@@ -2247,7 +2254,7 @@ function startListeners() {
 
   onSnapshot(SETTINGS_REF, snap => {
     CACHE.settings = Object.assign(
-      {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,reviewsOpen:false,pennyVisible:false,coverVoting:{enabled:false,obfuscation:'none',showPalette:false},password:'bookclub123'},
+      {votingOpen:true,suggestionsOpen:true,resultsVisible:false,suggestionsVisible:false,reviewsOpen:false,pennyVisible:false,coverVoting:{enabled:false,obfuscation:'none',showPalette:false,showReasons:false},password:'bookclub123'},
       snap.exists() ? snap.data() : {}
     );
     updatePennyNavVisibility();
@@ -2876,11 +2883,7 @@ function renderSuggest() {
   const list = document.getElementById('book-list');
   if (!books.length) { list.innerHTML = '<div class="empty"><div class="icon">📚</div><p>No books yet — be the first!</p></div>'; return; }
   list.innerHTML = books.map(normBook).map((b, i) => {
-    const reasons = b.suggesters.filter(s => s.reason);
-    const blurbs = reasons.map(s =>
-      `<div class="book-sub" style="margin-top:.25rem;"><strong>Why are you recommending this book?</strong></div>` +
-      `<div class="book-sub" style="margin-left:.75rem;font-style:italic;">"${esc(s.reason)}"</div>`
-    ).join('');
+    const blurbs = suggesterReasonsHtml(b.suggesters, { marginTop: '.25rem' });
     return `<div class="book-item">
       <div class="book-num">${i+1}</div>
       <div class="book-info">
@@ -2965,6 +2968,21 @@ function genrePillsHtml(genreStr) {
   '</div>';
 }
 
+// Shared "why are you recommending this book?" blurb builder — used everywhere
+// a book's suggesters are shown (Suggest list, Vote page, Results, Rankings).
+// One book can have multiple suggesters, each with their own reason, so this
+// renders one quote block per suggester who filled one in.
+function suggesterReasonsHtml(suggesters, opts) {
+  opts = opts || {};
+  const reasons = (suggesters||[]).filter(s => s && s.reason);
+  if (!reasons.length) return '';
+  const marginTop = opts.marginTop || '.3rem';
+  return reasons.map(s =>
+    `<div class="book-sub" style="margin-top:${marginTop};"><strong>Why are you recommending this book?</strong></div>` +
+    `<div class="book-sub" style="margin-left:.75rem;font-style:italic;">"${esc(s.reason)}"</div>`
+  ).join('');
+}
+
 function buildSortable(books) {
   var c = document.getElementById('sortable-list');
   var cv = (getSettings().coverVoting) || {};
@@ -3008,7 +3026,11 @@ function buildSortable(books) {
       if (b.pageCount) {
         pageCountHtml = '<div class="book-sub" style="margin-top:.35rem;">\uD83D\uDCC4 ' + b.pageCount + ' pages <span style="color:var(--soft);font-size:.78em;">(' + (b.pagesFormat||'') + ')</span>' + (b.pageCountAlt ? ' &middot; ' + b.pageCountAlt + ' pages (' + (b.pagesFormatAlt||'') + ')' : '') + '</div>';
       }
-      var metaHtml = (b.genre ? genrePillsHtml(b.genre) : '') + pageCountHtml + paletteSwatches;
+      // Cover Voting Mode hides titles by design, but the admin can opt in to
+      // still showing "why recommending" blurbs via cv.showReasons \u2014 off by
+      // default, since a reason can sometimes hint at the title/plot.
+      var coverReasonsHtml = cv.showReasons ? suggesterReasonsHtml(b.suggesters, { marginTop: '.35rem' }) : '';
+      var metaHtml = (b.genre ? genrePillsHtml(b.genre) : '') + pageCountHtml + paletteSwatches + coverReasonsHtml;
       d.innerHTML =
         '<div class="rank-badge">' + (i+1) + '</div>' +
         '<div style="flex:1;display:flex;align-items:center;gap:1rem;padding:.5rem 0;">' +
@@ -3023,11 +3045,7 @@ function buildSortable(books) {
       var thumbHtml = b.coverUrl
         ? '<img src="' + esc(b.coverUrl) + '" alt="" data-coverimg="1" style="width:200px;height:300px;object-fit:cover;border-radius:6px;flex-shrink:0;">'
         : '';
-      var reasons = b.suggesters.filter(function(s) { return s.reason; });
-      var blurbs = reasons.map(function(s) {
-        return '<div class="book-sub" style="margin-top:.3rem;"><strong>Why are you recommending this book?</strong></div>' +
-               '<div class="book-sub" style="margin-left:.75rem;font-style:italic;">"' + esc(s.reason) + '"</div>';
-      }).join('');
+      var blurbs = suggesterReasonsHtml(b.suggesters, { marginTop: '.3rem' });
       var pcHtml = '';
       if (b.pageCount) {
         pcHtml = '<div class="book-sub" style="margin-top:.25rem;">\uD83D\uDCC4 ' + b.pageCount + ' pages <span style="color:var(--soft);font-size:.78em;">(' + (b.pagesFormat||'') + ')</span>' + (b.pageCountAlt ? ' \xB7 ' + b.pageCountAlt + ' pages (' + (b.pagesFormatAlt||'') + ')' : '') + '</div>';
@@ -3268,6 +3286,7 @@ function renderResultsHtml(area, books, votes) {
   }
 
   html += sorted.map((b, i) => {
+    normBook(b);
     const pts = scores[b.id], pct = max > 0 ? pts / max * 100 : 0;
     const isTopTied = isTied && tiedBooks.some(t => t.id === b.id);
     const win = i === 0 || isTopTied;
@@ -3285,6 +3304,7 @@ function renderResultsHtml(area, books, votes) {
         ${genrePillsHtml(b.genre)}
         <div class="rank-pills"><span style="font-weight:500;color:var(--ink);">Ballot Breakdown:</span> ${rankPills}</div>
         <div class="res-bar"><div class="res-fill" style="width:${pct}%"></div></div>
+        ${suggesterReasonsHtml(b.suggesters)}
       </div>
       <div class="res-pts">${pts} pts</div>
     </div>`;
@@ -4697,6 +4717,7 @@ function renderRankings() {
   const recommenderMap = {}; // rankKey → [names]  (rankKey = month for single, month+'::'+bookId for dual)
   const bookCoverMap = {}; // rankKey → coverUrl
   const bookPageMap = {}; // rankKey → { pageCount, pagesFormat }
+  const bookReasonsMap = {}; // rankKey → suggesters[] (for the "why recommending" blurbs)
   getArchiveWinners(yearArchives).forEach(({archive:a, winnerBooks}) => {
     if (!winnerBooks.length) return;
     const isDual = (a.dualWinners||[]).length > 0;
@@ -4727,6 +4748,7 @@ function renderRankings() {
       if (names.length) recommenderMap[rankKey] = names.sort((x,y) => x.localeCompare(y));
       if (b.coverUrl) bookCoverMap[rankKey] = b.coverUrl;
       if (b.pageCount) bookPageMap[rankKey] = { pageCount: b.pageCount, pagesFormat: b.pagesFormat || '' };
+      bookReasonsMap[rankKey] = normBook(b).suggesters;
     });
   });
 
@@ -4850,6 +4872,7 @@ function renderRankings() {
     const coverUrl = bookCoverMap[rankKey] || '';
     const pageInfo = bookPageMap[rankKey] || null;
     const pageCountLine = pageInfo ? `<div style="font-size:.72rem;color:var(--soft);margin-bottom:.4rem;">📄 ${pageInfo.pageCount} pages</div>` : '';
+    const reasonsHtml = suggesterReasonsHtml(bookReasonsMap[rankKey], { marginTop: '.4rem' });
     const subtitle = isDual
       ? `<div style="font-size:.72rem;color:var(--soft);font-style:italic;margin-bottom:.4rem;">👑 Co-winner · ${esc(cleanMonthLabel)}</div>`
       : `<div style="font-size:.72rem;color:var(--soft);font-style:italic;margin-bottom:.4rem;">${esc(month)}</div>`;
@@ -4866,6 +4889,7 @@ function renderRankings() {
               ${subtitle}
               ${recommenderHtml}
               ${pageCountLine}
+              ${reasonsHtml}
             </div>
           </div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(95px,1fr));gap:.5rem;margin-bottom:.65rem;">
@@ -6048,12 +6072,14 @@ function renderCoverVotingAdmin() {
   document.querySelectorAll('input[name="cv-obfuscation"]').forEach(function(r){r.checked=r.value===obVal;});
   var palCb=document.getElementById('cv-show-palette');
   if(palCb)palCb.checked=!!cv.showPalette;
+  var reasonsCb=document.getElementById('cv-show-reasons');
+  if(reasonsCb)reasonsCb.checked=!!cv.showReasons;
 }
 window.renderCoverVotingAdmin=renderCoverVotingAdmin;
 
 async function toggleCoverVoting() {
   var s=getSettings();
-  var cv=Object.assign({enabled:false,obfuscation:'none',showPalette:false},s.coverVoting||{});
+  var cv=Object.assign({enabled:false,obfuscation:'none',showPalette:false,showReasons:false},s.coverVoting||{});
   cv.enabled=!cv.enabled; s.coverVoting=cv;
   showLoading('Saving…'); await fbSetFull(SETTINGS_REF,s); hideLoading();
   renderCoverVotingAdmin();
@@ -6062,10 +6088,11 @@ window.toggleCoverVoting=toggleCoverVoting;
 
 async function saveCoverVotingSettings() {
   var s=getSettings();
-  var cv=Object.assign({enabled:true,obfuscation:'none',showPalette:false},s.coverVoting||{});
+  var cv=Object.assign({enabled:true,obfuscation:'none',showPalette:false,showReasons:false},s.coverVoting||{});
   var obEl=document.querySelector('input[name="cv-obfuscation"]:checked');
   cv.obfuscation=obEl?obEl.value:'none';
   cv.showPalette=!!(document.getElementById('cv-show-palette')?.checked);
+  cv.showReasons=!!(document.getElementById('cv-show-reasons')?.checked);
   s.coverVoting=cv;
   showLoading('Saving…'); await fbSetFull(SETTINGS_REF,s); hideLoading();
 }
@@ -8998,6 +9025,14 @@ function editBookCard(book, onSave, onCancel, context) {
         <input type="text" id="${uid}-suggester" value="${esc(primarySuggester.discord||'')}" style="font-size:.85rem;padding:.4rem .7rem;">
       </div>
     </div>
+    <div style="margin-bottom:.5rem;">
+      <label style="display:block;font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);margin-bottom:.4rem;">Why Recommending — fix typos per suggester</label>
+      ${b.suggesters.map((s, si) => `
+        <div class="f-group" style="margin-bottom:.4rem;">
+          <label style="font-weight:400;font-size:.8rem;">${esc(s.discord || 'Suggester ' + (si+1))}</label>
+          <textarea id="${uid}-reason-${si}" rows="2" placeholder="(no reason given)" style="font-size:.85rem;padding:.4rem .7rem;">${esc(s.reason||'')}</textarea>
+        </div>`).join('')}
+    </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem;">
       <div class="f-group">
         <label>Page Count</label>
@@ -9162,6 +9197,10 @@ async function saveCurrentBook(bookId, uid) {
     if (palette.length) books[idx].palette = palette; else delete books[idx].palette;
   } else { delete books[idx].coverUrl; delete books[idx].palette; }
   if (suggester && nb.suggesters.length > 0) nb.suggesters[0].discord = suggester;
+  nb.suggesters.forEach((s, si) => {
+    const reasonEl = document.getElementById(`${uid}-reason-${si}`);
+    if (reasonEl) s.reason = reasonEl.value.trim();
+  });
   books[idx].suggesters = nb.suggesters;
   await fbSet(BOOKS_REF, { list: books });
   hideLoading();
@@ -9256,6 +9295,10 @@ async function saveArchiveBook(label, bookId, uid) {
     if (aPalette.length) books[bIdx].palette = aPalette; else delete books[bIdx].palette;
   } else { delete books[bIdx].coverUrl; delete books[bIdx].palette; }
   if (suggester && nb.suggesters.length > 0) nb.suggesters[0].discord = suggester;
+  nb.suggesters.forEach((s, si) => {
+    const reasonEl = document.getElementById(`${uid}-reason-${si}`);
+    if (reasonEl) s.reason = reasonEl.value.trim();
+  });
   books[bIdx].suggesters = nb.suggesters;
   archives[arcIdx].books = books;
   await fbSet(ARCHIVES_REF, { list: archives });
