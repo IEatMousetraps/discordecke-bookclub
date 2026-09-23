@@ -3061,12 +3061,20 @@ async function submitVote() {
   const storeKey = existingKey || name;
   if (existingKey && !confirm(`"${existingKey}" has already voted.\n\nSubmitting will replace their existing ranking. Continue?`)) return;
   // Confirm ranking before final submit
-  const allBooks = getBooks().map(normBook);
-  const rankSummary = items.map((el,i) => {
-    const b = allBooks.find(b=>String(b.id)===String(el.dataset.id));
-    return `${i+1}. ${b ? b.title : el.dataset.id}`;
-  }).join('\n');
-  if (!confirm(`Submit this ranking?\n\n${rankSummary}`)) return;
+  const cvEnabled = !!(getSettings().coverVoting || {}).enabled;
+  let confirmMsg;
+  if (cvEnabled) {
+    // Cover Voting Mode: keep titles hidden, just confirm the count so they can double-check their order above
+    confirmMsg = `Submit this ranking of ${items.length} book${items.length === 1 ? '' : 's'}?\n\nTitles are hidden while Cover Voting Mode is on — double-check your order above before confirming.`;
+  } else {
+    const allBooks = getBooks().map(normBook);
+    const rankSummary = items.map((el,i) => {
+      const b = allBooks.find(b=>String(b.id)===String(el.dataset.id));
+      return `${i+1}. ${b ? b.title : el.dataset.id}`;
+    }).join('\n');
+    confirmMsg = `Submit this ranking?\n\n${rankSummary}`;
+  }
+  if (!confirm(confirmMsg)) return;
   showLoading('Submitting vote…');
   votes[storeKey] = { ranking: items.map(el => el.dataset.id), email, discord: name, ts: Date.now() };
   await fbSet(VOTES_REF, { map: votes });
