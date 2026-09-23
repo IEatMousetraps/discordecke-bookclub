@@ -4804,7 +4804,11 @@ function renderRankings() {
   const starDisplay = avg => {
     if (!avg) return '<span style="color:var(--soft);">No ratings</span>';
     const full = Math.floor(avg), half = avg - full >= 0.5;
-    return '⭐'.repeat(full) + (half?'½':'') + ` <span style="font-size:.8rem;color:var(--soft);">${avg.toFixed(1)}/5</span>`;
+    // Stars and the numeric rating sit on their own lines — inline, they were
+    // wrapping awkwardly inside the narrow stat box (~95px) and crowding the
+    // neighboring box.
+    return `<div style="letter-spacing:.06em;line-height:1.3;">${'⭐'.repeat(full)}${half?'½':''}</div>` +
+           `<div style="font-size:.72rem;color:var(--soft);margin-top:.2rem;">${avg.toFixed(1)}/5</div>`;
   };
 
   const starHtml = val => {
@@ -4894,7 +4898,7 @@ function renderRankings() {
           </div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(95px,1fr));gap:.5rem;margin-bottom:.65rem;">
             <div style="background:var(--cream);border-radius:6px;padding:.55rem;text-align:center;">
-              <div style="font-size:.95rem;margin-bottom:.2rem;">${starDisplay(d.avgRating)}</div>
+              <div style="font-size:.9rem;margin-bottom:.35rem;">${starDisplay(d.avgRating)}</div>
               <div style="font-size:.65rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Avg Rating</div>
             </div>
             <div style="background:var(--cream);border-radius:6px;padding:.55rem;text-align:center;">
