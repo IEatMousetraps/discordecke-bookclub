@@ -127,6 +127,23 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 .sub-tab{font-family:'DM Sans',sans-serif;font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;padding:.45rem 1.1rem;background:none;border:1px solid var(--border);border-radius:20px;cursor:pointer;color:var(--soft);transition:all .2s;}
 .sub-tab.active{background:var(--gold);color:var(--black);border-color:var(--gold);font-weight:600;}
 .sub-tab:hover:not(.active){border-color:var(--gold);color:var(--ink);}
+/* year filter pills (Book Club Metrics) */
+.year-pills{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.25rem;}
+.year-pill{font-family:'DM Sans',sans-serif;font-size:.75rem;font-weight:600;padding:.4rem 1rem;border-radius:20px;border:1px solid var(--border);background:none;color:var(--soft);cursor:pointer;transition:all .2s;}
+.year-pill.active{background:var(--black);color:#fff;border-color:var(--black);}
+.year-pill:hover:not(.active){border-color:var(--black);color:var(--ink);}
+/* past-year archive note (Rankings) */
+.archive-note{font-size:.8rem;color:var(--soft);background:var(--paper);border-left:3px solid var(--gold);padding:.6rem .9rem;border-radius:0 6px 6px 0;margin-bottom:1.25rem;}
+/* Start New Year admin card — visually distinct from the monthly Archive & Reset card */
+.year-admin-card{border-style:dashed;}
+.year-admin-badge{display:inline-block;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;background:var(--cream);color:#8a6d1a;padding:.2rem .6rem;border-radius:12px;margin-bottom:.7rem;}
+.year-admin-current{font-size:.85rem;color:var(--ink);margin-bottom:.25rem;}
+.year-admin-current strong{font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--black);}
+.year-admin-lastchanged{font-size:.75rem;color:var(--soft);margin-bottom:1rem;}
+.year-override-row{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);}
+.year-override-row label{font-size:.78rem;color:var(--soft);}
+.year-override-row input{width:90px;padding:.4rem .6rem;border:1px solid var(--border);border-radius:5px;font-size:.85rem;font-family:'DM Sans',sans-serif;}
+.year-confirm-hint{font-size:.72rem;color:var(--soft);margin-top:.6rem;}
 /* divider */
 .div{text-align:center;color:var(--border);margin:1.5rem 0;font-size:1rem;letter-spacing:.4em;}
 @media(max-width:520px){.grid2{grid-template-columns:1fr;}.grid3{grid-template-columns:1fr 1fr;}.bar-row{grid-template-columns:90px 1fr 40px;}}
@@ -1467,13 +1484,16 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 
 <!-- ══════════════ RANKINGS ══════════════ -->
 <div id="tab-rankings" class="section">
-  <div class="sec-head"><h2>2026 Book Rankings & Reviews</h2><p>How every winning book performed across all months, broken down by member star ratings. These are the books that won the vote and the club read together.</p></div>
+  <div class="sec-head"><h2 id="rankings-title">Book Rankings & Reviews</h2><p id="rankings-desc">How every winning book performed across all months, broken down by member star ratings. These are the books that won the vote and the club read together.</p></div>
+  <div class="sub-tabs" id="rankings-subtabs"></div>
+  <div class="archive-note" id="rankings-archive-note" style="display:none;"></div>
   <div id="rankings-area"></div>
 </div>
 
 <!-- ══════════════ ANALYSIS ══════════════ -->
 <div id="tab-analysis" class="section">
   <div class="sec-head"><h2>Book Club Metrics</h2><p>Month-by-month and year-end trends.</p></div>
+  <div class="year-pills" id="metrics-year-pills"></div>
   <div class="sub-tabs">
     <button class="sub-tab active" onclick="goSubTab('voting',this)">Voting</button>
     <button class="sub-tab" onclick="goSubTab('members',this)">Members</button>
@@ -1715,6 +1735,27 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
         </select>
       </div>
       <div id="rename-archive-area"></div>
+    </div>
+
+    <!-- Start New Year — deliberately separate from the monthly Archive & Reset lever above.
+         Flipping currentYear never touches books/votes/archives/reviews; it only changes which
+         year Rankings & Metrics default to showing. Archived months keep bucketing by the year
+         parsed from their own label, regardless of this setting, so there's no "must archive
+         December first" dependency here. -->
+    <div class="card year-admin-card">
+      <div class="year-admin-badge">Separate from Archive &amp; Reset</div>
+      <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.5rem;">Book Club Year</h3>
+      <p style="font-size:.85rem;color:var(--soft);margin-bottom:.9rem;">Controls which year Rankings &amp; Reviews and Book Club Metrics default to. Doesn't touch any books, votes, archives, or reviews — archived months keep sorting by the year in their own label either way.</p>
+      <div class="year-admin-current">Currently tracking <strong id="year-admin-current-year">2026</strong></div>
+      <div class="year-admin-lastchanged" id="year-admin-lastchanged"></div>
+      <button class="btn btn-gold" id="year-admin-start-btn" onclick="startNewYear()">Start 2027 →</button>
+      <div class="year-override-row">
+        <label for="year-override-input">Manual override:</label>
+        <input type="number" id="year-override-input" min="2026" max="2100" step="1">
+        <button class="btn btn-secondary btn-sm" onclick="setYearOverride()">Set year</button>
+      </div>
+      <div class="year-confirm-hint">Use the override to correct a mistake or jump straight to undo — setting it back to the previous year has the exact same effect as never having changed it.</div>
+      <div id="year-admin-msg"></div>
     </div>
 
     <!-- CSV download -->
@@ -2334,6 +2375,26 @@ function getBooks()          { return CACHE.books || []; }
 function getVotes()          { return CACHE.votes || {}; }
 function getSettings()       { return CACHE.settings; }
 function getArchives()       { return CACHE.archives || []; }
+
+// ── Year-boundary helpers (Rankings/Metrics year filtering) ──
+// No "start a fresh year" data migration happens anywhere — archives are permanent.
+// These just figure out which calendar year an archive belongs to, and which year
+// new activity is currently being filed under (settings.currentYear, admin-controlled).
+function getCurrentYear() { return (getSettings()||{}).currentYear || 2026; }
+function getArchiveYear(a) {
+  const m = String(a.label||'').match(/\b(20\d{2})\b/);
+  if (m) return parseInt(m[1], 10);
+  if (a.archivedAt) return new Date(a.archivedAt).getFullYear();
+  return getCurrentYear();
+}
+// Distinct past years present in archives (2026 onward — 2025 predates the
+// archive system and has no real vote/review data behind it), most recent first.
+function getPastArchiveYears() {
+  const cy = getCurrentYear();
+  const years = new Set();
+  getArchives().forEach(a => { const y = getArchiveYear(a); if (y < cy && y >= 2026) years.add(y); });
+  return [...years].sort((a,b) => b - a);
+}
 function getSurveys()        { return CACHE.surveys || []; }
 function getSurveyResponses(){ return CACHE.surveyResponses || {}; }
 function getReviews()        { return CACHE.reviews || {}; }
@@ -2867,18 +2928,11 @@ function renderVote() {
     const me = resolveId(discord, email, idMap);
     const existing = Object.values(rawVotes).find(vd => resolveId(vd.discord||'', vd.email||'', idMap) === me);
     if (existing) {
-      let ranked;
-      if (cv.enabled) {
-        // Cover Voting Mode: keep titles hidden even in the "already voted" recap
-        const count = (existing.ranking||[]).length;
-        ranked = `<div style="font-size:.8rem;padding:.1rem 0;color:var(--soft);">Your ranking of ${count} book${count===1?'':'s'} is saved (titles hidden while Cover Voting Mode is on).</div>`;
-      } else {
-        const allBooks = getBooks().map(normBook);
-        ranked = (existing.ranking||[]).map((id,i) => {
-          const b = allBooks.find(b=>String(b.id)===String(id));
-          return `<div style="font-size:.8rem;padding:.1rem 0;">${i+1}. ${b?esc(b.title):id}</div>`;
-        }).join('');
-      }
+      const allBooks = getBooks().map(normBook);
+      const ranked = (existing.ranking||[]).map((id,i) => {
+        const b = allBooks.find(b=>String(b.id)===String(id));
+        return `<div style="font-size:.8rem;padding:.1rem 0;">${i+1}. ${b?esc(b.title):id}</div>`;
+      }).join('');
       bannerEl.style.display = 'block';
       bannerEl.innerHTML = `<div style="background:#e8f5e9;border-left:3px solid var(--green);padding:.75rem 1rem;border-radius:0 6px 6px 0;margin-bottom:1rem;">
         <div style="font-size:.85rem;font-weight:600;color:var(--green);margin-bottom:.4rem;">✓ You've already voted this month</div>
@@ -3068,20 +3122,12 @@ async function submitVote() {
   const storeKey = existingKey || name;
   if (existingKey && !confirm(`"${existingKey}" has already voted.\n\nSubmitting will replace their existing ranking. Continue?`)) return;
   // Confirm ranking before final submit
-  const cvEnabled = !!(getSettings().coverVoting || {}).enabled;
-  let confirmMsg;
-  if (cvEnabled) {
-    // Cover Voting Mode: keep titles hidden, just confirm the count so they can double-check their order above
-    confirmMsg = `Submit this ranking of ${items.length} book${items.length === 1 ? '' : 's'}?\n\nTitles are hidden while Cover Voting Mode is on — double-check your order above before confirming.`;
-  } else {
-    const allBooks = getBooks().map(normBook);
-    const rankSummary = items.map((el,i) => {
-      const b = allBooks.find(b=>String(b.id)===String(el.dataset.id));
-      return `${i+1}. ${b ? b.title : el.dataset.id}`;
-    }).join('\n');
-    confirmMsg = `Submit this ranking?\n\n${rankSummary}`;
-  }
-  if (!confirm(confirmMsg)) return;
+  const allBooks = getBooks().map(normBook);
+  const rankSummary = items.map((el,i) => {
+    const b = allBooks.find(b=>String(b.id)===String(el.dataset.id));
+    return `${i+1}. ${b ? b.title : el.dataset.id}`;
+  }).join('\n');
+  if (!confirm(`Submit this ranking?\n\n${rankSummary}`)) return;
   showLoading('Submitting vote…');
   votes[storeKey] = { ranking: items.map(el => el.dataset.id), email, discord: name, ts: Date.now() };
   await fbSet(VOTES_REF, { map: votes });
@@ -3900,7 +3946,10 @@ function goSubTab(id, btn) {
   ['voting','members','rank-dist','genre-diversity','page-count'].forEach(s => {
     document.getElementById('sub-'+s).style.display = s === id ? '' : 'none';
   });
-  document.querySelectorAll('.sub-tab').forEach(b => b.classList.remove('active'));
+  // Scoped to #tab-analysis: the Rankings page's year sub-tabs share the .sub-tab
+  // class for visual consistency, and a global clear here would strip their
+  // active state too (harmless since they rebuild fresh on open, but avoidable).
+  document.querySelectorAll('#tab-analysis .sub-tab').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   const _sharedIdMap = buildIdentityMap();
   if      (id === 'voting')          renderAnalysisVoting();
@@ -3911,9 +3960,53 @@ function goSubTab(id, btn) {
 }
 window.goSubTab = goSubTab;
 
+// 'all' = All-Time; a number = that year only (current year by default)
+let _metricsYearSel = null;
+
+function getMetricsFilteredArchives() {
+  if (_metricsYearSel === null || _metricsYearSel === 'all') return getArchives();
+  return getArchives().filter(a => getArchiveYear(a) === _metricsYearSel);
+}
+// Convenience for functions (like Members) that also need to filter reviews/
+// other month-keyed data to the same year selection.
+function getMetricsYearMonths() {
+  return _metricsYearSel === null || _metricsYearSel === 'all'
+    ? null // null = no filtering, use everything
+    : new Set(getMetricsFilteredArchives().map(a => a.label));
+}
+function metricsYearLabel() {
+  return _metricsYearSel === null || _metricsYearSel === 'all' ? 'All-Time' : String(_metricsYearSel);
+}
+
+function renderMetricsYearPills() {
+  const container = document.getElementById('metrics-year-pills');
+  if (!container) return;
+  const cy = getCurrentYear();
+  if (_metricsYearSel === null) _metricsYearSel = cy; // default to current year
+  const pastYears = getPastArchiveYears();
+  let html = `<button class="year-pill ${_metricsYearSel===cy?'active':''}" onclick="goMetricsYear(${cy},this)">${cy}</button>`;
+  pastYears.forEach(y => {
+    html += `<button class="year-pill ${_metricsYearSel===y?'active':''}" onclick="goMetricsYear(${y},this)">${y}</button>`;
+  });
+  html += `<button class="year-pill ${_metricsYearSel==='all'?'active':''}" onclick="goMetricsYear('all',this)">All-Time</button>`;
+  container.innerHTML = html;
+}
+window.renderMetricsYearPills = renderMetricsYearPills;
+
+function goMetricsYear(year, btn) {
+  _metricsYearSel = year;
+  document.querySelectorAll('.year-pill').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const activeBtn = document.querySelector('#tab-analysis .sub-tab.active');
+  const activeId  = activeBtn ? activeBtn.getAttribute('onclick').match(/'([^']+)'/)?.[1] : 'voting';
+  goSubTab(activeId || 'voting', activeBtn);
+}
+window.goMetricsYear = goMetricsYear;
+
 function renderAnalysis() {
+  renderMetricsYearPills();
   // Default to first sub-tab on load
-  const activeBtn = document.querySelector('.sub-tab.active');
+  const activeBtn = document.querySelector('#tab-analysis .sub-tab.active');
   const activeId  = activeBtn ? activeBtn.getAttribute('onclick').match(/'([^']+)'/)?.[1] : 'voting';
   goSubTab(activeId || 'voting', activeBtn);
 }
@@ -3931,9 +4024,9 @@ window.toggleThoughts = toggleThoughts;
 
 // ── Voting sub-tab ────────────────────────────────────────────────────────────
 function renderAnalysisVoting() {
-  const archives = getArchives();
+  const archives = getMetricsFilteredArchives();
   const area = document.getElementById('analysis-voting-area');
-  if (!archives.length) { area.innerHTML = '<div class="empty"><div class="icon">📊</div><p>No archived months yet.</p></div>'; return; }
+  if (!archives.length) { area.innerHTML = `<div class="empty"><div class="icon">📊</div><p>No archived months for ${esc(metricsYearLabel())} yet.</p></div>`; return; }
 
   const participationData = archives.map(a => Object.keys(a.votes||{}).length);
   const maxParticipation  = Math.max(...participationData, 1);
@@ -3991,9 +4084,9 @@ let _rankDistMonth = 'all';
 let _rankDistSort = 'avgRank';
 
 function renderAnalysisRankDist() {
-  const archives = getArchives();
+  const archives = getMetricsFilteredArchives();
   const area = document.getElementById('analysis-rankdist-area');
-  if (!archives.length) { area.innerHTML = '<div class="empty"><div class="icon">📊</div><p>No archived months yet.</p></div>'; return; }
+  if (!archives.length) { area.innerHTML = `<div class="empty"><div class="icon">📊</div><p>No archived months for ${esc(metricsYearLabel())} yet.</p></div>`; return; }
 
   // Build per-entry list: one entry per book-per-month (not aggregated)
   // so the same title appearing in two months shows separately
@@ -4136,9 +4229,9 @@ window.rankDistGoPage = rankDistGoPage;
 
 // ── Page Count sub-tab ───────────────────────────────────────────────────────
 function renderAnalysisPageCount() {
-  const archives = getArchives();
+  const archives = getMetricsFilteredArchives();
   const area = document.getElementById('analysis-pagecount-area');
-  if (!archives.length) { area.innerHTML = '<div class="empty"><div class="icon">📄</div><p>No archived months yet.</p></div>'; return; }
+  if (!archives.length) { area.innerHTML = `<div class="empty"><div class="icon">📄</div><p>No archived months for ${esc(metricsYearLabel())} yet.</p></div>`; return; }
 
   // Collect all books with page count data
   const allBooks = [];
@@ -4313,13 +4406,20 @@ window.pcGoPage = pcGoPage;
 
 // ── Members sub-tab ───────────────────────────────────────────────────────────
 function renderAnalysisMembers(_idMapM) {
-  const archives = getArchives();
+  const archives = getMetricsFilteredArchives();
   const area = document.getElementById('analysis-members-area');
-  if (!archives.length) { area.innerHTML = '<div class="empty"><div class="icon">👥</div><p>No archived months yet.</p></div>'; return; }
+  if (!archives.length) { area.innerHTML = `<div class="empty"><div class="icon">👥</div><p>No archived months for ${esc(metricsYearLabel())} yet.</p></div>`; return; }
 
   if (!_idMapM) _idMapM = buildIdentityMap();
-  const archiveWinners = getArchiveWinners();
-  const allReviews = getReviews();
+  const archiveWinners = getArchiveWinners(archives);
+  // Finish-rate/rating stats pull from reviews, which aren't part of `archives`
+  // above — filter them to the same year selection so Members stays in sync
+  // with the year pill, not just the voting/suggestion charts.
+  const yearMonths = getMetricsYearMonths(); // null = no filtering (All-Time)
+  const allReviewsRaw = getReviews();
+  const allReviews = yearMonths
+    ? Object.fromEntries(Object.entries(allReviewsRaw).filter(([month]) => yearMonths.has(month)))
+    : allReviewsRaw;
 
   // ── Voting frequency ──
   const voterFreq = {};
@@ -4545,13 +4645,48 @@ function renderAnalysisReviews() {
 // ════════════════════════════════════════════════════════
 // RANKINGS PAGE — based on Rank A Book submissions
 // ════════════════════════════════════════════════════════
+// 'this' = the currentYear; a number = that past year's archive sub-tab
+let _rankingsYearSel = 'this';
+
+function renderRankingsSubTabs() {
+  const container = document.getElementById('rankings-subtabs');
+  if (!container) return;
+  const pastYears = getPastArchiveYears();
+  let html = `<button class="sub-tab ${_rankingsYearSel==='this'?'active':''}" onclick="goRankingsYear('this',this)">This Year</button>`;
+  pastYears.forEach(y => {
+    html += `<button class="sub-tab ${_rankingsYearSel===y?'active':''}" onclick="goRankingsYear(${y},this)">${y} Archive</button>`;
+  });
+  container.innerHTML = html;
+}
+window.renderRankingsSubTabs = renderRankingsSubTabs;
+
+function goRankingsYear(year, btn) {
+  _rankingsYearSel = year;
+  document.querySelectorAll('#rankings-subtabs .sub-tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderRankings();
+}
+window.goRankingsYear = goRankingsYear;
+
 function renderRankings() {
+  renderRankingsSubTabs();
+  const selYear = _rankingsYearSel === 'this' ? getCurrentYear() : _rankingsYearSel;
+  const titleEl = document.getElementById('rankings-title');
+  const noteEl  = document.getElementById('rankings-archive-note');
+  if (titleEl) titleEl.textContent = _rankingsYearSel === 'this' ? `${selYear} Book Rankings & Reviews` : `${selYear} Archive`;
+  if (noteEl) {
+    if (_rankingsYearSel === 'this') { noteEl.style.display = 'none'; }
+    else { noteEl.style.display = ''; noteEl.textContent = "📖 You're viewing a past year — these books have already been read and ranked."; }
+  }
+
+  const yearArchives = getArchives().filter(a => getArchiveYear(a) === selYear);
+  const yearMonths = new Set(yearArchives.map(a => a.label));
   const reviews = getReviews();
   const area = document.getElementById('rankings-area');
-  const allEntries = Object.values(reviews).flat();
+  const yearEntries = Object.entries(reviews).filter(([month]) => yearMonths.has(month)).flatMap(([,entries]) => entries||[]);
 
-  if (!allEntries.length) {
-    area.innerHTML = '<div class="empty"><div class="icon">🏆</div><p>No reviews submitted yet. Rankings will appear here once members have submitted reviews via the Rank A Book page.</p></div>';
+  if (!yearEntries.length) {
+    area.innerHTML = `<div class="empty"><div class="icon">🏆</div><p>No reviews for ${esc(String(selYear))} yet. Rankings will appear here once members have submitted reviews via the Rank A Book page.</p></div>`;
     return;
   }
 
@@ -4562,7 +4697,7 @@ function renderRankings() {
   const recommenderMap = {}; // rankKey → [names]  (rankKey = month for single, month+'::'+bookId for dual)
   const bookCoverMap = {}; // rankKey → coverUrl
   const bookPageMap = {}; // rankKey → { pageCount, pagesFormat }
-  getArchiveWinners().forEach(({archive:a, winnerBooks}) => {
+  getArchiveWinners(yearArchives).forEach(({archive:a, winnerBooks}) => {
     if (!winnerBooks.length) return;
     const isDual = (a.dualWinners||[]).length > 0;
     // For dual months, derive a clean month-only label by stripping book titles.
@@ -4601,6 +4736,7 @@ function renderRankings() {
   const rankKeyMeta = {}; // rankKey → { month, bookTitle, bookId, genre, isDual }
 
   Object.entries(reviews).forEach(([month, entries]) => {
+    if (!yearMonths.has(month)) return; // outside the selected year
     const archMeta = archiveLookup[month] || {};
     const isDual = archMeta.dual || false;
 
@@ -4882,6 +5018,7 @@ function renderAdmin() {
     </div>`).join('') : '<p style="font-size:.85rem;color:var(--soft);">No books.</p>';
   // surveys list now rendered in renderAdminSurveys() on the Surveys sub-tab
   renderRenameArchiveSelect();
+  renderYearAdminCard();
 }
 
 function goAdminTab(id, btn) {
@@ -6067,6 +6204,72 @@ async function archiveMonth() {
 window.archiveMonth = archiveMonth;
 
 // ════════════════════════════════════════════════════════
+// START NEW YEAR — deliberately separate from Archive & Reset above.
+// Only ever writes settings.currentYear (+ a lastChanged breadcrumb). Never
+// touches books/votes/archives/reviews — archived months bucket by the year
+// parsed from their own label (see getArchiveYear), independent of this
+// setting, so there is no ordering dependency with the monthly archive flow.
+// ════════════════════════════════════════════════════════
+function renderYearAdminCard() {
+  const cy = getCurrentYear();
+  const s = getSettings() || {};
+  const yearEl = document.getElementById('year-admin-current-year');
+  const btnEl  = document.getElementById('year-admin-start-btn');
+  const lastEl = document.getElementById('year-admin-lastchanged');
+  const overrideEl = document.getElementById('year-override-input');
+  if (yearEl) yearEl.textContent = cy;
+  if (btnEl)  btnEl.textContent = `Start ${cy + 1} →`;
+  if (overrideEl && document.activeElement !== overrideEl) overrideEl.value = cy;
+  if (lastEl) {
+    lastEl.textContent = (s.currentYearChangedFrom != null && s.currentYearChangedAt)
+      ? `Last changed: ${s.currentYearChangedFrom} → ${cy} on ${new Date(s.currentYearChangedAt).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })}`
+      : '';
+  }
+}
+window.renderYearAdminCard = renderYearAdminCard;
+
+async function applyYearChange(from, to) {
+  const s = { ...getSettings(), currentYear: to, currentYearChangedFrom: from, currentYearChangedAt: Date.now() };
+  showLoading('Updating…');
+  await fbSet(SETTINGS_REF, s);
+  hideLoading();
+  showMsg('year-admin-msg', `✓ Current year set to ${to}.`, 'ok');
+  renderYearAdminCard();
+}
+
+async function startNewYear() {
+  const from = getCurrentYear();
+  const to = from + 1;
+  const ok = confirm(
+    `Start ${to}?\n\n` +
+    `This changes the current year from ${from} to ${to}. It does NOT touch any books, votes, archives, or reviews — ` +
+    `it only changes which year Rankings & Reviews and Book Club Metrics show by default. ` +
+    `${from} moves into its own archive sub-tab / year filter, and you can undo this anytime with the override below.`
+  );
+  if (!ok) return;
+  await applyYearChange(from, to);
+}
+window.startNewYear = startNewYear;
+
+async function setYearOverride() {
+  const input = document.getElementById('year-override-input');
+  const to = parseInt(input.value, 10);
+  const from = getCurrentYear();
+  if (!to || to < 2026 || to > 2100) { showMsg('year-admin-msg', 'Please enter a valid year (2026 or later).', 'err'); return; }
+  if (to === from) { showMsg('year-admin-msg', `${to} is already the current year.`, 'err'); return; }
+  const jump = Math.abs(to - from);
+  const jumpWarning = jump > 1 ? ` Heads up — that's a jump of ${jump} years, not the usual one-year step; double-check that's intentional.` : '';
+  const ok = confirm(
+    `Set current year to ${to}?\n\n` +
+    `This changes the current year from ${from} to ${to}. It does NOT touch any books, votes, archives, or reviews — ` +
+    `it only changes which year Rankings & Reviews and Book Club Metrics show by default.${jumpWarning}`
+  );
+  if (!ok) return;
+  await applyYearChange(from, to);
+}
+window.setYearOverride = setYearOverride;
+
+// ════════════════════════════════════════════════════════
 // RENAME / FIX ARCHIVED MONTH (handles mislabeled + duplicate-label months)
 // ════════════════════════════════════════════════════════
 let _renameState = null; // { idx, oldLabel, conflictIdx, entries: [...], assign: [...] }
@@ -6707,8 +6910,10 @@ function hasBadge(badgeId, profile, memberKey) {
 
 // ── Helper: returns array of { archive, winnerBooks } for all archived months ──
 // Computed once and reused throughout computeMemberProfile to avoid repeated loops.
-function getArchiveWinners() {
-  return getArchives().map(a => {
+// Pass archivesOverride to compute winners for a filtered subset (e.g. a single
+// year's archives) without touching the all-time default other callers rely on.
+function getArchiveWinners(archivesOverride) {
+  return (archivesOverride || getArchives()).map(a => {
     const nb = (a.books||[]).length;
     const scores = {};
     (a.books||[]).forEach(b => scores[b.id] = 0);
@@ -9067,10 +9272,10 @@ window.saveArchiveBook = saveArchiveBook;
 function renderGenreDiversity() {
   const area = document.getElementById('analysis-genre-area');
   if (!area) return;
-  const archives = getArchives();
+  const archives = getMetricsFilteredArchives();
 
   if (!archives.length) {
-    area.innerHTML = '<div class="empty"><div class="icon">🎭</div><p>No archived months yet. Genre data will appear here once books have a genre tag.</p></div>';
+    area.innerHTML = `<div class="empty"><div class="icon">🎭</div><p>No archived months for ${esc(metricsYearLabel())} yet. Genre data will appear here once books have a genre tag.</p></div>`;
     return;
   }
 
