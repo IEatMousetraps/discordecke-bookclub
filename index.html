@@ -2867,11 +2867,18 @@ function renderVote() {
     const me = resolveId(discord, email, idMap);
     const existing = Object.values(rawVotes).find(vd => resolveId(vd.discord||'', vd.email||'', idMap) === me);
     if (existing) {
-      const allBooks = getBooks().map(normBook);
-      const ranked = (existing.ranking||[]).map((id,i) => {
-        const b = allBooks.find(b=>String(b.id)===String(id));
-        return `<div style="font-size:.8rem;padding:.1rem 0;">${i+1}. ${b?esc(b.title):id}</div>`;
-      }).join('');
+      let ranked;
+      if (cv.enabled) {
+        // Cover Voting Mode: keep titles hidden even in the "already voted" recap
+        const count = (existing.ranking||[]).length;
+        ranked = `<div style="font-size:.8rem;padding:.1rem 0;color:var(--soft);">Your ranking of ${count} book${count===1?'':'s'} is saved (titles hidden while Cover Voting Mode is on).</div>`;
+      } else {
+        const allBooks = getBooks().map(normBook);
+        ranked = (existing.ranking||[]).map((id,i) => {
+          const b = allBooks.find(b=>String(b.id)===String(id));
+          return `<div style="font-size:.8rem;padding:.1rem 0;">${i+1}. ${b?esc(b.title):id}</div>`;
+        }).join('');
+      }
       bannerEl.style.display = 'block';
       bannerEl.innerHTML = `<div style="background:#e8f5e9;border-left:3px solid var(--green);padding:.75rem 1rem;border-radius:0 6px 6px 0;margin-bottom:1rem;">
         <div style="font-size:.85rem;font-weight:600;color:var(--green);margin-bottom:.4rem;">✓ You've already voted this month</div>
