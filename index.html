@@ -8736,9 +8736,10 @@ function renderAdminBadgeControls() {
         <button class="btn btn-sm ${isDisabled?'btn-primary':'btn-secondary'}" onclick="adminToggleBadgeSetting('disabled','${b.id}',${!isDisabled})" title="${isDisabled?'Enable badge — members can earn it':'Disable badge — no one earns it'}">${isDisabled?'Enable':'Disable'}</button>
         <button class="btn btn-sm ${isHidden?'btn-primary':'btn-secondary'}" onclick="adminToggleBadgeSetting('hidden','${b.id}',${!isHidden})" title="${isHidden?'Unhide — badge is visible to all members':'Hide — badge is tracked but invisible to everyone'}">${isHidden?'Unhide':'Hide'}</button>
         <button class="btn btn-sm ${isOrganic?'btn-primary':'btn-secondary'}" onclick="adminToggleBadgeSetting('organic','${b.id}',${!isOrganic})" title="${isOrganic?'Remove organic — badge appears in locked list for all members':'Make organic — badge is hidden until a member earns it, then appears automatically'}">${isOrganic?'Uncover':'Organic'}</button>
+        ${b.monthlyBook?`<button class="btn btn-sm btn-secondary" onclick="adminOpenMbbEditor('${b.id}','ctrl')" title="Edit badge name, emoji/icon, book, month, or description">Edit</button>`:''}
         ${b.custom?`<button class="btn btn-danger btn-sm" onclick="adminDeleteCustomBadge('${b.id}')">Delete</button>`:''}
       </div>
-    </div>`;
+    </div>${b.monthlyBook?`<div id="mbb-edit-slot-ctrl-${b.id}"></div>`:''}`;
   }
 
   let html = '';
@@ -8992,8 +8993,10 @@ function renderAdminMbbList() {
             <div style="font-size:.88rem;font-weight:500;">${esc(b.name)}</div>
             <div style="font-size:.72rem;color:var(--soft);">${esc(b.desc)} · <em>Book ID ${esc(String(b.bookId))} — ${esc(b.monthLabel)}</em></div>
           </div>
+          <button class="btn btn-secondary btn-sm" onclick="adminOpenMbbEditor('${esc(b.id)}','list')">Edit</button>
           <button class="btn btn-danger btn-sm" onclick="adminDeleteMbbBadge('${esc(b.id)}')">Delete</button>
-        </div>`).join('')}
+        </div>
+        <div id="mbb-edit-slot-list-${esc(b.id)}" style="margin-bottom:.35rem;"></div>`).join('')}
     </div>`).join('');
 }
 
@@ -9013,6 +9016,215 @@ async function adminDeleteMbbBadge(id) {
   }
 }
 window.adminDeleteMbbBadge = adminDeleteMbbBadge;
+
+// ── Monthly book badge editor (inline, one open at a time) ─────────────
+// Edits name / emoji / icon / book / month label / description in place.
+// The badge id never changes, so earners keep the badge (unless the book
+// itself is changed, which re-points which "Finished" marks count).
+let _mbbEdit = null; // { id, ctx, iconDataUrl }
+
+function _mbbEditSlot(ctx, id) { return document.getElementById('mbb-edit-slot-' + ctx + '-' + id); }
+
+function adminCloseMbbEditor() {
+  if (_mbbEdit) { const s = _mbbEditSlot(_mbbEdit.ctx, _mbbEdit.id); if (s) s.innerHTML = ''; }
+  _mbbEdit = null;
+}
+window.adminCloseMbbEditor = adminCloseMbbEditor;
+
+function _mbbEditIconPreview() {
+  const box = document.getElementById('mbbe-icon-preview');
+  if (!box || !_mbbEdit) return;
+  box.innerHTML = _mbbEdit.iconDataUrl
+    ? `<img src="${_mbbEdit.iconDataUrl}" style="width:36px;height:36px;object-fit:contain;border-radius:4px;border:1px solid var(--border);">
+       <button type="button" class="btn btn-sm btn-secondary" onclick="adminMbbEditRemoveIcon()" title="Remove the image and use the emoji instead">Remove image</button>`
+    : `<span style="font-size:.75rem;color:var(--soft);">No image — emoji will be shown</span>`;
+}
+
+function adminOpenMbbEditor(id, ctx) {
+  const same = _mbbEdit && _mbbEdit.id === id && _mbbEdit.ctx === ctx;
+  adminCloseMbbEditor();
+  if (same) return; // clicking Edit again toggles closed
+  const cfg = getBadgeConfig();
+  const b = (cfg.monthlyBookBadges || []).find(x => x.id === id);
+  const slot = _mbbEditSlot(ctx, id);
+  if (!b || !slot) return;
+  _mbbEdit = { id, ctx, iconDataUrl: b.iconDataUrl || null };
+
+  slot.innerHTML = `
+    <div style="margin:.35rem 0 .5rem;padding:.85rem;border:1px solid var(--gold, #c9a227);border-radius:6px;background:#fff;">
+      <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.6rem;">Edit book badge</div>
+      <div class="grid2">
+        <div class="f-group"><label>Badge Name</label><input type="text" id="mbbe-name"></div>
+        <div class="f-group"><label>Emoji</label><input type="text" id="mbbe-emoji" style="max-width:140px;"></div>
+      </div>
+      <div class="f-group">
+        <label>Image</label>
+        <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-top:.3rem;">
+          <div id="mbbe-icon-preview" style="display:flex;gap:.5rem;align-items:center;"></div>
+          <label style="cursor:pointer;display:inline-flex;align-items:center;gap:.4rem;font-size:.8rem;text-transform:none;letter-spacing:0;color:var(--ink);border:1px solid var(--border);padding:.35rem .8rem;border-radius:4px;background:var(--cream);">
+            📁 Replace image <input type="file" id="mbbe-icon-upload" accept="image/png,image/jpeg" style="display:none;" onchange="adminMbbEditIcon(this)">
+          </label>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="f-group"><label>Book</label><select id="mbbe-book" style="max-width:100%;" onchange="adminMbbEditBookChanged()"></select></div>
+        <div class="f-group"><label>Month Label</label><input type="text" id="mbbe-month" placeholder="e.g. Sept 2026"></div>
+      </div>
+      <div class="f-group">
+        <label style="display:flex;align-items:center;gap:.5rem;">Description
+          <button type="button" onclick="adminMbbEditAutoDesc()" style="background:none;border:none;color:var(--soft);cursor:pointer;font-size:.72rem;text-decoration:underline;text-transform:none;letter-spacing:0;padding:0;" title="Fill in as: Finished {book} {month}">↻ auto-fill from book + month</button>
+        </label>
+        <input type="text" id="mbbe-desc">
+      </div>
+      <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.4rem;">
+        <button class="btn btn-primary btn-sm" onclick="adminSaveMbbEdit()">Save changes</button>
+        <button class="btn btn-secondary btn-sm" onclick="adminCloseMbbEditor()">Cancel</button>
+      </div>
+      <div id="mbbe-msg"></div>
+    </div>`;
+
+  // Book dropdown: all archived winners, newest first. If the badge's current
+  // book isn't among them (e.g. a bonus pick), keep it as an option so it isn't lost.
+  const sel = document.getElementById('mbbe-book');
+  const curId = String(b.bookId || '');
+  let foundCurrent = false;
+  sel.innerHTML = '';
+  [...getArchiveWinners()].reverse().forEach(({ archive: a, winnerBooks }) => {
+    winnerBooks.forEach(bk => {
+      const opt = document.createElement('option');
+      opt.value = String(bk.id);
+      opt.dataset.monthLabel = a.label || '';
+      opt.dataset.title = bk.title || '';
+      opt.textContent = `${bk.title || '(untitled)'} — ${a.label || ''}`;
+      if (opt.value === curId && !foundCurrent) { opt.selected = true; foundCurrent = true; }
+      sel.appendChild(opt);
+    });
+  });
+  if (!foundCurrent) {
+    const opt = document.createElement('option');
+    opt.value = curId;
+    opt.dataset.monthLabel = b.monthLabel || '';
+    opt.dataset.title = '';
+    opt.textContent = `(current) Book ID ${curId}${b.monthLabel ? ' — ' + b.monthLabel : ''}`;
+    opt.selected = true;
+    sel.insertBefore(opt, sel.firstChild);
+  }
+
+  // Set values via .value (not HTML) so quotes/apostrophes are safe
+  document.getElementById('mbbe-name').value  = b.name || '';
+  document.getElementById('mbbe-emoji').value = b.emoji || '';
+  document.getElementById('mbbe-month').value = b.monthLabel || '';
+  document.getElementById('mbbe-desc').value  = b.desc || '';
+  _mbbEditIconPreview();
+  const nameEl = document.getElementById('mbbe-name');
+  if (nameEl) nameEl.focus();
+}
+window.adminOpenMbbEditor = adminOpenMbbEditor;
+
+function adminMbbEditBookChanged() {
+  const sel = document.getElementById('mbbe-book');
+  const opt = sel && sel.options[sel.selectedIndex];
+  if (!opt) return;
+  // Picking a different book fills in that book's month; still editable after.
+  if (opt.dataset.monthLabel) document.getElementById('mbbe-month').value = opt.dataset.monthLabel;
+}
+window.adminMbbEditBookChanged = adminMbbEditBookChanged;
+
+function adminMbbEditAutoDesc() {
+  const sel = document.getElementById('mbbe-book');
+  const opt = sel && sel.options[sel.selectedIndex];
+  const title = opt ? (opt.dataset.title || '') : '';
+  const month = (document.getElementById('mbbe-month').value || '').trim();
+  if (!title) { showMsg('mbbe-msg', 'Couldn\'t find a title for this book — type the description manually.', 'err'); return; }
+  document.getElementById('mbbe-desc').value = ('Finished ' + title + (month ? ' ' + month : '')).trim();
+}
+window.adminMbbEditAutoDesc = adminMbbEditAutoDesc;
+
+function adminMbbEditRemoveIcon() {
+  if (!_mbbEdit) return;
+  _mbbEdit.iconDataUrl = null;
+  const upl = document.getElementById('mbbe-icon-upload'); if (upl) upl.value = '';
+  _mbbEditIconPreview();
+}
+window.adminMbbEditRemoveIcon = adminMbbEditRemoveIcon;
+
+function adminMbbEditIcon(input) {
+  if (!input.files || !input.files[0] || !_mbbEdit) return;
+  const file = input.files[0];
+  if (!['image/png','image/jpeg'].includes(file.type)) { alert('Only PNG or JPG files are supported.'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      // Same downscale as the creator: max 80px, aspect ratio preserved, no crop
+      const MAX = 80;
+      const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      if (_mbbEdit) { _mbbEdit.iconDataUrl = canvas.toDataURL('image/png'); _mbbEditIconPreview(); }
+    };
+    img.onerror = () => { showMsg('mbbe-msg', 'Could not read that image file.', 'err'); };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+window.adminMbbEditIcon = adminMbbEditIcon;
+
+async function adminSaveMbbEdit() {
+  if (!_mbbEdit) return;
+  const { id } = _mbbEdit;
+  const name  = document.getElementById('mbbe-name').value.trim();
+  const emoji = document.getElementById('mbbe-emoji').value.trim();
+  const desc  = document.getElementById('mbbe-desc').value.trim();
+  const monthLabel = document.getElementById('mbbe-month').value.trim();
+  const sel = document.getElementById('mbbe-book');
+  const bookId = sel ? sel.value : '';
+  if (!name)   { showMsg('mbbe-msg', 'Please enter a badge name.', 'err'); return; }
+  if (!emoji && !_mbbEdit.iconDataUrl) { showMsg('mbbe-msg', 'Please add an emoji or keep/upload an image.', 'err'); return; }
+  if (!bookId) { showMsg('mbbe-msg', 'Please select a book.', 'err'); return; }
+
+  const cfg = JSON.parse(JSON.stringify(getBadgeConfig()));
+  const list = cfg.monthlyBookBadges || [];
+  const idx = list.findIndex(x => x.id === id);
+  if (idx < 0) { showMsg('mbbe-msg', 'This badge no longer exists — it may have been deleted.', 'err'); return; }
+  const old = list[idx];
+
+  // Changing the book changes who holds the badge — confirm if anyone has it now
+  if (String(old.bookId) !== String(bookId)) {
+    if (!_badgeEarnerCounts) _badgeEarnerCounts = _buildBadgeEarnerCounts();
+    const n = _badgeEarnerCounts[id] || 0;
+    if (n > 0 && !confirm(`${n} member${n!==1?'s':''} currently ${n!==1?'have':'has'} this badge.\n\nChanging the book means it will be awarded based on who finished the NEW book instead — some members may gain or lose it.\n\nContinue?`)) return;
+  }
+
+  const yearMatch = monthLabel.match(/\d{4}/);
+  list[idx] = {
+    ...old, // keep any other fields untouched
+    name, desc, monthLabel, bookId,
+    emoji: emoji || '📖',
+    iconDataUrl: _mbbEdit.iconDataUrl || null,
+    year: yearMatch ? yearMatch[0] : (old.year || ''),
+  };
+  cfg.monthlyBookBadges = list;
+
+  showLoading('Saving…');
+  try {
+    await fbSetFull(BADGE_CONFIG_REF, cfg);
+    _mbbEdit = null;
+    _badgeEarnerCounts = null; // book may have changed → recount
+    renderAdminBadgeControls();
+    renderAdminMbbList();
+    if (typeof renderAdminBadgeMembers === 'function') renderAdminBadgeMembers();
+  } catch (err) {
+    console.error('adminSaveMbbEdit failed:', err);
+    showMsg('mbbe-msg', 'Save failed: ' + (err && err.message ? err.message : 'unknown error') + '. Try a smaller image or shorter text.', 'err');
+  } finally {
+    hideLoading();
+  }
+}
+window.adminSaveMbbEdit = adminSaveMbbEdit;
 
 
 // ════════════════════════════════════════════════════════
