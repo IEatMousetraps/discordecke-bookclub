@@ -2055,6 +2055,32 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
         <span id="penny-reset-msg" style="font-size:.8rem;color:var(--gold);margin-left:.75rem;"></span>
       </div>
 
+      <!-- Card Catalog viewer (read-only) -->
+      <div class="card" style="margin-bottom:1rem;">
+        <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.4rem;">🗂️ Penny's Card Catalog</h3>
+        <p style="font-size:.85rem;color:var(--soft);margin-bottom:.75rem;">Every book Penny can currently recommend — archived suggestions that didn't win, plus the manual 2025 historical pool. Read-only; this is exactly what her recommendation engine pulls from (before per-member filtering like last-place ballot picks).</p>
+        <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.75rem;">
+          <input type="text" id="pcat-search" placeholder="Search title, author, suggester…" oninput="renderPennyCatalogAdmin()" style="flex:1;min-width:180px;">
+          <select id="pcat-source" onchange="renderPennyCatalogAdmin()" style="min-width:150px;">
+            <option value="all">All sources</option>
+            <option value="archive">Archive suggestions</option>
+            <option value="hist">2025 historical</option>
+          </select>
+          <select id="pcat-sort" onchange="renderPennyCatalogAdmin()" style="min-width:130px;">
+            <option value="month">Sort: month</option>
+            <option value="title">Sort: title</option>
+            <option value="rank">Sort: finish</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" onclick="renderPennyCatalogAdmin()">Refresh</button>
+        </div>
+        <div id="pcat-summary" style="font-size:.8rem;color:var(--gold);margin-bottom:.5rem;"></div>
+        <div id="pcat-list" style="max-height:480px;overflow-y:auto;"></div>
+        <details style="margin-top:.9rem;">
+          <summary id="pcat-excluded-summary" style="cursor:pointer;font-size:.85rem;color:var(--soft);">Not in the catalog</summary>
+          <div id="pcat-excluded" style="margin-top:.5rem;"></div>
+        </details>
+      </div>
+
       <!-- Member Visit Manager -->
       <div class="card" style="margin-bottom:1rem;">
         <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.4rem;">👥 Member Visit History</h3>
@@ -5138,6 +5164,7 @@ function goAdminTab(id, btn) {
   // penny-admin has no auto-render — content loads on button click
   if (id === 'penny-admin') {
     renderHistoricalBookList();
+    renderPennyCatalogAdmin();
     // Populate member dropdown for visit history
     adminPopulatePennyMemberDropdown();
     // Update live status label
@@ -10672,12 +10699,10 @@ function _pennyGetMemberContext() {
   return { lastPlaceIds, suggestedTitles, preferredGenres, avoidGenres };
 }
 
-function _pennyBuildPool(memberCtx) {
-  const lastPlaceIds = memberCtx ? memberCtx.lastPlaceIds : new Set();
+// Global set of ALL winning titles across all months (lowercased)
+// A book is excluded from Penny's pool if it won in ANY month
+function _pennyWinningTitles() {
   const archives = getArchives();
-
-  // Build a global set of ALL winning titles across all months
-  // A book is excluded if it won in ANY month, regardless of which month we're pulling it from
   const winningTitles = new Set();
   archives.forEach(a => {
     let winnerIds = a.dualWinners ? a.dualWinners.map(String) : (a.winner ? [String(a.winner)] : []);
@@ -10697,6 +10722,13 @@ function _pennyBuildPool(memberCtx) {
       if (winnerIds.includes(String(b.id))) winningTitles.add(b.title.trim().toLowerCase());
     });
   });
+  return winningTitles;
+}
+
+function _pennyBuildPool(memberCtx) {
+  const lastPlaceIds = memberCtx ? memberCtx.lastPlaceIds : new Set();
+  const archives = getArchives();
+  const winningTitles = _pennyWinningTitles();
 
   const pool = [];
   archives.forEach(a => {
@@ -11670,6 +11702,99 @@ async function adminResetMemberPenny() {
 }
 window.adminResetMemberPenny = adminResetMemberPenny;
 
+// ── Penny card catalog viewer (admin, read-only) ──────
+function renderPennyCatalogAdmin() {
+  const listEl = document.getElementById('pcat-list');
+  if (!listEl) return;
+  const sumEl  = document.getElementById('pcat-summary');
+  const exEl   = document.getElementById('pcat-excluded');
+  const exSum  = document.getElementById('pcat-excluded-summary');
+  const q      = (document.getElementById('pcat-search')?.value || '').trim().toLowerCase();
+  const src    = document.getElementById('pcat-source')?.value || 'all';
+  const sortBy = document.getElementById('pcat-sort')?.value || 'month';
+
+  let pool = [];
+  try { pool = _pennyBuildPool(null); } catch (e) {
+    listEl.innerHTML = '<p style="font-size:.85rem;color:#e57373;">Couldn\'t build the catalog: ' + esc(e.message) + '</p>';
+    return;
+  }
+  const archives = getArchives();
+  const monthIdx = {};
+  archives.forEach((a, i) => { monthIdx[a.label] = i; });
+  const whoOf = b => (b.suggesters || []).map(x => x.discord || x.email || '').filter(Boolean).join(', ');
+  const isHist = b => String(b.id).startsWith('hist_');
+
+  // Which historical titles also exist in the archive (archive entry wins)
+  const histTitles = new Set((CACHE.pennyHistorical || []).map(h => (h.title || '').trim().toLowerCase()));
+
+  const totalArchive = pool.filter(b => !isHist(b)).length;
+  const totalHist    = pool.length - totalArchive;
+
+  let rows = pool.filter(b => {
+    if (src === 'archive' && isHist(b)) return false;
+    if (src === 'hist' && !isHist(b)) return false;
+    if (!q) return true;
+    return [b.title, b.author, b.genre, b.month, whoOf(b)].join(' ').toLowerCase().includes(q);
+  });
+  rows.sort((a, b) => {
+    if (sortBy === 'title') return a.title.localeCompare(b.title);
+    if (sortBy === 'rank')  return (a.rankPosition - b.rankPosition) || a.title.localeCompare(b.title);
+    // month: historical (oldest) first, then archive order
+    const ai = isHist(a) ? -1 : (monthIdx[a.month] ?? 999);
+    const bi = isHist(b) ? -1 : (monthIdx[b.month] ?? 999);
+    return (ai - bi) || a.title.localeCompare(b.title);
+  });
+
+  if (sumEl) sumEl.textContent = `${pool.length} book${pool.length===1?'':'s'} in the catalog · ${totalArchive} from archived months · ${totalHist} from the 2025 historical pool` + (rows.length !== pool.length ? ` · showing ${rows.length}` : '');
+
+  const chip = (txt, gold) => `<span style="display:inline-block;font-size:.7rem;padding:.05rem .45rem;border-radius:999px;border:1px solid ${gold?'rgba(240,180,41,.5)':'rgba(128,128,128,.35)'};color:${gold?'var(--gold)':'var(--soft)'};margin-left:.35rem;">${esc(txt)}</span>`;
+
+  listEl.innerHTML = rows.length ? rows.map(b => {
+    const hist = isHist(b);
+    const who = whoOf(b);
+    const finish = !hist && b.totalBooks ? `finished ${b.rankPosition} of ${b.totalBooks}` : '';
+    const dup = !hist && histTitles.has(b.title.trim().toLowerCase());
+    return `
+    <div style="padding:.5rem 0;border-bottom:1px solid rgba(128,128,128,.15);font-size:.85rem;">
+      <div><strong>${esc(b.title)}</strong>${b.author ? ` <span style="color:var(--soft);">by ${esc(b.author)}</span>` : ''}
+        ${hist ? chip('2025 historical', true) : chip(b.month, false)}
+        ${b.submissionCount >= 2 ? chip('submitted ' + b.submissionCount + '×', false) : ''}
+        ${dup ? chip('also in 2025 list', false) : ''}
+      </div>
+      <div style="color:var(--soft);font-size:.78rem;margin-top:.15rem;">
+        ${[who ? 'via ' + esc(who) : '<span style="color:#e57373;">no suggester</span>',
+           b.genre ? esc(b.genre) : '<span style="color:#e57373;">no genre</span>',
+           b.pageCount ? b.pageCount + ' pp' : '',
+           finish].filter(Boolean).join(' · ')}
+      </div>
+    </div>`;
+  }).join('') : '<p style="font-size:.85rem;color:var(--soft);">No books match.</p>';
+
+  // Excluded: every archived or historical title that didn't make it in, with the reason
+  if (exEl) {
+    const inPool = new Set(pool.map(b => b.title.trim().toLowerCase()));
+    const winning = _pennyWinningTitles();
+    const excluded = new Map();
+    archives.forEach(a => (a.books || []).forEach(b => {
+      const k = (b.title || '').trim().toLowerCase();
+      if (!k || inPool.has(k) || excluded.has(k)) return;
+      excluded.set(k, { title: b.title, author: b.author || '', month: a.label, reason: winning.has(k) ? 'Won a month' : 'Excluded' });
+    }));
+    (CACHE.pennyHistorical || []).forEach(h => {
+      const k = (h.title || '').trim().toLowerCase();
+      if (!k || inPool.has(k) || excluded.has(k)) return;
+      excluded.set(k, { title: h.title, author: h.author || '', month: h.month || '2025', reason: winning.has(k) ? 'Won a month (2025 entry ignored)' : 'Excluded' });
+    });
+    const ex = [...excluded.values()];
+    if (exSum) exSum.textContent = `Not in the catalog (${ex.length}) — winners are left out automatically`;
+    exEl.innerHTML = ex.length ? ex.map(b => `
+      <div style="padding:.35rem 0;border-bottom:1px solid rgba(128,128,128,.12);font-size:.82rem;color:var(--soft);">
+        <strong style="color:inherit;">${esc(b.title)}</strong>${b.author ? ' by ' + esc(b.author) : ''} · ${esc(b.month)} · <em>${esc(b.reason)}</em>
+      </div>`).join('') : '<p style="font-size:.82rem;color:var(--soft);">Nothing excluded.</p>';
+  }
+}
+window.renderPennyCatalogAdmin = renderPennyCatalogAdmin;
+
 // ── Penny historical book pool management ─────────────
 function renderHistoricalBookList() {
   const el = document.getElementById('ph-list');
@@ -11719,6 +11844,7 @@ async function adminAddHistoricalBook() {
     const g2 = document.getElementById('ph-genre-2'); if (g2) g2.value = '';
     if (msg) msg.textContent = `✓ "${title}" added.`;
     renderHistoricalBookList();
+    renderPennyCatalogAdmin();
   } catch(e) {
     if (msg) msg.textContent = 'Error saving: ' + e.message;
   }
@@ -11732,6 +11858,7 @@ async function adminRemoveHistoricalBook(index) {
     await fbSet(PENNY_REF, { historicalPool: books });
     CACHE.pennyHistorical = books;
     renderHistoricalBookList();
+    renderPennyCatalogAdmin();
     const msg = document.getElementById('ph-msg');
     if (msg) msg.textContent = `Removed "${removed?.title || 'book'}".`;
   } catch(e) { console.warn('Remove failed:', e); }
