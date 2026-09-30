@@ -6873,7 +6873,12 @@ const BADGE_DEFS = [
   { id:'hot-take',          name:'Hot Take',            emoji:'🌶️',  tier:null,     desc:'Give a rating that is 2 or more stars away from the group average', check:p=>p.hotTake },
   { id:'unanimous',         name:'Unanimous',           emoji:'🤝',  tier:null,     desc:'Give the exact same star rating as every other reviewer in a month (min 2 reviewers)', check:p=>p.unanimous },
   { id:'early-to-rise',     name:'Early to Rise',       emoji:'🌅',  tier:null,     desc:'Submit a vote before 8am (from Mar 18, 2026)',             check:p=>p.earlyToRise>=1, cutoffGated:true },
-  { id:'mirror-mirror',     name:'Mirror Mirror',       emoji:'🪞',  tier:null,     desc:p=>(p&&p.mirrorMirror&&p.mirrorMatchName)?`Voted identically to ${p.mirrorMatchName} in ${p.mirrorMatchMonth}`:'Vote with the exact same ranking order as another member in any month', check:p=>p.mirrorMirror },
+  { id:'mirror-mirror',     name:'Mirror Mirror',       emoji:'🪞',  tier:null,     desc:p=>{
+    const ms = (p && p.mirrorMatches) || [];
+    if (!ms.length) return 'Vote with the exact same ranking order as another member in any month';
+    if (ms.length === 1) return `Voted identically to ${ms[0].name} in ${ms[0].month}`;
+    return `Voted identically ${ms.length} times: ` + ms.map(m => `${m.name} (${m.month})`).join(', ');
+  }, check:p=>p.mirrorMirror },
   { id:'glass-half-full',   name:'Glass Half Full',     emoji:'🥂',  tier:null,     desc:'Never give below 3 stars across 5 or more rated reviews. Note: earning Tough Crowd (any 1-star rating) permanently blocks this badge.',  check:p=>p.glassHalfFull },
 
   // ── Admin-only ────────────────────────────────────────────────────────────
@@ -7455,25 +7460,25 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
   });
 
   // ── Mirror Mirror: vote with identical ranking to another member ──
-  // Returns { matched: bool, matchName: string, matchMonth: string }
-  let mirrorMirror = false, mirrorMatchName = '', mirrorMatchMonth = '';
+  // Collects EVERY match (one entry per person per month)
+  const mirrorMatches = []; // { name, month }
   archiveWinners.forEach(({archive:a}) => {
-    if (mirrorMirror) return;
     const myVote = Object.values(a.votes||{}).find(vd=>resolveId(vd.discord,vd.email,idMap)===myName);
     if (!myVote) return;
     const myRanking = (myVote.ranking||myVote).map(String).join(',');
+    if (!myRanking) return;
     Object.values(a.votes||{}).forEach(vd => {
-      if (mirrorMirror) return;
       const otherName = resolveId(vd.discord,vd.email,idMap);
       if (otherName === myName) return;
-      const otherRanking = (vd.ranking||vd).map(String).join(',');
-      if (otherRanking === myRanking && myRanking.length > 0) {
-        mirrorMirror = true;
-        mirrorMatchName = otherName;
-        mirrorMatchMonth = a.label;
+      if ((vd.ranking||vd).map(String).join(',') !== myRanking) return;
+      if (!mirrorMatches.some(m => m.name === otherName && m.month === a.label)) {
+        mirrorMatches.push({ name: otherName, month: a.label });
       }
     });
   });
+  const mirrorMirror     = mirrorMatches.length > 0;
+  const mirrorMatchName  = mirrorMatches[0] ? mirrorMatches[0].name  : '';
+  const mirrorMatchMonth = mirrorMatches[0] ? mirrorMatches[0].month : '';
 
   // ── Glass Half Full: never below 3 stars across 5+ reviews ──
   let glassHalfFullRatings = 0, glassHalfFullValid = true;
@@ -7647,7 +7652,7 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
     genresRated: genresRatedSet.size,
     whyNotBoth, dependable, deadReliable, steadyEddie, brokenClock,
     penPalCount, essayistCount, tryTryAgain, chefsKiss, coverToCover,
-    hotTake, unanimous, earlyToRise, mirrorMirror, mirrorMatchName, mirrorMatchMonth,
+    hotTake, unanimous, earlyToRise, mirrorMirror, mirrorMatchName, mirrorMatchMonth, mirrorMatches,
     glassHalfFull,
     totalMonths,
     longestVoteStreak:       longestStreak(monthVoted),
