@@ -9668,7 +9668,7 @@ function renderNewBadgeAlert(memberKey, profile) {
       <span style="font-size:1.4rem;min-width:1.8rem;text-align:center;">${b.iconDataUrl ? `<img src="${b.iconDataUrl}" style="width:28px;height:28px;object-fit:contain;border-radius:3px;">` : b.emoji}</span>
       <div>
         <div style="font-weight:600;font-size:.88rem;color:#ffffff;">${esc(b.name)}</div>
-        <div style="font-size:.77rem;color:rgba(255,255,255,.65);">${esc(b.desc)}</div>
+        <div style="font-size:.77rem;color:rgba(255,255,255,.65);">${esc(String((typeof b.desc === 'function' ? b.desc(profile) : b.desc) || '').replace(/\s*\(from Mar \d+, \d{4}\)/g, ''))}</div>
       </div>
     </div>`).join('');
 
