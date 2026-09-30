@@ -2438,6 +2438,22 @@ async function seedAuxPanelData() {
   }
 }
 function getQuarterlyConfig(){ return CACHE.quarterlyConfig || { mode:'bingo', active:false, hidden:true, staticBoard:false, prompts:[], passportStamps:[] }; }
+// Max slots one book may fill in a quarter. 0 = no limit.
+// Defaults preserve original behavior: bingo 2, passport unlimited.
+function qaMaxBookUses(cfg, mode) {
+  cfg = cfg || {};
+  const m = mode || cfg.mode || 'bingo';
+  const v = m === 'bingo' ? cfg.bingoMaxBookUses : cfg.passportMaxBookUses;
+  if (typeof v === 'number' && v >= 0) return v;
+  return m === 'bingo' ? 2 : 0;
+}
+function _qaReadMaxUsesInput() {
+  const el = document.getElementById('qa-max-book-uses');
+  if (!el) return null;
+  const n = parseInt(el.value, 10);
+  if (isNaN(n) || n < 0 || n > 25) return NaN;
+  return n;
+}
 function getQuarterlyDraft()  { return CACHE.quarterlyDraft  || { mode:'bingo', staticBoard:false, prompts:[], passportStamps:[] }; }
 function getQuarterlyCards() { return CACHE.quarterlyCards || {}; }
 
@@ -11735,14 +11751,15 @@ function renderBingoCard(container, cfg, card, memberKey) {
       const k = e.title.toLowerCase();
       titleCount[k] = (titleCount[k] || 0) + 1;
     });
-    const hasDupe = Object.values(titleCount).some(c => c > 2);
+    const _bkLimit = qaMaxBookUses(cfg, 'bingo');
+    const hasDupe = _bkLimit > 0 && Object.values(titleCount).some(c => c > _bkLimit);
     const claimedCount = logEntries.length;
     const missingBook  = logEntries.filter(e => !e.title).length;
 
     html += '<div style="margin-top:1.25rem;padding:1rem;background:var(--cream);border:1px solid var(--border);border-radius:8px;">' +
       '<div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.6rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.4rem;">' +
         '<span>📋 Book Assignments — ' + claimedCount + ' claimed square' + (claimedCount !== 1 ? 's' : '') + '</span>' +
-        '<span style="font-weight:400;">Max 2 squares per book.</span>' +
+        '<span style="font-weight:400;">' + (_bkLimit ? 'Max ' + _bkLimit + ' square' + (_bkLimit !== 1 ? 's' : '') + ' per book.' : 'No per-book limit.') + '</span>' +
       '</div>';
 
     if (claimedCount === 0) {
@@ -11750,7 +11767,7 @@ function renderBingoCard(container, cfg, card, memberKey) {
     } else {
       if (hasDupe) {
         html += '<div style="padding:.55rem .8rem;background:#fce4ec;border:2px solid var(--red);border-radius:6px;font-size:.82rem;color:var(--red);font-weight:700;margin-bottom:.65rem;">' +
-          '⚠️ One or more books are used on more than 2 squares — see below. Fix this before saving or submitting.' +
+          '⚠️ One or more books are used on more than ' + _bkLimit + ' square' + (_bkLimit !== 1 ? 's' : '') + ' — see below. Fix this before saving or submitting.' +
           '</div>';
       }
       if (missingBook > 0) {
@@ -11760,7 +11777,7 @@ function renderBingoCard(container, cfg, card, memberKey) {
       }
       html += '<div style="display:flex;flex-direction:column;gap:.3rem;">';
       logEntries.forEach(e => {
-        const isDupe   = e.title && titleCount[e.title.toLowerCase()] > 2;
+        const isDupe   = _bkLimit > 0 && e.title && titleCount[e.title.toLowerCase()] > _bkLimit;
         const missing  = !e.title;
         const rowBg    = isDupe   ? 'background:#fce4ec;border:1.5px solid var(--red);'
                        : missing  ? 'background:#fff8e1;border:1px solid #f0c040;'
@@ -11812,7 +11829,7 @@ function renderPassportCard(container, cfg, card, memberKey) {
             : 'Your passport is locked in and awaiting admin review. You are all set — nothing left to do!'}
         </div>
         <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
-          <span style="font-size:.88rem;"><strong>${claimedCount} / ${total} stamps</strong> collected</span>
+          <span style="font-size:.88rem;"><strong>${claimedCount} / ${totalStamps} stamps</strong> collected</span>
           ${claimedCount >= required ? '<span style="color:var(--green);font-size:.88rem;font-weight:600;">✓ Completed!</span>' : `<span style="color:var(--soft);font-size:.83rem;">${required - claimedCount} more needed to qualify</span>`}
         </div>
       </div>
@@ -11830,7 +11847,7 @@ function renderPassportCard(container, cfg, card, memberKey) {
       ${claimedCount > required ? ` + <strong style="color:#ab47bc;">${claimedCount - required} bonus</strong>` : ''}
       ${isComplete ? ' — <strong style="color:var(--green);">Completed! ✓</strong>' : ` — ${required - claimedCount} more needed`}
     </div>
-    <p style="font-size:.75rem;color:var(--soft);margin-top:.3rem;">Any ${required} stamps complete the challenge. Your ${required+1}${required===1?'st':required===2?'nd':required===3?'rd':'th'} and beyond become bonus stamps.</p>
+    <p style="font-size:.75rem;color:var(--soft);margin-top:.3rem;">Any ${required} stamps complete the challenge. Your ${_qaOrdinal(required+1)} and beyond become bonus stamps.${(() => { const L = qaMaxBookUses(cfg, 'passport'); return L ? ` Each book can be used on up to ${L} stamp${L!==1?'s':''}.` : ''; })()}</p>
   </div>`;
 
   // Determine claim order to identify which are bonus (slots claimed after required count are bonus)
@@ -12042,6 +12059,21 @@ window.qaPrintBingo = function(prefill) {
 };
 window.qaPrintBingo = window.qaPrintBingo;
 
+function _qaOrdinal(n) {
+  const v = n % 100;
+  if (v >= 11 && v <= 13) return n + 'th';
+  return n + ({1:'st',2:'nd',3:'rd'}[n % 10] || 'th');
+}
+// e.g. "Your 11th–15th become bonus stamps" / "Your 7th & 8th become bonus stamps"
+function _qaBonusPhrase(req, bonus, html) {
+  if (bonus <= 0) return '';
+  const amp = html ? '&amp;' : '&';
+  const dash = html ? '&ndash;' : '–';
+  const first = _qaOrdinal(req + 1), last = _qaOrdinal(req + bonus);
+  if (bonus === 1) return `Your ${first} becomes a bonus stamp`;
+  if (bonus === 2) return `Your ${first} ${amp} ${last} become bonus stamps`;
+  return `Your ${first}${dash}${last} become bonus stamps`;
+}
 window.qaPrintPassport = function(prefill) {
   if (!_qaIdentity) return;
   const cfg    = getQuarterlyConfig();
@@ -12085,7 +12117,7 @@ window.qaPrintPassport = function(prefill) {
   const body = `
     <div class="club">Discordecke Book Club</div>
     <h1>${_qaEscHtml(qName)}</h1>
-    <div class="sub">${_qaEscHtml(dateRange)}${dateRange?' &nbsp;·&nbsp; ':''}Collect any 6 stamps to complete · Your 7th &amp; 8th become bonus stamps</div>
+    <div class="sub">${_qaEscHtml(dateRange)}${dateRange?' &nbsp;·&nbsp; ':''}Collect any ${_printReq} stamps to complete · ${_qaBonusPhrase(_printReq, _printBonus, true)}</div>
     <div class="member-row">
       <div class="mf"><label>Name / Discord</label><div class="ml">${_qaEscHtml(discord)}</div></div>
       <div class="mf"><label>Email</label><div class="ml">${_qaEscHtml(email)}</div></div>
@@ -12207,6 +12239,11 @@ window.qaClaimStamp = function(idx) {
   const _passTotal2 = s.cfg.passportTotalStamps || 8;
   const claimed = [...(s.card.claimed || Array(_passTotal2).fill(false))];
   if (claimed[idx]) return;
+  {
+    const _t = (document.getElementById('qa-bk-title')?.value || '').trim();
+    const _err = _qaBookLimitError(s.cfg, s.card.books, idx, _t);
+    if (_err) { showMsg('qa-drawer-msg', _err, 'err'); return; }
+  }
   claimed[idx]  = true;
   const claimOrder = [...(s.card.claimOrder || [])];
   if (!claimOrder.includes(idx)) claimOrder.push(idx);
@@ -12294,47 +12331,77 @@ window.qaSaveBook = async function(idx) {
 
 // Save book for a passport stamp
 window.qaPassportSaveBook = function(idx) {
-  window.qaSaveBook(idx); // identical logic
+  const s = _qaGetState(); if (!s) return;
+  const _t = (document.getElementById('qa-bk-title')?.value || '').trim();
+  const _err = _qaBookLimitError(s.cfg, s.card.books, idx, _t);
+  if (_err) { showMsg('qa-drawer-msg', _err, 'err'); return; }
+  window.qaSaveBook(idx);
 };
 
 window.qaPassportUnclaim = function(idx) { window.qaUnclaim(idx); };
 
-// ── Check for duplicate book usage (bingo: max 2 squares per book) ───────
-function qaCheckBingoDuplicates() {
+// ── Check per-book usage limit (bingo squares / passport stamps) ───────
+function qaCheckBookLimit() {
   // Returns null if ok, or { message, violations } if over limit
   const s = _qaGetState(); if (!s) return null;
-  if (s.cfg.mode !== 'bingo') return null;
+  const mode = s.cfg.mode || 'bingo';
+  const limit = qaMaxBookUses(s.cfg, mode);
+  if (!limit) return null;
   const books = s.card.books || {};
-  const board = s.card.board || buildMemberBoard(s.cfg, s.key);
+  const isBingo = mode === 'bingo';
+  const board = isBingo ? (s.card.board || buildMemberBoard(s.cfg, s.key)) : null;
+  const stamps = s.cfg.passportStamps || [];
+  const slotCount = isBingo ? 25 : (s.cfg.passportTotalStamps || 8);
+  const unit = isBingo ? 'square' : 'stamp';
 
-  const titleEntries = {}; // normTitle -> { title, squares: [{ idx, prompt, author }] }
-  for (let i = 0; i < 25; i++) {
-    if (i === FREE_INDEX) continue;
+  const titleEntries = {}; // normTitle -> { title, slots: [{ idx, label }] }
+  for (let i = 0; i < slotCount; i++) {
+    if (isBingo && i === FREE_INDEX) continue;
     const bk = bkGet(books, i);
     if (!bk || !bk.title || !bk.title.trim()) continue;
     const key = bk.title.trim().toLowerCase();
-    if (!titleEntries[key]) titleEntries[key] = { title: bk.title.trim(), squares: [] };
-    const prompt = board[i] ? board[i].prompt : `Square ${i+1}`;
-    titleEntries[key].squares.push({ idx: i, prompt });
+    if (!titleEntries[key]) titleEntries[key] = { title: bk.title.trim(), slots: [] };
+    const label = isBingo
+      ? (board[i] ? board[i].prompt : `Square ${i+1}`)
+      : ((stamps[i] && stamps[i].name) || `Stamp ${i+1}`);
+    titleEntries[key].slots.push({ idx: i, label });
   }
 
-  const violations = Object.values(titleEntries).filter(e => e.squares.length > 2);
+  const violations = Object.values(titleEntries).filter(e => e.slots.length > limit);
   if (!violations.length) return null;
 
   const lines = violations.map(v =>
-    `• "${v.title}" used on ${v.squares.length} squares: ${v.squares.map(s => `#${s.idx+1} (${s.prompt})`).join(', ')}`
+    `• "${v.title}" used on ${v.slots.length} ${unit}s: ${v.slots.map(x => `#${x.idx+1} (${x.label})`).join(', ')}`
   );
   return {
-    message: `A book may only be used on 2 squares maximum. Please fix the following before continuing:\n\n${lines.join('\n')}`,
+    message: `A book may only be used on ${limit} ${unit}${limit!==1?'s':''} maximum. Please fix the following before continuing:\n\n${lines.join('\n')}`,
     violations
   };
+}
+
+// Would putting `title` on slot `idx` push it over the limit? Returns an error string or null.
+function _qaBookLimitError(cfg, books, idx, title) {
+  const mode = cfg.mode || 'bingo';
+  const limit = qaMaxBookUses(cfg, mode);
+  const t = (title || '').trim().toLowerCase();
+  if (!limit || !t) return null;
+  const slotCount = mode === 'bingo' ? 25 : (cfg.passportTotalStamps || 8);
+  let used = 0;
+  for (let i = 0; i < slotCount; i++) {
+    if (i === idx) continue;
+    const bk = bkGet(books || {}, i);
+    if (bk && bk.title && bk.title.trim().toLowerCase() === t) used++;
+  }
+  if (used < limit) return null;
+  const unit = mode === 'bingo' ? 'square' : 'stamp';
+  return `"${title.trim()}" is already used on ${used} ${unit}${used!==1?'s':''} — each book can only be used on ${limit} ${unit}${limit!==1?'s':''}. Pick a different book for this one.`;
 }
 
 async function qaSaveDraft() {
   if (!_qaIdentity) return;
   const cfg = getQuarterlyConfig();
-  if (cfg.mode === 'bingo') {
-    const dupes = qaCheckBingoDuplicates();
+  {
+    const dupes = qaCheckBookLimit();
     if (dupes) { alert(dupes.message); return; }
   }
   const cards = getQuarterlyCards();
@@ -12353,9 +12420,9 @@ async function qaSubmitCard() {
   if (!_qaIdentity) return;
   const cfg = getQuarterlyConfig();
 
-  // Block submission if any book is used on more than 2 bingo squares
-  if (cfg.mode === 'bingo') {
-    const dupes = qaCheckBingoDuplicates();
+  // Block submission if any book is over the per-book limit
+  {
+    const dupes = qaCheckBookLimit();
     if (dupes) { alert(dupes.message); return; }
   }
   const cards = getQuarterlyCards();
@@ -12379,8 +12446,8 @@ async function qaSubmitCard() {
     const claimed = card.claimed || Array(_passTotal3).fill(false);
     const count = claimed.filter(Boolean).length;
     confirmMsg = count >= _passReq3
-      ? `You have ${count}/8 stamps — passport completed! ✓\n\nLock in your passport? This cannot be undone.`
-      : `You have ${count}/8 stamps (6 needed to complete).\n\nLock in your passport? This cannot be undone.`;
+      ? `You have ${count}/${_passTotal3} stamps — passport completed! ✓\n\nLock in your passport? This cannot be undone.`
+      : `You have ${count}/${_passTotal3} stamps (${_passReq3} needed to complete).\n\nLock in your passport? This cannot be undone.`;
   }
 
   if (!confirm(confirmMsg)) return;
@@ -12618,7 +12685,9 @@ function renderQAArchivesTab(cfg) {
         statLine = `${rows} row${rows!==1?'s':''} · ${claimed.filter(Boolean).length} squares`;
       } else {
         const cnt = claimed.filter(Boolean).length;
-        statLine = `${cnt}/8 stamps${cnt>=6?' · ✓ Complete':''}`;
+        const _arTotal = (a.cfg && a.cfg.passportTotalStamps) || 8;
+        const _arReq   = _arTotal - ((a.cfg && a.cfg.passportBonusCount) || 2);
+        statLine = `${cnt}/${_arTotal} stamps${cnt>=_arReq?' · ✓ Complete':''}`;
       }
       const statusBadge = card.approved
         ? `<span class="qa-member-badge qa-badge-approved">Approved</span>`
@@ -12721,8 +12790,8 @@ window.qaAdminViewArchiveCard = function(archiveIdx, key) {
     }
   } else {
     const stamps = archiveCfg.passportStamps || [];
-    const _admTotal = cfg.passportTotalStamps || 8;
-    const _admBonus = cfg.passportBonusCount || 2;
+    const _admTotal = archiveCfg.passportTotalStamps || 8;
+    const _admBonus = archiveCfg.passportBonusCount || 2;
     const _admReq = _admTotal - _admBonus;
     const claimed = card.claimed || Array(_admTotal).fill(false);
     const books = card.books || {};
@@ -12788,6 +12857,7 @@ function renderBingoBoardBuilder(cfg, target) {
   const prompts = (cfg.prompts || []).slice(0, 24);
   while (prompts.length < 24) prompts.push('');
   const isStatic = cfg.staticBoard || false;
+  const maxUses  = qaMaxBookUses(cfg, 'bingo');
 
   let cells = '';
   for (let i = 0; i < 25; i++) {
@@ -12810,6 +12880,10 @@ function renderBingoBoardBuilder(cfg, target) {
       <input type="checkbox" id="qa-static-toggle" ${isStatic ? 'checked' : ''} style="accent-color:var(--gold);width:1rem;height:1rem;">
       Static board (same square order for everyone)
     </label>
+    <div class="f-group" style="margin-bottom:.75rem;">
+      <label>Max squares per book (0 = no limit)</label>
+      <input type="number" id="qa-max-book-uses" value="${maxUses}" min="0" max="25" style="max-width:100px;">
+    </div>
     <div class="qa-bingo-grid-builder">${cells}</div>
     ${saveBtn}
     <div id="qa-board-msg" style="margin-top:.5rem;"></div>
@@ -12822,6 +12896,7 @@ function renderPassportBuilder(cfg, target) {
   const totalStamps = cfg.passportTotalStamps || 8;
   const bonusCount  = cfg.passportBonusCount  || 2;
   const required    = totalStamps - bonusCount;
+  const maxUses     = qaMaxBookUses(cfg, 'passport');
   const icons = ['📖','🌍','👥','🕰️','🔮','💀','⭐','🎭','🏆','📝','🎪','🌟','🔥','🎯','🌈'];
   let rows = '';
   for (let i = 0; i < totalStamps; i++) {
@@ -12849,7 +12924,7 @@ function renderPassportBuilder(cfg, target) {
 
   return `<div class="card">
     <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.5rem;">Passport Stamp Setup${t==='draft'?' — Draft':''}</h3>
-    <p style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">Define stamps. Members need any ${required} to complete the challenge — the remaining ${bonusCount} become bonus stamps.</p>
+    <p style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">Define stamps. Members need any ${required} to complete the challenge — the remaining ${bonusCount} become bonus stamps. ${maxUses ? `Each book can be used on up to ${maxUses} stamp${maxUses!==1?'s':''}.` : 'A book can be used on any number of stamps.'}</p>
     <div class="grid2" style="margin-bottom:.75rem;gap:.75rem;">
       <div class="f-group" style="margin:0;">
         <label>Total Stamps (8–15)</label>
@@ -12858,6 +12933,10 @@ function renderPassportBuilder(cfg, target) {
       <div class="f-group" style="margin:0;">
         <label>Bonus Stamps (1–5)</label>
         <input type="number" id="qa-stamp-bonus" value="${bonusCount}" min="1" max="5" style="max-width:100px;">
+      </div>
+      <div class="f-group" style="margin:0;">
+        <label>Max stamps per book (0 = no limit)</label>
+        <input type="number" id="qa-max-book-uses" value="${maxUses}" min="0" max="15" style="max-width:100px;">
       </div>
     </div>
     <button class="btn btn-secondary btn-sm" style="margin-bottom:.75rem;" ${saveCountBtn}>Apply Count Changes</button>
@@ -13002,7 +13081,11 @@ async function qaAdminSaveBoard() {
     prompts.push(el ? el.value.trim() : '');
   }
   const staticBoard = document.getElementById('qa-static-toggle')?.checked || false;
-  await fbSet(QUARTERLY_CONFIG_REF, { prompts, staticBoard });
+  const maxUses = _qaReadMaxUsesInput();
+  if (Number.isNaN(maxUses)) { showMsg('qa-board-msg', 'Max squares per book must be 0–25.', 'err'); return; }
+  const patch = { prompts, staticBoard };
+  if (maxUses !== null) patch.bingoMaxBookUses = maxUses;
+  await fbSet(QUARTERLY_CONFIG_REF, patch);
   showMsg('qa-board-msg', 'Bingo board saved!', 'ok');
 }
 window.qaAdminSaveBoard = qaAdminSaveBoard;
@@ -13018,7 +13101,11 @@ async function qaAdminSaveStamps() {
       description: (document.getElementById(`qa-stamp-desc-${i}`)?.value || '').trim(),
     });
   }
-  await fbSet(QUARTERLY_CONFIG_REF, { passportStamps: stamps });
+  const maxUses = _qaReadMaxUsesInput();
+  if (Number.isNaN(maxUses)) { showMsg('qa-stamps-msg', 'Max stamps per book must be 0–15.', 'err'); return; }
+  const patch = { passportStamps: stamps };
+  if (maxUses !== null) patch.passportMaxBookUses = maxUses;
+  await fbSet(QUARTERLY_CONFIG_REF, patch);
   showMsg('qa-stamps-msg', 'Passport stamps saved!', 'ok');
 }
 window.qaAdminSaveStamps = qaAdminSaveStamps;
@@ -13029,8 +13116,13 @@ async function qaAdminSaveStampCounts() {
   if (total < 8 || total > 15) { showMsg('qa-stamp-count-msg', 'Total must be 8–15.', 'err'); return; }
   if (bonus < 1 || bonus > 5)  { showMsg('qa-stamp-count-msg', 'Bonus must be 1–5.', 'err'); return; }
   if (bonus >= total)           { showMsg('qa-stamp-count-msg', 'Bonus must be less than total.', 'err'); return; }
-  await fbSet(QUARTERLY_CONFIG_REF, { passportTotalStamps: total, passportBonusCount: bonus });
-  showMsg('qa-stamp-count-msg', `Updated: ${total} stamps, ${bonus} bonus, ${total-bonus} required.`, 'ok');
+  const maxUses = _qaReadMaxUsesInput();
+  if (Number.isNaN(maxUses) || (maxUses !== null && maxUses > total)) { showMsg('qa-stamp-count-msg', `Max stamps per book must be 0–${total}.`, 'err'); return; }
+  const patch = { passportTotalStamps: total, passportBonusCount: bonus };
+  if (maxUses !== null) patch.passportMaxBookUses = maxUses;
+  await fbSet(QUARTERLY_CONFIG_REF, patch);
+  const _limTxt = maxUses ? `, max ${maxUses} stamp${maxUses!==1?'s':''} per book` : ', no per-book limit';
+  showMsg('qa-stamp-count-msg', `Updated: ${total} stamps, ${bonus} bonus, ${total-bonus} required${maxUses===null?'':_limTxt}.`, 'ok');
   setTimeout(renderQuarterlyAdmin, 200);
 }
 window.qaAdminSaveStampCounts = qaAdminSaveStampCounts;
@@ -13052,7 +13144,11 @@ async function qaAdminSaveDraftBoard() {
     prompts.push(el ? el.value.trim() : '');
   }
   const staticBoard = document.getElementById('qa-static-toggle')?.checked || false;
-  await fbSet(QUARTERLY_DRAFT_REF, { prompts, staticBoard });
+  const maxUses = _qaReadMaxUsesInput();
+  if (Number.isNaN(maxUses)) { showMsg('qa-board-msg', 'Max squares per book must be 0–25.', 'err'); return; }
+  const patch = { prompts, staticBoard };
+  if (maxUses !== null) patch.bingoMaxBookUses = maxUses;
+  await fbSet(QUARTERLY_DRAFT_REF, patch);
   showMsg('qa-board-msg', 'Draft saved!', 'ok');
 }
 window.qaAdminSaveDraftBoard = qaAdminSaveDraftBoard;
@@ -13068,7 +13164,11 @@ async function qaAdminSaveDraftStamps() {
       description: (document.getElementById(`qa-stamp-desc-${i}`)?.value || '').trim(),
     });
   }
-  await fbSet(QUARTERLY_DRAFT_REF, { passportStamps: stamps });
+  const maxUses = _qaReadMaxUsesInput();
+  if (Number.isNaN(maxUses)) { showMsg('qa-stamps-msg', 'Max stamps per book must be 0–15.', 'err'); return; }
+  const patch = { passportStamps: stamps };
+  if (maxUses !== null) patch.passportMaxBookUses = maxUses;
+  await fbSet(QUARTERLY_DRAFT_REF, patch);
   showMsg('qa-stamps-msg', 'Draft saved!', 'ok');
 }
 window.qaAdminSaveDraftStamps = qaAdminSaveDraftStamps;
@@ -13079,8 +13179,13 @@ async function qaAdminSaveDraftStampCounts() {
   if (total < 8 || total > 15) { showMsg('qa-stamp-count-msg', 'Total must be 8-15.', 'err'); return; }
   if (bonus < 1 || bonus > 5)  { showMsg('qa-stamp-count-msg', 'Bonus must be 1-5.', 'err'); return; }
   if (bonus >= total)           { showMsg('qa-stamp-count-msg', 'Bonus must be less than total.', 'err'); return; }
-  await fbSet(QUARTERLY_DRAFT_REF, { passportTotalStamps: total, passportBonusCount: bonus });
-  showMsg('qa-stamp-count-msg', `Updated: ${total} stamps, ${bonus} bonus, ${total-bonus} required.`, 'ok');
+  const maxUses = _qaReadMaxUsesInput();
+  if (Number.isNaN(maxUses) || (maxUses !== null && maxUses > total)) { showMsg('qa-stamp-count-msg', `Max stamps per book must be 0–${total}.`, 'err'); return; }
+  const patch = { passportTotalStamps: total, passportBonusCount: bonus };
+  if (maxUses !== null) patch.passportMaxBookUses = maxUses;
+  await fbSet(QUARTERLY_DRAFT_REF, patch);
+  const _limTxt = maxUses ? `, max ${maxUses} stamp${maxUses!==1?'s':''} per book` : ', no per-book limit';
+  showMsg('qa-stamp-count-msg', `Updated: ${total} stamps, ${bonus} bonus, ${total-bonus} required${maxUses===null?'':_limTxt}.`, 'ok');
   setTimeout(renderQuarterlyAdmin, 200);
 }
 window.qaAdminSaveDraftStampCounts = qaAdminSaveDraftStampCounts;
@@ -13125,6 +13230,8 @@ async function qaAdminPromoteDraft() {
     passportTotalStamps:  draft.passportTotalStamps || 8,
     passportBonusCount:   draft.passportBonusCount  || 2,
     staticBoard:          draft.staticBoard || false,
+    bingoMaxBookUses:     qaMaxBookUses(draft, 'bingo'),
+    passportMaxBookUses:  qaMaxBookUses(draft, 'passport'),
   };
   if (draft.quarterName) patch.quarterName = draft.quarterName;
   if (draft.startDate)   patch.startDate   = draft.startDate;
@@ -13212,7 +13319,7 @@ function qaAdminPreviewDraft() {
       </div>
       <div class="club">Discordecke Book Club — DRAFT PREVIEW</div>
       <h1>${_qaEscHtml(draft.quarterName || 'Next Quarter Reading Passport')}</h1>
-      <div class="sub">${draft.startDate&&draft.endDate?`${draft.startDate} – ${draft.endDate} &nbsp;·&nbsp;`:''} Collect any 6 stamps to complete</div>
+      <div class="sub">${draft.startDate&&draft.endDate?`${draft.startDate} – ${draft.endDate} &nbsp;·&nbsp;`:''} Collect any ${_prevReq} stamps to complete · ${_qaBonusPhrase(_prevReq, _prevBonus, true)}</div>
       <div class="sgrid">${stampCards}</div>
       <div class="prog">
         <div class="prog-head">Stamps collected</div>
@@ -13459,28 +13566,31 @@ function qaGenerateQuarterCSV(archiveEntry) {
       rows.push([name, card.discord||'', card.email||'', card.submitted?'Yes':'No', card.approved?'Yes':'No', rowCount, rowCount, claimed.filter(Boolean).length, ...prompts, ...bookTitles, ...bookAuthors]);
     });
   } else {
+    const _csvTotal = cfg.passportTotalStamps || 8;
+    const _csvBonus = cfg.passportBonusCount  || 2;
+    const _csvReq   = _csvTotal - _csvBonus;
     const stamps = cfg.passportStamps || [];
-    const stampNames = stamps.map(s=>s?s.name:'');
+    const stampNames = Array.from({length:_csvTotal},(_,i)=>stamps[i]&&stamps[i].name?stamps[i].name:`Stamp ${i+1}`);
     rows.push(['Quarter', 'Discord', 'Email', 'Submitted', 'Approved', 'Stamps Claimed', 'Completed',
       ...stampNames.map(n=>`${n} Claimed`),
       ...stampNames.map(n=>`${n} Book`),
       ...stampNames.map(n=>`${n} Author`),
-      'Bonus Stamp 1', 'Bonus Stamp 2']);
+      ...Array.from({length:_csvBonus},(_,i)=>`Bonus Stamp ${i+1}`)]);
     Object.entries(cards).forEach(([key, card]) => {
-      const claimed = card.claimed || Array(8).fill(false);
+      const claimed = card.claimed || Array(_csvTotal).fill(false);
       const claimOrder = card.claimOrder || [];
-      const bonusSet = new Set(claimOrder.slice(6));
+      const bonusSet = new Set(claimOrder.slice(_csvReq));
       const claimedCount = claimed.filter(Boolean).length;
-      const bonusStamps = claimOrder.slice(6).map(i=>stampNames[i]||`Stamp ${i+1}`);
-      const claimedFlags = claimed.map(Boolean);
-      const bookTitles = Array.from({length:8},(_,i)=>card.books&&bkGet(card.books,i)?bkGet(card.books,i).title:'');
-      const bookAuthors = Array.from({length:8},(_,i)=>card.books&&bkGet(card.books,i)?bkGet(card.books,i).author:'');
+      const bonusStamps = claimOrder.slice(_csvReq).map(i=>stampNames[i]||`Stamp ${i+1}`);
+      const claimedFlags = Array.from({length:_csvTotal},(_,i)=>!!claimed[i]);
+      const bookTitles = Array.from({length:_csvTotal},(_,i)=>card.books&&bkGet(card.books,i)?bkGet(card.books,i).title:'');
+      const bookAuthors = Array.from({length:_csvTotal},(_,i)=>card.books&&bkGet(card.books,i)?bkGet(card.books,i).author:'');
       rows.push([name, card.discord||'', card.email||'', card.submitted?'Yes':'No', card.approved?'Yes':'No',
-        claimedCount, claimedCount>=6?'Yes':'No',
+        claimedCount, claimedCount>=_csvReq?'Yes':'No',
         ...claimedFlags.map(b=>b?'Yes':'No'),
         ...bookTitles,
         ...bookAuthors,
-        bonusStamps[0]||'', bonusStamps[1]||'']);
+        ...Array.from({length:_csvBonus},(_,i)=>bonusStamps[i]||'')]);
     });
   }
 
@@ -13503,7 +13613,7 @@ async function qaAdminArchiveQuarter() {
     endDate,
     archivedAt: Date.now(),
     cards: JSON.parse(JSON.stringify(cards)),
-    cfg: { prompts: cfg.prompts || [], passportStamps: cfg.passportStamps || [], staticBoard: cfg.staticBoard || false }
+    cfg: { prompts: cfg.prompts || [], passportStamps: cfg.passportStamps || [], staticBoard: cfg.staticBoard || false, passportTotalStamps: cfg.passportTotalStamps || 8, passportBonusCount: cfg.passportBonusCount || 2, bingoMaxBookUses: qaMaxBookUses(cfg, 'bingo'), passportMaxBookUses: qaMaxBookUses(cfg, 'passport') }
   };
 
   // Download CSV immediately
