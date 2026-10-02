@@ -6999,6 +6999,15 @@ const BADGE_DEFS = [
   { id:'penny-quiz',        name:'Ask Me Your Questions',emoji:'📝',  tier:null, category:'penny', organic:true, desc:'Submit to Penny\'s quiz',                                   check:p=>!!p.pennyRecord.usedQuiz },
   { id:'penny-accepted',    name:'I\'ll Take It',        emoji:'📖',  tier:null, category:'penny', organic:true, desc:'Accept one of Penny\'s recommendations',                    check:p=>!!p.pennyRecord.acceptedRec },
   { id:'penny-declined',    name:'Not Quite',            emoji:'🙈',  tier:null, category:'penny', organic:true, desc:'Politely decline one of Penny\'s recommendations',          check:p=>!!p.pennyRecord.declinedRec },
+  // Penny's plants — one hidden badge each, earned when she tells you about that plant
+  { id:'penny-plant-dorothea', name:'Gentle Chapters', emoji:'💜', tier:null, category:'penny', organic:true, desc:'Penny told you about Dorothea, the African violet', check:p=>!!p.pennyRecord.plant_dorothea },
+  { id:'penny-plant-miranda', name:"That's All", emoji:'🌿', tier:null, category:'penny', organic:true, desc:'Penny told you about Miranda, the monstera', check:p=>!!p.pennyRecord.plant_miranda },
+  { id:'penny-plant-jane', name:'Reader, I Watered Her', emoji:'💚', tier:null, category:'penny', organic:true, desc:'Penny told you about Jane, the string of hearts', check:p=>!!p.pennyRecord.plant_jane },
+  { id:'penny-plant-horatio', name:'Good Night, Sweet Plant', emoji:'🪴', tier:null, category:'penny', organic:true, desc:'Penny told you about Horatio, the snake plant', check:p=>!!p.pennyRecord.plant_horatio },
+  { id:'penny-plant-scheherazade', name:'A Thousand and One Pearls', emoji:'📿', tier:null, category:'penny', organic:true, desc:'Penny told you about Scheherazade, the string of pearls', check:p=>!!p.pennyRecord.plant_scheherazade },
+  { id:'penny-plant-circe', name:'Exactly Where She Wants to Be', emoji:'🌺', tier:null, category:'penny', organic:true, desc:'Penny told you about Circe, the bird of paradise', check:p=>!!p.pennyRecord.plant_circe },
+  { id:'penny-plant-may', name:'Tart and Honest', emoji:'🍊', tier:null, category:'penny', organic:true, desc:'Penny told you about May, the calamondin orange', check:p=>!!p.pennyRecord.plant_may },
+  { id:'penny-plant-all',   name:'Seven Characters in Search of Water', emoji:'🌱', tier:null, category:'penny', organic:true, desc:'Penny has told you about every one of her seven plants', check:p=>['dorothea','miranda','jane','horatio','scheherazade','circe','may'].every(k => !!p.pennyRecord['plant_' + k]) },
   { id:'penny-chat',        name:'Pull Up a Chair',      emoji:'🪑',  tier:null, category:'penny', organic:true, desc:'Stay and chat with Penny',                                  check:p=>!!p.pennyRecord.usedChat },
   { id:'penny-returned',    name:'Back Again',           emoji:'🔁',  tier:null, category:'penny', organic:true, desc:'Return to Penny for another visit',                         check:p=>( p.pennyRecord.visitCount||0)>=2 },
 
@@ -8258,6 +8267,7 @@ const BADGE_CATEGORY_MAP = {
   // Penny
   'penny-met':'penny','penny-trust':'penny','penny-catalog':'penny',
   'penny-quiz':'penny','penny-accepted':'penny','penny-declined':'penny','penny-returned':'penny','penny-chat':'penny',
+  'penny-plant-dorothea':'penny','penny-plant-miranda':'penny','penny-plant-jane':'penny','penny-plant-horatio':'penny','penny-plant-scheherazade':'penny','penny-plant-circe':'penny','penny-plant-may':'penny','penny-plant-all':'penny',
 };
 
 // Sort monthly book badges by chronological month order within a year
@@ -8540,6 +8550,14 @@ function _buildBadgeFeedEvents() {
     { id:'penny-accepted', name:"I'll Take It",          emoji:'📖', tsKey:'acceptedRec_ts', check: r => !!r.acceptedRec },
     { id:'penny-declined', name:'Not Quite',             emoji:'🙈', tsKey:'declinedRec_ts', check: r => !!r.declinedRec },
     { id:'penny-chat',     name:'Pull Up a Chair',       emoji:'🪑', tsKey:'usedChat_ts',    check: r => !!r.usedChat },
+    { id:'penny-plant-all', name:'Seven Characters in Search of Water', emoji:'🌱', tsKey:'plantsAll', check: r => ['dorothea','miranda','jane','horatio','scheherazade','circe','may'].every(k => !!r['plant_' + k]) },
+    { id:'penny-plant-dorothea', name:'Gentle Chapters', emoji:'💜', tsKey:'plant_dorothea', check: r => !!r.plant_dorothea },
+    { id:'penny-plant-miranda', name:"That's All", emoji:'🌿', tsKey:'plant_miranda', check: r => !!r.plant_miranda },
+    { id:'penny-plant-jane', name:'Reader, I Watered Her', emoji:'💚', tsKey:'plant_jane', check: r => !!r.plant_jane },
+    { id:'penny-plant-horatio', name:'Good Night, Sweet Plant', emoji:'🪴', tsKey:'plant_horatio', check: r => !!r.plant_horatio },
+    { id:'penny-plant-scheherazade', name:'A Thousand and One Pearls', emoji:'📿', tsKey:'plant_scheherazade', check: r => !!r.plant_scheherazade },
+    { id:'penny-plant-circe', name:'Exactly Where She Wants to Be', emoji:'🌺', tsKey:'plant_circe', check: r => !!r.plant_circe },
+    { id:'penny-plant-may', name:'Tart and Honest', emoji:'🍊', tsKey:'plant_may', check: r => !!r.plant_may },
   ];
   const pennyMembers = CACHE.pennyMembers || {};
   Object.entries(pennyMembers).forEach(([memberKey, record]) => {
@@ -9922,7 +9940,7 @@ function clearIdentityCookie() {
 function _badgeSeenKey(memberKey) { return 'dbc_badges_seen_' + memberKey; }
 function _pennyBadgeResetKey(memberKey) { return 'dbc_badges_penny_reset_' + memberKey; }
 
-const PENNY_BADGE_IDS = ['penny-met','penny-trust','penny-catalog','penny-quiz','penny-accepted','penny-declined','penny-returned','penny-chat'];
+const PENNY_BADGE_IDS = ['penny-met','penny-trust','penny-catalog','penny-quiz','penny-accepted','penny-declined','penny-returned','penny-chat','penny-plant-dorothea','penny-plant-miranda','penny-plant-jane','penny-plant-horatio','penny-plant-scheherazade','penny-plant-circe','penny-plant-may','penny-plant-all'];
 
 // If admin has reset this member's Penny history since they last visited badges,
 // scrub penny badge IDs from their local seen-snapshot so they re-alert when re-earned.
@@ -10251,6 +10269,7 @@ async function renderPennyTabInto(area) {
   let lastRecAsked = false;
   let lastRecNotYet = false;
   let knowsPlants = false;
+  const plantsHeard = {};
   let newCount = 1;
   if (_profileIdentity && _profileIdentity.key) {
     try {
@@ -10275,11 +10294,12 @@ async function renderPennyTabInto(area) {
       lastRecAsked = prev.lastRecAsked || false;
       lastRecNotYet = prev.lastRecNotYet || false;
       knowsPlants = !!prev.knowsPlants;
+      Object.keys(prev).forEach(k => { if (k.startsWith('plant_') && prev[k]) plantsHeard[k.slice(6)] = true; });
     } catch(e) { /* degrade gracefully */ }
   }
 
   // Store state on the area element so stage functions can read it
-  area._pennyState = { isFirstVisit, memberName, lastRec, lastRecAsked, lastRecNotYet, knowsPlants, visitCount: newCount };
+  area._pennyState = { isFirstVisit, memberName, lastRec, lastRecAsked, lastRecNotYet, knowsPlants, plantsHeard, visitCount: newCount };
 
   // Always start at the door — first visit or return
   _pennyShowDoor(area);
@@ -10787,20 +10807,20 @@ const PENNY_CHAT_OPENERS_BY_MONTH = {
 const PENNY_CHAT_TOPICS = {
   reading: { label: '"What are you reading right now?"' },
   plants:  { label: '"How are the plants?"', firstLabel: '"There\'s a lot of plants in here!"', lines: [
-    { action: "She glances at the African violet on the corner of the desk.", line: "Dorothea's having a difficult week. I moved her six inches to the left. We'll see." },
-    { action: "She looks over at the monstera with something like respect.", line: "Miranda has put out a new leaf, which I take as approval. Of what, I don't know." },
-    { action: "She nods toward the string of hearts trailing off the shelf.", line: "Jane is doing beautifully. Jane always does beautifully. I don't think she knows how much I worry about the others." },
-    { action: "She doesn't even look at the snake plant.", line: "Horatio is fine. Horatio is always fine. I find that very reassuring." },
-    { action: "She touches one of the little green pearls, very gently.", line: "Scheherazade has grown three new strands this month. That's a lot of stories." },
-    { action: "She glances up at the bird of paradise by the door.", line: "Circe is exactly where she wants to be. I've learned not to argue with Circe." },
-    { action: "She waves you closer to the little citrus tree.", line: "May has blossoms. Come closer — no, smell. Isn't that something?" },
-    { action: "She lowers her voice near the African violet.", line: "I read Dorothea the gentle chapters. She doesn't do well with conflict." },
-    { action: "She gestures at the monstera's big split leaves.", line: "Miranda's leaves have holes in them on purpose. It's called fenestration. She'd want you to know it's intentional." },
-    { action: "She follows the string of hearts with her eyes, all the way down.", line: "Jane trails all the way to the floor now. I keep meaning to trim her. I keep not doing it." },
-    { action: "She glances at the snake plant, a little guiltily.", line: "I forgot to water Horatio for three weeks once. He didn't even mention it." },
-    { action: "She checks the soil under the string of pearls with one fingertip.", line: "Too much water and she's gone. Too little and she's gone. Scheherazade and I have a very precise relationship." },
-    { action: "She looks up at the bird of paradise.", line: "Circe gets the horror submissions read aloud. She seems to like them best. I don't ask questions." },
-    { action: "She holds up a small, very orange fruit.", line: "May fruited again. They're terribly tart. I ate one anyway. I always eat one anyway." },
+    { plant: 'dorothea', action: "She glances at the African violet on the corner of the desk.", line: "Dorothea's having a difficult week. I moved her six inches to the left. We'll see." },
+    { plant: 'miranda', action: "She looks over at the monstera with something like respect.", line: "Miranda has put out a new leaf, which I take as approval. Of what, I don't know." },
+    { plant: 'jane', action: "She nods toward the string of hearts trailing off the shelf.", line: "Jane is doing beautifully. Jane always does beautifully. I don't think she knows how much I worry about the others." },
+    { plant: 'horatio', action: "She doesn't even look at the snake plant.", line: "Horatio is fine. Horatio is always fine. I find that very reassuring." },
+    { plant: 'scheherazade', action: "She touches one of the little green pearls, very gently.", line: "Scheherazade has grown three new strands this month. That's a lot of stories." },
+    { plant: 'circe', action: "She glances up at the bird of paradise by the door.", line: "Circe is exactly where she wants to be. I've learned not to argue with Circe." },
+    { plant: 'may', action: "She waves you closer to the little citrus tree.", line: "May has blossoms. Come closer — no, smell. Isn't that something?" },
+    { plant: 'dorothea', action: "She lowers her voice near the African violet.", line: "I read Dorothea the gentle chapters. She doesn't do well with conflict." },
+    { plant: 'miranda', action: "She gestures at the monstera's big split leaves.", line: "Miranda's leaves have holes in them on purpose. It's called fenestration. She'd want you to know it's intentional." },
+    { plant: 'jane', action: "She follows the string of hearts with her eyes, all the way down.", line: "Jane trails all the way to the floor now. I keep meaning to trim her. I keep not doing it." },
+    { plant: 'horatio', action: "She glances at the snake plant, a little guiltily.", line: "I forgot to water Horatio for three weeks once. He didn't even mention it." },
+    { plant: 'scheherazade', action: "She checks the soil under the string of pearls with one fingertip.", line: "Too much water and she's gone. Too little and she's gone. Scheherazade and I have a very precise relationship." },
+    { plant: 'circe', action: "She looks up at the bird of paradise.", line: "Circe gets the horror submissions read aloud. She seems to like them best. I don't ask questions." },
+    { plant: 'may', action: "She holds up a small, very orange fruit.", line: "May fruited again. They're terribly tart. I ate one anyway. I always eat one anyway." },
     { action: "She counts them off on her fingers.", line: "I water them in the same order every morning. Dorothea first, May last. Don't ask me to explain the middle. I could, but it would take a while." },
     { action: "She smiles at the whole collection.", line: "I read to them when a new stack comes in. A few pages from each book. It helps them grow. I'm almost sure of it." },
     { action: "She sighs, fondly.", line: "I didn't mean to name them. I held out for weeks. Then one morning I said \"good morning, Horatio\" and that was that." }
@@ -10908,11 +10928,33 @@ function pennyChatTopic(topic, areaId, el) {
     if (topic === 'plants' && !(area._pennyState || {}).knowsPlants) return _pennyChatPlantsIntro(area);
     const t = PENNY_CHAT_TOPICS[topic];
     if (!t || !t.lines) return;
-    const pick = _pennyChatPick(area, topic, t.lines);
+    const pick = topic === 'plants' ? _pennyPickPlantLine(area) : _pennyChatPick(area, topic, t.lines);
+    if (topic === 'plants' && pick.plant) _pennyHeardPlant(area, pick.plant);
     _pennyChatBack(area, `<span class="penny-action">${pick.action}</span><p class="penny-speech">${pick.line}</p>`);
   }, 300);
 }
 window.pennyChatTopic = pennyChatTopic;
+
+// Plant lines: two times in three, prefer a plant this member hasn't heard about yet
+function _pennyPickPlantLine(area) {
+  const heard = (area._pennyState || {}).plantsHeard || {};
+  const all = PENNY_CHAT_TOPICS.plants.lines;
+  const fresh = all.filter(l => l.plant && !heard[l.plant]);
+  if (fresh.length && Math.random() < 0.67) return fresh[Math.floor(Math.random() * fresh.length)];
+  return _pennyChatPick(area, 'plants', all);
+}
+// Remember that she told you about this plant (earns that plant's hidden badge)
+function _pennyHeardPlant(area, plant) {
+  if (!area._pennyState) area._pennyState = {};
+  const heard = area._pennyState.plantsHeard = area._pennyState.plantsHeard || {};
+  if (heard[plant]) return;
+  heard[plant] = true;
+  const key = _pennyActiveKey(area);
+  const update = { ['plant_' + plant]: Date.now() };
+  // Heard about all seven? Stamp the moment for the bonus badge
+  if (['dorothea','miranda','jane','horatio','scheherazade','circe','may'].every(k => heard[k])) update.plantsAll = Date.now();
+  if (key) fbSet(PENNY_REF, { [key]: update }).catch(()=>{});
+}
 
 // First time a member asks about the plants: Penny introduces all seven
 function _pennyChatPlantsIntro(area) {
