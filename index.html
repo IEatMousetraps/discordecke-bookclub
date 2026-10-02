@@ -10234,6 +10234,7 @@ async function renderPennyTabInto(area) {
   let memberName = '';
   let lastRec = null;
   let lastRecAsked = false;
+  let lastRecNotYet = false;
   let newCount = 1;
   if (_profileIdentity && _profileIdentity.key) {
     try {
@@ -10256,11 +10257,12 @@ async function renderPennyTabInto(area) {
       memberName = _profileIdentity.discord || _profileIdentity.email || '';
       lastRec = prev.lastRec || null;
       lastRecAsked = prev.lastRecAsked || false;
+      lastRecNotYet = prev.lastRecNotYet || false;
     } catch(e) { /* degrade gracefully */ }
   }
 
   // Store state on the area element so stage functions can read it
-  area._pennyState = { isFirstVisit, memberName, lastRec, lastRecAsked, visitCount: newCount };
+  area._pennyState = { isFirstVisit, memberName, lastRec, lastRecAsked, lastRecNotYet, visitCount: newCount };
 
   // Always start at the door — first visit or return
   _pennyShowDoor(area);
@@ -10353,19 +10355,23 @@ function _pennyShowReturnGreeting(area, memberName) {
       `Oh, it's you. Good timing, actually.`
     ];
     const openLine = followUpLines[Math.floor(Math.random() * followUpLines.length)];
+    const askLine = state.lastRecNotYet
+      ? `Any progress on <em>${esc(recTitle)}</em>? No pressure. I'm just curious.`
+      : `I've been meaning to ask — did you get a chance to read <em>${esc(recTitle)}</em>?`;
 
     area.innerHTML = `
       <div class="penny-storybook">
         <div class="penny-storybook-inner">
           <span class="penny-action">${scenario.return}</span>
           <p class="penny-speech">${openLine}</p>
-          <p class="penny-speech">I've been meaning to ask — did you get a chance to read <em>${esc(recTitle)}</em>?</p>
+          <p class="penny-speech">${askLine}</p>
         </div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
         <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
         <button class="penny-action-btn" onclick="pennyFollowUp('finished','${aid}',this)">"Yes, I finished it!"</button>
         <button class="penny-action-btn" onclick="pennyFollowUp('notyet','${aid}',this)">"Not yet..."</button>
+        <button class="penny-action-btn" onclick="pennyChatStart('${aid}',this)">"Can we talk about something else first?"</button>
       </div>
     `;
     return;
@@ -10389,7 +10395,7 @@ function _pennyShowReturnGreeting(area, memberName) {
         <p class="penny-speech">The quiz is... well. It's still my favorite. Just putting that out there.</p>
       </div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
       <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
       <button class="penny-action-btn" onclick="pennySelectOption('trust','${aid}',this)">"I trust you, Penny."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
@@ -10404,10 +10410,12 @@ function pennyFollowUp(response, areaId, el) {
   if (!area) return;
   if (el) { el.disabled = true; el.style.opacity = '.5'; }
 
-  // Mark as asked in Firestore so it doesn't repeat
-  const _pfuKey = _pennyActiveKey(area);
-  if (_pfuKey) {
-    fbSet(PENNY_REF, { [_pfuKey]: { lastRecAsked: true } }).catch(()=>{});
+  // The follow-up is only cleared once the member actually tells her what they
+  // thought (see pennyFollowUpReaction). "Not yet", or leaving partway through,
+  // keeps the question for next time.
+  if (response !== 'finished') {
+    const _pfuKey = _pennyActiveKey(area);
+    if (_pfuKey) fbSet(PENNY_REF, { [_pfuKey]: { lastRecNotYet: true } }).catch(()=>{});
   }
 
   setTimeout(() => {
@@ -10429,7 +10437,7 @@ function _pennyFollowUpFinished(area) {
         <p class="penny-speech">Oh wonderful. And? What did you think?</p>
       </div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
       <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
       <button class="penny-action-btn" onclick="pennyFollowUpReaction('loved','${aid}',this)">"I loved it."</button>
       <button class="penny-action-btn" onclick="pennyFollowUpReaction('good','${aid}',this)">"It was pretty good."</button>
@@ -10448,7 +10456,7 @@ function _pennyFollowUpNotYet(area) {
         <p class="penny-speech">Are you still planning to read it, or are you here for something new?</p>
       </div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
       <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
       <button class="penny-action-btn" onclick="pennyNotYetBranch('stillplanning','${aid}',this)">"Still planning to read it."</button>
       <button class="penny-action-btn" onclick="pennyNotYetBranch('somethingdifferent','${aid}',this)">"I think I'd like something different."</button>
@@ -10473,7 +10481,7 @@ function pennyNotYetBranch(choice, areaId, el) {
             <p class="penny-speech">Come back and tell me what you thought when you're done. I mean it — I want to know.</p>
           </div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
           <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
           <button class="penny-action-btn" onclick="pennyChatStart('${aid}',this)">"Actually, could I stay a while?"</button>
           <button class="penny-action-btn" onclick="pennyChatLeave('${aid}',this,'later')">"I'll come back when I'm done."</button>
@@ -10491,7 +10499,7 @@ function pennyNotYetBranch(choice, areaId, el) {
             <p class="penny-speech">The catalog has been particularly interesting lately, just saying.</p>
           </div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
           <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
           <button class="penny-action-btn" onclick="pennySelectOption('trust','${aid}',this)">"I trust you, Penny."</button>
           <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
@@ -10507,6 +10515,10 @@ function pennyFollowUpReaction(reaction, areaId, el) {
   const area = document.getElementById(areaId);
   if (!area) return;
   if (el) { el.disabled = true; el.style.opacity = '.5'; }
+  // They've told her what they thought — now the follow-up is done
+  const _pfrKey = _pennyActiveKey(area);
+  if (_pfrKey) fbSet(PENNY_REF, { [_pfrKey]: { lastRecAsked: true, lastRecNotYet: false } }).catch(()=>{});
+  if (area._pennyState) area._pennyState.lastRecAsked = true;
   setTimeout(() => _pennyFollowUpReactionScene(area, reaction), 300);
 }
 window.pennyFollowUpReaction = pennyFollowUpReaction;
@@ -10539,7 +10551,7 @@ function _pennyFollowUpReactionScene(area, reaction) {
         <p class="penny-speech">${s.closer}</p>
       </div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
       <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
       <button class="penny-action-btn" onclick="pennyReactionAnother('${reaction}','${aid}',this)">"I'd love another recommendation."</button>
       <button class="penny-action-btn" onclick="pennyJustStopping('${aid}',this)">"Just wanted to let you know!"</button>
@@ -10569,7 +10581,7 @@ function pennyReactionAnother(reaction, areaId, el) {
           ${s.nudge ? `<span class="penny-action" style="margin-top:.4rem;">She gives a small conspiratorial smile.</span><p class="penny-speech">${s.nudge}</p>` : ''}
         </div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
         <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
         <button class="penny-action-btn" onclick="pennySelectOption('trust','${aid}',this)">"I trust you, Penny."</button>
         <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
@@ -10692,7 +10704,7 @@ function _pennyChatPick(area, topic, list) {
 function _pennyChatButtons(area) {
   const aid = area.id;
   return `
-    <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
       <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
       ${Object.entries(PENNY_CHAT_TOPICS).map(([id, t]) => `<button class="penny-action-btn" onclick="pennyChatTopic('${id}','${aid}',this)">${t.label}</button>`).join('')}
       <button class="penny-action-btn" onclick="pennyChatToBook('${aid}',this)">"Actually — could you find me a book?"</button>
@@ -10782,7 +10794,7 @@ function _pennyChatReading(area) {
         ${note ? `<p class="penny-speech">${esc(note)}</p>` : `<p class="penny-speech">It's one of the club's. I like it more every time I open it.</p>`}
       </div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
       <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
       <button class="penny-action-btn" onclick="pennyChatTakeBook('${aid}',this)">"That sounds good. Could I take that one?"</button>
       <button class="penny-action-btn" onclick="pennyChatNotNow('${aid}',this)">"Maybe another time."</button>
@@ -10821,7 +10833,7 @@ function pennyChatToBook(areaId, el) {
           <p class="penny-speech">I was hoping you'd ask. Same three ways as always — how shall we do it?</p>
         </div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
         <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
         <button class="penny-action-btn" onclick="pennySelectOption('trust','${aid}',this)">"I trust you, Penny."</button>
         <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
@@ -10881,7 +10893,7 @@ function _pennyShowOptions(area) {
         <p class="penny-speech">Any of them will work. I won't tell you which one I'd pick. But I will say — I wrote the quiz myself.</p>
       </div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
       <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
       <button class="penny-action-btn" onclick="pennySelectOption('trust','${aid}',this)">"I trust you, Penny."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
@@ -11224,7 +11236,7 @@ function _pennyOwnBookDialog(area, book, pool, fromBranch) {
         <p class="penny-speech">Huh. It looks like you actually made this suggestion. What do you think — want to give it a go now?</p>
       </div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 1.5rem;position:relative;z-index:2;">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 1.5rem;position:relative;z-index:2;">
       <button class="penny-action-btn" onclick="pennyOwnBookYes('${aid}')">Yes — let's do it.</button>
       <button class="penny-action-btn" onclick="pennyOwnBookNo('${aid}')">No, not right now.</button>
     </div>
@@ -11311,7 +11323,7 @@ function _pennyShowRecommendation(area, book, fromBranch) {
       <div class="penny-rec-card-quote">"${quote}"</div>
       <div class="penny-rec-card-sig">— Penny</div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
       <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
       <button class="penny-action-btn" onclick="pennyAccept('${aid}')">"Thank you, Penny. I'll give it a read."</button>
       <button class="penny-action-btn" onclick="pennyDecline('${aid}','${fromBranch}')">"Thank you, Penny, but I don't think this one is for me. Could we try again?"</button>
@@ -11326,7 +11338,7 @@ function pennyAccept(areaId) {
   // Store last rec in Firestore if identity known
   const _paKey = _pennyActiveKey(area);
   if (_paKey && area._pennyLastRec) {
-    fbSet(PENNY_REF, { [_paKey]: { lastRec: { title: area._pennyLastRec.title, month: area._pennyLastRec.month, ts: Date.now() }, lastRecAsked: false, acceptedRec: true, acceptedRec_ts: Date.now() } }).catch(()=>{});
+    fbSet(PENNY_REF, { [_paKey]: { lastRec: { title: area._pennyLastRec.title, month: area._pennyLastRec.month, ts: Date.now() }, lastRecAsked: false, lastRecNotYet: false, acceptedRec: true, acceptedRec_ts: Date.now() } }).catch(()=>{});
   }
 
   // Rare stacks hint — only on return visits, ~1 in 20 chance
@@ -11457,7 +11469,7 @@ function pennyDecline(areaId, fromBranch) {
         ${isQuiz ? `<p class="penny-speech">Same question as before — how shall we do this? Though between you and me, I stand by the quiz.</p>` : `<p class="penny-speech">Same question as before — how shall we do this? Though I'll admit, I may steer you slightly differently this time.</p>`}
       </div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
       <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
       <button class="penny-action-btn" onclick="pennySelectOption('trust','${aid}',this)">"I trust you, Penny."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
@@ -11718,7 +11730,7 @@ function _pennyQuizQuestion(area, qIndex) {
         <p class="penny-speech">${q.q}</p>
       </div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 1.5rem;position:relative;z-index:2;">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 1.5rem;position:relative;z-index:2;">
       ${q.options.map((opt, i) => `
         <button class="penny-action-btn" onclick="pennyQuizAnswer('${aid}',${qIndex},'${opt.tag}',this)">${opt.label}</button>
       `).join('')}
