@@ -1177,6 +1177,13 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   text-align: center;
   padding: 2rem;
 }
+/* Record player */
+.penny-record { display:flex; flex-direction:column; align-items:center; gap:.5rem; margin:.2rem 0 1rem; position:relative; z-index:2; }
+.penny-record-btn { background:transparent; border:1px solid rgba(240,180,41,.35); border-radius:999px; color:rgba(240,180,41,.8); font-family:'Playfair Display',serif; font-style:italic; font-size:13px; padding:.35rem 1rem; cursor:pointer; transition:background .18s,border-color .18s; }
+.penny-record-btn:hover, .penny-record-btn:focus-visible { background:rgba(240,180,41,.08); border-color:rgba(240,180,41,.7); outline:none; }
+.penny-record-player { width:280px; max-width:calc(100vw - 3rem); aspect-ratio:16/9; border:1px solid #5a3e20; border-radius:3px; overflow:hidden; background:#000; }
+.penny-record-player iframe { width:100%; height:100%; display:block; border:0; }
+.penny-record-caption { font-family:'Playfair Display',serif; font-style:italic; font-size:12px; color:rgba(240,180,41,.5); }
 /* ═══════════════ END PENNY'S ═══════════════ */
 </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -1571,6 +1578,12 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       <rect x="164" y="183" width="7" height="19" rx="1" fill="#f0b429" opacity="0.5"/>
       <rect x="172" y="178" width="8" height="24" rx="1" fill="#8a5a20" opacity="0.7"/>
     </svg>
+  </div>
+  <!-- Record player: plays "The Box Marked S.R.R" playlist, only when a member asks -->
+  <div class="penny-record" id="penny-record">
+    <button type="button" class="penny-record-btn" id="penny-record-btn" onclick="pennyRecordToggle()">♪ Put on a record</button>
+    <div class="penny-record-player" id="penny-record-player" hidden></div>
+    <div class="penny-record-caption" id="penny-record-caption" hidden>Playing from the box marked S.R.R.</div>
   </div>
 
   <!-- Main interaction area — rendered by JS -->
@@ -2552,6 +2565,7 @@ function getQuarterlyCards() { return CACHE.quarterlyCards || {}; }
 // NAV
 // ════════════════════════════════════════════════════════
 function goTab(id, btn) {
+  if (id !== 'penny' && typeof window.pennyRecordStop === 'function') window.pennyRecordStop();
   location.hash = id;
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
@@ -10235,6 +10249,7 @@ async function renderPennyTabInto(area) {
   let lastRec = null;
   let lastRecAsked = false;
   let lastRecNotYet = false;
+  let knowsPlants = false;
   let newCount = 1;
   if (_profileIdentity && _profileIdentity.key) {
     try {
@@ -10258,11 +10273,12 @@ async function renderPennyTabInto(area) {
       lastRec = prev.lastRec || null;
       lastRecAsked = prev.lastRecAsked || false;
       lastRecNotYet = prev.lastRecNotYet || false;
+      knowsPlants = !!prev.knowsPlants;
     } catch(e) { /* degrade gracefully */ }
   }
 
   // Store state on the area element so stage functions can read it
-  area._pennyState = { isFirstVisit, memberName, lastRec, lastRecAsked, lastRecNotYet, visitCount: newCount };
+  area._pennyState = { isFirstVisit, memberName, lastRec, lastRecAsked, lastRecNotYet, knowsPlants, visitCount: newCount };
 
   // Always start at the door — first visit or return
   _pennyShowDoor(area);
@@ -10622,6 +10638,108 @@ function pennyJustStopping(areaId, el) {
 window.pennyJustStopping = pennyJustStopping;
 
 // ══════════════════════════════════════════════════════
+// Penny's record player — "The Box Marked S.R.R" (YouTube playlist)
+// Never autoplays: only starts when a member clicks or asks her to.
+// ══════════════════════════════════════════════════════
+const PENNY_PLAYLIST_ID = 'PLJqtvvn9peAQ';
+const PENNY_PLAYLIST_LEN = 30;
+let _pennyYT = null, _pennyYTLoading = null;
+
+// What Penny says about whatever is playing (matched against the video title)
+const PENNY_TRACK_LINES = [
+  [/whispering/i,        "‘Whispering.’ Paul Whiteman. 1920, I think. This is a morning record."],
+  [/crazy blues/i,       "Mamie Smith. ‘Crazy Blues.’ 1920. Just listen to her."],
+  [/april showers/i,     "‘April Showers.’ Al Jolson. Very appropriate, if it's raining."],
+  [/downhearted/i,       "Bessie Smith. ‘Downhearted Blues.’ This is a brown butter toast record, if I'm honest."],
+  [/dipper ?mouth/i,     "King Oliver's band. That's a very young Louis Armstrong on the cornet."],
+  [/bananas/i,           "Oh no. It's the banana song. I play this one when a book was too heavy."],
+  [/had to be you/i,     "‘It Had to Be You.’ 1924. I always forget how much I like this one."],
+  [/rider/i,             "Ma Rainey. ‘See See Rider.’ 1924."],
+  [/rhapsody/i,          "Gershwin. ‘Rhapsody in Blue.’ This is my Sunday afternoon record."],
+  [/dinah/i,             "Ethel Waters. ‘Dinah.’ She makes it sound so easy."],
+  [/heebie/i,            "Louis Armstrong. ‘Heebie Jeebies.’ Nobody sits still for this one. Not even Horatio."],
+  [/margie/i,            "‘Margie.’ Eddie Cantor. I hum this one while I dust."],
+  [/smiles at me/i,      "Ted Lewis. ‘When My Baby Smiles at Me.’ The clarinet wobbles. I love that it wobbles."],
+  [/three o.?clock/i,    "‘Three O'Clock in the Morning.’ A waltz. For the very end of a long day."],
+  [/society blues|ory/i, "Kid Ory's band. 1922. One of the very first of its kind, I think."],
+  [/muscle shoals/i,     "Fats Waller. His very first record, if the label's right."],
+  [/king porter/i,       "Jelly Roll Morton. Busy, isn't it? Like my head on a new-stack day."],
+  [/wild cat/i,          "‘Wild Cat Blues.’ Listen to that saxophone go."],
+  [/prisoner/i,          "Vernon Dalhart. ‘The Prisoner's Song.’ A sad one. A tinned-fish record."],
+  [/jazz me/i,           "The Wolverines. ‘Jazz Me Blues.’ Warm and bright."],
+  [/copenhagen/i,        "Fletcher Henderson. ‘Copenhagen.’ 1924. It's all elbows, in the best way."],
+  [/gauhar|jaan|\bjan\b/i,"I can't read this label at all. Part of it's in a script I don't know. It's the one that feels right most often. I don't know why."],
+  [/debroy|savoy|orphean|maggie|canary|caryll/i, "The label's half worn off. A London dance band, I think. The Savoy, maybe? I'm guessing."]
+];
+const PENNY_TRACK_UNKNOWN = "I honestly don't know. The label's worn right off. I like it anyway.";
+
+function _pennyLoadYT() {
+  if (window.YT && window.YT.Player) return Promise.resolve();
+  if (_pennyYTLoading) return _pennyYTLoading;
+  _pennyYTLoading = new Promise(resolve => {
+    const prev = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = function() { if (typeof prev === 'function') prev(); resolve(); };
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(tag);
+  });
+  return _pennyYTLoading;
+}
+
+function _pennyRecordUI(playing) {
+  const btn = document.getElementById('penny-record-btn');
+  const box = document.getElementById('penny-record-player');
+  const cap = document.getElementById('penny-record-caption');
+  if (btn) btn.textContent = playing ? '♪ Lift the needle' : '♪ Put on a record';
+  if (box) box.hidden = !playing;
+  if (cap) cap.hidden = !playing;
+}
+
+async function pennyRecordStart() {
+  if (_pennyYT) { try { _pennyYT.playVideo(); } catch(e) {} _pennyRecordUI(true); return; }
+  const box = document.getElementById('penny-record-player');
+  if (!box) return;
+  _pennyRecordUI(true);
+  box.innerHTML = '<div id="penny-yt"></div>';
+  await _pennyLoadYT();
+  // "Whatever's on top" — start at a random record in the crate
+  const start = Math.floor(Math.random() * PENNY_PLAYLIST_LEN);
+  _pennyYT = new YT.Player('penny-yt', {
+    width: '280', height: '158',
+    playerVars: { listType: 'playlist', list: PENNY_PLAYLIST_ID, index: start, autoplay: 1, rel: 0, playsinline: 1, modestbranding: 1 },
+    events: { onReady: e => { try { e.target.setShuffle(true); e.target.setLoop(true); e.target.playVideo(); } catch(err) {} } }
+  });
+}
+function pennyRecordStop() {
+  if (_pennyYT) { try { _pennyYT.destroy(); } catch(e) {} _pennyYT = null; }
+  const box = document.getElementById('penny-record-player');
+  if (box) box.innerHTML = '';
+  _pennyRecordUI(false);
+}
+function pennyRecordToggle() { if (_pennyYT) pennyRecordStop(); else pennyRecordStart(); }
+function pennyRecordPlaying() { return !!_pennyYT; }
+window.pennyRecordStart = pennyRecordStart;
+window.pennyRecordStop = pennyRecordStop;
+window.pennyRecordToggle = pennyRecordToggle;
+
+// Penny's line for the current record (waits briefly for YouTube to report the title)
+async function _pennyCurrentTrackLine() {
+  for (let i = 0; i < 16; i++) {
+    let title = '';
+    try {
+      const vd = (_pennyYT && _pennyYT.getVideoData && _pennyYT.getVideoData()) || {};
+      title = vd.title ? (vd.title + ' ' + (vd.author || '')) : '';  // artist helps for tracks titled only by song
+    } catch(e) {}
+    if (title) {
+      const hit = PENNY_TRACK_LINES.find(([re]) => re.test(title));
+      return hit ? hit[1] : PENNY_TRACK_UNKNOWN;
+    }
+    await new Promise(r => setTimeout(r, 250));
+  }
+  return PENNY_TRACK_UNKNOWN;
+}
+
+// ══════════════════════════════════════════════════════
 // "I just came to talk" — Penny's chat hub
 // Topics are always listed so members can find them without hunting.
 // Every topic returns to the hub; the hub always offers a book or the door.
@@ -10643,7 +10761,7 @@ const PENNY_CHAT_OPENERS_BY_MONTH = {
 
 const PENNY_CHAT_TOPICS = {
   reading: { label: '"What are you reading right now?"' },
-  plants:  { label: '"How are the plants?"', lines: [
+  plants:  { label: '"How are the plants?"', firstLabel: '"There\'s a lot of plants in here!"', lines: [
     { action: "She glances at the African violet on the corner of the desk.", line: "Dorothea's having a difficult week. I moved her six inches to the left. We'll see." },
     { action: "She looks over at the monstera with something like respect.", line: "Miranda has put out a new leaf, which I take as approval. Of what, I don't know." },
     { action: "She nods toward the string of hearts trailing off the shelf.", line: "Jane is doing beautifully. Jane always does beautifully. I don't think she knows how much I worry about the others." },
@@ -10662,17 +10780,14 @@ const PENNY_CHAT_TOPICS = {
     { action: "She smiles at the whole collection.", line: "I read to them when a new stack comes in. A few pages from each book. It helps them grow. I'm almost sure of it." },
     { action: "She sighs, fondly.", line: "I didn't mean to name them. I held out for weeks. Then one morning I said \"good morning, Horatio\" and that was that." }
   ]},
-  bookmarks: { label: '"Where do the bookmarks come from?"', lines: [
-    { action: "She pulls open the top drawer of her desk. It's full of slim painted strips of paper.", line: "I paint them on Sunday afternoons. Rainy ones, ideally. Records on, plants nearby, a whole sheet cut into strips." },
-    { action: "She picks one out of the drawer and turns it over in her fingers.", line: "Every time I start a book, I pick a new one. When I finish, I leave it inside. Whoever reads it next gets to keep it." },
-    { action: "She fans a few of them out on the desk. Washes of color, nothing in particular.", line: "They're not pictures of anything. Just colors that felt right that day. I don't plan them. Planning ruins them." },
-    { action: "She looks a little wistful.", line: "I never know who ends up with which one. I like that. It's a bit like leaving a light on for someone." },
-    { action: "She gives you a very serious look.", line: "Please don't dog-ear your pages. That's what the bookmarks are for. I'll make you as many as you like." },
-    { action: "She tries to close the drawer. It doesn't quite close.", line: "There are… more than I strictly need. Rainy Sundays happen a lot." }
+  bookmarks: { label: '"Are those bookmarks on your desk? They look like paintings."', lines: [
+    { action: "She glances at the little stack of painted strips by her teacup, and very casually slides a book on top of them.", line: "Those? Oh — they're just bookmarks. I, um. I made them. It's nothing, really." },
+    { action: "She goes a little pink.", line: "They're bookmarks. Yes. I painted them. It's just something I do on Sundays. Anyway!" },
+    { action: "She picks one up, realizes you're watching, and puts it back down very neatly.", line: "Bookmarks. Mine. I'd rather not make a fuss about them, if that's alright. Maybe another time." }
   ]},
   music:   { label: '"What\'s that music?"', lines: [
-    { action: "She glances at the record player in the corner, where something old and crackly is playing.", line: "Oh — it's from a box I found in the stacks when I first got here. Old shellac records. I don't even know who they belonged to. I just like them." },
-    { action: "She smiles at the record player like it's an old friend.", line: "I never know which one I'm going to play. I just go through the box, and some days one just… feels right." },
+    { action: "She glances at the record player in the corner, where something old and crackly is playing.", line: "Oh — it's from an old wooden crate I found in the stacks when I first got here. Shellac records. I don't even know who they belonged to. I just like them." },
+    { action: "She smiles at the record player like it's an old friend.", line: "I never know which one I'm going to play. I just go through the crate, and some days one just… feels right." },
     { action: "She tilts her head, listening for a moment.", line: "They're older than anything else in here, I think. Older than the card catalog, maybe. They crackle. I like that they crackle." }
   ]},
   work:    { label: '"What\'s it like working here?"', lines: [
@@ -10683,6 +10798,16 @@ const PENNY_CHAT_TOPICS = {
     { action: "She laughs a little.", line: "My family still isn't entirely sure what I do. I tell them I've been reading a lot. That seems to cover it." }
   ]}
 };
+// Saved for later: once Penny is ready to talk about her bookmarks, these replace her shy answers.
+const PENNY_BOOKMARK_OPEN_LINES = [
+    { action: "She pulls open the top drawer of her desk. It's full of slim painted strips of paper.", line: "I paint them on Sunday afternoons. Rainy ones, ideally. Records on, plants nearby, a whole sheet cut into strips." },
+    { action: "She picks one out of the drawer and turns it over in her fingers.", line: "Every time I start a book, I pick a new one. When I finish, I leave it inside. Whoever reads it next gets to keep it." },
+    { action: "She fans a few of them out on the desk. Washes of color, nothing in particular.", line: "They're not pictures of anything. Just colors that felt right that day. I don't plan them. Planning ruins them." },
+    { action: "She looks a little wistful.", line: "I never know who ends up with which one. I like that. It's a bit like leaving a light on for someone." },
+    { action: "She gives you a very serious look.", line: "Please don't dog-ear your pages. That's what the bookmarks are for. I'll make you as many as you like." },
+    { action: "She tries to close the drawer. It doesn't quite close.", line: "There are… more than I strictly need. Rainy Sundays happen a lot." }
+  ];
+
 const PENNY_CHAT_READING_LEADS = [
   title => `Right now? <em>${title}</em>. Again, if I'm honest.`,
   title => `I've got <em>${title}</em> on the go.`,
@@ -10701,12 +10826,13 @@ function _pennyChatPick(area, topic, list) {
   return list[idx];
 }
 
-function _pennyChatButtons(area) {
+function _pennyChatButtons(area, extra) {
   const aid = area.id;
   return `
     <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
       <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
-      ${Object.entries(PENNY_CHAT_TOPICS).map(([id, t]) => `<button class="penny-action-btn" onclick="pennyChatTopic('${id}','${aid}',this)">${t.label}</button>`).join('')}
+      ${extra || ''}
+      ${Object.entries(PENNY_CHAT_TOPICS).map(([id, t]) => `<button class="penny-action-btn" onclick="pennyChatTopic('${id}','${aid}',this)">${(t.firstLabel && !(area._pennyState || {}).knowsPlants) ? t.firstLabel : t.label}</button>`).join('')}
       <button class="penny-action-btn" onclick="pennyChatToBook('${aid}',this)">"Actually — could you find me a book?"</button>
       <button class="penny-action-btn" onclick="pennyChatLeave('${aid}',this)">"I should get going."</button>
     </div>`;
@@ -10736,7 +10862,7 @@ function pennyChatStart(areaId, el) {
 }
 window.pennyChatStart = pennyChatStart;
 
-function _pennyChatBack(area, sceneHtml) {
+function _pennyChatBack(area, sceneHtml, extra) {
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
@@ -10744,7 +10870,7 @@ function _pennyChatBack(area, sceneHtml) {
         <p class="penny-speech" style="margin-top:.6rem;">Anything else on your mind?</p>
       </div>
     </div>
-    ${_pennyChatButtons(area)}`;
+    ${_pennyChatButtons(area, extra)}`;
 }
 
 function pennyChatTopic(topic, areaId, el) {
@@ -10753,13 +10879,47 @@ function pennyChatTopic(topic, areaId, el) {
   if (el) { el.disabled = true; el.style.opacity = '.5'; }
   setTimeout(() => {
     if (topic === 'reading') return _pennyChatReading(area);
+    if (topic === 'plants' && !(area._pennyState || {}).knowsPlants) return _pennyChatPlantsIntro(area);
     const t = PENNY_CHAT_TOPICS[topic];
     if (!t || !t.lines) return;
     const pick = _pennyChatPick(area, topic, t.lines);
-    _pennyChatBack(area, `<span class="penny-action">${pick.action}</span><p class="penny-speech">${pick.line}</p>`);
+    const extra = topic === 'music'
+      ? `<button class="penny-action-btn" onclick="pennyChatTurnItUp('${area.id}',this)">${pennyRecordPlaying() ? '"What record is this?"' : '"Could you turn it up?"'}</button>`
+      : '';
+    _pennyChatBack(area, `<span class="penny-action">${pick.action}</span><p class="penny-speech">${pick.line}</p>`, extra);
   }, 300);
 }
 window.pennyChatTopic = pennyChatTopic;
+
+// First time a member asks about the plants: Penny introduces all seven
+function _pennyChatPlantsIntro(area) {
+  if (!area._pennyState) area._pennyState = {};
+  area._pennyState.knowsPlants = true;
+  const key = _pennyActiveKey(area);
+  if (key) fbSet(PENNY_REF, { [key]: { knowsPlants: true } }).catch(()=>{});
+  _pennyChatBack(area, `
+    <span class="penny-action">Her whole face lights up.</span>
+    <p class="penny-speech">There are! Seven of them. I didn't mean to name them, but… well. You'll see.</p>
+    <span class="penny-action" style="margin-top:.4rem;">She points them out one at a time, like introducing friends at a party.</span>
+    <p class="penny-speech">That's Dorothea, the African violet. She worries me. Miranda, the monstera, who runs the place. Jane, trailing off the shelf there. Horatio, the snake plant. He's fine. He's always fine.</p>
+    <p class="penny-speech">Scheherazade, the string of pearls — every pearl a little story. Circe, by the door. You walked right past her.</p>
+    <span class="penny-action" style="margin-top:.4rem;">She saves the little citrus tree for last.</span>
+    <p class="penny-speech">And May. She fruits. When she's blooming you can smell her from the door.</p>
+    <p class="penny-speech">They're all named after characters from books I love. I water them in the same order every morning. Don't ask me to explain the order. I could, but it would take a while.</p>`);
+}
+
+async function pennyChatTurnItUp(areaId, el) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  if (el) { el.disabled = true; el.style.opacity = '.5'; }
+  const already = pennyRecordPlaying();
+  if (!already) await pennyRecordStart();
+  const line = await _pennyCurrentTrackLine();
+  _pennyChatBack(area, already
+    ? `<span class="penny-action">She tilts her head toward the record player, listening.</span><p class="penny-speech">${line}</p>`
+    : `<span class="penny-action">She lifts the lid of the record player, sets the needle down, and turns the little knob up.</span><p class="penny-speech">Oh! Of course.</p><p class="penny-speech">${line}</p>`);
+}
+window.pennyChatTurnItUp = pennyChatTurnItUp;
 
 function _pennyChatReading(area) {
   const aid = area.id;
