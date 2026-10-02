@@ -10651,7 +10651,7 @@ window.pennyJustStopping = pennyJustStopping;
 // ══════════════════════════════════════════════════════
 const PENNY_PLAYLIST_ID = 'PLJqtvvn9peAQ';
 const PENNY_PLAYLIST_LEN = 30;
-let _pennyYT = null, _pennyYTLoading = null;
+let _pennyYT = null, _pennyYTLoading = null, _pennyYTPaused = false;
 
 // What Penny says about whatever is playing (matched against the video title)
 const PENNY_TRACK_LINES = [
@@ -10699,12 +10699,16 @@ function _pennyRecordUI(playing) {
   const box = document.getElementById('penny-record-player');
   const cap = document.getElementById('penny-record-caption');
   if (btn) btn.textContent = playing ? '♪ Lift the needle' : '♪ Put on a record';
+  document.querySelectorAll('[data-penny-music]').forEach(b => {
+    b.textContent = playing ? '"What\'s that music?"' : '"Could you put on a record?"';
+  });
   if (box) box.hidden = !playing;
   if (cap) cap.hidden = !playing;
 }
 
 async function pennyRecordStart() {
-  if (_pennyYT) { try { _pennyYT.playVideo(); } catch(e) {} _pennyRecordUI(true); return; }
+  // Needle back down on the same record, right where it was lifted
+  if (_pennyYT) { _pennyYTPaused = false; try { _pennyYT.playVideo(); } catch(e) {} _pennyRecordUI(true); return; }
   const box = document.getElementById('penny-record-player');
   if (!box) return;
   _pennyRecordUI(true);
@@ -10715,17 +10719,30 @@ async function pennyRecordStart() {
   _pennyYT = new YT.Player('penny-yt', {
     width: '100%', height: '100%',
     playerVars: { listType: 'playlist', list: PENNY_PLAYLIST_ID, index: start, autoplay: 1, rel: 0, playsinline: 1, modestbranding: 1 },
-    events: { onReady: e => { try { e.target.setShuffle(true); e.target.setLoop(true); e.target.playVideo(); } catch(err) {} } }
+    events: {
+      onReady: e => { try { e.target.setShuffle(true); e.target.setLoop(true); e.target.playVideo(); } catch(err) {} },
+      // A record that won't play (removed or blocked): move on to the next one
+      onError: e => { try { e.target.nextVideo(); } catch(err) {} }
+    }
   });
 }
+// Lift the needle: pause and put the player away; the record stays on the turntable for this visit
+function pennyRecordLift() {
+  if (!_pennyYT) return;
+  _pennyYTPaused = true;
+  try { _pennyYT.pauseVideo(); } catch(e) {}
+  _pennyRecordUI(false);
+}
+// Fully stop (walking out, leaving the tab): next visit starts with a fresh record
 function pennyRecordStop() {
+  _pennyYTPaused = false;
   if (_pennyYT) { try { _pennyYT.destroy(); } catch(e) {} _pennyYT = null; }
   const box = document.getElementById('penny-record-player');
   if (box) box.innerHTML = '';
   _pennyRecordUI(false);
 }
-function pennyRecordToggle() { if (_pennyYT) pennyRecordStop(); else pennyRecordStart(); }
-function pennyRecordPlaying() { return !!_pennyYT; }
+function pennyRecordToggle() { if (pennyRecordPlaying()) pennyRecordLift(); else pennyRecordStart(); }
+function pennyRecordPlaying() { return !!_pennyYT && !_pennyYTPaused; }
 window.pennyRecordStart = pennyRecordStart;
 window.pennyRecordStop = pennyRecordStop;
 window.pennyRecordToggle = pennyRecordToggle;
@@ -10840,7 +10857,7 @@ function _pennyChatButtons(area, extra) {
     <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
       <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
       ${extra || ''}
-      ${Object.entries(PENNY_CHAT_TOPICS).map(([id, t]) => `<button class="penny-action-btn" onclick="pennyChatTopic('${id}','${aid}',this)">${(t.firstLabel && !(area._pennyState || {}).knowsPlants) ? t.firstLabel : t.label}</button>`).join('')}
+      ${Object.entries(PENNY_CHAT_TOPICS).map(([id, t]) => `<button class="penny-action-btn" ${id === 'music' ? 'data-penny-music="1" ' : ''}onclick="pennyChatTopic('${id}','${aid}',this)">${id === 'music' ? _pennyMusicLabel() : ((t.firstLabel && !(area._pennyState || {}).knowsPlants) ? t.firstLabel : t.label)}</button>`).join('')}
       <button class="penny-action-btn" onclick="pennyChatToBook('${aid}',this)">"Actually — could you find me a book?"</button>
       <button class="penny-action-btn" onclick="pennyChatLeave('${aid}',this)">"I should get going."</button>
     </div>`;
@@ -10887,14 +10904,12 @@ function pennyChatTopic(topic, areaId, el) {
   if (el) { el.disabled = true; el.style.opacity = '.5'; }
   setTimeout(() => {
     if (topic === 'reading') return _pennyChatReading(area);
+    if (topic === 'music') return _pennyChatMusic(area);
     if (topic === 'plants' && !(area._pennyState || {}).knowsPlants) return _pennyChatPlantsIntro(area);
     const t = PENNY_CHAT_TOPICS[topic];
     if (!t || !t.lines) return;
     const pick = _pennyChatPick(area, topic, t.lines);
-    const extra = topic === 'music'
-      ? `<button class="penny-action-btn" onclick="pennyChatTurnItUp('${area.id}',this)">${pennyRecordPlaying() ? '"What record is this?"' : '"Could you turn it up?"'}</button>`
-      : '';
-    _pennyChatBack(area, `<span class="penny-action">${pick.action}</span><p class="penny-speech">${pick.line}</p>`, extra);
+    _pennyChatBack(area, `<span class="penny-action">${pick.action}</span><p class="penny-speech">${pick.line}</p>`);
   }, 300);
 }
 window.pennyChatTopic = pennyChatTopic;
@@ -10916,18 +10931,28 @@ function _pennyChatPlantsIntro(area) {
     <p class="penny-speech">They're all named after characters from books I love. I water them in the same order every morning. Don't ask me to explain the order. I could, but it would take a while.</p>`);
 }
 
-async function pennyChatTurnItUp(areaId, el) {
-  const area = document.getElementById(areaId);
-  if (!area) return;
-  if (el) { el.disabled = true; el.style.opacity = '.5'; }
-  const already = pennyRecordPlaying();
-  if (!already) await pennyRecordStart();
-  const line = await _pennyCurrentTrackLine();
-  _pennyChatBack(area, already
-    ? `<span class="penny-action">She tilts her head toward the record player, listening.</span><p class="penny-speech">${line}</p>`
-    : `<span class="penny-action">She lifts the lid of the record player, sets the needle down, and turns the little knob up.</span><p class="penny-speech">Oh! Of course.</p><p class="penny-speech">${line}</p>`);
+function _pennyMusicLabel() {
+  return pennyRecordPlaying() ? '"What\'s that music?"' : '"Could you put on a record?"';
 }
-window.pennyChatTurnItUp = pennyChatTurnItUp;
+
+// One music option: puts a record on if nothing's playing, otherwise talks about what is.
+// The crate story is told once per visit; after that she just names the record.
+async function _pennyChatMusic(area) {
+  area._pennyChatUsed = area._pennyChatUsed || {};
+  const firstTime = !area._pennyChatUsed.musicStory;
+  const story = firstTime ? _pennyChatPick(area, 'music', PENNY_CHAT_TOPICS.music.lines).line : '';
+  area._pennyChatUsed.musicStory = true;
+  const wasPlaying = pennyRecordPlaying();
+  if (!wasPlaying) await pennyRecordStart();
+  const track = await _pennyCurrentTrackLine();
+  const scene = wasPlaying
+    ? `<span class="penny-action">She tilts her head toward the record player, listening.</span>`
+    : `<span class="penny-action">She lifts the lid of the record player, sets the needle down, and turns the little knob up.</span>
+       ${firstTime ? '' : '<p class="penny-speech">Oh! Of course.</p>'}`;
+  _pennyChatBack(area, `${scene}
+    ${story ? `<p class="penny-speech">${story}</p>` : ''}
+    <p class="penny-speech">${firstTime ? 'This one? ' : ''}${track}</p>`);
+}
 
 function _pennyChatReading(area) {
   const aid = area.id;
