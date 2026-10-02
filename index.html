@@ -10833,7 +10833,7 @@ window.pennyJustStopping = pennyJustStopping;
 // Never autoplays: only starts when a member clicks or asks her to.
 // ══════════════════════════════════════════════════════
 const PENNY_PLAYLIST_ID = 'PLJqtvvn9peAQ';
-const PENNY_PLAYLIST_LEN = 30;
+const PENNY_PLAYLIST_LEN = 27; // fallback only; the player counts the real playlist itself
 let _pennyYT = null, _pennyYTLoading = null, _pennyYTPaused = false;
 
 // What Penny says about whatever is playing (matched against the video title)
@@ -10845,7 +10845,7 @@ const PENNY_TRACK_LINES = [
   [/dipper ?mouth/i,     "King Oliver's band. That's a very young Louis Armstrong on the cornet."],
   [/bananas/i,           "Oh no. It's the banana song. I play this one when a book was too heavy."],
   [/had to be you/i,     "‘It Had to Be You.’ 1924. I always forget how much I like this one."],
-  [/rider/i,             "Ma Rainey. ‘See See Rider.’ 1924."],
+  [/rider/i,             "Ma Rainey. ‘C.C. Rider.’ 1924."],
   [/rhapsody/i,          "Gershwin. ‘Rhapsody in Blue.’ This is my Sunday afternoon record."],
   [/dinah/i,             "Ethel Waters. ‘Dinah.’ She makes it sound so easy."],
   [/heebie/i,            "Louis Armstrong. ‘Heebie Jeebies.’ Nobody sits still for this one. Not even Horatio."],
@@ -10860,6 +10860,11 @@ const PENNY_TRACK_LINES = [
   [/jazz me/i,           "The Wolverines. ‘Jazz Me Blues.’ Warm and bright."],
   [/copenhagen/i,        "Fletcher Henderson. ‘Copenhagen.’ 1924. It's all elbows, in the best way."],
   [/gauhar|jaan|\bjan\b/i,"I can't read this label at all. Part of it's in a script I don't know. It's the one that feels right most often. I don't know why."],
+  [/limehouse/i,         "‘Limehouse Blues.’ Gertrude Lawrence. That's London, down by the river. Someone carried this one a long way."],
+  [/hylton/i,            "Jack Hylton's band. London, I'm fairly sure. Whoever packed this box spent some time over there."],
+  [/only girl/i,         "‘If You Were the Only Girl in the World.’ Older than the rest. Somebody played this one a lot. Listen to the wear."],
+  [/burlington|bertie/i, "Burlington Bertie. Music hall. I sing along when nobody's here. Please don't tell anyone."],
+  [/room with a view/i,  "Jessie Matthews. ‘A Room with a View.’ I'd settle for a room with a window that closes properly."],
   [/debroy|savoy|orphean|maggie|canary|caryll/i, "The label's half worn off. A London dance band, I think. The Savoy, maybe? I'm guessing."]
 ];
 const PENNY_TRACK_UNKNOWN = "I honestly don't know. The label's worn right off. I like it anyway.";
@@ -10898,12 +10903,19 @@ async function pennyRecordStart() {
   box.innerHTML = '<div id="penny-yt"></div>';
   await _pennyLoadYT();
   // "Whatever's on top" — start at a random record in the crate
-  const start = Math.floor(Math.random() * PENNY_PLAYLIST_LEN);
+  // Start at the top, then jump to a random record once YouTube reports how many are in the crate
   _pennyYT = new YT.Player('penny-yt', {
     width: '100%', height: '100%',
-    playerVars: { listType: 'playlist', list: PENNY_PLAYLIST_ID, index: start, autoplay: 1, rel: 0, playsinline: 1, modestbranding: 1 },
+    playerVars: { listType: 'playlist', list: PENNY_PLAYLIST_ID, index: 0, autoplay: 1, rel: 0, playsinline: 1, modestbranding: 1 },
     events: {
-      onReady: e => { try { e.target.setShuffle(true); e.target.setLoop(true); e.target.playVideo(); } catch(err) {} },
+      onReady: e => {
+        try {
+          e.target.setShuffle(true); e.target.setLoop(true);
+          const pl = e.target.getPlaylist && e.target.getPlaylist();
+          const n = (pl && pl.length) || PENNY_PLAYLIST_LEN;
+          e.target.playVideoAt(Math.floor(Math.random() * n));
+        } catch(err) { try { e.target.playVideo(); } catch(e2) {} }
+      },
       // A record that won't play (removed or blocked): move on to the next one
       onError: e => { try { e.target.nextVideo(); } catch(err) {} }
     }
