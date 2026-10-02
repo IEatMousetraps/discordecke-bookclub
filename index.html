@@ -2082,6 +2082,27 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
         </details>
       </div>
 
+      <!-- Penny's Notes -->
+      <div class="card" style="margin-bottom:1rem;">
+        <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.4rem;">📝 Penny's Notes</h3>
+        <p style="font-size:.85rem;color:var(--soft);margin-bottom:.75rem;">Her personal line for a book, shown on the recommendation card in place of the generic quote. Books without a note keep the generic quotes. Write it the way she'd say it, sliding the card across the desk.</p>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem;">
+          <select id="pnote-book" onchange="pennyNoteAdminLoad()" style="flex:1;min-width:220px;"></select>
+        </div>
+        <textarea id="pnote-text" rows="3" placeholder="Pick a book above…" style="width:100%;"></textarea>
+        <div id="pnote-source" style="font-size:.78rem;color:var(--soft);margin:.3rem 0 .6rem;"></div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+          <button class="btn btn-primary btn-sm" onclick="pennyNoteAdminSave()">Save note</button>
+          <button class="btn btn-secondary btn-sm" onclick="pennyNoteAdminClear()">No note (use generic quotes)</button>
+          <button class="btn btn-secondary btn-sm" onclick="pennyNoteAdminReset()">Reset to original</button>
+          <span id="pnote-msg" style="font-size:.8rem;color:var(--gold);align-self:center;"></span>
+        </div>
+        <details style="margin-top:.9rem;">
+          <summary id="pnote-list-summary" style="cursor:pointer;font-size:.85rem;color:var(--soft);">Books with a note</summary>
+          <div id="pnote-list" style="margin-top:.5rem;"></div>
+        </details>
+      </div>
+
       <!-- Member Visit Manager -->
       <div class="card" style="margin-bottom:1rem;">
         <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.4rem;">👥 Member Visit History</h3>
@@ -5166,6 +5187,7 @@ function goAdminTab(id, btn) {
   if (id === 'penny-admin') {
     renderHistoricalBookList();
     renderPennyCatalogAdmin();
+    renderPennyNotesAdmin();
     // Populate member dropdown for visit history
     adminPopulatePennyMemberDropdown();
     // Update live status label
@@ -10871,6 +10893,54 @@ const PENNY_CARD_QUOTES = [
   `Trust the process. And me. Mostly me.`
 ];
 
+// ── Penny's notes: her personal line for books she has strong opinions about ──
+// Built-in defaults. Admin edits live in settings.pennyNotes (keyed by normTitleKey):
+//   a string overrides the default, '' means "no note" (generic quote), null means "use default".
+const PENNY_DEFAULT_NOTES = {
+  // 2025 stacks
+  'A Psalm for the Wild-Built': "Trust me. That's all I'm going to say. Bring a cup of tea.",
+  'The Library Book': "It's about a library that burned, and the people who loved it anyway. I think everyone should read it. I'm biased. I work here.",
+  'I Who Have Never Known Men': "This one's quiet. Read it in one sitting if you can, and give yourself a minute after. I needed several.",
+  'Ways of Seeing': "It's short, and it will change how you look at every picture you see for the rest of your life. I've read it more than once.",
+  'House of Leaves': "It's long and strange and the pages don't always behave. …You're still listening. Good. I think you're ready.",
+  'Console Wars': "It's very thorough. I'd rather play them than read about them, but if you're curious about how it all started, it's all in here.",
+  'All Good People Here': "It's not one of my favorites. But every book has a reader, and it might be you. Tell me what you think.",
+  // 2026 stacks
+  'The Long Way to a Small Angry Planet': "Same author as Psalm, different crew, same kindness. If one of them found you, the other will too.",
+  'Remarkably Bright Creatures': "There's an octopus in this one who's smarter than everyone around him. I'm very fond of him. Don't tell the others.",
+  'The Pumpkin Spice Cafe': "It lost by one point. One point. Read it in October, if you can. That's when it's at its best.",
+  'Wintering': "You look like you could use this one. That's not an insult. It's the nicest thing I can say.",
+  'Do Not Sell At Any Price': "It's about people who rescue old records before they're gone for good. I understand them better than I expected to.",
+  'The Remains of the Day': "Read it slowly. It doesn't tell you anything. It lets you figure it out, and then it's too late.",
+  'How to Die in Space': "It's about all the beautiful ways the universe could kill you. …You're smiling. Good. I knew it.",
+  'Gifts of the Crow': "Crows remember faces. They leave gifts. They hold funerals. I think we'd get along.",
+  'The Genius of Birds': "Everything in here is true, and most of it is astonishing. I've been telling the plants about it all week.",
+  'Slither': "This one was recommended with eleven S's and three exclamation points. That's all the convincing I needed.",
+  'Dune': "It's enormous and magnificent. There's a glossary. Use it. I'm not joking.",
+  'The Let Them Theory': "There's a very good idea at the heart of this one. Take it with you. That's the part that matters."
+};
+const _PENNY_DEFAULT_NOTE_KEYS = Object.entries(PENNY_DEFAULT_NOTES).map(([t, n]) => [normTitleKey(t), n, t]);
+
+// Default note for a title: exact key match, or the title starts with a default's key (handles subtitles)
+function _pennyDefaultNote(title) {
+  const k = normTitleKey(title);
+  if (!k) return '';
+  let hit = _PENNY_DEFAULT_NOTE_KEYS.find(([dk]) => dk === k);
+  if (!hit) hit = _PENNY_DEFAULT_NOTE_KEYS.find(([dk]) => dk.length >= 6 && k.startsWith(dk));
+  return hit ? hit[1] : '';
+}
+
+// Effective note + where it came from: { note, source: 'edited' | 'default' | 'none' }
+function pennyNoteInfo(title) {
+  const k = normTitleKey(title);
+  const saved = ((getSettings() || {}).pennyNotes || {})[k];
+  if (typeof saved === 'string') return { note: saved, source: saved ? 'edited' : 'none' };
+  const def = _pennyDefaultNote(title);
+  return { note: def, source: def ? 'default' : 'none' };
+}
+function pennyNoteFor(title) { return pennyNoteInfo(title).note; }
+window.pennyNoteFor = pennyNoteFor;
+
 // Render the recommendation card + accept/decline buttons
 // ── Own-book dialog ───────────────────────────────────
 function _pennyOwnBookDialog(area, book, pool, fromBranch) {
@@ -10943,7 +11013,8 @@ function _pennyShowRecommendation(area, book, fromBranch) {
   const suggester = (book.suggesters || []).find(s => s.discord || s.email);
   const suggesterName = suggester ? (suggester.discord || suggester.email || '') : '';
   const isHistorical = book.id.startsWith('hist_');
-  const quote = PENNY_CARD_QUOTES[Math.floor(Math.random() * PENNY_CARD_QUOTES.length)];
+  const ownNote = pennyNoteFor(book.title);
+  const quote = ownNote ? esc(ownNote) : PENNY_CARD_QUOTES[Math.floor(Math.random() * PENNY_CARD_QUOTES.length)];
 
   // Store the recommendation so return visits can reference it
   area._pennyLastRec = book;
@@ -11761,6 +11832,7 @@ function renderPennyCatalogAdmin() {
         ${hist ? chip('2025 historical', true) : chip(b.month, false)}
         ${b.submissionCount >= 2 ? chip('submitted ' + b.submissionCount + '×', false) : ''}
         ${dup ? chip('also in 2025 list', false) : ''}
+        ${pennyNoteFor(b.title) ? chip('📝 note', true) : ''}
       </div>
       <div style="color:var(--soft);font-size:.78rem;margin-top:.15rem;">
         ${[who ? 'via ' + esc(who) : '<span style="color:#e57373;">no suggester</span>',
@@ -11796,6 +11868,75 @@ function renderPennyCatalogAdmin() {
 }
 window.renderPennyCatalogAdmin = renderPennyCatalogAdmin;
 
+// ── Penny's Notes admin ───────────────────────────────
+function renderPennyNotesAdmin() {
+  const sel = document.getElementById('pnote-book');
+  if (!sel) return;
+  let pool = [];
+  try { pool = _pennyBuildPool(null); } catch (e) { pool = []; }
+  const prev = sel.value;
+  const books = [...pool].sort((a, b) => a.title.localeCompare(b.title));
+  sel.innerHTML = '<option value="">— Choose a book from her catalog —</option>' + books.map(b => {
+    const info = pennyNoteInfo(b.title);
+    const mark = info.source === 'edited' ? '✎ ' : info.source === 'default' ? '📝 ' : '';
+    return `<option value="${esc(b.title)}">${mark}${esc(b.title)}${b.author ? ' — ' + esc(b.author) : ''}</option>`;
+  }).join('');
+  if (prev && books.some(b => b.title === prev)) sel.value = prev;
+  pennyNoteAdminLoad();
+
+  const withNotes = books.map(b => ({ b, info: pennyNoteInfo(b.title) })).filter(x => x.info.note);
+  const sum = document.getElementById('pnote-list-summary');
+  if (sum) sum.textContent = `Books with a note (${withNotes.length} of ${books.length})`;
+  const list = document.getElementById('pnote-list');
+  if (list) list.innerHTML = withNotes.length ? withNotes.map(({ b, info }) => `
+    <div style="padding:.4rem 0;border-bottom:1px solid rgba(128,128,128,.15);font-size:.82rem;">
+      <strong>${esc(b.title)}</strong> <span style="font-size:.7rem;color:var(--soft);">${info.source === 'edited' ? '✎ edited' : 'original'}</span>
+      <div style="font-style:italic;color:var(--soft);margin-top:.15rem;">"${esc(info.note)}"</div>
+    </div>`).join('') : '<p style="font-size:.82rem;color:var(--soft);">No notes yet.</p>';
+}
+window.renderPennyNotesAdmin = renderPennyNotesAdmin;
+
+function pennyNoteAdminLoad() {
+  const title = document.getElementById('pnote-book')?.value || '';
+  const ta = document.getElementById('pnote-text');
+  const src = document.getElementById('pnote-source');
+  if (!ta) return;
+  if (!title) { ta.value = ''; if (src) src.textContent = ''; return; }
+  const info = pennyNoteInfo(title);
+  ta.value = info.note;
+  if (src) src.textContent = info.source === 'edited' ? 'Edited note (saved by you).'
+    : info.source === 'default' ? 'Original note.'
+    : (_pennyDefaultNote(title) ? 'Note turned off — this book uses the generic quotes.' : 'No note yet — this book uses the generic quotes.');
+}
+window.pennyNoteAdminLoad = pennyNoteAdminLoad;
+
+async function _pennyNoteWrite(value, msg) {
+  const title = document.getElementById('pnote-book')?.value || '';
+  const msgEl = document.getElementById('pnote-msg');
+  if (!title) { if (msgEl) msgEl.textContent = 'Choose a book first.'; return; }
+  const key = normTitleKey(title);
+  try {
+    await fbSet(SETTINGS_REF, { pennyNotes: { [key]: value } });
+    const st = getSettings();
+    if (st) { st.pennyNotes = Object.assign({}, st.pennyNotes || {}, { [key]: value }); }
+    if (msgEl) { msgEl.textContent = msg; setTimeout(() => { msgEl.textContent = ''; }, 2500); }
+    renderPennyNotesAdmin();
+    renderPennyCatalogAdmin();
+  } catch (e) {
+    if (msgEl) msgEl.textContent = 'Save failed: ' + e.message;
+  }
+}
+function pennyNoteAdminSave() {
+  const text = (document.getElementById('pnote-text')?.value || '').trim();
+  if (!text) return pennyNoteAdminClear();
+  return _pennyNoteWrite(text, '✓ Saved');
+}
+function pennyNoteAdminClear() { return _pennyNoteWrite('', '✓ Note off — generic quotes'); }
+function pennyNoteAdminReset() { return _pennyNoteWrite(null, '✓ Reset to original'); }
+window.pennyNoteAdminSave = pennyNoteAdminSave;
+window.pennyNoteAdminClear = pennyNoteAdminClear;
+window.pennyNoteAdminReset = pennyNoteAdminReset;
+
 // ── Download Penny's full card catalog (plus excluded titles) as CSV ──
 function downloadPennyCatalogCSV() {
   let pool = [];
@@ -11813,7 +11954,7 @@ function downloadPennyCatalogCSV() {
     return (ai - bi) || a.title.localeCompare(b.title);
   });
 
-  const rows = [['Status','Source','Month','Title','Author','Genre','Pages','Suggested By','Finish Position','Books That Month','Borda Points','Points Behind Winner','Times Submitted','Why Recommended']];
+  const rows = [['Status','Source','Month','Title','Author','Genre','Pages','Suggested By','Finish Position','Books That Month','Borda Points','Points Behind Winner','Times Submitted','Why Recommended',"Penny's Note"]];
   pool.forEach(b => {
     const hist = isHist(b);
     rows.push([
@@ -11821,7 +11962,7 @@ function downloadPennyCatalogCSV() {
       b.pageCount || '', whoOf(b.suggesters),
       hist ? '' : b.rankPosition, hist ? '' : b.totalBooks,
       hist ? '' : b.bordaScore, hist ? '' : b.pointsBehind,
-      b.submissionCount || 1, whyOf(b.suggesters)
+      b.submissionCount || 1, whyOf(b.suggesters), pennyNoteFor(b.title)
     ]);
   });
 
