@@ -1178,10 +1178,11 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   padding: 2rem;
 }
 /* Record player */
+.penny-record[hidden], .penny-record-player[hidden], .penny-record-caption[hidden] { display:none !important; }
 .penny-record { display:flex; flex-direction:column; align-items:center; gap:.5rem; margin:.2rem 0 1rem; position:relative; z-index:2; }
 .penny-record-btn { background:transparent; border:1px solid rgba(240,180,41,.35); border-radius:999px; color:rgba(240,180,41,.8); font-family:'Playfair Display',serif; font-style:italic; font-size:13px; padding:.35rem 1rem; cursor:pointer; transition:background .18s,border-color .18s; }
 .penny-record-btn:hover, .penny-record-btn:focus-visible { background:rgba(240,180,41,.08); border-color:rgba(240,180,41,.7); outline:none; }
-.penny-record-player { width:280px; max-width:calc(100vw - 3rem); aspect-ratio:16/9; border:1px solid #5a3e20; border-radius:3px; overflow:hidden; background:#000; }
+.penny-record-player { width:min(520px, calc(100vw - 3rem)); aspect-ratio:16/9; border:6px solid #5a3e20; outline:1px solid rgba(240,180,41,.35); outline-offset:3px; border-radius:4px; overflow:hidden; background:#000; box-shadow:0 10px 24px rgba(0,0,0,.45); }
 .penny-record-player iframe { width:100%; height:100%; display:block; border:0; }
 .penny-record-caption { font-family:'Playfair Display',serif; font-style:italic; font-size:12px; color:rgba(240,180,41,.5); }
 /* ═══════════════ END PENNY'S ═══════════════ */
@@ -1580,7 +1581,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
     </svg>
   </div>
   <!-- Record player: plays "The Box Marked S.R.R" playlist, only when a member asks -->
-  <div class="penny-record" id="penny-record">
+  <div class="penny-record" id="penny-record" hidden>
     <button type="button" class="penny-record-btn" id="penny-record-btn" onclick="pennyRecordToggle()">♪ Put on a record</button>
     <div class="penny-record-player" id="penny-record-player" hidden></div>
     <div class="penny-record-caption" id="penny-record-caption" hidden>Playing from the box marked S.R.R.</div>
@@ -10285,6 +10286,11 @@ async function renderPennyTabInto(area) {
 }
 
 function _pennyShowDoor(area) {
+  // Outside the door: no record player, and any music stops
+  if (area && area.id === 'penny-interaction-area') {
+    if (typeof pennyRecordStop === 'function') pennyRecordStop();
+    const rec = document.getElementById('penny-record'); if (rec) rec.hidden = true;
+  }
   const aid = area.id;
   area.className = '';
   area.innerHTML = `
@@ -10310,6 +10316,8 @@ function pennyAdvance(stage, areaId) {
   const aid = area.id;
 
   if (stage === 'entering') {
+    // Once you're inside, the record player is there to use
+    if (aid === 'penny-interaction-area') { const rec = document.getElementById('penny-record'); if (rec) rec.hidden = false; }
     const scenario = PENNY_SCENARIOS[Math.floor(Math.random() * PENNY_SCENARIOS.length)];
     area._pennyScenario = scenario;
     const isFirstVisit = (area._pennyState || {}).isFirstVisit !== false;
@@ -10705,7 +10713,7 @@ async function pennyRecordStart() {
   // "Whatever's on top" — start at a random record in the crate
   const start = Math.floor(Math.random() * PENNY_PLAYLIST_LEN);
   _pennyYT = new YT.Player('penny-yt', {
-    width: '280', height: '158',
+    width: '100%', height: '100%',
     playerVars: { listType: 'playlist', list: PENNY_PLAYLIST_ID, index: start, autoplay: 1, rel: 0, playsinline: 1, modestbranding: 1 },
     events: { onReady: e => { try { e.target.setShuffle(true); e.target.setLoop(true); e.target.playVideo(); } catch(err) {} } }
   });
