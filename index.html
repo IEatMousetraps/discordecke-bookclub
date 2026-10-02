@@ -8724,6 +8724,8 @@ function renderAdminBadgeMembers() {
     const p = computeMemberProfile(m.discord, m.email);
     const earned = allBadges.filter(b => hasBadge(b.id, p, m.key));
     const notEarned = allBadges.filter(b => !hasBadge(b.id, p, m.key));
+    const memberOv = (cfg.overrides || {})[m.key] || {};
+    const blocked = allBadges.filter(b => memberOv[b.id] === false);
     const memberId = 'mbr-' + m.key.replace(/[^a-z0-9]/g,'_');
     return `<div class="card" style="padding:1rem;margin-bottom:.75rem;">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;margin-bottom:.75rem;">
@@ -8734,15 +8736,19 @@ function renderAdminBadgeMembers() {
         <span style="font-size:.82rem;color:var(--gold);font-weight:600;">${earned.length} badge${earned.length!==1?'s':''}</span>
       </div>
       <div style="margin-bottom:.5rem;">
-        <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.4rem;">Earned</div>
-        <div style="display:flex;flex-wrap:wrap;gap:.35rem;">
-          ${earned.length ? earned.map(b=>`
-            <span style="display:inline-flex;align-items:center;gap:.3rem;background:#e8f5e9;border:1px solid #a5d6a7;color:#2d7a3a;padding:.2rem .55rem;border-radius:20px;font-size:.75rem;">
-              ${b.iconDataUrl?`<img src="${b.iconDataUrl}" style="width:14px;height:14px;object-fit:contain;">`:b.emoji} ${esc(b.name)}
-              <button onclick="adminToggleBadge('${m.key}','${b.id}',false)" style="background:none;border:none;cursor:pointer;color:#c0392b;font-size:.9rem;line-height:1;padding:0 0 0 .2rem;" title="Revoke">×</button>
-            </span>`).join('') : '<span style="font-size:.78rem;color:var(--soft);">None yet</span>'}
-        </div>
+        <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.5rem;">Earned</div>
+        ${earned.length ? _adminEarnedByCategory(m.key, earned) : '<span style="font-size:.78rem;color:var(--soft);">None yet</span>'}
       </div>
+      ${blocked.length ? `<div style="margin-bottom:.5rem;">
+        <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.4rem;">Blocked <span style="text-transform:none;letter-spacing:0;">(can't be earned until unblocked)</span></div>
+        <div style="display:flex;flex-wrap:wrap;gap:.35rem;">
+          ${blocked.map(b=>`
+            <span style="display:inline-flex;align-items:center;gap:.35rem;background:#fce4ec;border:1px solid #ef9a9a;color:#c0392b;padding:.2rem .55rem;border-radius:20px;font-size:.75rem;">
+              ${b.iconDataUrl?`<img src="${b.iconDataUrl}" style="width:14px;height:14px;object-fit:contain;">`:b.emoji} ${esc(b.name)}
+              <button onclick="adminUnblockBadge('${m.key}','${b.id}')" style="background:none;border:none;cursor:pointer;color:#2d7a3a;font-size:.72rem;text-decoration:underline;padding:0 0 0 .2rem;" title="Let them earn this badge again">Unblock</button>
+            </span>`).join('')}
+        </div>
+      </div>` : ''}
       <div>
         <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.4rem;">Grant a Badge</div>
         <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;">
@@ -8755,6 +8761,25 @@ function renderAdminBadgeMembers() {
       </div>
     </div>`;
   }).join('');
+}
+
+// Earned badges on the admin member card, grouped under category headings
+function _adminEarnedByCategory(memberKey, earned) {
+  const catOf = b => b.category || BADGE_CATEGORY_MAP[b.id] || ((b.adminOnly || b.custom) ? 'admin' : 'fun');
+  const pill = b => `
+    <span style="display:inline-flex;align-items:center;gap:.3rem;background:#e8f5e9;border:1px solid #a5d6a7;color:#2d7a3a;padding:.2rem .55rem;border-radius:20px;font-size:.75rem;">
+      ${b.iconDataUrl?`<img src="${b.iconDataUrl}" style="width:14px;height:14px;object-fit:contain;">`:b.emoji} ${esc(b.name)}
+      <button onclick="adminRemoveBadge('${memberKey}','${b.id}')" style="background:none;border:none;cursor:pointer;color:#c0392b;font-size:.9rem;line-height:1;padding:0 0 0 .2rem;" title="Remove badge">×</button>
+    </span>`;
+  const known = new Set(BADGE_CATEGORIES.map(c => c.id));
+  const groups = BADGE_CATEGORIES.map(c => ({ label: c.label, items: earned.filter(b => catOf(b) === c.id) }));
+  const other = earned.filter(b => !known.has(catOf(b)));
+  if (other.length) groups.push({ label: 'Other', items: other });
+  return groups.filter(g => g.items.length).map(g => `
+    <div style="display:flex;gap:.75rem;align-items:flex-start;padding:.45rem 0;border-top:1px solid var(--border);">
+      <div style="flex:0 0 150px;font-size:.75rem;font-weight:600;color:var(--ink);padding-top:.25rem;">${g.label} <span style="font-weight:400;color:var(--soft);">${g.items.length}</span></div>
+      <div style="flex:1;display:flex;flex-wrap:wrap;gap:.35rem;min-width:200px;">${g.items.map(pill).join('')}</div>
+    </div>`).join('');
 }
 
 async function adminToggleBadge(memberKey, badgeId, grant) {
@@ -8777,6 +8802,120 @@ async function adminToggleBadge(memberKey, badgeId, grant) {
   renderAdminBadgeMembers();
 }
 window.adminToggleBadge = adminToggleBadge;
+
+// ── Remove a badge so it can be re-earned ─────────────────────────────────
+// How a badge is removed depends on where it comes from:
+//  • Penny badges      → the matching Penny flag is cleared; re-earned by doing it again
+//  • Monthly book      → their status for that book goes back to "Reading"; re-earned by marking Finished
+//  • Easter egg/custom → the grant is deleted; re-earned by finding it again / admin re-grant
+//  • Calculated from club history (votes, reviews, streaks…) → these recompute live from data,
+//    so they'd come straight back. They're blocked instead, with an Unblock button to restore.
+const PENNY_PLANT_NAMES = ['dorothea','miranda','jane','horatio','scheherazade','circe','may'];
+const PENNY_FLAG_BADGES = {
+  'penny-trust':'usedTrust', 'penny-catalog':'usedCatalog', 'penny-quiz':'usedQuiz',
+  'penny-accepted':'acceptedRec', 'penny-declined':'declinedRec', 'penny-chat':'usedChat',
+};
+
+function _pennyBadgeResetPlan(memberKey, badgeId) {
+  const rec = (CACHE.pennyMembers || {})[memberKey] || {};
+  if (badgeId === 'penny-met')
+    return { patch: { visitCount: 0, secondVisit: null }, note: 'Their Penny visit count goes back to 0, so "Back Again" is removed too. Both come back as they visit again.' };
+  if (badgeId === 'penny-returned')
+    return { patch: { visitCount: Math.min(rec.visitCount || 0, 1), secondVisit: null }, note: 'Their visit count drops to 1. It comes back on their next visit to Penny.' };
+  if (PENNY_FLAG_BADGES[badgeId]) {
+    const f = PENNY_FLAG_BADGES[badgeId];
+    return { patch: { [f]: false, [f + '_ts']: null }, note: 'They can earn it again by doing that with Penny again.' };
+  }
+  if (badgeId === 'penny-plant-all') {
+    const patch = { plantsAll: null };
+    PENNY_PLANT_NAMES.forEach(n => { patch['plant_' + n] = null; });
+    return { patch, also: PENNY_PLANT_NAMES.map(n => 'penny-plant-' + n), note: 'This also removes all seven individual plant badges, since it needs every plant. They come back as Penny tells them about each plant again.' };
+  }
+  const m = badgeId.match(/^penny-plant-(.+)$/);
+  if (m) return { patch: { ['plant_' + m[1]]: null, plantsAll: null }, also: ['penny-plant-all'], note: 'They can earn it again next time Penny tells them about this plant. (If they had "Seven Characters in Search of Water", that is removed too.)' };
+  return null;
+}
+
+async function adminRemoveBadge(memberKey, badgeId) {
+  const allBadges = getAllBadges({ includeHidden:true, includeDisabled:true });
+  const badge = allBadges.find(b => b.id === badgeId);
+  const badgeName = badge ? badge.name : badgeId;
+  const member = buildAllMembersMap().get(memberKey);
+  const memberName = member ? (member.name || member.discord || memberKey) : memberKey;
+
+  const pennyPlan = PENNY_BADGE_IDS.includes(badgeId) ? _pennyBadgeResetPlan(memberKey, badgeId) : null;
+  const isBook = !!(badge && badge.monthlyBook);
+  let isCalculated = false;
+  if (!pennyPlan && !isBook && badge && badge.check && !badge.adminOnly && member) {
+    try { isCalculated = !!badge.check(computeMemberProfile(member.discord, member.email)); } catch(e) {}
+  }
+
+  const note = pennyPlan ? pennyPlan.note
+    : isBook ? 'Their reading status for this book goes back to "Reading". It comes back when they mark it Finished again.'
+    : isCalculated ? 'This badge is calculated from their club history (votes, reviews, suggestions), so it would come straight back. It will be BLOCKED instead. Use "Unblock" on their card to give it back.'
+    : 'They can earn it again.';
+  if (!confirm(`Remove "${badgeName}" from ${memberName}?\n\n${note}`)) return;
+
+  showLoading('Removing…');
+  try {
+    const cfg = JSON.parse(JSON.stringify(getBadgeConfig()));
+    if (!cfg.overrides) cfg.overrides = {};
+    const ov = cfg.overrides[memberKey] || {};
+    const ids = [badgeId, ...((pennyPlan && pennyPlan.also) || [])];
+    if (isCalculated) {
+      ov[badgeId] = false;
+    } else {
+      ids.forEach(id => { if (ov[id] !== false) delete ov[id]; });
+      // Tell the member's device to treat it as new when re-earned (so the celebration shows again)
+      if (!cfg.badgeResets) cfg.badgeResets = {};
+      if (!cfg.badgeResets[memberKey]) cfg.badgeResets[memberKey] = {};
+      const now = Date.now();
+      ids.forEach(id => { cfg.badgeResets[memberKey][id] = now; });
+    }
+    if (Object.keys(ov).length) cfg.overrides[memberKey] = ov; else delete cfg.overrides[memberKey];
+
+    if (pennyPlan) await fbSet(PENNY_REF, { [memberKey]: pennyPlan.patch });
+    if (isBook) {
+      const progress = JSON.parse(JSON.stringify(getReadingProgress()));
+      if (!progress[memberKey]) progress[memberKey] = {};
+      progress[memberKey][badge.bookId] = 'reading';
+      delete progress[memberKey][badge.bookId + '_ts'];
+      await fbSetFull(PROGRESS_REF, { map: progress });
+    }
+    await fbSetFull(BADGE_CONFIG_REF, cfg);
+    _badgeEarnerCounts = null;
+  } catch (err) {
+    console.error('adminRemoveBadge failed:', err);
+    alert('Removing the badge failed: ' + (err && err.message ? err.message : 'unknown error'));
+  } finally {
+    hideLoading();
+  }
+  renderAdminBadgeMembers();
+}
+window.adminRemoveBadge = adminRemoveBadge;
+
+async function adminUnblockBadge(memberKey, badgeId) {
+  showLoading('Saving…');
+  try {
+    const cfg = JSON.parse(JSON.stringify(getBadgeConfig()));
+    const ov = (cfg.overrides || {})[memberKey];
+    if (ov) {
+      delete ov[badgeId];
+      if (!Object.keys(ov).length) delete cfg.overrides[memberKey];
+    }
+    if (!cfg.badgeResets) cfg.badgeResets = {};
+    if (!cfg.badgeResets[memberKey]) cfg.badgeResets[memberKey] = {};
+    cfg.badgeResets[memberKey][badgeId] = Date.now();
+    await fbSetFull(BADGE_CONFIG_REF, cfg);
+    _badgeEarnerCounts = null;
+  } catch (err) {
+    alert('Unblocking failed: ' + (err && err.message ? err.message : 'unknown error'));
+  } finally {
+    hideLoading();
+  }
+  renderAdminBadgeMembers();
+}
+window.adminUnblockBadge = adminUnblockBadge;
 
 async function adminGrantBadge(memberKey, selectId) {
   const sel = document.getElementById(selectId);
@@ -9945,6 +10084,7 @@ const PENNY_BADGE_IDS = ['penny-met','penny-trust','penny-catalog','penny-quiz',
 // If admin has reset this member's Penny history since they last visited badges,
 // scrub penny badge IDs from their local seen-snapshot so they re-alert when re-earned.
 function _maybeClearPennyBadgesFromSnapshot(memberKey) {
+  _maybeApplyAdminBadgeResets(memberKey);
   const pennyRecord = (CACHE.pennyMembers || {})[memberKey] || {};
   const resetTs = pennyRecord.badgeResetTs || 0;
   if (!resetTs) return;
@@ -9955,6 +10095,28 @@ function _maybeClearPennyBadgesFromSnapshot(memberKey) {
   PENNY_BADGE_IDS.forEach(id => seenIds.delete(id));
   try { localStorage.setItem(_badgeSeenKey(memberKey), JSON.stringify([...seenIds])); } catch {}
   try { localStorage.setItem(_pennyBadgeResetKey(memberKey), String(resetTs)); } catch {}
+}
+
+// If an admin removed badges from this member, drop them from the local "seen" list
+// so the new-badge celebration shows again when they're re-earned.
+function _maybeApplyAdminBadgeResets(memberKey) {
+  const resets = ((getBadgeConfig().badgeResets) || {})[memberKey];
+  if (!resets) return;
+  const lsKey = 'dbc_badges_admin_reset_' + memberKey;
+  let last = 0;
+  try { last = parseInt(localStorage.getItem(lsKey) || '0', 10); } catch {}
+  let newest = last; const ids = [];
+  Object.entries(resets).forEach(([id, ts]) => { if (ts > last) { ids.push(id); if (ts > newest) newest = ts; } });
+  if (!ids.length) return;
+  try {
+    const raw = localStorage.getItem(_badgeSeenKey(memberKey));
+    if (raw !== null) {
+      const seen = new Set(JSON.parse(raw));
+      ids.forEach(id => seen.delete(id));
+      localStorage.setItem(_badgeSeenKey(memberKey), JSON.stringify([...seen]));
+    }
+    localStorage.setItem(lsKey, String(newest));
+  } catch {}
 }
 
 function _getSeenBadgeIds(memberKey) {
@@ -9969,6 +10131,7 @@ function _saveSeenBadgeIds(memberKey, ids) {
 // Compute which earned badge IDs are new since the member last visited the badges page.
 // Returns an array of badge objects (not just IDs).
 function getNewBadgesSinceLastVisit(memberKey, profile) {
+  _maybeApplyAdminBadgeResets(memberKey);
   const allBadges    = getAllBadges({ includeHidden: true, includeDisabled: true });
   const earnedIds    = new Set(allBadges.filter(b => hasBadge(b.id, profile, memberKey)).map(b => b.id));
   const seenIds      = _getSeenBadgeIds(memberKey);
@@ -12188,7 +12351,7 @@ async function adminResetPennyVisit() {
     return;
   }
   try {
-    await fbSet(PENNY_REF, { [keyToReset]: { visitCount: 0, lastVisit: null } });
+    await fbSet(PENNY_REF, { [keyToReset]: { visitCount: 0, lastVisit: null, knowsPlants: false, lastRecNotYet: false } });
     _pennyCountedThisSession = false;
     if (msg) { msg.textContent = previewActive ? 'Preview reset. Click Load Preview to restart.' : 'Visit history reset. Reload the preview to see first-visit flow.'; }
     _pennyRendering = false;
@@ -12282,7 +12445,7 @@ async function adminResetMemberPenny() {
   area.innerHTML = '<em style="color:var(--gold);">Resetting…</em>';
   try {
     // Set member's penny data to a clean slate (visitCount 0, clear lastRec/lastRecAsked)
-    await fbSet(PENNY_REF, { [memberKey]: { visitCount: 0, lastVisit: null, lastRec: null, lastRecAsked: false, visitLog: [], badgeResetTs: Date.now() } });
+    await fbSet(PENNY_REF, { [memberKey]: { visitCount: 0, lastVisit: null, lastRec: null, lastRecAsked: false, lastRecNotYet: false, knowsPlants: false, visitLog: [], badgeResetTs: Date.now() } });
     area.innerHTML = `<p style="color:var(--gold);">✓ ${esc(memberName)}'s Penny history has been cleared. Their next visit will be treated as a first visit.</p>`;
   } catch(e) {
     area.innerHTML = `<span style="color:#c55;">Error resetting: ${esc(e.message)}</span>`;
