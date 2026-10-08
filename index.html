@@ -1252,7 +1252,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   <button data-tab="review" onclick="goTab('review',this)">Review</button>
   <button data-tab="surveys" onclick="goTab('surveys',this)">Surveys</button>
   <button data-tab="profile" onclick="goTab('profile',this)">👤 My Profile<span id="badge-notify-dot" class="badge-notify-dot" style="display:none;"></span></button>
-  <button data-tab="rankings" onclick="goTab('rankings',this)">2026 Books</button>
+  <button data-tab="rankings" onclick="goTab('rankings',this)">Book Rankings & Reviews</button>
   <button data-tab="analysis" onclick="goTab('analysis',this)">Book Club Metrics</button>
   <button data-tab="quarterly" id="quarterly-nav-btn" onclick="goTab('quarterly',this)" style="display:none;">🎯 Quarterly Activity</button>
   <button data-tab="penny" id="penny-nav-btn" onclick="goTab('penny',this)">🍵 Penny's</button>
@@ -1354,15 +1354,15 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 <!-- ══════════════ REVIEW ══════════════ -->
 <div id="tab-review" class="section">
   <div class="sec-head"><h2>Review a Book</h2><p>Share your thoughts on this month's selected book.</p></div>
-  <p style="font-size:.8rem;color:var(--soft);margin-bottom:1.25rem;">📖 Want to read what members thought of past books? <a href="#" style="color:var(--gold);text-decoration:none;font-weight:600;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" onclick="event.preventDefault();const rb=document.querySelector('nav button[data-tab=rankings]');goTab('rankings',rb);">Visit 2026 Book Rankings & Reviews →</a></p>
+  <p style="font-size:.8rem;color:var(--soft);margin-bottom:1.25rem;">📖 Want to read what members thought of past books? <a href="#" style="color:var(--gold);text-decoration:none;font-weight:600;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" onclick="event.preventDefault();const rb=document.querySelector('nav button[data-tab=rankings]');goTab('rankings',rb);">Visit Book Rankings & Reviews →</a></p>
   <div id="review-closed-banner" style="display:none;">
     <div class="pending-box"><div class="icon">📖</div><h3>Reviews Closed</h3><p>The admin has closed reviews for now.<br>Check back soon!</p></div>
   </div>
   <div id="review-form-content">
     <div class="card" id="review-identity-card">
       <div class="grid2">
-        <div class="f-group"><label>Email *</label><input type="email" id="rv-email" placeholder="you@email.com"></div>
-        <div class="f-group"><label>Discord Username *</label><input type="text" id="rv-discord" placeholder="user#0000"></div>
+        <div class="f-group"><label>Email *</label><input type="email" id="rv-email" placeholder="you@email.com" oninput="updateReviewMonthMarks();updateReviewBookMarks();"></div>
+        <div class="f-group"><label>Discord Username *</label><input type="text" id="rv-discord" placeholder="user#0000" oninput="updateReviewMonthMarks();updateReviewBookMarks();"></div>
       </div>
       <div id="review-identity-banner"></div>
       <div class="f-group">
@@ -1745,6 +1745,45 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       <div id="archive-msg"></div>
     </div>
 
+    <!-- Bonus / standalone book -->
+    <div class="card">
+      <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Add a Bonus Book</h3>
+      <p style="font-size:.85rem;color:var(--soft);margin-bottom:.75rem;">Adds a standalone book members can track, review, and earn a badge for, on their own timeline — completely separate from the current month's books/votes. It will <strong>not</strong> affect the live month in progress, and it's automatically excluded from voting stats, streaks, and total-months counts. Reading progress, reviews, and DNF/DNS tracking all still work normally.</p>
+      <div class="grid2">
+        <div class="f-group"><label>Book Title</label><input type="text" id="bonus-title" placeholder="e.g. Open"></div>
+        <div class="f-group"><label>Author</label><input type="text" id="bonus-author" placeholder="e.g. Andre Agassi"></div>
+      </div>
+      <div class="f-group">
+        <label>Genre <span style="font-size:.7rem;color:var(--soft);text-transform:none;letter-spacing:0;">(optional — pick up to 2)</span></label>
+        <div class="grid2">
+          <select id="bonus-genre"></select>
+          <select id="bonus-genre2"></select>
+        </div>
+      </div>
+      <div class="f-group">
+        <label>Page Count <span style="font-size:.7rem;color:var(--soft);text-transform:none;letter-spacing:0;">(optional)</span></label>
+        <div class="grid2">
+          <input type="number" id="bonus-pages" placeholder="e.g. 320" min="1" style="max-width:100%;">
+          <select id="bonus-pages-format">
+            <option value="">Format…</option>
+            <option value="hardcover">Hardcover</option>
+            <option value="paperback">Paperback</option>
+            <option value="digital">Digital / eBook</option>
+          </select>
+        </div>
+      </div>
+      <div class="f-group"><label>Archive Label</label><input type="text" id="bonus-label" placeholder="e.g. Bonus Book: Open" value="Bonus Book"></div>
+      <div class="grid2">
+        <div class="f-group"><label>Badge Window — From</label><input type="date" id="bonus-window-start"></div>
+        <div class="f-group"><label>Badge Window — Until</label><input type="date" id="bonus-window-end" value="2026-12-31"></div>
+      </div>
+      <p style="font-size:.75rem;color:var(--soft);margin-top:-.4rem;margin-bottom:.75rem;">Members can read, track, and review this book anytime — the date range only controls the window for earning the limited-time badge. Leave both blank for no deadline.</p>
+      <div class="f-group"><label>Admin Note (optional, not shown to members)</label><input type="text" id="bonus-note" placeholder="e.g. Recommended by a Columbus Crew player"></div>
+      <button class="btn btn-gold" style="margin-top:.75rem;" onclick="addBonusBook()">Add Bonus Book</button>
+      <div id="bonus-book-msg"></div>
+      <div id="bonus-book-caveat" style="display:none;margin-top:.75rem;padding:.75rem;background:var(--cream);border:1px solid var(--border);border-radius:6px;font-size:.82rem;"></div>
+    </div>
+
     <!-- Rename / fix archived month -->
     <div class="card">
       <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.5rem;">Rename / Fix Archived Month</h3>
@@ -1839,12 +1878,16 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       <div class="sub-tabs" style="margin-bottom:1.25rem;">
         <button class="sub-tab active" id="members-sub-btn-directory" onclick="goMembersTab('directory',this)">Member Directory</button>
         <button class="sub-tab" id="members-sub-btn-comparison" onclick="goMembersTab('comparison',this)">Member Comparison</button>
+        <button class="sub-tab" id="members-sub-btn-ballots" onclick="goMembersTab('ballots',this)">🗳️ Ballot Box</button>
       </div>
       <div id="members-sub-directory">
         <div id="member-directory-area"></div>
       </div>
       <div id="members-sub-comparison" style="display:none;">
         <div id="member-compare-area"><p style="font-size:.85rem;color:var(--soft);">Loading…</p></div>
+      </div>
+      <div id="members-sub-ballots" style="display:none;">
+        <div id="ballot-box-area"></div>
       </div>
     </div>
 
@@ -2773,6 +2816,31 @@ function resolveId(discord, email, identityMap) {
   return discord || 'unknown';
 }
 
+// Like resolveId, but returns the identity map's stable canonical key (a normalized
+// email or discord id) instead of a display name. Display names can change (most-recent
+// discord wins) and aren't safe to join against other data that's keyed by normalized
+// id — e.g. reading progress, which is always keyed by normEmail(email) || normId(discord).
+function resolveCanonKey(discord, email, identityMap) {
+  const nd = normId(discord), ne = normEmail(email);
+  if (!identityMap) return ne || nd || 'unknown';
+  if (ne) {
+    for (const [canonId, e] of identityMap) {
+      if (e.email && normEmail(e.email) === ne) return canonId;
+    }
+  }
+  for (const [canonId, e] of identityMap) {
+    if (e.normIds.has(nd)) return canonId;
+  }
+  if (nd.length >= 4) {
+    for (const [canonId, e] of identityMap) {
+      for (const alias of e.normIds) {
+        if (alias.length >= 4 && levenshtein(nd, alias, 2) <= 2) return canonId;
+      }
+    }
+  }
+  return ne || nd || 'unknown';
+}
+
 function clearSuggestForm() {
   ['s-title','s-author','s-email','s-discord','s-reason','s-pages'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const g1 = document.getElementById('s-genre');  if (g1) g1.value = '';
@@ -3357,7 +3425,7 @@ function renderResults() {
       return;
     } else {
       // Quiet period — show most recent archive as context
-      const archives = getArchives();
+      const archives = getArchives().filter(a => !a.memberPick);
       if (!archives.length) {
         subtitleEl.textContent = 'No results yet';
         area.innerHTML = '<div class="empty"><div class="icon">🏆</div><p>No results posted yet. Check back after the first vote!</p></div>';
@@ -3382,7 +3450,7 @@ function renderResults() {
   let displayBooks = books, displayVotes = votes;
   let isArchiveFallback = false, archiveLabel = '';
   if (!hasActiveVote) {
-    const archives = getArchives();
+    const archives = getArchives().filter(a => !a.memberPick);
     if (!archives.length) {
       subtitleEl.textContent = 'No results yet';
       area.innerHTML = '<div class="empty"><div class="icon">🏆</div><p>No results to display yet.</p></div>';
@@ -3736,18 +3804,33 @@ function renderMySurveyResponses() {
       ? '<span class="pill pill-open">Active</span>'
       : '<span class="pill pill-closed">Closed</span>';
 
-    return `<div class="card" style="margin-bottom:1.25rem;">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem;margin-bottom:1rem;">
-        <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;">${esc(s.title)}</h3>
-        <div style="display:flex;gap:.5rem;align-items:center;flex-shrink:0;">${statusPill}</div>
+    const safeId = String(s.id).replace(/[^a-z0-9]/gi, '_');
+
+    return `<div class="card" style="margin-bottom:1.25rem;overflow:hidden;">
+      <div onclick="toggleSurveyResponse('${safeId}')" style="display:flex;align-items:center;gap:.65rem;cursor:pointer;user-select:none;">
+        <span id="sr-chevron-${safeId}" style="font-size:.8rem;color:var(--soft);flex-shrink:0;">▸</span>
+        <h3 style="flex:1;font-family:'Playfair Display',serif;font-size:1.1rem;margin:0;">${esc(s.title)}</h3>
+        ${statusPill}
       </div>
-      ${responseDivs}
+      <div id="sr-body-${safeId}" style="display:none;margin-top:1rem;">
+        ${responseDivs}
+      </div>
     </div>`;
   }).join('');
 
   main.innerHTML = summaryHtml + responseCards;
 }
 window.renderMySurveyResponses = renderMySurveyResponses;
+
+function toggleSurveyResponse(id) {
+  const body = document.getElementById('sr-body-' + id);
+  const chevron = document.getElementById('sr-chevron-' + id);
+  if (!body) return;
+  const isHidden = body.style.display === 'none';
+  body.style.display = isHidden ? '' : 'none';
+  if (chevron) chevron.textContent = isHidden ? '▾' : '▸';
+}
+window.toggleSurveyResponse = toggleSurveyResponse;
 
 // ════════════════════════════════════════════════════════
 // SURVEY BUILDER
@@ -3898,6 +3981,64 @@ async function publishSurvey() {
 }
 window.publishSurvey = publishSurvey;
 
+// Returns a Set of "month::bookId" keys (bookId '' for single-book months) already
+// reviewed by the identity currently entered in the Review form's email/discord fields.
+function getMyReviewedKeys() {
+  const email = v('rv-email'), discord = v('rv-discord');
+  const set = new Set();
+  if (!email && !discord) return set;
+  const idMap = buildIdentityMap();
+  const myResolved = resolveId(discord, email, idMap);
+  if (!myResolved) return set;
+  const reviews = getReviews();
+  Object.entries(reviews).forEach(([month, entries]) => {
+    (entries || []).forEach(r => {
+      if (resolveId(r.discord, r.email, idMap) === myResolved) {
+        set.add(month + '::' + (r.bookId || ''));
+      }
+    });
+  });
+  return set;
+}
+window.getMyReviewedKeys = getMyReviewedKeys;
+
+function updateReviewMonthMarks() {
+  const sel = document.getElementById('rv-month');
+  if (!sel) return;
+  const reviewedKeys = getMyReviewedKeys();
+  const archives = getArchives();
+  Array.from(sel.options).forEach(opt => {
+    if (!opt.value) return;
+    const archive = archives.find(a => a.label === opt.value);
+    const isDual = archive && archive.dualWinners && archive.dualWinners.length;
+    let mark = '';
+    if (isDual) {
+      const winnerBooks = (archive.books || []).filter(b => archive.dualWinners.includes(String(b.id)));
+      const doneCount = winnerBooks.filter(b => reviewedKeys.has(opt.value + '::' + String(b.id))).length;
+      if (doneCount && doneCount === winnerBooks.length) mark = ' — ✓ Reviewed';
+      else if (doneCount) mark = ` — ✓ ${doneCount}/${winnerBooks.length} reviewed`;
+    } else if (reviewedKeys.has(opt.value + '::')) {
+      mark = ' — ✓ Reviewed';
+    }
+    const base = opt.dataset.baseLabel || (opt.dataset.baseLabel = opt.textContent);
+    opt.textContent = base + mark;
+  });
+}
+window.updateReviewMonthMarks = updateReviewMonthMarks;
+
+function updateReviewBookMarks() {
+  const bookSel = document.getElementById('rv-book');
+  if (!bookSel) return;
+  const reviewedKeys = getMyReviewedKeys();
+  const month = v('rv-month');
+  Array.from(bookSel.options).forEach(opt => {
+    if (!opt.value) return;
+    const base = opt.dataset.baseLabel || (opt.dataset.baseLabel = opt.textContent);
+    opt.textContent = reviewedKeys.has(month + '::' + opt.value) ? base + ' — ✓ Reviewed' : base;
+  });
+}
+window.updateReviewBookMarks = updateReviewBookMarks;
+
 // ════════════════════════════════════════════════════════
 // REVIEW
 // ════════════════════════════════════════════════════════
@@ -3907,15 +4048,20 @@ function renderReview() {
   const formContent = document.getElementById('review-form-content');
   if (!s.reviewsOpen) { closed.style.display = 'block'; formContent.style.display = 'none'; return; }
   closed.style.display = 'none'; formContent.style.display = 'block';
-  // Populate month dropdown from archives
-  const archives = getArchives();
+  // Populate month dropdown from archives — real reading months first (chronological),
+  // Bonus Book / member-pick months always pinned to the bottom of the list.
+  const archives   = getArchives();
+  const realMonths = archives.filter(a => !a.memberPick);
+  const bonusMonths = archives.filter(a => a.memberPick);
+  const orderedArchives = [...realMonths, ...bonusMonths];
+  const currentLabel = realMonths.length ? realMonths[realMonths.length - 1].label : null;
   const sel = document.getElementById('rv-month');
   const current = sel.value;
   sel.innerHTML = '<option value="">— Select a month —</option>';
-  archives.forEach((a, i) => {
+  orderedArchives.forEach(a => {
     const opt = document.createElement('option');
     opt.value = a.label;
-    opt.textContent = i === archives.length - 1 ? a.label + ' (current)' : a.label;
+    opt.textContent = a.label === currentLabel ? a.label + ' (current)' : a.label;
     if (a.label === current) opt.selected = true;
     sel.appendChild(opt);
   });
@@ -3924,6 +4070,7 @@ function renderReview() {
     opt.value = '' ; opt.textContent = 'No archived months yet'; opt.disabled = true;
     sel.appendChild(opt);
   }
+  updateReviewMonthMarks();
   updateReviewForm();
 }
 
@@ -3944,6 +4091,7 @@ function updateBookSelector() {
   bookSel.innerHTML = '<option value="">— Select a book —</option>' +
     winnerBooks.map(b => `<option value="${b.id}"${String(b.id)===curBook?' selected':''}>${esc(b.title)}</option>`).join('');
   q0.style.display = 'block';
+  updateReviewBookMarks();
 }
 
 function updateReviewForm() {
@@ -4181,7 +4329,7 @@ window.toggleThoughts = toggleThoughts;
 
 // ── Voting sub-tab ────────────────────────────────────────────────────────────
 function renderAnalysisVoting() {
-  const archives = getMetricsFilteredArchives();
+  const archives = getMetricsFilteredArchives().filter(a => !a.memberPick);
   const area = document.getElementById('analysis-voting-area');
   if (!archives.length) { area.innerHTML = `<div class="empty"><div class="icon">📊</div><p>No archived months for ${esc(metricsYearLabel())} yet.</p></div>`; return; }
 
@@ -4241,7 +4389,7 @@ let _rankDistMonth = 'all';
 let _rankDistSort = 'avgRank';
 
 function renderAnalysisRankDist() {
-  const archives = getMetricsFilteredArchives();
+  const archives = getMetricsFilteredArchives().filter(a => !a.memberPick);
   const area = document.getElementById('analysis-rankdist-area');
   if (!archives.length) { area.innerHTML = `<div class="empty"><div class="icon">📊</div><p>No archived months for ${esc(metricsYearLabel())} yet.</p></div>`; return; }
 
@@ -4386,7 +4534,7 @@ window.rankDistGoPage = rankDistGoPage;
 
 // ── Page Count sub-tab ───────────────────────────────────────────────────────
 function renderAnalysisPageCount() {
-  const archives = getMetricsFilteredArchives();
+  const archives = getMetricsFilteredArchives().filter(a => !a.bonusBook);
   const area = document.getElementById('analysis-pagecount-area');
   if (!archives.length) { area.innerHTML = `<div class="empty"><div class="icon">📄</div><p>No archived months for ${esc(metricsYearLabel())} yet.</p></div>`; return; }
 
@@ -4803,7 +4951,7 @@ function renderAnalysisReviews() {
 // RANKINGS PAGE — based on Rank A Book submissions
 // ════════════════════════════════════════════════════════
 // 'this' = the currentYear; a number = that past year's archive sub-tab
-let _rankingsYearSel = 'this';
+let _rankingsYearSel = 'this'; // also 'all' (All Time) or 'bonus' (Bonus Books)
 
 function renderRankingsSubTabs() {
   const container = document.getElementById('rankings-subtabs');
@@ -4813,37 +4961,59 @@ function renderRankingsSubTabs() {
   pastYears.forEach(y => {
     html += `<button class="sub-tab ${_rankingsYearSel===y?'active':''}" onclick="goRankingsYear(${y},this)">${y} Archive</button>`;
   });
+  html += `<button class="sub-tab ${_rankingsYearSel==='all'?'active':''}" onclick="goRankingsYear('all',this)">All Time</button>`;
+  if (getArchives().some(a => a.bonusBook)) {
+    html += `<button class="sub-tab ${_rankingsYearSel==='bonus'?'active':''}" onclick="goRankingsYear('bonus',this)">🎁 Bonus Books</button>`;
+  }
   container.innerHTML = html;
 }
 window.renderRankingsSubTabs = renderRankingsSubTabs;
 
 function goRankingsYear(year, btn) {
   _rankingsYearSel = year;
+  _rankingsPage = 0;
   document.querySelectorAll('#rankings-subtabs .sub-tab').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   renderRankings();
 }
 window.goRankingsYear = goRankingsYear;
 
+let _rankingsPage = 0;
+const RANKINGS_PAGE_SIZE = 20;
+
+function rankingsGoPage(page) {
+  _rankingsPage = page;
+  renderRankings();
+  document.getElementById('rankings-area')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+window.rankingsGoPage = rankingsGoPage;
+
 function renderRankings() {
   renderRankingsSubTabs();
+  if (_rankingsYearSel === 'bonus' && !getArchives().some(a => a.bonusBook)) _rankingsYearSel = 'this';
+  const isAll   = _rankingsYearSel === 'all';
+  const isBonus = _rankingsYearSel === 'bonus';
   const selYear = _rankingsYearSel === 'this' ? getCurrentYear() : _rankingsYearSel;
   const titleEl = document.getElementById('rankings-title');
   const noteEl  = document.getElementById('rankings-archive-note');
-  if (titleEl) titleEl.textContent = _rankingsYearSel === 'this' ? `${selYear} Book Rankings & Reviews` : `${selYear} Archive`;
+  if (titleEl) titleEl.textContent = isBonus ? 'Bonus Books' : isAll ? 'All-Time Book Rankings & Reviews'
+    : _rankingsYearSel === 'this' ? `${selYear} Book Rankings & Reviews` : `${selYear} Archive`;
   if (noteEl) {
-    if (_rankingsYearSel === 'this') { noteEl.style.display = 'none'; }
+    if (_rankingsYearSel === 'this' || isAll) { noteEl.style.display = 'none'; }
+    else if (isBonus) { noteEl.style.display = ''; noteEl.textContent = "🎁 Standalone bonus reads, outside the monthly vote. They don't count toward the yearly rankings."; }
     else { noteEl.style.display = ''; noteEl.textContent = "📖 You're viewing a past year — these books have already been read and ranked."; }
   }
 
-  const yearArchives = getArchives().filter(a => getArchiveYear(a) === selYear);
+  // Bonus Books get their own sub-tab and are kept out of the year and All Time lists.
+  const yearArchives = getArchives().filter(a =>
+    isBonus ? !!a.bonusBook : (!a.bonusBook && (isAll || getArchiveYear(a) === selYear)));
   const yearMonths = new Set(yearArchives.map(a => a.label));
   const reviews = getReviews();
   const area = document.getElementById('rankings-area');
   const yearEntries = Object.entries(reviews).filter(([month]) => yearMonths.has(month)).flatMap(([,entries]) => entries||[]);
 
   if (!yearEntries.length) {
-    area.innerHTML = `<div class="empty"><div class="icon">🏆</div><p>No reviews for ${esc(String(selYear))} yet. Rankings will appear here once members have submitted reviews via the Rank A Book page.</p></div>`;
+    area.innerHTML = `<div class="empty"><div class="icon">🏆</div><p>No reviews ${isBonus ? 'for Bonus Books' : isAll ? '' : 'for ' + esc(String(selYear))} yet. Rankings will appear here once members have submitted reviews via the Rank A Book page.</p></div>`;
     return;
   }
 
@@ -4963,7 +5133,11 @@ function renderRankings() {
     if (!entries.length) return '<p style="font-size:.82rem;color:var(--soft);padding:.5rem 0;">No reviews submitted yet.</p>';
     const safeId = rankKey.replace(/[^a-z0-9]/gi, '_');
 
-    return entries.map((r, ri) => {
+    // Members with a real 1-5 star rating first; "No rating" / opted-out reviews sink to the bottom.
+    const hasRating = r => { const n = +r.rating; return n >= 1 && n <= 5; };
+    const sortedEntries = entries.slice().sort((a, b) => (hasRating(b) ? 1 : 0) - (hasRating(a) ? 1 : 0));
+
+    return sortedEntries.map((r, ri) => {
       const name = resolveId(r.discord||'', r.email||'', idMap) || r.discord || 'Anonymous';
       const statusPills = [
         r.read === 'Yes'
@@ -4993,11 +5167,26 @@ function renderRankings() {
     }).join('');
   }
 
+  // ── Pagination (20 books per page) ──
+  const totalPages = Math.max(1, Math.ceil(sorted.length / RANKINGS_PAGE_SIZE));
+  _rankingsPage = Math.min(Math.max(0, _rankingsPage), totalPages - 1);
+  const pageStart = _rankingsPage * RANKINGS_PAGE_SIZE;
+  const pageItems = sorted.slice(pageStart, pageStart + RANKINGS_PAGE_SIZE);
+  const paginationHtml = sorted.length > RANKINGS_PAGE_SIZE ? `
+    <div style="display:flex;align-items:center;justify-content:center;gap:.75rem;padding:.6rem 0;margin:1rem 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);flex-wrap:wrap;">
+      <button class="btn btn-secondary btn-sm" onclick="rankingsGoPage(0)" ${_rankingsPage===0?'disabled':''}>« First</button>
+      <button class="btn btn-secondary btn-sm" onclick="rankingsGoPage(${_rankingsPage-1})" ${_rankingsPage===0?'disabled':''}>‹ Prev</button>
+      <span style="font-size:.82rem;color:var(--soft);">Page ${_rankingsPage+1} of ${totalPages} &nbsp;·&nbsp; ${pageStart+1}–${Math.min(pageStart+RANKINGS_PAGE_SIZE, sorted.length)} of ${sorted.length}</span>
+      <button class="btn btn-secondary btn-sm" onclick="rankingsGoPage(${_rankingsPage+1})" ${_rankingsPage>=totalPages-1?'disabled':''}>Next ›</button>
+      <button class="btn btn-secondary btn-sm" onclick="rankingsGoPage(${totalPages-1})" ${_rankingsPage>=totalPages-1?'disabled':''}>Last »</button>
+    </div>` : '';
+
   // Render each book as its own card in strict rating order — no grouping
   area.innerHTML = `
   <p style="font-size:.82rem;color:var(--ink);background:rgba(240,180,41,.08);border:1px solid rgba(240,180,41,.25);border-radius:6px;padding:.55rem .9rem;margin-bottom:1.5rem;display:inline-block;">💡 Click <strong>Member Reviews</strong> on any book to see individual responses.</p>
-  ${sorted.map(([rankKey, d], i) => {
-    const rank = i + 1;
+  ${paginationHtml}
+  ${pageItems.map(([rankKey, d], i) => {
+    const rank = pageStart + i + 1;
     const meta = rankKeyMeta[rankKey] || {};
     const month = meta.month || rankKey;
     const cleanMonthLabel = (archiveLookup[month]?.cleanLabel) || month;
@@ -5065,7 +5254,8 @@ function renderRankings() {
         </div>
       </div>
     </div>`;
-  }).join('')}`;
+  }).join('')}
+  ${paginationHtml}`;
 }
 function toggleRankingReviews(id, btn) {
   const el = document.getElementById(id);
@@ -5155,6 +5345,11 @@ window.renderAdminSurveys = renderAdminSurveys;
 
 function renderAdmin() {
   const s = getSettings(), votes = getVotes(), books = getBooks(), surveys = getSurveys();
+  // Populate bonus book genre dropdowns from the unified GENRES config
+  const bg1 = document.getElementById('bonus-genre');
+  const bg2 = document.getElementById('bonus-genre2');
+  if (bg1 && !bg1.options.length) bg1.innerHTML = genreOptionsHtml('— Primary —');
+  if (bg2 && !bg2.options.length) bg2.innerHTML = genreOptionsHtml('— Secondary —');
   // Populate meeting fields
   const mi = getMeetingInfo();
   if (mi.title)   { const el = document.getElementById('meeting-title-input'); if (el) el.value = mi.title; }
@@ -5366,9 +5561,10 @@ function renderAdminLiveResults() {
       }).join('');
 
     const rankIcon = isTopTied ? '⚖️' : win ? '👑' : i + 1;
+    const rankTitle = isTopTied ? 'Tied for first place' : win ? 'Winner' : `${ordinal(i+1)} place`;
     return `<div class="result-item ${win?'winner':''}" style="flex-direction:column;align-items:stretch;gap:.5rem;">
       <div style="display:flex;align-items:center;gap:1rem;">
-        <div class="result-rank" style="min-width:2rem;">${rankIcon}</div>
+        <div class="result-rank" style="min-width:2rem;" title="${esc(rankTitle)}">${rankIcon}</div>
         <div class="book-info" style="flex:1;">
           <div class="book-title">${esc(b.title)}</div>
           <div class="book-sub">${esc(b.author)}</div>
@@ -5470,16 +5666,32 @@ function renderAdminReadingProgress() {
     'pre-read':          { label: 'Already Read',        emoji: '⏮️', color: '#e0f4ff', text: '#0077b6' },
   };
 
+  // Group raw keys that resolve to the same real member (e.g. progress saved under
+  // both an email-based key and a discord-based key at different times) so they
+  // render as ONE row with merged book statuses, instead of duplicate rows.
+  const canonicalGroups = new Map(); // canonicalId → { displayName, rawKeys: [] }
+  memberKeys.forEach((displayName, rawKey) => {
+    let canonId = null;
+    for (const [id, e] of idMap) {
+      if ((e.email && normEmail(e.email) === rawKey) || e.normIds.has(rawKey)) { canonId = id; break; }
+    }
+    if (!canonId) canonId = 'name:' + displayName.toLowerCase();
+    if (!canonicalGroups.has(canonId)) canonicalGroups.set(canonId, { displayName, rawKeys: [] });
+    canonicalGroups.get(canonId).rawKeys.push(rawKey);
+  });
+
   // Build rows
   _adminPgRows = [];
-  memberKeys.forEach((displayName, key) => {
-    const memberProgress = progress[key] || {};
+  canonicalGroups.forEach(({ displayName, rawKeys }) => {
+    // Merge progress across every raw key belonging to this identity
+    const mergedProgress = {};
+    rawKeys.forEach(rk => Object.assign(mergedProgress, progress[rk] || {}));
     const bookStatuses = winnerBooks.map(wb => ({
       ...wb,
-      status: memberProgress[wb.bookId] || 'not-started',
+      status: mergedProgress[wb.bookId] || 'not-started',
     }));
     const finished = bookStatuses.filter(b => b.status === 'finished').length;
-    _adminPgRows.push({ key, displayName, bookStatuses, finished, total: winnerBooks.length });
+    _adminPgRows.push({ key: rawKeys[0], displayName, bookStatuses, finished, total: winnerBooks.length });
   });
   _adminPgRows.sort((a, b) => b.finished - a.finished || a.displayName.localeCompare(b.displayName));
 
@@ -5514,7 +5726,7 @@ function renderAdminReadingProgress() {
           .filter(s => counts[s])
           .map(s => {
             const sm = statusMeta[s];
-            return `<span style="font-size:.7rem;padding:.1rem .45rem;border-radius:20px;background:${sm.color};color:${sm.text};white-space:nowrap;">${sm.emoji} ${counts[s]}</span>`;
+            return `<span style="font-size:.7rem;padding:.1rem .45rem;border-radius:20px;background:${sm.color};color:${sm.text};white-space:nowrap;" title="${esc(sm.label)}">${sm.emoji} ${counts[s]}</span>`;
           }).join('');
         return `<div onclick="selectPgBook('${wb.bookId}')" style="cursor:pointer;padding:.65rem .75rem;border-radius:6px;border:${isActive ? '2px solid var(--gold)' : '1px solid var(--border)'};background:${isActive ? 'var(--cream)' : 'var(--paper)'};">
           <div style="font-size:.82rem;font-weight:500;margin-bottom:.15rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(wb.title)}</div>
@@ -5598,7 +5810,7 @@ window.filterAdminProgress = filterAdminProgress;
 
 // ── Members Overview tab ─────────────────────────────────────────────────────
 function goMembersTab(id, btn) {
-  ['directory','comparison'].forEach(s => {
+  ['directory','comparison','ballots'].forEach(s => {
     const el = document.getElementById('members-sub-' + s);
     if (el) el.style.display = s === id ? '' : 'none';
   });
@@ -5606,8 +5818,143 @@ function goMembersTab(id, btn) {
   if (btn) btn.classList.add('active');
   if (id === 'comparison') renderMemberCompare();
   else if (id === 'directory') renderMemberDirectory();
+  else if (id === 'ballots') renderBallotBox();
 }
 window.goMembersTab = goMembersTab;
+
+// ── Ballot Box (admin) — individual ballots for any month ────────────────────
+let _ballotBoxMonth = null;   // 'current' or archive index (as string)
+let _ballotBoxSearch = '';
+let _ballotBoxSort = 'name';  // 'name' | 'time'
+
+function renderBallotBox() {
+  const area = document.getElementById('ballot-box-area');
+  if (!area) return;
+  const archives = getArchives();
+  const curVotes = getVotes();
+  const hasCurrent = getBooks().length > 0 || Object.keys(curVotes).length > 0;
+
+  // Month options: current month first (if active), then archives newest → oldest
+  const opts = [];
+  if (hasCurrent) opts.push({ key: 'current', label: 'Current month (not yet archived)' });
+  archives.map((a, i) => ({ a, i })).reverse().forEach(({ a, i }) => {
+    opts.push({ key: String(i), label: a.label || `Archive #${i + 1}` });
+  });
+
+  if (!opts.length) {
+    area.innerHTML = '<div class="empty"><div class="icon">🗳️</div><p>No ballots to show yet.</p></div>';
+    return;
+  }
+  if (_ballotBoxMonth === null || !opts.some(o => o.key === _ballotBoxMonth)) {
+    _ballotBoxMonth = archives.length ? String(archives.length - 1) : 'current';
+  }
+
+  let books, votes, winnerIds = [], isCurrent = _ballotBoxMonth === 'current';
+  if (isCurrent) {
+    books = getBooks(); votes = curVotes;
+  } else {
+    const a = archives[+_ballotBoxMonth] || {};
+    books = a.books || []; votes = a.votes || {};
+  }
+  const bookById = {};
+  books.forEach(b => { bookById[String(b.id)] = b; });
+
+  // Winner(s): stored dual winners, otherwise Borda leader(s)
+  const arch = isCurrent ? null : archives[+_ballotBoxMonth];
+  if (arch && arch.dualWinners && arch.dualWinners.length) {
+    winnerIds = arch.dualWinners.map(String);
+  } else if (books.length && Object.keys(votes).length) {
+    const r = computeBordaScores(books, votes);
+    winnerIds = (r.isTied ? r.tiedBooks : [r.sorted[0]]).filter(Boolean).map(b => String(b.id));
+  }
+
+  let ballots = Object.entries(votes).map(([key, vd]) => ({
+    key,
+    name: (vd && (vd.discord || vd.email)) || key || 'Unknown',
+    email: (vd && vd.email) || '',
+    ts: (vd && vd.ts) || null,
+    ranking: ((vd && vd.ranking) || (Array.isArray(vd) ? vd : [])).map(String)
+  }));
+  const total = ballots.length;
+
+  const q = _ballotBoxSearch.trim().toLowerCase();
+  if (q) ballots = ballots.filter(b => b.name.toLowerCase().includes(q) || b.email.toLowerCase().includes(q));
+  ballots.sort(_ballotBoxSort === 'time'
+    ? (a, b) => (a.ts || Infinity) - (b.ts || Infinity)
+    : (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+
+  const fmtTs = ts => ts ? new Date(ts).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+  const ordinal = r => r === 1 ? '1st' : r === 2 ? '2nd' : r === 3 ? '3rd' : `${r}th`;
+
+  const header = `<div class="card" style="margin-bottom:1rem;">
+    <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.25rem;">🗳️ Ballot Box</h3>
+    <p style="font-size:.82rem;color:var(--soft);margin-bottom:.85rem;">See exactly how each member ranked the books for any month. Admin only.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;">
+      <select id="ballot-box-month" onchange="setBallotBoxMonth(this.value)" style="flex:1 1 220px;min-width:0;padding:.45rem .6rem;">
+        ${opts.map(o => `<option value="${o.key}" ${o.key === _ballotBoxMonth ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}
+      </select>
+      <input id="ballot-box-search" type="text" placeholder="Filter by voter…" value="${esc(_ballotBoxSearch)}"
+        oninput="setBallotBoxSearch(this.value)" style="flex:1 1 180px;min-width:0;padding:.45rem .6rem;">
+      <select onchange="setBallotBoxSort(this.value)" style="flex:0 0 auto;padding:.45rem .6rem;">
+        <option value="name" ${_ballotBoxSort === 'name' ? 'selected' : ''}>Sort: Name A–Z</option>
+        <option value="time" ${_ballotBoxSort === 'time' ? 'selected' : ''}>Sort: Submitted first</option>
+      </select>
+    </div>
+    <p style="font-size:.78rem;color:var(--soft);margin-top:.6rem;">
+      ${total} ballot${total !== 1 ? 's' : ''} cast · ${books.length} book${books.length !== 1 ? 's' : ''}
+      ${q ? ` · showing ${ballots.length} matching “${esc(_ballotBoxSearch)}”` : ''}
+      ${winnerIds.length ? ` · 👑 = ${isCurrent ? 'current leader' : 'winner'}` : ''}
+    </p>
+  </div>`;
+
+  let body;
+  if (!total) {
+    body = '<div class="empty"><div class="icon">🗳️</div><p>No ballots were cast this month.</p></div>';
+  } else if (!ballots.length) {
+    body = '<div class="empty"><div class="icon">🔍</div><p>No voters match that filter.</p></div>';
+  } else {
+    body = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.75rem;">` +
+      ballots.map(b => {
+        const rows = b.ranking.map((id, idx) => {
+          const bk = bookById[id];
+          const isWin = winnerIds.includes(id);
+          return `<div style="display:flex;gap:.5rem;align-items:baseline;padding:.25rem 0;border-bottom:1px solid var(--border);font-size:.82rem;">
+            <span style="min-width:2.4rem;color:var(--soft);font-size:.75rem;">${ordinal(idx + 1)}</span>
+            <span style="flex:1;min-width:0;${isWin ? 'font-weight:600;' : ''}">${bk ? esc(bk.title) : '<em style="color:var(--soft);">Unknown book</em>'}${isWin ? ' 👑' : ''}</span>
+          </div>`;
+        }).join('');
+        return `<div class="card" style="margin:0;padding:.85rem 1rem;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:.5rem;margin-bottom:.4rem;">
+            <strong style="font-size:.92rem;word-break:break-word;">${esc(b.name)}</strong>
+            ${b.ts ? `<span style="font-size:.7rem;color:var(--soft);white-space:nowrap;">${fmtTs(b.ts)}</span>` : ''}
+          </div>
+          ${b.email && b.email !== b.name ? `<div style="font-size:.72rem;color:var(--soft);margin-bottom:.4rem;word-break:break-all;">${esc(b.email)}</div>` : ''}
+          ${rows || '<p style="font-size:.8rem;color:var(--soft);">Empty ballot.</p>'}
+        </div>`;
+      }).join('') + `</div>`;
+  }
+
+  area.innerHTML = header + body;
+}
+window.renderBallotBox = renderBallotBox;
+
+function setBallotBoxMonth(key) { _ballotBoxMonth = key; renderBallotBox(); }
+window.setBallotBoxMonth = setBallotBoxMonth;
+
+function setBallotBoxSort(mode) { _ballotBoxSort = mode; renderBallotBox(); }
+window.setBallotBoxSort = setBallotBoxSort;
+
+let _ballotBoxSearchTimer = null;
+function setBallotBoxSearch(val) {
+  _ballotBoxSearch = val;
+  clearTimeout(_ballotBoxSearchTimer);
+  _ballotBoxSearchTimer = setTimeout(() => {
+    renderBallotBox();
+    const inp = document.getElementById('ballot-box-search');
+    if (inp) { inp.focus(); inp.setSelectionRange(val.length, val.length); }
+  }, 200);
+}
+window.setBallotBoxSearch = setBallotBoxSearch;
 
 function renderMembersOverview() {
   // Default to directory sub-tab
@@ -5655,8 +6002,10 @@ function _doRenderMemberDirectory() {
   // ── Build per-member data ─────────────────────────────────────────────────
   const memberData = {}; // key → { name, email, votedMonths, suggestedBooks, reviewedMonths, progress }
 
-  // Key memberData by resolved canonical name so alias rules merge duplicates
-  const resolvedKey = (discord, email) => resolveId(discord, email, idMap) || normEmail(email) || normId(discord);
+  // Key memberData by resolved canonical id (normalized email/discord) so alias rules merge
+  // duplicates AND so this joins correctly against reading progress, which is also keyed
+  // by normalized id. (resolveId returns a display name, which isn't safe to join on.)
+  const resolvedKey = (discord, email) => resolveCanonKey(discord, email, idMap);
 
   const getOrCreate = (key, name, email) => {
     if (!memberData[key]) memberData[key] = {
@@ -5716,7 +6065,7 @@ function _doRenderMemberDirectory() {
       const key = resolvedKey(r.discord, r.email);
       if (!key) return;
       const m = getOrCreate(key, name, r.email);
-      m.reviewedMonths.push({ month, rating: r.rating, finished: r.finished });
+      m.reviewedMonths.push({ month, rating: r.rating, finished: r.finished, bookTitle: r.bookTitle || '' });
     });
   });
 
@@ -5739,8 +6088,19 @@ function _doRenderMemberDirectory() {
   });
 
   Object.entries(allProgress).forEach(([memberKey, memberProg]) => {
-    if (!memberData[memberKey]) return; // only show members we already know
-    memberData[memberKey].progress = memberProg;
+    // memberKey is a normalized id — an email (contains '@') or a discord username otherwise.
+    // Resolve it through the identity map so it lands on the same canonical entry as their
+    // votes/suggestions/reviews, even if they tracked progress under a slightly different
+    // identity (case, alias, etc). Also surfaces members who only ever logged progress.
+    const isEmail = memberKey.includes('@');
+    const guessEmail   = isEmail ? memberKey : '';
+    const guessDiscord = isEmail ? '' : memberKey;
+    const canonKey = resolveCanonKey(guessDiscord, guessEmail, idMap);
+    if (!memberData[canonKey]) {
+      const name = resolveId(guessDiscord, guessEmail, idMap) || guessDiscord || guessEmail;
+      getOrCreate(canonKey, name, guessEmail);
+    }
+    memberData[canonKey].progress = { ...(memberData[canonKey].progress || {}), ...memberProg };
   });
 
   // ── Append historical pool books to each member's suggestions ─────────────
@@ -5855,8 +6215,9 @@ function _doRenderMemberDirectory() {
         r => r.month,
         r => {
           const stars = r.rating && r.rating !== 'opt-out' ? '★'.repeat(Number(r.rating)) + '☆'.repeat(5 - Number(r.rating)) : r.rating === 'opt-out' ? 'opted out' : '—';
+          const bookLine = r.bookTitle ? `<span style="color:var(--soft);font-size:.78rem;font-style:italic;"> — ${esc(r.bookTitle)}</span>` : '';
           return `<div style="display:flex;align-items:center;gap:.5rem;padding:.3rem 0;border-bottom:1px solid var(--border);">
-            <div style="flex:1;font-size:.83rem;">${esc(r.month)}</div>
+            <div style="flex:1;font-size:.83rem;">${esc(r.month)}${bookLine}</div>
             <span style="font-size:.78rem;color:var(--soft);">${stars}</span>
           </div>`;
         },
@@ -5869,9 +6230,9 @@ function _doRenderMemberDirectory() {
           <span id="mdir-chevron-${safeKey}" style="font-size:.85rem;color:var(--soft);flex-shrink:0;">▸</span>
           <div style="flex:1;font-weight:500;font-size:.92rem;">${esc(m.name)}</div>
           <div style="display:flex;gap:1rem;font-size:.75rem;color:var(--soft);">
-            <span>🗳️ ${voted}</span>
-            <span>📚 ${suggested}</span>
-            <span>✍️ ${reviewed}</span>
+            <span title="Months voted">🗳️ ${voted}</span>
+            <span title="Books suggested">📚 ${suggested}</span>
+            <span title="Reviews submitted">✍️ ${reviewed}</span>
           </div>
         </div>
         <div id="mdir-body-${safeKey}" style="display:none;padding:1rem;">
@@ -6438,6 +6799,94 @@ async function setYearOverride() {
 window.setYearOverride = setYearOverride;
 
 // ════════════════════════════════════════════════════════
+// BONUS / STANDALONE BOOK — adds a book as its own archive entry
+// without touching the live month's books/votes. Uses memberPick:true
+// so it's excluded from voting stats, streaks & totalMonths, but reading
+// progress, reviews, DNF/DNS and monthly book badges all still work.
+// windowStart/windowEnd (if set) gate ONLY the limited-time badge —
+// reading, tracking, and reviewing the book always stays open.
+// ════════════════════════════════════════════════════════
+function _fmtBonusDate(ts) {
+  return new Date(ts).toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+}
+
+async function addBonusBook() {
+  const title       = v('bonus-title');
+  const author      = v('bonus-author');
+  const genre1      = (document.getElementById('bonus-genre')?.value || '').trim();
+  const genre2      = (document.getElementById('bonus-genre2')?.value || '').trim();
+  const genre       = [genre1, genre2].filter(Boolean).join(' / ');
+  const pagesRaw    = (document.getElementById('bonus-pages')?.value || '').trim();
+  const pagesFormat = (document.getElementById('bonus-pages-format')?.value || '').trim();
+  const pageCount   = pagesRaw ? parseInt(pagesRaw, 10) : null;
+  const note        = v('bonus-note');
+  const startStr    = v('bonus-window-start');
+  const endStr      = v('bonus-window-end');
+  let label         = v('bonus-label') || 'Bonus Book';
+  if (!title)  { showMsg('bonus-book-msg', 'Please enter a book title.', 'err'); return; }
+  if (!author) { showMsg('bonus-book-msg', 'Please enter an author.', 'err'); return; }
+  if (pageCount && !pagesFormat) { showMsg('bonus-book-msg', 'Please select a format (hardcover, paperback, or digital) to go with the page count.', 'err'); return; }
+
+  // Window is optional, but if both are given, start must be before end
+  const windowStart = startStr ? new Date(startStr + 'T00:00:00').getTime() : null;
+  const windowEnd   = endStr   ? new Date(endStr   + 'T23:59:59').getTime() : null;
+  if (windowStart && windowEnd && windowStart > windowEnd) {
+    showMsg('bonus-book-msg', 'The "From" date must be before the "Until" date.', 'err');
+    return;
+  }
+
+  const archives = getArchives();
+  // Avoid duplicate labels — append the title if the plain label is already taken
+  if (archives.some(a => a.label === label)) label = `${label}: ${title}`;
+
+  // Build the member-facing caveat text — shown on the Progress tab and handy to paste into Discord
+  let caveat;
+  if (windowStart && windowEnd) {
+    caveat = `Any time between ${_fmtBonusDate(windowStart)} and ${_fmtBonusDate(windowEnd)} you can read "${title}" by ${author} and earn a limited-time badge for completing it. You'll also be able to review the book just like any other. Not reading it will not negatively impact your book club reading numbers.`;
+  } else if (windowEnd) {
+    caveat = `Any time before ${_fmtBonusDate(windowEnd)} you can read "${title}" by ${author} and earn a limited-time badge for completing it. You'll also be able to review the book just like any other. Not reading it will not negatively impact your book club reading numbers.`;
+  } else {
+    caveat = `You can read "${title}" by ${author} any time and earn a badge for completing it. You'll also be able to review the book just like any other. Not reading it will not negatively impact your book club reading numbers.`;
+  }
+
+  const book = {
+    id: Date.now(),
+    title, author,
+    genre: genre || undefined,
+    pageCount: pageCount || undefined,
+    pagesFormat: pageCount ? (pagesFormat || undefined) : undefined,
+    suggesters: []
+  };
+  const snapshot = {
+    label,
+    books: [book],
+    votes: {},
+    archivedAt: Date.now(),
+    memberPick: true,
+    bonusBook: true,
+    caveat,
+    ...(windowStart ? { windowStart } : {}),
+    ...(windowEnd   ? { windowEnd }   : {}),
+    ...(note ? { note } : {})
+  };
+  archives.push(snapshot);
+  showLoading('Adding bonus book…');
+  await fbSet(ARCHIVES_REF, { list: archives });
+  hideLoading();
+  ['bonus-title','bonus-author','bonus-note','bonus-pages'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['bonus-genre','bonus-genre2','bonus-pages-format'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('bonus-label').value = 'Bonus Book';
+  showMsg('bonus-book-msg', `✓ "${title}" added as a standalone bonus book — members can now track, review, and earn a badge for it.`, 'ok');
+  const caveatBox = document.getElementById('bonus-book-caveat');
+  if (caveatBox) {
+    caveatBox.style.display = 'block';
+    caveatBox.innerHTML = `<strong>Caveat text (copy for Discord):</strong><br>${esc(caveat)}`;
+  }
+  renderAdmin();
+}
+window.addBonusBook = addBonusBook;
+
+// ════════════════════════════════════════════════════════
 // RENAME / FIX ARCHIVED MONTH (handles mislabeled + duplicate-label months)
 // ════════════════════════════════════════════════════════
 let _renameState = null; // { idx, oldLabel, conflictIdx, entries: [...], assign: [...] }
@@ -6711,7 +7160,7 @@ function renderProgressTab() {
       const sorted = [...(a.books || [])].sort((x, y) => scores[y.id] - scores[x.id]);
       winners = sorted.length ? [sorted[0]] : [];
     }
-    return { month: a.label, winners };
+    return { month: a.label, winners, bonusBook: !!a.bonusBook, caveat: a.caveat || '', windowEnd: a.windowEnd || null };
   }).filter(e => e.winners.length);
 
   renderProgressLeaderboard(winnerEntries);
@@ -6737,13 +7186,14 @@ function renderProgressTab() {
 
   area.innerHTML = `
     <p style="font-size:.82rem;color:var(--soft);margin-bottom:1.25rem;">Track your reading progress on each month's winning pick.</p>
-    ${winnerEntries.slice().reverse().map(({ month, winners }) =>
+    ${winnerEntries.slice().reverse().map(({ month, winners, bonusBook, caveat, windowEnd }) =>
       winners.map(b => {
         const cur = myProgress[b.id] || 'not-started';
-        return `<div class="card" style="padding:1rem 1.25rem;">
+        const windowClosed = bonusBook && windowEnd && Date.now() > windowEnd;
+        return `<div class="card" style="padding:1rem 1.25rem;${bonusBook ? 'border-color:var(--gold);' : ''}">
           <div style="display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap;">
             <div style="flex:1;min-width:150px;">
-              <div style="font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:.2rem;">👑 ${esc(month)}</div>
+              <div style="font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:.2rem;" title="${bonusBook ? 'Standalone bonus book — not tied to a monthly vote' : 'Monthly winning pick'}">${bonusBook ? '🎁 Bonus Book' : '👑 ' + esc(month)}</div>
               <div style="font-weight:500;font-size:.95rem;">${esc(b.title)}</div>
               <div style="font-size:.78rem;color:var(--soft);">${esc(b.author)}</div>
             </div>
@@ -6755,10 +7205,34 @@ function renderProgressTab() {
                 </button>`).join('')}
             </div>
           </div>
+          ${bonusBook && caveat ? `<div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border);font-size:.78rem;color:var(--soft);">${windowClosed ? '⏳ The limited-time badge window for this one has closed, but you can still read, track, and review it anytime. ' : ''}${esc(caveat)}</div>` : ''}
+          <div id="review-hint-${b.id}" style="${cur === 'finished' ? '' : 'display:none;'}margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border);font-size:.85rem;">
+            📝 Want to review this book? <a href="#" onclick="event.preventDefault();goToReviewForm('${String(month).replace(/'/g,"\\'")}','${b.id}');" style="color:var(--gold);font-weight:600;text-decoration:none;">Review it now →</a>
+          </div>
         </div>`;
       }).join('')
     ).join('')}`;
 }
+
+function goToReviewForm(month, bookId) {
+  const rb = document.querySelector('nav button[data-tab=review]');
+  goTab('review', rb);
+  setTimeout(() => {
+    const monthSel = document.getElementById('rv-month');
+    if (monthSel) {
+      monthSel.value = month;
+      updateBookSelector();
+      updateReviewForm();
+    }
+    const bookSel = document.getElementById('rv-book');
+    if (bookSel && bookId) {
+      const opt = Array.from(bookSel.options).find(o => o.value === String(bookId));
+      if (opt) { bookSel.value = String(bookId); updateReviewForm(); }
+    }
+    document.getElementById('review-identity-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 80);
+}
+window.goToReviewForm = goToReviewForm;
 
 async function setProgress(bookId, status, btn) {
   if (!_pgIdentity) return;
@@ -6782,6 +7256,8 @@ async function setProgress(bookId, status, btn) {
     b.className = 'progress-btn';
     if (b.getAttribute('onclick').includes(`'${status}'`)) b.classList.add('active-'+status.replace(/-/g,''));
   });
+  const hint = card.querySelector('[id^="review-hint-"]');
+  if (hint) hint.style.display = status === 'finished' ? '' : 'none';
   await fbSet(PROGRESS_REF, { map: progress });
 }
 window.setProgress = setProgress;
@@ -6860,15 +7336,16 @@ function renderProgressLeaderboard(winnerEntries) {
     return;
   }
 
-  const statusPip = (count, cls, emoji) => count > 0
-    ? `<span style="display:inline-flex;align-items:center;gap:.25rem;font-size:.75rem;padding:.15rem .5rem;border-radius:12px;background:var(--cream);border:1px solid var(--border);">${emoji} ${count}</span>`
+  const statusPip = (count, label, emoji) => count > 0
+    ? `<span style="display:inline-flex;align-items:center;gap:.25rem;font-size:.75rem;padding:.15rem .5rem;border-radius:12px;background:var(--cream);border:1px solid var(--border);" title="${esc(label)}">${emoji} ${count}</span>`
     : '';
 
   el.innerHTML = rows.map((m, i) => {
     const pct = totalBooks > 0 ? Math.round(m.finished / totalBooks * 100) : 0;
+    const rankTitle = i===0 ? '1st place' : i===1 ? '2nd place' : i===2 ? '3rd place' : `${i+1}th place`;
     return `<div class="card" style="padding:.85rem 1.25rem;margin-bottom:.5rem;">
       <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
-        <div style="font-family:'Playfair Display',serif;font-size:1.2rem;color:var(--gold);min-width:2rem;text-align:center;">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</div>
+        <div style="font-family:'Playfair Display',serif;font-size:1.2rem;color:var(--gold);min-width:2rem;text-align:center;" title="${esc(rankTitle)}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</div>
         <div style="flex:1;min-width:140px;">
           <div style="font-weight:500;font-size:.92rem;margin-bottom:.3rem;">${esc(m.name)}</div>
           <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden;max-width:200px;">
@@ -6876,11 +7353,11 @@ function renderProgressLeaderboard(winnerEntries) {
           </div>
         </div>
         <div style="display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;">
-          ${statusPip(m.finished,        'finished',        '✅')}
-          ${statusPip(m.reading,         'reading',         '👀')}
-          ${statusPip(m.dnf,             'dnf',             '❌')}
-          ${statusPip(m.choseNotToRead,  'choseNotToRead',  '🚫')}
-          ${statusPip(m.preRead,         'preRead',         '⏮️')}
+          ${statusPip(m.finished,        'Finished',           '✅')}
+          ${statusPip(m.reading,         'Reading',            '👀')}
+          ${statusPip(m.dnf,             'DNF',                '❌')}
+          ${statusPip(m.choseNotToRead,  'Chose Not to Read',  '🚫')}
+          ${statusPip(m.preRead,         'Already Read',       '⏮️')}
           <span style="font-size:.72rem;color:var(--soft);margin-left:.2rem;">${m.finished}/${totalBooks} finished</span>
         </div>
       </div>
@@ -7044,8 +7521,14 @@ function getAllBadges({ includeHidden = false, includeDisabled = false } = {}) {
     desc: cb.desc, check: () => false, adminOnly: true, custom: true,
     iconDataUrl: cb.iconDataUrl || null,
   }));
+  const archivesForBookBadges = getArchives();
   const monthlyBook = (cfg.monthlyBookBadges || []).map(mb => {
     const bookId = String(mb.bookId);
+    // If this book lives on an archive with a badge window (e.g. a bonus book), the
+    // badge is only earnable if the member's finish timestamp falls inside that window.
+    const arc = archivesForBookBadges.find(a => (a.books||[]).some(bk => String(bk.id) === bookId));
+    const windowStart = arc && arc.windowStart ? arc.windowStart : null;
+    const windowEnd   = arc && arc.windowEnd   ? arc.windowEnd   : null;
     return {
       id: mb.id, name: mb.name, emoji: mb.emoji || '📖', tier: null,
       desc: mb.desc || '',
@@ -7053,10 +7536,21 @@ function getAllBadges({ includeHidden = false, includeDisabled = false } = {}) {
       monthlyBook: true,
       bookId,
       monthLabel: mb.monthLabel || '',
-      year: mb.year || '',
+      year: mb.year || (arc && arc.bonusBook ? 'Bonus Books' : ''),
       iconDataUrl: mb.iconDataUrl || null,
-      // Live check: badge earned iff book is currently marked finished
-      check: p => !!(p.finishedBookIds && p.finishedBookIds.has(bookId)),
+      windowStart, windowEnd,
+      // Live check: badge earned iff book is currently marked finished, and — if a badge
+      // window is set — the finish timestamp falls within that window.
+      check: p => {
+        if (!p.finishedBookIds || !p.finishedBookIds.has(bookId)) return false;
+        if (windowStart || windowEnd) {
+          const ts = p.bookFinishTs && p.bookFinishTs[bookId];
+          if (!ts) return false;
+          if (windowStart && ts < windowStart) return false;
+          if (windowEnd && ts > windowEnd) return false;
+        }
+        return true;
+      },
     };
   });
   const all = [...BADGE_DEFS, ...monthlyBook, ...custom];
@@ -7128,6 +7622,7 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
   let nightOwlCount=0, earlyBird=0, top1WinCount=0, top1VoteCount=0;
   let oneStarCount=0, genreLoyalist=false, speedFinishCount=0, lastMinuteCount=0;
   const finishedBookIds = new Set(); // all book IDs currently marked finished in My Progress
+  const bookFinishTs = {}; // bookId -> finish timestamp, used for limited-time book badges
   const dnfBookIds = new Set(); // track DNF book IDs from progress to avoid double-counting
   const totalMonths  = archives.filter(a => !a.memberPick).length;
   const totalSurveys = allSurveys.length;
@@ -7184,7 +7679,10 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
       // Reading progress still counts
       const myProgressMap = allProgress[myKey]||{};
       winnerBooks.forEach(b => {
-        if (myProgressMap[b.id] === 'finished') finishedBookIds.add(String(b.id));
+        if (myProgressMap[b.id] === 'finished') {
+          finishedBookIds.add(String(b.id));
+          if (myProgressMap[b.id + '_ts']) bookFinishTs[String(b.id)] = myProgressMap[b.id + '_ts'];
+        }
         if (a.archivedAt) {
           const archiveDate = new Date(a.archivedAt);
           const followMonthStart = new Date(archiveDate.getFullYear(), archiveDate.getMonth()+1, 1);
@@ -7268,7 +7766,10 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
 
     // Track all books currently marked finished (for monthly book badges — live status, no cutoff)
     winnerBooks.forEach(b => {
-      if (myProgressMap[b.id] === 'finished') finishedBookIds.add(String(b.id));
+      if (myProgressMap[b.id] === 'finished') {
+        finishedBookIds.add(String(b.id));
+        if (myProgressMap[b.id + '_ts']) bookFinishTs[String(b.id)] = myProgressMap[b.id + '_ts'];
+      }
     });
 
     if (a.archivedAt) {
@@ -7782,6 +8283,7 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
     qPassportCompleted, qPassportAllBonus,
     qParkTheBus, qCornerKick, qFourCorners, qFourFourTwo, qConsecutiveApprovals,
     finishedBookIds,
+    bookFinishTs,
     // Penny interaction data (sourced from CACHE.pennyMembers at check time)
     get pennyRecord() {
       const pm = (typeof CACHE !== 'undefined' && CACHE.pennyMembers) ? CACHE.pennyMembers : {};
@@ -7933,36 +8435,68 @@ function renderMyReviews() {
 
   var html = '<div class="sec-head" style="margin-bottom:1rem;"><h2>My Reviews</h2><p>All the reviews you have submitted, most recent first.</p></div>';
 
+  // Group by year — collapsible sections, current year expanded by default
+  var extractYear = function(str) { var m = String(str||'').match(/\b(20\d\d)\b/); return m ? m[1] : 'Other'; };
+  var currentYear = String(new Date().getFullYear());
+  var yearGroups = {};
   myReviews.forEach(function(r) {
-    var bookTitle = getBookTitle(r);
-    var titleHtml = bookTitle
-      ? '<div style="font-weight:600;font-size:1rem;font-family:Playfair Display,serif;margin-bottom:.2rem;">' + esc(bookTitle) + '</div>'
-      : '';
-    var monthHtml = '<div style="font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:var(--soft);margin-bottom:.5rem;">' + esc(r.month) + '</div>';
+    var y = extractYear(r.month);
+    if (!yearGroups[y]) yearGroups[y] = [];
+    yearGroups[y].push(r);
+  });
+  var years = Object.keys(yearGroups).sort();
 
-    var details = [];
-    if (r.read === 'yes' && r.finished === 'yes') details.push('Finished ✓');
-    else if (r.read === 'yes' && r.finished === 'no') details.push('Started, did not finish');
-    else if (r.read === 'no') details.push('Did not start');
+  years.forEach(function(yr) {
+    var isOpen = yr === currentYear;
+    var rowsHtml = yearGroups[yr].map(function(r) {
+      var bookTitle = getBookTitle(r);
+      var titleHtml = bookTitle
+        ? '<div style="font-weight:600;font-size:1rem;font-family:Playfair Display,serif;margin-bottom:.2rem;">' + esc(bookTitle) + '</div>'
+        : '';
+      var monthHtml = '<div style="font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:var(--soft);margin-bottom:.5rem;">' + esc(r.month) + '</div>';
 
-    var body = '';
-    if (r.why)    body += '<div style="margin-top:.5rem;font-size:.88rem;"><strong>Thoughts:</strong> <em>"' + esc(r.why) + '"</em></div>';
-    if (r.liked && r.liked !== 'opt-out')  body += '<div style="font-size:.88rem;margin-top:.3rem;"><strong>Liked it?</strong> ' + esc(r.liked) + '</div>';
-    if (r.dnfWhy) body += '<div style="font-size:.88rem;margin-top:.3rem;color:var(--soft);"><strong>DNF reason:</strong> ' + esc(r.dnfWhy) + '</div>';
+      var details = [];
+      if (r.read === 'yes' && r.finished === 'yes') details.push('Finished ✓');
+      else if (r.read === 'yes' && r.finished === 'no') details.push('Started, did not finish');
+      else if (r.read === 'no') details.push('Did not start');
 
-    html +=
-      '<div class="card" style="margin-bottom:.85rem;">' +
+      var body = '';
+      if (r.why)    body += '<div style="margin-top:.5rem;font-size:.88rem;"><strong>Thoughts:</strong> <em>"' + esc(r.why) + '"</em></div>';
+      if (r.liked && r.liked !== 'opt-out')  body += '<div style="font-size:.88rem;margin-top:.3rem;"><strong>Liked it?</strong> ' + esc(r.liked) + '</div>';
+      if (r.dnfWhy) body += '<div style="font-size:.88rem;margin-top:.3rem;color:var(--soft);"><strong>DNF reason:</strong> ' + esc(r.dnfWhy) + '</div>';
+
+      return '<div class="card" style="margin-bottom:.85rem;">' +
         monthHtml +
         titleHtml +
         '<div style="margin-bottom:.4rem;">' + starHtml(r.rating) + '</div>' +
         (details.length ? '<div style="font-size:.83rem;color:var(--soft);">' + details.join(' &middot; ') + '</div>' : '') +
         body +
       '</div>';
+    }).join('');
+
+    html += '<div style="margin-bottom:.5rem;">' +
+      '<div onclick="toggleMyReviewsYear(\'' + yr + '\')" style="display:flex;align-items:center;gap:.5rem;cursor:pointer;user-select:none;padding:.5rem 0;border-bottom:1px solid var(--border);margin-bottom:.75rem;">' +
+        '<span id="myrev-chevron-' + yr + '" style="font-size:.85rem;color:var(--soft);">' + (isOpen ? '▾' : '▸') + '</span>' +
+        '<span style="font-family:Playfair Display,serif;font-size:1.05rem;font-weight:600;">' + yr + '</span>' +
+        '<span style="font-size:.78rem;color:var(--soft);">(' + yearGroups[yr].length + ' review' + (yearGroups[yr].length !== 1 ? 's' : '') + ')</span>' +
+      '</div>' +
+      '<div id="myrev-body-' + yr + '" style="display:' + (isOpen ? '' : 'none') + ';">' + rowsHtml + '</div>' +
+    '</div>';
   });
 
   area.innerHTML = html;
 }
 window.renderMyReviews = renderMyReviews;
+
+function toggleMyReviewsYear(yr) {
+  var body = document.getElementById('myrev-body-' + yr);
+  var chevron = document.getElementById('myrev-chevron-' + yr);
+  if (!body) return;
+  var isHidden = body.style.display === 'none';
+  body.style.display = isHidden ? '' : 'none';
+  if (chevron) chevron.textContent = isHidden ? '▾' : '▸';
+}
+window.toggleMyReviewsYear = toggleMyReviewsYear;
 
 function renderProfileTab() {
   if (!_profileIdentity) return;
@@ -8013,7 +8547,7 @@ function renderProfileOverview() {
   // ── Badges teaser ──
   const visibleBadges = getAllBadges();
   const earnedBadges = visibleBadges.filter(b => hasBadge(b.id, profile, myKey));
-  const badgeIcons = earnedBadges.slice(0,8).map(b => `<span style="font-size:1.2rem;">${b.emoji||'🏅'}</span>`).join('');
+  const badgeIcons = earnedBadges.slice(0,8).map(b => `<span style="font-size:1.2rem;" title="${esc(b.name)}">${b.emoji||'🏅'}</span>`).join('');
 
   // ── Reviews submitted (only reviewed, not opted out) ──
   const allReviews = getReviews();
@@ -8301,7 +8835,7 @@ function renderBadgesTab() {
         <div style="font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);">Badges Earned</div>
       </div>
       <div style="flex:1;min-width:180px;">
-        <div style="font-weight:500;margin-bottom:.3rem;">${earnedBadges.map(b=>b.iconDataUrl?'🖼️':b.emoji).join(' ')||'—'}</div>
+        <div style="font-weight:500;margin-bottom:.3rem;">${earnedBadges.map(b=>`<span title="${esc(b.name)}">${b.iconDataUrl?'🖼️':b.emoji}</span>`).join(' ')||'—'}</div>
         <div style="font-size:.82rem;color:var(--soft);">${profile.voted} months voted · ${profile.suggestedMonths} months suggested · ${profile.reviewed} reviews · ${profile.surveysCompleted} surveys · ${profile.pickedWinner} winning pick${profile.pickedWinner!==1?'s':''}</div>
         <div style="font-size:.78rem;color:var(--soft);margin-top:.2rem;">Longest vote streak: ${profile.longestVoteStreak} · Longest read streak: ${profile.longestReadStreak}</div>
       </div>
@@ -8342,7 +8876,13 @@ function renderBadgesTab() {
       const totalCount  = earnedInCat.length + lockedInCat.length;
 
       // Get all distinct years from the full badge set (earned + locked)
-      const allYears = [...new Set(inCat.map(b => b.year || 'Unknown'))].sort((a,b)=>b-a);
+      // Sort numerically-newest-first, but keep non-numeric labels (e.g. "Bonus Books") pinned at the top
+      const allYears = [...new Set(inCat.map(b => b.year || 'Unknown'))].sort((a, b) => {
+        const na = /^\d+$/.test(a), nb = /^\d+$/.test(b);
+        if (na && nb) return b - a;
+        if (na !== nb) return na ? 1 : -1;
+        return String(a).localeCompare(String(b));
+      });
       const currentYear = String(new Date().getFullYear());
       // Only show year headings as collapsible if there are multiple distinct years
       const multiYear = allYears.length > 1;
@@ -8352,7 +8892,7 @@ function renderBadgesTab() {
         const lockedY  = sortMbbByMonth(lockedInCat.filter(b => (b.year||'Unknown') === year));
         if (!earnedY.length && !lockedY.length) return '';
         const yId = 'mbb-year-' + year;
-        const isCurrentYear = year === currentYear;
+        const isCurrentYear = year === currentYear || year === 'Bonus Books';
         // For the current year (or when only one year exists), expand by default; older years collapsed
         const collapsed = multiYear && !isCurrentYear;
         return `<div style="margin-bottom:.75rem;">
@@ -9256,10 +9796,22 @@ function renderAdminMbbList() {
   const cfg = getBadgeConfig();
   const badges = cfg.monthlyBookBadges||[];
   if (!badges.length) { area.innerHTML = '<p style="font-size:.85rem;color:var(--soft);">No monthly book badges created yet.</p>'; return; }
-  // Group by year for display
+  // Group by year for display — badges tied to a bonus book (no real month/year) group under "Bonus Books"
+  const archivesForGrouping = getArchives();
+  const yearFor = b => {
+    if (b.year) return b.year;
+    const arc = archivesForGrouping.find(a => (a.books||[]).some(bk => String(bk.id) === String(b.bookId)));
+    return (arc && arc.bonusBook) ? 'Bonus Books' : 'Unknown';
+  };
   const byYear = {};
-  badges.forEach(b => { const y = b.year||'Unknown'; if(!byYear[y]) byYear[y]=[]; byYear[y].push(b); });
-  area.innerHTML = Object.keys(byYear).sort((a,b)=>b-a).map(year => `
+  badges.forEach(b => { const y = yearFor(b); if(!byYear[y]) byYear[y]=[]; byYear[y].push(b); });
+  const sortedYears = Object.keys(byYear).sort((a, b) => {
+    const na = /^\d+$/.test(a), nb = /^\d+$/.test(b);
+    if (na && nb) return b - a;
+    if (na !== nb) return na ? 1 : -1;
+    return String(a).localeCompare(String(b));
+  });
+  area.innerHTML = sortedYears.map(year => `
     <div style="margin-bottom:.75rem;">
       <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.4rem;">${esc(year)}</div>
       ${sortMbbByMonth(byYear[year]).map(b=>`
@@ -9836,7 +10388,7 @@ window.saveArchiveBook = saveArchiveBook;
 function renderGenreDiversity() {
   const area = document.getElementById('analysis-genre-area');
   if (!area) return;
-  const archives = getMetricsFilteredArchives();
+  const archives = getMetricsFilteredArchives().filter(a => !a.bonusBook);
 
   if (!archives.length) {
     area.innerHTML = `<div class="empty"><div class="icon">🎭</div><p>No archived months for ${esc(metricsYearLabel())} yet. Genre data will appear here once books have a genre tag.</p></div>`;
@@ -10244,6 +10796,7 @@ window.forgetIdentity = forgetIdentity;
 
 let _qaIdentity = null; // { email, discord }
 let _qaOpenDrawer = null; // index of currently open book drawer
+let _qaActiveContainerId = 'quarterly-main'; // where renderBingoCard/renderPassportCard mount — swapped by admin 'Submit on Behalf' mode
 
 // ── Key helpers ────────────────────────────────────────
 function qaKey(email, discord) {
@@ -13463,7 +14016,7 @@ function _qaGetState() {
   const key   = qaKey(_qaIdentity.email, _qaIdentity.discord);
   const rawCard = cards[key] || {};
   const card  = _qaMergedCard(rawCard, key); // apply any pending book saves
-  const main  = document.getElementById('quarterly-main');
+  const main  = document.getElementById(_qaActiveContainerId);
   return { cfg, cards, key, card, main };
 }
 
@@ -13738,7 +14291,7 @@ async function qaSubmitCard() {
   if (cfg.mode === 'bingo' && board) patch.board = board;
   await qaPersistCard(patch, 'qa-save-msg');
   _qaOpenDrawer = null;
-  const main = document.getElementById('quarterly-main');
+  const main = document.getElementById(_qaActiveContainerId);
   const updatedCard = Object.assign({}, card, patch);
   if (cfg.mode === 'bingo') renderBingoCard(main, cfg, updatedCard, key);
   else renderPassportCard(main, cfg, updatedCard, key);
@@ -14272,7 +14825,20 @@ function renderQAMemberList(cards, cfg) {
   };
 
   let html = `<div class="card">
-    <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.75rem;">Member Cards <span style="font-size:.82rem;color:var(--soft);font-weight:400;">(${entries.length} total · ${submitted.length} submitted)</span></h3>`;
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:.75rem;">
+      <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin:0;">Member Cards <span style="font-size:.82rem;color:var(--soft);font-weight:400;">(${entries.length} total · ${submitted.length} submitted)</span></h3>
+      <button class="btn btn-secondary btn-sm" onclick="qaAdminToggleSubmitForm()">➕ Submit on Behalf of Member</button>
+    </div>
+    <div id="qa-admin-submit-form" style="display:none;margin-bottom:1rem;padding:.85rem 1rem;background:var(--cream);border:1px solid var(--border);border-radius:6px;">
+      <p style="font-size:.8rem;color:var(--soft);margin-bottom:.6rem;">Use this for members who sent their results another way (DM, paper, etc.) — enter their identity to open their card and fill it in for them, exactly as they would.</p>
+      <div class="grid2" style="margin-bottom:.6rem;">
+        <div class="f-group" style="margin:0;"><label>Email</label><input type="email" id="qa-admin-submit-email" placeholder="member@email.com"></div>
+        <div class="f-group" style="margin:0;"><label>Discord Username</label><input type="text" id="qa-admin-submit-discord" placeholder="user#0000"></div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="qaAdminStartSubmitOnBehalf()">Open Their Card</button>
+      <div id="qa-admin-submit-form-msg" style="margin-top:.4rem;"></div>
+    </div>
+    <div id="qa-admin-submit-main" style="display:none;margin-bottom:1.25rem;"></div>`;
 
   if (submitted.length) {
     html += `<div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.4rem;padding:0 .75rem;">Submitted</div>`;
@@ -14329,6 +14895,75 @@ function _attachQAMemberListHandlers(containerEl) {
     if (deleteBtn)    { const k = deleteBtn.dataset.key;    if (k) qaAdminDeleteCard(k); }
   });
 }
+
+// ── Admin: Submit on Behalf of Member ──────────────────
+let _qaAdminSubmitPrevIdentity = null; // saved so we can restore after exiting
+let _qaAdminSubmitActive = false;
+
+function qaAdminToggleSubmitForm() {
+  const form = document.getElementById('qa-admin-submit-form');
+  if (!form) return;
+  form.style.display = form.style.display === 'none' ? '' : 'none';
+}
+window.qaAdminToggleSubmitForm = qaAdminToggleSubmitForm;
+
+// Shared: mount the live, editable card (same UI a member uses) into the admin panel
+function _qaAdminOpenEditPanel(email, discord, key) {
+  _qaAdminSubmitPrevIdentity = _qaIdentity;
+  _qaIdentity = { email, discord };
+  _qaActiveContainerId = 'qa-admin-submit-card';
+  _qaAdminSubmitActive = true;
+
+  const cfg   = getQuarterlyConfig();
+  const cards = getQuarterlyCards();
+  const card  = _qaMergedCard(cards[key] || {}, key);
+  const container = document.getElementById('qa-admin-submit-main');
+  if (!container) return;
+
+  const formEl = document.getElementById('qa-admin-submit-form');
+  if (formEl) formEl.style.display = 'none';
+  container.style.display = '';
+  container.innerHTML = `<div style="margin-bottom:.75rem;padding:.65rem 1rem;background:#fff8e1;border:1px solid var(--gold);border-radius:6px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
+    <span style="font-size:.85rem;">✏️ Editing on behalf of <strong>${esc(discord)}</strong>${email ? ` (${esc(email)})` : ''}</span>
+    <button class="btn btn-secondary btn-sm" onclick="qaAdminExitSubmitOnBehalf()">✕ Done / Close</button>
+  </div><div id="qa-admin-submit-card"></div>`;
+
+  if (cfg.mode === 'bingo') renderBingoCard(document.getElementById('qa-admin-submit-card'), cfg, card, key);
+  else renderPassportCard(document.getElementById('qa-admin-submit-card'), cfg, card, key);
+
+  container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function qaAdminStartSubmitOnBehalf() {
+  const email   = (document.getElementById('qa-admin-submit-email')?.value || '').trim();
+  const discord = (document.getElementById('qa-admin-submit-discord')?.value || '').trim();
+  if (!email || !discord) { showMsg('qa-admin-submit-form-msg', 'Please enter both email and Discord username.', 'err'); return; }
+  _qaAdminOpenEditPanel(email, discord, qaKey(email, discord));
+}
+window.qaAdminStartSubmitOnBehalf = qaAdminStartSubmitOnBehalf;
+
+// Jump straight into editing an existing member card — no retyping identity needed
+function qaAdminEditExistingCard() {
+  const key = _qaAdminViewKey;
+  const cards = getQuarterlyCards();
+  const card = key && cards[key];
+  if (!card) return;
+  window.qaAdminCardClose(); // close the read-only view modal underneath
+  _qaAdminOpenEditPanel(card.email || '', card.discord || key, key);
+}
+window.qaAdminEditExistingCard = qaAdminEditExistingCard;
+
+function qaAdminExitSubmitOnBehalf() {
+  _qaIdentity = _qaAdminSubmitPrevIdentity;
+  _qaActiveContainerId = 'quarterly-main';
+  _qaAdminSubmitActive = false;
+  const email = document.getElementById('qa-admin-submit-email');
+  const discord = document.getElementById('qa-admin-submit-discord');
+  if (email) email.value = '';
+  if (discord) discord.value = '';
+  renderQuarterlyAdmin();
+}
+window.qaAdminExitSubmitOnBehalf = qaAdminExitSubmitOnBehalf;
 
 // ── Admin controls ─────────────────────────────────────
 async function qaAdminToggleActive() {
@@ -14717,6 +15352,7 @@ function _renderAdminCardView() {
       </h3>
       <button class="btn btn-secondary btn-sm" onclick="qaAdminCardClose()">✕ Close</button>
     </div>
+    ${!card.submitted ? `<div style="margin-bottom:.75rem;"><button class="btn btn-primary btn-sm" onclick="qaAdminEditExistingCard()" style="background:var(--green);color:#fff;">✏️ Continue &amp; Submit for Member</button></div>` : ''}
     <p style="font-size:.75rem;color:var(--soft);margin-bottom:.75rem;">Click any square or stamp to see the book assigned to it.</p>`;
 
   if (cfg.mode === 'bingo') {
