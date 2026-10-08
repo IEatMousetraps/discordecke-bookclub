@@ -12215,15 +12215,18 @@ function _pennyPickBoxLine(trackLine) {
 }
 
 // What Penny says about the music. Puts a record on first if nothing's playing.
-async function _pennyMusicSceneHtml() {
+// Starting a record and reading its label can take a few seconds, so her action shows
+// straight away (via showFirst) and the rest of her answer follows once the title is in.
+async function _pennyMusicSceneHtml(showFirst) {
   const wasPlaying = pennyRecordPlaying();
-  if (!wasPlaying) await pennyRecordStart();
-  const track = await _pennyCurrentTrackLine();
-  const box = _pennyPickBoxLine(track);
   const scene = wasPlaying
     ? `<span class="penny-action">She tilts her head toward the record player, listening.</span>`
     : `<span class="penny-action">She lifts the lid of the record player, sets the needle down, and turns the little knob up.</span>
        <p class="penny-speech">Of course.</p>`;
+  if (showFirst) showFirst(`${scene}<span class="penny-action" style="margin-top:.4rem;">${wasPlaying ? 'She listens for a moment.' : 'The record crackles to life.'}</span>`);
+  if (!wasPlaying) await pennyRecordStart();
+  const track = await _pennyCurrentTrackLine();
+  const box = _pennyPickBoxLine(track);
   return `${scene}
     <p class="penny-speech">${box}</p>
     <p class="penny-speech">This one? ${track}</p>`;
@@ -12231,7 +12234,11 @@ async function _pennyMusicSceneHtml() {
 
 // Chat menu version: answer, then back to the chat topics.
 async function _pennyChatMusic(area) {
-  _pennyChatBack(area, await _pennyMusicSceneHtml());
+  const html = await _pennyMusicSceneHtml(first => {
+    // Replace the old screen right away so it's clear she's answering; options come back after
+    area.innerHTML = `<div class="penny-storybook"><div class="penny-storybook-inner">${first}</div></div>`;
+  });
+  _pennyChatBack(area, html);
 }
 
 // Outside the chat menu, "What's that music?" is a quick aside: it only shows while a
@@ -12250,9 +12257,9 @@ async function pennyMusicAside(areaId, ctx, el) {
   const area = document.getElementById(areaId);
   if (!area) return;
   if (el) { el.disabled = true; el.style.opacity = '.5'; }
-  const html = await _pennyMusicSceneHtml();
-  const bridge = PENNY_MUSIC_ASIDE_BRIDGES[ctx] || '';
   const inner = area.querySelector('.penny-storybook-inner');
+  const html = await _pennyMusicSceneHtml(first => { if (inner) inner.innerHTML = first; });
+  const bridge = PENNY_MUSIC_ASIDE_BRIDGES[ctx] || '';
   if (inner) inner.innerHTML = html + (bridge ? `<p class="penny-speech" style="margin-top:.6rem;">${bridge}</p>` : '');
   if (el) el.remove();
   const book = area.querySelector('.penny-storybook');
