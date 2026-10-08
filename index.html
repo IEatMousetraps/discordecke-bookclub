@@ -5306,21 +5306,23 @@ function renderRankings() {
   getArchiveWinners(yearArchives).forEach(({archive:a, winnerBooks}) => {
     if (!winnerBooks.length) return;
     const isDual = (a.dualWinners||[]).length > 0;
-    // For dual months, derive a clean month-only label by stripping book titles.
-    // Admins often enter labels like "March 2026 - Beartown & Born to Run".
-    // We strip everything after the first " - " separator; if no separator exists,
-    // fall back to removing each winner book title from the label.
+    // Derive a clean month-only label by stripping book titles, so every card can
+    // show the book title as its heading and the month underneath.
+    // Admins often enter labels like "March 2026 - Beartown & Born to Run" or
+    // "Bonus Book (Cheberko) Open by Andre Agassi". We strip everything after the
+    // first " - " separator; if no separator exists, fall back to removing each
+    // winner book's "Title by Author" / title from the label.
     let cleanLabel = a.label;
-    if (isDual) {
-      const dashIdx = a.label.indexOf(' - ');
-      if (dashIdx !== -1) {
-        cleanLabel = a.label.slice(0, dashIdx).trim();
-      } else {
-        // Try removing book titles
-        let s = a.label;
-        winnerBooks.forEach(b => { s = s.replace(b.title, '').replace(/\s*[&,]\s*$/, '').replace(/^\s*[&,]\s*/, '').trim(); });
-        if (s) cleanLabel = s;
-      }
+    const dashIdx = a.label.indexOf(' - ');
+    if (dashIdx !== -1) {
+      cleanLabel = a.label.slice(0, dashIdx).trim();
+    } else {
+      let s = a.label;
+      winnerBooks.forEach(b => {
+        if (b.author) s = s.replace(`${b.title} by ${b.author}`, '');
+        s = s.replace(b.title, '').replace(/\s*[&,]\s*$/, '').replace(/^\s*[&,]\s*/, '').trim();
+      });
+      if (s) cleanLabel = s;
     }
     archiveLookup[a.label] = { dual: isDual, winnerBooks, cleanLabel };
     winnerBooks.forEach(b => {
@@ -5469,7 +5471,8 @@ function renderRankings() {
     const month = meta.month || rankKey;
     const cleanMonthLabel = (archiveLookup[month]?.cleanLabel) || month;
     const isDual = meta.isDual;
-    const bookTitle = meta.bookTitle || month;
+    // Heading is always the book title; single-winner months take it from the archive
+    const bookTitle = meta.bookTitle || (archiveLookup[month]?.winnerBooks?.[0]?.title) || month;
     const reviewToggleId = `rkrev_${rankKey.replace(/[^a-z0-9]/gi,'_')}`;
     const recommenders = recommenderMap[rankKey] || [];
     const recommenderHtml = recommenders.length
@@ -5481,7 +5484,7 @@ function renderRankings() {
     const reasonsHtml = suggesterReasonsHtml(bookReasonsMap[rankKey], { marginTop: '.4rem' });
     const subtitle = isDual
       ? `<div style="font-size:.72rem;color:var(--soft);font-style:italic;margin-bottom:.4rem;">👑 Co-winner · ${esc(cleanMonthLabel)}</div>`
-      : `<div style="font-size:.72rem;color:var(--soft);font-style:italic;margin-bottom:.4rem;">${esc(month)}</div>`;
+      : `<div style="font-size:.72rem;color:var(--soft);font-style:italic;margin-bottom:.4rem;">${esc(cleanMonthLabel)}</div>`;
     return `
     <div class="chart-wrap" style="margin-bottom:1rem;">
       <div style="display:flex;gap:1rem;align-items:flex-start;">
