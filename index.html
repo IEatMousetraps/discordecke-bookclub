@@ -2546,6 +2546,16 @@ function getArchives()       { return CACHE.archives || []; }
 // These just figure out which calendar year an archive belongs to, and which year
 // new activity is currently being filed under (settings.currentYear, admin-controlled).
 function getCurrentYear() { return (getSettings()||{}).currentYear || 2026; }
+// "JAN 2026 - What It Is by Lynda Barry" → "January 2026". Finds a month + year
+// anywhere in an archive label, however it's abbreviated or capitalized.
+// Returns null when the label has no month (e.g. a Bonus Book label).
+const _MONTH_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+function archiveMonthName(label) {
+  const m = String(label || '').match(/\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sept?(?:ember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+(20\d{2})\b/i);
+  if (!m) return null;
+  const idx = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'].indexOf(m[1].slice(0,3).toLowerCase());
+  return idx < 0 ? null : `${_MONTH_FULL[idx]} ${m[2]}`;
+}
 function getArchiveYear(a) {
   const m = String(a.label||'').match(/\b(20\d{2})\b/);
   if (m) return parseInt(m[1], 10);
@@ -5306,21 +5316,19 @@ function renderRankings() {
   getArchiveWinners(yearArchives).forEach(({archive:a, winnerBooks}) => {
     if (!winnerBooks.length) return;
     const isDual = (a.dualWinners||[]).length > 0;
-    // Derive a clean month-only label by stripping book titles, so every card can
-    // show the book title as its heading and the month underneath.
-    // Admins often enter labels like "March 2026 - Beartown & Born to Run" or
-    // "Bonus Book (Cheberko) Open by Andre Agassi". We strip everything after the
-    // first " - " separator; if no separator exists, fall back to removing each
-    // winner book's "Title by Author" / title from the label.
+    // Month line under each card: pull the "Month YYYY" out of the archive label
+    // wherever it sits (e.g. "Aug 2026 - The Immortalists…", "JAN 2026 - …").
+    // Labels with no month (e.g. "Bonus Book (Cheberko) Open by Andre Agassi")
+    // fall back to the label with each winner's "Title by Author" / title removed.
     let cleanLabel = a.label;
-    const dashIdx = a.label.indexOf(' - ');
-    if (dashIdx !== -1) {
-      cleanLabel = a.label.slice(0, dashIdx).trim();
+    const monthName = archiveMonthName(a.label);
+    if (monthName) {
+      cleanLabel = monthName;
     } else {
       let s = a.label;
       winnerBooks.forEach(b => {
         if (b.author) s = s.replace(`${b.title} by ${b.author}`, '');
-        s = s.replace(b.title, '').replace(/\s*[&,]\s*$/, '').replace(/^\s*[&,]\s*/, '').trim();
+        s = s.replace(b.title, '').replace(/\s*[-–—&,]\s*$/, '').replace(/^\s*[-–—&,]\s*/, '').trim();
       });
       if (s) cleanLabel = s;
     }
@@ -5472,7 +5480,10 @@ function renderRankings() {
     const cleanMonthLabel = (archiveLookup[month]?.cleanLabel) || month;
     const isDual = meta.isDual;
     // Heading is always the book title; single-winner months take it from the archive
-    const bookTitle = meta.bookTitle || (archiveLookup[month]?.winnerBooks?.[0]?.title) || month;
+    const _winners = archiveLookup[month]?.winnerBooks || [];
+    const _book = (isDual && meta.bookId ? _winners.find(b => String(b.id) === String(meta.bookId)) : _winners[0]) || null;
+    const bookTitle = (_book && _book.title) || meta.bookTitle || month;
+    const bookAuthor = (_book && _book.author) || '';
     const reviewToggleId = `rkrev_${rankKey.replace(/[^a-z0-9]/gi,'_')}`;
     const recommenders = recommenderMap[rankKey] || [];
     const recommenderHtml = recommenders.length
@@ -5493,7 +5504,8 @@ function renderRankings() {
           <div style="display:flex;gap:.75rem;margin-bottom:.75rem;">
             <span style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--gold);flex-shrink:0;">${rank}.</span>
             <div style="min-width:0;">
-              <div style="font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:600;margin-bottom:.25rem;">${esc(bookTitle)}</div>
+              <div style="font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:600;margin-bottom:${bookAuthor ? '.05rem' : '.25rem'};">${esc(bookTitle)}</div>
+              ${bookAuthor ? `<div style="font-size:.82rem;color:var(--soft);margin-bottom:.3rem;">by ${esc(bookAuthor)}</div>` : ''}
               ${meta.genre ? `<div style="margin-bottom:.3rem;">${genrePillsHtml(meta.genre)}</div>` : ''}
               ${subtitle}
               ${recommenderHtml}
@@ -8931,7 +8943,7 @@ function renderProfileOverview() {
           const wonPill = b.won ? `<span style="font-size:.7rem;background:#fff8e1;border:1px solid var(--gold);color:#b8860b;padding:.1rem .4rem;border-radius:10px;white-space:nowrap;margin-left:.5rem;">won</span>` : '';
           return `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:.35rem 0;border-bottom:.5px solid var(--border);font-size:.88rem;">
             <span><strong>${esc(b.title||'')}</strong>${b.author ? ` <span style="color:var(--soft);font-size:.8rem;">by ${esc(b.author)}</span>` : ''}${wonPill}</span>
-            <span style="font-size:.75rem;color:var(--soft);white-space:nowrap;margin-left:.5rem;">${esc(b.monthLabel||'')}</span>
+            <span style="font-size:.75rem;color:var(--soft);white-space:nowrap;margin-left:.5rem;">${esc(archiveMonthName(b.monthLabel) || b.monthLabel || '')}</span>
           </div>`;
         },
         `prof-sug-${myKey.replace(/[^a-z0-9]/gi,'_')}`
@@ -8982,8 +8994,31 @@ function renderProfileOverview() {
         if (!visits) return '';
         const fmt = ts => ts ? new Date(ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—';
         const lastRecTitle = pr.lastRec && pr.lastRec.title ? pr.lastRec.title : null;
-        const lastRecMonth = pr.lastRec && pr.lastRec.month ? pr.lastRec.month : null;
         const lastVisitStr = fmt(pr.lastVisit);
+        // Look the recommended book back up (archive month first, then any archive,
+        // then Penny's historical pool) for its author, suggesters and their reasons.
+        let recAuthor = '', recSuggesters = [];
+        if (lastRecTitle) {
+          const tKey = normTitleKey(lastRecTitle);
+          const archs = getArchives();
+          const inMonth = archs.find(a => a.label === pr.lastRec.month);
+          let bk = inMonth && (inMonth.books || []).find(b => normTitleKey(b.title) === tKey);
+          if (!bk) archs.some(a => (bk = (a.books || []).find(b => normTitleKey(b.title) === tKey)));
+          if (bk) {
+            recAuthor = bk.author || '';
+            recSuggesters = normBook(bk).suggesters || [];
+          } else {
+            const h = (CACHE.pennyHistorical || []).find(x => normTitleKey(x.title) === tKey);
+            if (h) { recAuthor = h.author || ''; if (h.suggestedBy) recSuggesters = [{ discord: h.suggestedBy, email: '' }]; }
+          }
+        }
+        const _pIdMap = buildIdentityMap();
+        const recNames = [];
+        recSuggesters.forEach(sg => {
+          const n = resolveId(sg.discord || '', sg.email || '', _pIdMap) || sg.discord || '';
+          if (n && !recNames.includes(n)) recNames.push(n);
+        });
+        const recReasons = recSuggesters.filter(sg => sg && sg.reason);
         return `<div style="border-radius:8px;overflow:hidden;margin-bottom:.1rem;">
           <div style="background:#1a1208;padding:.55rem 1rem .45rem;display:flex;align-items:center;gap:.6rem;">
             <span style="font-size:1rem;">🕯️</span>
@@ -9004,7 +9039,12 @@ function renderProfileOverview() {
             </div>
             ${lastRecTitle ? `<div style="flex:1;min-width:120px;">
               <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.15rem;">Last recommendation</div>
-              <div style="font-size:.88rem;font-style:italic;">"${esc(lastRecTitle)}"${lastRecMonth ? `<span style="font-size:.75rem;color:var(--soft);font-style:normal;"> · ${esc(lastRecMonth)}</span>` : ''}</div>
+              <div style="font-size:.88rem;"><em>"${esc(lastRecTitle)}"</em>${recAuthor ? `<span style="color:var(--soft);"> by ${esc(recAuthor)}</span>` : ''}</div>
+              ${recNames.length ? `<div style="font-size:.75rem;color:var(--soft);margin-top:.15rem;">Suggested by ${recNames.map(n => `<strong style="color:var(--ink);font-weight:500;">${esc(n)}</strong>`).join(', ')}</div>` : ''}
+              ${recReasons.length ? `<details style="margin-top:.3rem;font-size:.78rem;">
+                <summary style="cursor:pointer;color:var(--soft);">Why ${recReasons.length > 1 ? 'they' : esc(resolveId(recReasons[0].discord || '', recReasons[0].email || '', _pIdMap) || recReasons[0].discord || 'they')} recommended it</summary>
+                ${recReasons.map(sg => `<div style="margin:.35rem 0 0 .75rem;font-style:italic;color:var(--ink);">${recReasons.length > 1 ? `<span style="font-style:normal;font-weight:500;">${esc(resolveId(sg.discord || '', sg.email || '', _pIdMap) || sg.discord || '')}:</span> ` : ''}"${esc(sg.reason)}"</div>`).join('')}
+              </details>` : ''}
             </div>` : ''}
           </div>
         </div>`;
