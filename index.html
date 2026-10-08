@@ -14851,6 +14851,7 @@ window.qaAdminViewArchiveCard = function(archiveIdx, key) {
   if (!card) return;
   const viewArea = document.getElementById('qa-archive-card-view');
   if (!viewArea) return;
+  _qaArcEditKey = key;
 
   const mode = archive.mode || 'bingo';
   const archiveCfg = archive.cfg || {};
@@ -14941,9 +14942,89 @@ window.qaAdminViewArchiveCard = function(archiveIdx, key) {
     }
   }
 
+  // ── Admin edit panel: fix identity, change status, or remove the card ──
+  const _arcStatus = card.approved ? 'approved' : card.submitted ? 'submitted' : 'inprogress';
+  html += `<div style="margin-top:1rem;padding-top:.85rem;border-top:1px solid var(--border);">
+    <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.5rem;">Edit archived card</div>
+    <div class="grid2" style="margin-bottom:.6rem;">
+      <div class="f-group" style="margin:0;"><label>Discord Username</label><input type="text" id="qa-arc-ed-discord" value="${esc(card.discord||'')}"></div>
+      <div class="f-group" style="margin:0;"><label>Email</label><input type="email" id="qa-arc-ed-email" value="${esc(card.email||'')}"></div>
+    </div>
+    <div class="f-group" style="margin:0 0 .6rem;max-width:260px;"><label>Status</label>
+      <select id="qa-arc-ed-status">
+        <option value="inprogress" ${_arcStatus==='inprogress'?'selected':''}>In Progress</option>
+        <option value="submitted" ${_arcStatus==='submitted'?'selected':''}>Submitted (not approved)</option>
+        <option value="approved" ${_arcStatus==='approved'?'selected':''}>Approved</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;">
+      <button class="btn btn-primary btn-sm" onclick="qaAdminSaveArchiveCard(${archiveIdx})">Save Changes</button>
+      <button class="btn btn-danger btn-sm" onclick="qaAdminDeleteArchiveCard(${archiveIdx})">🗑 Delete Card</button>
+      <span style="font-size:.75rem;color:var(--soft);">Quarterly badges and the drawing list update from what you save.</span>
+    </div>
+    <div id="qa-arc-ed-msg" style="margin-top:.4rem;"></div>
+  </div>`;
+
   html += `</div>`;
   viewArea.innerHTML = html;
   viewArea.scrollIntoView({ behavior:'smooth', block:'nearest' });
+};
+
+// ── Editing archived quarter cards ──────────────────────
+// The archive lives inside quarterlyConfig.archives (an array), so every edit
+// rewrites the whole array; Firestore replaces arrays wholesale even in merge
+// mode, which is what lets a deleted card actually disappear.
+let _qaArcEditKey = null;
+
+async function _qaSaveArchives(archives) {
+  showLoading('Saving archive…');
+  try {
+    await fbSet(QUARTERLY_CONFIG_REF, { archives });
+  } finally {
+    hideLoading();
+  }
+  if (CACHE.quarterlyConfig) CACHE.quarterlyConfig.archives = archives;
+}
+
+window.qaAdminSaveArchiveCard = async function(archiveIdx) {
+  const key = _qaArcEditKey;
+  const archives = JSON.parse(JSON.stringify(getQuarterlyConfig().archives || []));
+  const a = archives[archiveIdx];
+  if (!a || !a.cards || !a.cards[key]) { showMsg('qa-arc-ed-msg', 'This card is no longer in the archive. Close it and pick the quarter again.', 'err'); return; }
+  const discord = (document.getElementById('qa-arc-ed-discord')?.value || '').trim();
+  const email   = (document.getElementById('qa-arc-ed-email')?.value || '').trim();
+  const status  = document.getElementById('qa-arc-ed-status')?.value || 'inprogress';
+  if (!discord) { showMsg('qa-arc-ed-msg', 'Please enter a Discord username.', 'err'); return; }
+  if (email && !email.includes('@')) { showMsg('qa-arc-ed-msg', 'That email doesn\'t look right. Fix it or leave it blank.', 'err'); return; }
+  const card = a.cards[key];
+  card.discord = discord;
+  card.email = email;
+  card.submitted = status !== 'inprogress';
+  card.approved  = status === 'approved';
+  // Quarter-count badges key off submittedAt, so give newly submitted cards one
+  if (card.submitted && !card.submittedAt) card.submittedAt = Date.now();
+  card.adminEditedAt = Date.now();
+  try { await _qaSaveArchives(archives); }
+  catch (e) { showMsg('qa-arc-ed-msg', 'Could not save: ' + esc(e && e.message ? e.message : e), 'err'); return; }
+  renderQuarterlyAdmin();
+  qaAdminViewArchiveCard(archiveIdx, key);
+  showMsg('qa-arc-ed-msg', '✓ Saved.', 'ok');
+};
+
+window.qaAdminDeleteArchiveCard = async function(archiveIdx) {
+  const key = _qaArcEditKey;
+  const archives = JSON.parse(JSON.stringify(getQuarterlyConfig().archives || []));
+  const a = archives[archiveIdx];
+  if (!a || !a.cards || !a.cards[key]) { showMsg('qa-arc-ed-msg', 'This card is no longer in the archive. Close it and pick the quarter again.', 'err'); return; }
+  const c = a.cards[key];
+  const claimedCount = (c.claimed || []).filter(Boolean).length;
+  const warn = claimedCount ? `\n\nHeads up: this card has ${claimedCount} claimed square${claimedCount!==1?'s':''} or stamp${claimedCount!==1?'s':''}.` : '';
+  if (!confirm(`Delete ${c.discord || key}'s card from ${a.name}?${warn}\n\nThis can't be undone.`)) return;
+  delete a.cards[key];
+  try { await _qaSaveArchives(archives); }
+  catch (e) { showMsg('qa-arc-ed-msg', 'Could not delete: ' + esc(e && e.message ? e.message : e), 'err'); return; }
+  _qaArcEditKey = null;
+  renderQuarterlyAdmin();
 };
 
 window.qaAdminViewArchiveCellClick = function(archiveIdx, key, i) {
