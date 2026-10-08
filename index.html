@@ -1611,6 +1611,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       <button class="sub-tab" onclick="goAdminTab('live-results',this)">📊 Live Results</button>
       <button class="sub-tab" onclick="goAdminTab('members-overview',this)">👥 Members</button>
       <button class="sub-tab" onclick="goAdminTab('reading-progress-admin',this)">📖 Reading Progress</button>
+      <button class="sub-tab" onclick="goAdminTab('reviews-admin',this)">✍️ Reviews</button>
       <button class="sub-tab" onclick="goAdminTab('badges-admin',this)">🏅 Badge Manager</button>
       <button class="sub-tab" onclick="goAdminTab('edit-books',this)">✏️ Edit Books</button>
       <button class="sub-tab" onclick="goAdminTab('quarterly-admin',this)">🎯 Quarterly</button>
@@ -2199,6 +2200,12 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       </div>
     </div><!-- /admin-sub-penny-admin -->
 
+    <div id="admin-sub-reviews-admin" style="display:none;">
+      <h3 style="font-family:'Playfair Display',serif;margin-bottom:.25rem;">Edit Member Reviews</h3>
+      <p style="font-size:.82rem;color:var(--soft);margin-bottom:1.25rem;">Fix a review at the source: a mistyped email or Discord name, a typo in someone's thoughts, the wrong month or co-winner book, or a review that shouldn't be there. Fixing an email here can also clear up a split member identity without needing an alias rule.</p>
+      <div id="admin-reviews-area"></div>
+    </div><!-- /admin-sub-reviews-admin -->
+
     <div id="admin-sub-identities-admin" style="display:none;">
       <h3 style="font-family:'Playfair Display',serif;margin-bottom:.25rem;">Identity Aliases</h3>
       <p style="font-size:.82rem;color:var(--soft);margin-bottom:1.25rem;">When two entries belong to the same member but use different names or emails, add an alias rule here. The <strong>From</strong> identity will be treated as the <strong>To</strong> identity everywhere — no raw data is changed.</p>
@@ -2521,6 +2528,9 @@ function _doRefreshActiveTab() {
       } else {
         renderAdmin();
       }
+      // Keep the review editor list current, but never wipe an open edit form
+      const rvSub = document.getElementById('admin-sub-reviews-admin');
+      if (rvSub && rvSub.style.display !== 'none' && _rvAdminEditing === null) renderAdminReviewList();
     }
   }
 }
@@ -2648,6 +2658,9 @@ function goTab(id, btn) {
       } else {
         renderAdmin();
       }
+      // Keep the review editor list current, but never wipe an open edit form
+      const rvSub = document.getElementById('admin-sub-reviews-admin');
+      if (rvSub && rvSub.style.display !== 'none' && _rvAdminEditing === null) renderAdminReviewList();
     }
   }
 }
@@ -4245,6 +4258,270 @@ Submitting will replace it. Continue?`)) return;
 window.submitReview = submitReview;
 
 // ════════════════════════════════════════════════════════
+// ADMIN — REVIEW EDITOR
+// Fix a member's review at the source: wrong email or Discord name, a typo
+// in their thoughts, the wrong month or co-winner book, or a review that
+// shouldn't be there at all. Rows are tracked by a snapshot key (month + ts +
+// email + discord) rather than an array index, so a review submitted while
+// the editor is open can't shift which entry gets saved. Writes the whole
+// reviews map with fbSetFull (merge mode can't delete or move entries).
+// ════════════════════════════════════════════════════════
+let _rvAdminMonth = '';      // '' = all months
+let _rvAdminQuery = '';
+let _rvAdminEditing = null;  // index into _rvAdminKeys of the open editor
+let _rvAdminKeys = [];       // render-time registry: n → snapshot key
+
+function _rvAdminKey(month, r) {
+  return [month, r.ts || '', r.email || '', r.discord || '', r.bookId || ''].join('|');
+}
+function _rvAdminLocate(reviews, key) {
+  for (const [m, list] of Object.entries(reviews)) {
+    const i = (list || []).findIndex(r => _rvAdminKey(m, r) === key);
+    if (i >= 0) return { month: m, idx: i };
+  }
+  return null;
+}
+// Months in archive order (newest first), plus any review month that no
+// longer matches an archive label so orphaned reviews stay reachable.
+function _rvAdminMonths() {
+  const labels = getArchives().map(a => a.label).reverse();
+  Object.keys(getReviews()).forEach(m => { if (!labels.includes(m)) labels.push(m); });
+  return labels;
+}
+function _rvAdminDualBooks(month) {
+  const a = getArchives().find(x => x.label === month);
+  if (!a || !a.dualWinners || !a.dualWinners.length) return null;
+  return (a.books || []).filter(b => a.dualWinners.includes(String(b.id)));
+}
+function _rvAdminSingleTitle(month) {
+  const w = getArchiveWinners().find(x => x.archive.label === month);
+  return w && w.winnerBooks.length ? w.winnerBooks[0].title : null;
+}
+function _rvAdminStatus(r) {
+  if (r.read !== 'Yes') return 'Did not start';
+  return r.finished === 'Yes' ? 'Finished' : 'DNF';
+}
+function _rvAdminStars(r) {
+  const n = +r.rating;
+  return n >= 1 && n <= 5 ? '⭐'.repeat(n) : '<span style="color:var(--soft);">No rating</span>';
+}
+
+function renderAdminReviewEditor() {
+  const area = document.getElementById('admin-reviews-area');
+  if (!area) return;
+  const months = _rvAdminMonths();
+  if (_rvAdminMonth && !months.includes(_rvAdminMonth)) _rvAdminMonth = '';
+  const total = Object.values(getReviews()).reduce((n, l) => n + (l || []).length, 0);
+  area.innerHTML = `
+    <div style="display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin-bottom:1rem;">
+      <select id="rv-admin-month" onchange="rvAdminSetMonth(this.value)" style="padding:.45rem .6rem;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;">
+        <option value="">All months (${total} reviews)</option>
+        ${months.map(m => `<option value="${esc(m)}" ${m === _rvAdminMonth ? 'selected' : ''}>${esc(m)} (${(getReviews()[m] || []).length})</option>`).join('')}
+      </select>
+      <input id="rv-admin-search" type="text" placeholder="Search name, email or review text…" value="${esc(_rvAdminQuery)}" oninput="rvAdminSetQuery(this.value)" style="flex:1;min-width:200px;padding:.45rem .6rem;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;">
+    </div>
+    <div id="rv-admin-msg" style="margin-bottom:.5rem;"></div>
+    <div id="rv-admin-list"></div>`;
+  renderAdminReviewList();
+}
+window.renderAdminReviewEditor = renderAdminReviewEditor;
+
+function rvAdminSetMonth(m) { _rvAdminMonth = m; _rvAdminEditing = null; renderAdminReviewList(); }
+function rvAdminSetQuery(q) { _rvAdminQuery = q; _rvAdminEditing = null; renderAdminReviewList(); }
+window.rvAdminSetMonth = rvAdminSetMonth;
+window.rvAdminSetQuery = rvAdminSetQuery;
+
+function renderAdminReviewList() {
+  const listEl = document.getElementById('rv-admin-list');
+  if (!listEl) return;
+  const reviews = getReviews();
+  const idMap = buildIdentityMap();
+  const q = _rvAdminQuery.trim().toLowerCase();
+  const months = _rvAdminMonth ? [_rvAdminMonth] : _rvAdminMonths();
+  _rvAdminKeys = [];
+  let shown = 0;
+  const groups = months.map(month => {
+    const list = reviews[month] || [];
+    // Flag a member with more than one review of the same book this month
+    const seen = {};
+    list.forEach(r => { const k = resolveId(r.discord || '', r.email || '', idMap) + '::' + (r.bookId || ''); seen[k] = (seen[k] || 0) + 1; });
+    const rows = list.map(r => {
+      const hay = [r.discord, r.email, r.why, r.dnfWhy, r.bookTitle].join(' ').toLowerCase();
+      if (q && !hay.includes(q)) return '';
+      const n = _rvAdminKeys.push(_rvAdminKey(month, r)) - 1;
+      shown++;
+      const resolved = resolveId(r.discord || '', r.email || '', idMap);
+      const flags = [];
+      if (!String(r.email || '').includes('@')) flags.push('email looks wrong');
+      if (seen[resolved + '::' + (r.bookId || '')] > 1) flags.push('more than one review of this book');
+      const when = r.ts ? new Date(r.ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+      return `<div style="border-bottom:1px solid var(--border);padding:.65rem 0;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.75rem;flex-wrap:wrap;">
+          <div style="min-width:0;">
+            <div style="font-weight:600;font-size:.9rem;">${esc(r.discord || '(no name)')}${resolved && resolved !== r.discord ? ` <span style="font-weight:400;color:var(--soft);font-size:.78rem;">→ counts as ${esc(resolved)}</span>` : ''}</div>
+            <div style="font-size:.78rem;color:var(--soft);overflow-wrap:anywhere;">${esc(r.email || '(no email)')}${r.bookTitle ? ' · ' + esc(r.bookTitle) : ''}${when ? ' · ' + when : ''}${r.editedAt ? ' · edited' : ''}</div>
+            <div style="font-size:.8rem;margin-top:.2rem;">${_rvAdminStars(r)} <span style="color:var(--soft);">· ${_rvAdminStatus(r)}${r.liked === 'Yes' ? ' · ❤️ Liked it' : ''}</span></div>
+            ${r.why ? `<div style="font-size:.8rem;font-style:italic;color:var(--ink);margin-top:.25rem;">"${esc(r.why)}"</div>` : ''}
+            ${flags.length ? `<div style="font-size:.75rem;color:#c0392b;margin-top:.25rem;">⚠️ ${flags.join(' · ')}</div>` : ''}
+          </div>
+          <div style="display:flex;gap:.4rem;flex-shrink:0;">
+            <button class="btn btn-secondary btn-sm" onclick="rvAdminOpen(${n})">Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="rvAdminDelete(${n})">Delete</button>
+          </div>
+        </div>
+        ${_rvAdminEditing === n ? _rvAdminFormHtml(n, month, r) : ''}
+      </div>`;
+    }).filter(Boolean);
+    if (!rows.length) return '';
+    return `<div class="card" style="margin-bottom:1rem;padding:1rem 1.25rem;">
+      <h4 style="font-family:'Playfair Display',serif;font-size:1rem;margin-bottom:.25rem;">${esc(month)} <span style="font-size:.78rem;color:var(--soft);font-weight:400;">· ${rows.length} review${rows.length !== 1 ? 's' : ''}</span></h4>
+      ${rows.join('')}
+    </div>`;
+  }).filter(Boolean);
+  listEl.innerHTML = shown ? groups.join('') : `<div class="empty"><div class="icon">✍️</div><p>${q ? 'No reviews match that search.' : 'No reviews yet.'}</p></div>`;
+}
+window.renderAdminReviewList = renderAdminReviewList;
+
+function _rvAdminFormHtml(n, month, r) {
+  const months = _rvAdminMonths();
+  const dual = _rvAdminDualBooks(month);
+  const rating = (+r.rating >= 1 && +r.rating <= 5) ? String(+r.rating) : 'opt-out';
+  const sel = (id, opts, cur) => `<select id="${id}" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;">${opts.map(([v, l]) => `<option value="${esc(v)}" ${String(cur) === String(v) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+  const field = (label, html) => `<div class="f-group" style="margin:0;"><label>${label}</label>${html}</div>`;
+  return `<div style="margin-top:.75rem;padding:1rem;background:var(--cream);border:1px solid var(--border);border-radius:8px;display:grid;gap:.65rem;">
+    <div class="grid2">
+      ${field('Discord name', `<input type="text" id="rv-ed-discord" value="${esc(r.discord || '')}">`)}
+      ${field('Email', `<input type="email" id="rv-ed-email" value="${esc(r.email || '')}">`)}
+    </div>
+    <div class="grid2">
+      ${field('Month', sel('rv-ed-month', months.map(m => [m, m]), month).replace('<select ', '<select onchange="rvAdminMonthChanged(this.value)" '))}
+      <div id="rv-ed-book-wrap">${dual ? field('Book (co-winner month)', sel('rv-ed-book', dual.map(b => [String(b.id), b.title]), r.bookId)) : ''}</div>
+    </div>
+    <div class="grid2">
+      ${field('Started the book?', sel('rv-ed-read', [['Yes', 'Yes'], ['No', 'No']], r.read === 'Yes' ? 'Yes' : 'No'))}
+      ${field('Finished it? (if started)', sel('rv-ed-finished', [['Yes', 'Yes'], ['No', 'No — DNF']], r.finished === 'Yes' ? 'Yes' : 'No'))}
+    </div>
+    <div class="grid2">
+      ${field('Liked it?', sel('rv-ed-liked', [['Yes', 'Yes'], ['No', 'No'], ['', 'Not answered']], r.liked || ''))}
+      ${field('Rating', sel('rv-ed-rating', [['5', '5 stars'], ['4', '4 stars'], ['3', '3 stars'], ['2', '2 stars'], ['1', '1 star'], ['opt-out', 'No rating']], rating))}
+    </div>
+    ${field('Their thoughts', `<textarea id="rv-ed-why" rows="3">${esc(r.why || '')}</textarea>`)}
+    ${field('Why they stopped or didn\'t start', `<textarea id="rv-ed-dnf" rows="2">${esc(r.dnfWhy || '')}</textarea>`)}
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;">
+      <button class="btn btn-primary btn-sm" onclick="rvAdminSave(${n})">Save Changes</button>
+      <button class="btn btn-secondary btn-sm" onclick="rvAdminClose()">Cancel</button>
+      <span style="font-size:.75rem;color:var(--soft);">Badges and stats recalculate from the saved review.</span>
+    </div>
+    <div id="rv-ed-msg"></div>
+  </div>`;
+}
+
+function rvAdminOpen(n) { _rvAdminEditing = n; renderAdminReviewList(); }
+function rvAdminClose() { _rvAdminEditing = null; renderAdminReviewList(); }
+window.rvAdminOpen = rvAdminOpen;
+window.rvAdminClose = rvAdminClose;
+
+// Swap the co-winner book picker when the month changes in the editor
+function rvAdminMonthChanged(month) {
+  const wrap = document.getElementById('rv-ed-book-wrap');
+  if (!wrap) return;
+  const dual = _rvAdminDualBooks(month);
+  wrap.innerHTML = dual ? `<div class="f-group" style="margin:0;"><label>Book (co-winner month)</label><select id="rv-ed-book" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;">${dual.map(b => `<option value="${esc(String(b.id))}">${esc(b.title)}</option>`).join('')}</select></div>` : '';
+}
+window.rvAdminMonthChanged = rvAdminMonthChanged;
+
+async function rvAdminSave(n) {
+  const key = _rvAdminKeys[n];
+  const reviews = JSON.parse(JSON.stringify(getReviews()));
+  const loc = key && _rvAdminLocate(reviews, key);
+  if (!loc) { showMsg('rv-ed-msg', 'This review changed or was removed since you opened it. Close the editor and try again.', 'err'); return; }
+  const old = reviews[loc.month][loc.idx];
+  const val = id => (document.getElementById(id)?.value || '').trim();
+  const discord = val('rv-ed-discord'), email = val('rv-ed-email'), month = val('rv-ed-month');
+  if (!discord) { showMsg('rv-ed-msg', 'Please enter a Discord name.', 'err'); return; }
+  if (!email.includes('@')) { showMsg('rv-ed-msg', 'Please enter a valid email.', 'err'); return; }
+  if (!month) { showMsg('rv-ed-msg', 'Please pick a month.', 'err'); return; }
+  const read = val('rv-ed-read');
+  const dual = _rvAdminDualBooks(month);
+  const bookId = dual ? val('rv-ed-book') : null;
+  if (dual && !bookId) { showMsg('rv-ed-msg', 'Please pick which co-winner book this review is for.', 'err'); return; }
+
+  const updated = {
+    ...old,
+    name: discord, discord, email, month, read,
+    finished: read === 'Yes' ? val('rv-ed-finished') : '',
+    liked: val('rv-ed-liked'),
+    rating: val('rv-ed-rating') || 'opt-out',
+    why: val('rv-ed-why'),
+    dnfWhy: val('rv-ed-dnf'),
+    editedAt: Date.now()
+  };
+  if (dual) {
+    updated.bookId = String(bookId);
+    updated.bookTitle = (dual.find(b => String(b.id) === String(bookId)) || {}).title || '';
+  } else {
+    delete updated.bookId;
+    updated.bookTitle = _rvAdminSingleTitle(month);
+  }
+
+  // Warn before creating a second review of the same book for the same member
+  const idMap = buildIdentityMap();
+  const who = resolveId(discord, email, idMap);
+  const clash = (reviews[month] || []).some((r, i) =>
+    !(month === loc.month && i === loc.idx) &&
+    resolveId(r.discord || '', r.email || '', idMap) === who &&
+    String(r.bookId || '') === String(updated.bookId || ''));
+  if (clash && !confirm(`${who} already has a review of this book in ${month}. Save anyway and keep both?`)) return;
+
+  if (month === loc.month) {
+    reviews[month][loc.idx] = updated;
+  } else {
+    reviews[loc.month].splice(loc.idx, 1);
+    if (!reviews[loc.month].length) delete reviews[loc.month];
+    (reviews[month] = reviews[month] || []).push(updated);
+  }
+  showLoading('Saving review…');
+  try {
+    await fbSetFull(REVIEWS_REF, { map: reviews });
+  } catch (e) {
+    hideLoading();
+    showMsg('rv-ed-msg', 'Could not save: ' + esc(e && e.message ? e.message : e), 'err');
+    return;
+  }
+  hideLoading();
+  CACHE.reviews = reviews;
+  _rvAdminEditing = null;
+  renderAdminReviewEditor();
+  showMsg('rv-admin-msg', `✓ Saved ${esc(discord)}'s review for ${esc(month)}.`, 'ok');
+}
+window.rvAdminSave = rvAdminSave;
+
+async function rvAdminDelete(n) {
+  const key = _rvAdminKeys[n];
+  const reviews = JSON.parse(JSON.stringify(getReviews()));
+  const loc = key && _rvAdminLocate(reviews, key);
+  if (!loc) { showMsg('rv-admin-msg', 'That review changed or was already removed. The list has been refreshed.', 'err'); renderAdminReviewList(); return; }
+  const r = reviews[loc.month][loc.idx];
+  if (!confirm(`Delete ${r.discord || 'this member'}'s review for ${loc.month}?\n\nThis can't be undone. Badges and stats that came from this review will recalculate.`)) return;
+  reviews[loc.month].splice(loc.idx, 1);
+  if (!reviews[loc.month].length) delete reviews[loc.month];
+  showLoading('Deleting review…');
+  try {
+    await fbSetFull(REVIEWS_REF, { map: reviews });
+  } catch (e) {
+    hideLoading();
+    showMsg('rv-admin-msg', 'Could not delete: ' + esc(e && e.message ? e.message : e), 'err');
+    return;
+  }
+  hideLoading();
+  CACHE.reviews = reviews;
+  _rvAdminEditing = null;
+  renderAdminReviewEditor();
+  showMsg('rv-admin-msg', `✓ Deleted ${esc(r.discord || 'the')} review for ${esc(loc.month)}.`, 'ok');
+}
+window.rvAdminDelete = rvAdminDelete;
+
+// ════════════════════════════════════════════════════════
 // ANALYSIS — sub-tab controller
 // ════════════════════════════════════════════════════════
 function goSubTab(id, btn) {
@@ -5380,7 +5657,7 @@ function renderAdmin() {
 }
 
 function goAdminTab(id, btn) {
-  ['manage','live-results','members-overview','reading-progress-admin','badges-admin','edit-books','quarterly-admin','surveys-admin','penny-admin','identities-admin'].forEach(s => {
+  ['manage','live-results','members-overview','reading-progress-admin','reviews-admin','badges-admin','edit-books','quarterly-admin','surveys-admin','penny-admin','identities-admin'].forEach(s => {
     document.getElementById('admin-sub-'+s).style.display = s === id ? '' : 'none';
   });
   document.querySelectorAll('#admin-panel .sub-tab').forEach(b => b.classList.remove('active'));
@@ -5388,6 +5665,7 @@ function goAdminTab(id, btn) {
   if      (id === 'live-results')             renderAdminLiveResults();
   else if (id === 'members-overview')          renderMembersOverview();
   else if (id === 'reading-progress-admin')   renderAdminReadingProgress();
+  else if (id === 'reviews-admin')            { _rvAdminEditing = null; renderAdminReviewEditor(); }
   else if (id === 'badges-admin')             renderAdminBadgeManager();
   else if (id === 'edit-books')               renderEditBooksTab();
   else if (id === 'quarterly-admin')          renderQuarterlyAdmin();
