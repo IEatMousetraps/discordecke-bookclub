@@ -1180,8 +1180,14 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 /* Record player */
 .penny-record[hidden], .penny-record-player[hidden], .penny-record-caption[hidden] { display:none !important; }
 .penny-record { display:flex; flex-direction:column; align-items:center; gap:.5rem; margin:.2rem 0 1rem; position:relative; z-index:2; }
-.penny-record-btn { background:transparent; border:1px solid rgba(240,180,41,.35); border-radius:999px; color:rgba(240,180,41,.8); font-family:'Playfair Display',serif; font-style:italic; font-size:13px; padding:.35rem 1rem; cursor:pointer; transition:background .18s,border-color .18s; }
-.penny-record-btn:hover, .penny-record-btn:focus-visible { background:rgba(240,180,41,.08); border-color:rgba(240,180,41,.7); outline:none; }
+.penny-record-btn { display:inline-flex; align-items:center; gap:.55rem; background:rgba(240,180,41,.1); border:1px solid rgba(240,180,41,.65); border-radius:999px; color:var(--gold); font-family:'Playfair Display',serif; font-style:italic; font-size:14px; padding:.45rem 1.15rem .45rem .55rem; cursor:pointer; transition:background .18s,border-color .18s,box-shadow .18s; animation:pennyRecordGlow 2.8s ease-in-out infinite; }
+.penny-record-btn:hover, .penny-record-btn:focus-visible { background:rgba(240,180,41,.18); border-color:var(--gold); outline:none; animation:none; box-shadow:0 0 14px rgba(240,180,41,.4); }
+.penny-record-btn.is-playing, .penny-record-btn.has-played { animation:none; }
+.penny-record-disc { width:22px; height:22px; flex-shrink:0; border-radius:50%; background:radial-gradient(circle, var(--gold) 0 2px, #1a1208 2.5px 3.5px, #b07a1a 4px 6px, #1a1208 6.5px 7px, #2a1d0a 7.5px 10px, #1a1208 10.5px); box-shadow:0 0 0 1px rgba(240,180,41,.5); }
+.penny-record-btn.is-playing .penny-record-disc { animation:pennyRecordSpin 1.8s linear infinite; }
+@keyframes pennyRecordGlow { 0%,100% { box-shadow:0 0 0 0 rgba(240,180,41,0); } 50% { box-shadow:0 0 12px 2px rgba(240,180,41,.35); } }
+@keyframes pennyRecordSpin { to { transform:rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .penny-record-btn, .penny-record-btn.is-playing .penny-record-disc { animation:none; } }
 .penny-record-player { width:min(520px, calc(100vw - 3rem)); aspect-ratio:16/9; border:6px solid #5a3e20; outline:1px solid rgba(240,180,41,.35); outline-offset:3px; border-radius:4px; overflow:hidden; background:#000; box-shadow:0 10px 24px rgba(0,0,0,.45); }
 .penny-record-player iframe { width:100%; height:100%; display:block; border:0; }
 .penny-record-caption { font-family:'Playfair Display',serif; font-style:italic; font-size:12px; color:rgba(240,180,41,.5); }
@@ -1582,7 +1588,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   </div>
   <!-- Record player: plays "The Box Marked S.R.R" playlist, only when a member asks -->
   <div class="penny-record" id="penny-record" hidden>
-    <button type="button" class="penny-record-btn" id="penny-record-btn" onclick="pennyRecordToggle()">♪ Put on a record</button>
+    <button type="button" class="penny-record-btn" id="penny-record-btn" onclick="pennyRecordToggle()"><span class="penny-record-disc" aria-hidden="true"></span><span id="penny-record-label">Put on a record</span></button>
     <div class="penny-record-player" id="penny-record-player" hidden></div>
     <div class="penny-record-caption" id="penny-record-caption" hidden>Playing from the box marked S.R.R.</div>
   </div>
@@ -11863,7 +11869,9 @@ function _pennyRecordUI(playing) {
   const btn = document.getElementById('penny-record-btn');
   const box = document.getElementById('penny-record-player');
   const cap = document.getElementById('penny-record-caption');
-  if (btn) btn.textContent = playing ? '♪ Lift the needle' : '♪ Put on a record';
+  const lbl = document.getElementById('penny-record-label');
+  if (lbl) lbl.textContent = playing ? 'Lift the needle' : 'Put on a record';
+  if (btn) { btn.classList.toggle('is-playing', playing); if (playing) btn.classList.add('has-played'); }
   document.querySelectorAll('[data-penny-music]').forEach(b => {
     b.textContent = playing ? '"What\'s that music?"' : '"Could you put on a record?"';
   });
