@@ -5077,9 +5077,37 @@ function renderAnalysisMembers(_idMapM) {
   const topRaters = Object.entries(ratingData)
     .filter(([,arr]) => arr.length >= 2)
     .map(([k,arr]) => [k, arr.reduce((a,b)=>a+b,0)/arr.length, arr.length])
-    .sort((a,b) => b[1]-a[1] || a[0].localeCompare(b[0]))
-    .slice(0,10);
-  const maxAvgRating = topRaters[0]?topRaters[0][1]:5;
+    .sort((a,b) => b[1]-a[1] || a[0].localeCompare(b[0]));
+  // Club-wide average across every rating, for the reference line
+  const _allRatings = Object.values(ratingData).flat();
+  const clubAvgRating = _allRatings.length ? _allRatings.reduce((a,b)=>a+b,0)/_allRatings.length : 0;
+  // Each member is a dot on a 1–5★ scale (not a bar to fill), with the club
+  // average as a dashed line, so the chart reads as "where do you tend to rate"
+  // rather than a score to max out.
+  const _ratePos = v => ((Math.min(5, Math.max(1, v)) - 1) / 4 * 100).toFixed(2);
+  const ratingScaleHtml = !topRaters.length
+    ? `<div class="chart-wrap"><h3>Average Star Rating Given</h3><p style="color:var(--soft);font-size:.875rem;">Not enough data yet.</p></div>`
+    : `<div class="chart-wrap">
+      <h3>Average Star Rating Given</h3>
+      <p style="font-size:.78rem;color:var(--soft);margin-bottom:1rem;">Where each member's ratings tend to land on the 1–5★ scale. The dashed line is the club average (${clubAvgRating.toFixed(1)}★). Minimum 2 ratings to appear.</p>
+      <div style="display:grid;grid-template-columns:minmax(80px,140px) 1fr auto;gap:.35rem .9rem;align-items:center;font-size:.8rem;padding:0 .4rem;">
+        <div></div>
+        <div style="position:relative;height:1.1rem;font-size:.68rem;color:var(--soft);">
+          ${[1,2,3,4,5].map(n => `<span style="position:absolute;left:${_ratePos(n)}%;transform:translateX(-50%);">${n}</span>`).join('')}
+        </div>
+        <div></div>
+        ${topRaters.map(([k,avg,n]) => `
+          <div style="min-width:0;line-height:1.2;"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(k)}</div><div style="font-size:.68rem;color:var(--soft);">${n} rating${n!==1?'s':''}</div></div>
+          <div style="position:relative;height:1.4rem;" title="${esc(k)}: ${avg.toFixed(1)}★ average across ${n} rating${n!==1?'s':''}">
+            <div style="position:absolute;left:0;right:0;top:50%;height:2px;background:var(--border);transform:translateY(-50%);"></div>
+            ${[1,2,3,4,5].map(t => `<div style="position:absolute;left:${_ratePos(t)}%;top:50%;width:1px;height:8px;background:var(--border);transform:translate(-50%,-50%);"></div>`).join('')}
+            <div style="position:absolute;left:${_ratePos(clubAvgRating)}%;top:0;bottom:0;border-left:1.5px dashed var(--soft);opacity:.6;"></div>
+            <div style="position:absolute;left:${_ratePos(avg)}%;top:50%;width:12px;height:12px;border-radius:50%;background:var(--gold);border:2px solid var(--white,#fff);box-shadow:0 0 0 1px var(--gold);transform:translate(-50%,-50%);"></div>
+          </div>
+          <div style="text-align:right;white-space:nowrap;font-size:.82rem;font-weight:600;">${avg.toFixed(1)}★</div>
+        `).join('')}
+      </div>
+    </div>`;
 
   // ── Helper to render a bar chart block ──
   function chartBlock(title, subtitle, rows, labelFn, pctFn, valFn, barColor) {
@@ -5109,8 +5137,7 @@ function renderAnalysisMembers(_idMapM) {
     chartBlock('Highest Finish Rate', 'Of the winning books they reviewed, how many did they finish? Minimum 2 reviews to appear. · Note: this data is based solely on reviews submitted on the Review tab — it does not reflect reading progress logged under My Progress.',
       topFinishers, ([k])=>k, ([,pct])=>pct, ([k,pct,f,t])=>`${pct}% (${f}/${t})`, '#6a1b9a') +
 
-    chartBlock('Average Star Rating Given', 'How generously each member rates books on average. Minimum 2 ratings to appear.',
-      topRaters, ([k])=>k, ([,avg])=>avg/maxAvgRating*100, ([k,avg,n])=>`${avg.toFixed(1)}★ (${n})`, 'var(--gold)');
+    ratingScaleHtml;
 }
 
 function toggleMemberBooks(id) {
