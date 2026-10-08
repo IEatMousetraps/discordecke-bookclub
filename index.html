@@ -3531,7 +3531,6 @@ function renderResultsHtml(area, books, votes) {
         <div class="book-sub">${esc(b.author)}</div>
         ${genrePillsHtml(b.genre)}
         <div class="rank-pills"><span style="font-weight:500;color:var(--ink);">Ballot Breakdown:</span> ${rankPills}</div>
-        <div class="res-bar"><div class="res-fill" style="width:${pct}%"></div></div>
         ${suggesterReasonsHtml(b.suggesters)}
       </div>
       <div class="res-pts">${pts} pts</div>
