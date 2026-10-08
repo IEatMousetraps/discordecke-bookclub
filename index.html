@@ -1178,7 +1178,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   padding: 2rem;
 }
 /* Record player */
-.penny-record[hidden], .penny-record-player[hidden], .penny-record-caption[hidden] { display:none !important; }
+.penny-record[hidden], .penny-record-player[hidden], .penny-record-caption[hidden], [data-penny-music-aside][hidden] { display:none !important; }
 .penny-record { display:flex; flex-direction:column; align-items:center; gap:.5rem; margin:.2rem 0 1rem; position:relative; z-index:2; }
 .penny-record-btn { display:inline-flex; align-items:center; gap:.55rem; background:rgba(240,180,41,.1); border:1px solid rgba(240,180,41,.65); border-radius:999px; color:var(--gold); font-family:'Playfair Display',serif; font-style:italic; font-size:14px; padding:.45rem 1.15rem .45rem .55rem; cursor:pointer; transition:background .18s,border-color .18s,box-shadow .18s; animation:pennyRecordGlow 2.8s ease-in-out infinite; }
 .penny-record-btn:hover, .penny-record-btn:focus-visible { background:rgba(240,180,41,.18); border-color:var(--gold); outline:none; animation:none; box-shadow:0 0 14px rgba(240,180,41,.4); }
@@ -11452,6 +11452,7 @@ async function renderPennyTabInto(area) {
 }
 
 function _pennyShowDoor(area) {
+  if (area) area._pennyInChat = false; // a new visit starts outside the chat
   // Outside the door: no record player, and any music stops
   if (area && area.id === 'penny-interaction-area') {
     if (typeof pennyRecordStop === 'function') pennyRecordStop();
@@ -11517,6 +11518,7 @@ function pennyAdvance(stage, areaId) {
         <p class="penny-door-prompt" style="margin-bottom:1.2rem;"><em>What do you say?</em></p>
         <button class="penny-action-btn" onclick="pennyAdvance('options','${aid}')">"I'm here to find a book. I need something new to read."</button>
         <button class="penny-action-btn" style="margin-top:.5rem;" onclick="pennyChatStart('${aid}',this)">"I just came to talk."</button>
+        ${_pennyMusicAsideBtn(aid, 'hello', 'margin-top:.5rem;')}
       </div>
     `;
   } else if (stage === 'return-greeting') {
@@ -11591,6 +11593,7 @@ function _pennyShowReturnGreeting(area, memberName) {
       <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
       <button class="penny-action-btn" onclick="pennyChatStart('${aid}',this)">"I just came to talk."</button>
+      ${_pennyMusicAsideBtn(aid, 'welcomeback')}
     </div>
   `;
 }
@@ -11675,6 +11678,7 @@ function pennyNotYetBranch(choice, areaId, el) {
           <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
           <button class="penny-action-btn" onclick="pennyChatStart('${aid}',this)">"Actually, could I stay a while?"</button>
           <button class="penny-action-btn" onclick="pennyChatLeave('${aid}',this,'later')">"I'll come back when I'm done."</button>
+          ${_pennyMusicAsideBtn(aid, 'stillreading')}
         </div>
       `;
     } else {
@@ -11694,6 +11698,7 @@ function pennyNotYetBranch(choice, areaId, el) {
           <button class="penny-action-btn" onclick="pennySelectOption('trust','${aid}',this)">"I trust you, Penny."</button>
           <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
           <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
+          <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually — can we just talk for a bit?"</button>
         </div>
       `;
     }
@@ -11776,6 +11781,7 @@ function pennyReactionAnother(reaction, areaId, el) {
         <button class="penny-action-btn" onclick="pennySelectOption('trust','${aid}',this)">"I trust you, Penny."</button>
         <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
         <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
+        <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually — can we just talk for a bit?"</button>
       </div>
     `;
   }, 300);
@@ -11805,6 +11811,7 @@ function pennyJustStopping(areaId, el) {
       </div>
       <div style="text-align:center;padding:.5rem 1.5rem 1.5rem;">
         <button class="penny-action-btn" onclick="pennyWalkOut()">Walk out the front door.</button>
+        ${_pennyMusicAsideBtn(areaId, 'goodbye', 'margin-top:.5rem;')}
       </div>
     `;
   }, 300);
@@ -11850,7 +11857,7 @@ const PENNY_TRACK_LINES = [
   [/room with a view/i,  "Jessie Matthews. ‘A Room with a View.’ I'd settle for a room with a window that closes properly."],
   [/debroy|savoy|orphean|maggie|canary|caryll/i, "The label's half worn off. A London dance band, I think. The Savoy, maybe? I'm guessing."]
 ];
-const PENNY_TRACK_UNKNOWN = "I honestly don't know. The label's worn right off. I like it anyway.";
+const PENNY_TRACK_UNKNOWN = "I honestly don't know. The label's worn right off.";
 
 function _pennyLoadYT() {
   if (window.YT && window.YT.Player) return Promise.resolve();
@@ -11872,6 +11879,7 @@ function _pennyRecordUI(playing) {
   const lbl = document.getElementById('penny-record-label');
   if (lbl) lbl.textContent = playing ? 'Lift the needle' : 'Put on a record';
   if (btn) { btn.classList.toggle('is-playing', playing); if (playing) btn.classList.add('has-played'); }
+  document.querySelectorAll('[data-penny-music-aside]').forEach(b => { b.hidden = !playing; });
   document.querySelectorAll('[data-penny-music]').forEach(b => {
     b.textContent = playing ? '"What\'s that music?"' : '"Could you put on a record?"';
   });
@@ -12037,10 +12045,11 @@ const PENNY_CHAT_TOPICS = {
     { action: "She goes a little pink.", line: "They're bookmarks. Yes. I painted them. It's just something I do on Sundays. Anyway!" },
     { action: "She picks one up, realizes you're watching, and puts it back down very neatly.", line: "Bookmarks. Mine. I'd rather not make a fuss about them, if that's alright. Maybe another time." }
   ]},
-  music:   { label: '"What\'s that music?"', lines: [
-    { action: "She glances at the record player in the corner, where something old and crackly is playing.", line: "Oh — it's from an old wooden crate I found in the stacks when I first got here. Shellac records. I don't even know who they belonged to. I just like them." },
-    { action: "She smiles at the record player like it's an old friend.", line: "I never know which one I'm going to play. I just go through the crate, and some days one just… feels right." },
-    { action: "She tilts her head, listening for a moment.", line: "They're older than anything else in here, I think. Older than the card catalog, maybe. They crackle. I like that they crackle." }
+  music:   { label: '"What\'s that music?"', boxLines: [
+    { id: 'A', line: "Oh — it's from an old wooden crate I found in the stacks when I first got here. Marked S.R.R. on the side. Shellac records, all of them. I don't know who they belonged to. I just like them." },
+    { id: 'B', line: "It's from the box. There was an old wooden crate tucked in the stacks when I first got here — S.R.R. on the side. I never know which one I'm going to play. I just go through the crate, and some days one just… feels right." },
+    { id: 'C', line: "One of the records from the crate. It was here before I was — an old wooden box in the stacks, marked S.R.R. They're older than anything else in here, I think. Older than the card catalog, maybe." },
+    { id: 'D', line: "That's from the box marked S.R.R. It was sitting in the stacks when I first got here. Shellac records. They crackle. I like that they crackle." }
   ]},
   work:    { label: '"What\'s it like working here?"', lines: [
     { action: "She thinks about it.", line: "I read for an hour before I officially start. I consider it part of the job. Nobody has told me otherwise." },
@@ -12093,6 +12102,7 @@ function _pennyChatButtons(area, extra) {
 function pennyChatStart(areaId, el) {
   const area = document.getElementById(areaId);
   if (!area) return;
+  area._pennyInChat = true;
   if (el) { el.disabled = true; el.style.opacity = '.5'; }
   const key = _pennyActiveKey(area);
   if (key) fbSet(PENNY_REF, { [key]: { usedChat: true, usedChat_ts: Date.now() } }).catch(()=>{});
@@ -12189,22 +12199,64 @@ function _pennyMusicLabel() {
 
 // One music option: puts a record on if nothing's playing, otherwise talks about what is.
 // The crate story is told once per visit; after that she just names the record.
-async function _pennyChatMusic(area) {
-  area._pennyChatUsed = area._pennyChatUsed || {};
-  const firstTime = !area._pennyChatUsed.musicStory;
-  const story = firstTime ? _pennyChatPick(area, 'music', PENNY_CHAT_TOPICS.music.lines).line : '';
-  area._pennyChatUsed.musicStory = true;
+// Penny's box line rotation: the full crate story every time (members visit rarely),
+// never the same version twice in a row this session.
+let _pennyLastBoxLine = null;
+function _pennyPickBoxLine(trackLine) {
+  // B says "feels right", which the unlabeled record's own line also says — skip it then
+  const clash = /feels right/i.test(trackLine);
+  let opts = PENNY_CHAT_TOPICS.music.boxLines.filter(b => !(clash && b.id === 'B') && b.id !== _pennyLastBoxLine);
+  if (!opts.length) opts = PENNY_CHAT_TOPICS.music.boxLines.filter(b => !(clash && b.id === 'B'));
+  const pick = opts[Math.floor(Math.random() * opts.length)];
+  _pennyLastBoxLine = pick.id;
+  return pick.line;
+}
+
+// What Penny says about the music. Puts a record on first if nothing's playing.
+async function _pennyMusicSceneHtml() {
   const wasPlaying = pennyRecordPlaying();
   if (!wasPlaying) await pennyRecordStart();
   const track = await _pennyCurrentTrackLine();
+  const box = _pennyPickBoxLine(track);
   const scene = wasPlaying
     ? `<span class="penny-action">She tilts her head toward the record player, listening.</span>`
     : `<span class="penny-action">She lifts the lid of the record player, sets the needle down, and turns the little knob up.</span>
-       ${firstTime ? '' : '<p class="penny-speech">Oh! Of course.</p>'}`;
-  _pennyChatBack(area, `${scene}
-    ${story ? `<p class="penny-speech">${story}</p>` : ''}
-    <p class="penny-speech">${firstTime ? 'This one? ' : ''}${track}</p>`);
+       <p class="penny-speech">Of course.</p>`;
+  return `${scene}
+    <p class="penny-speech">${box}</p>
+    <p class="penny-speech">This one? ${track}</p>`;
 }
+
+// Chat menu version: answer, then back to the chat topics.
+async function _pennyChatMusic(area) {
+  _pennyChatBack(area, await _pennyMusicSceneHtml());
+}
+
+// Outside the chat menu, "What's that music?" is a quick aside: it only shows while a
+// record is playing, and after she answers you're back on the same screen's options.
+const PENNY_MUSIC_ASIDE_BRIDGES = {
+  hello:        "Anyway — what brings you in?",
+  welcomeback:  "Anyway. Another recommendation? Same three ways as always.",
+  stillreading: "Anyway. Take your time with that book.",
+  goodbye:      "Anyway. Don't let me keep you."
+};
+function _pennyMusicAsideBtn(areaId, ctx, extraStyle) {
+  const hide = pennyRecordPlaying() ? '' : ' hidden';
+  return `<button class="penny-action-btn" data-penny-music-aside="1"${hide} style="${extraStyle || ''}" onclick="pennyMusicAside('${areaId}','${ctx}',this)">"What's that music?"</button>`;
+}
+async function pennyMusicAside(areaId, ctx, el) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  if (el) { el.disabled = true; el.style.opacity = '.5'; }
+  const html = await _pennyMusicSceneHtml();
+  const bridge = PENNY_MUSIC_ASIDE_BRIDGES[ctx] || '';
+  const inner = area.querySelector('.penny-storybook-inner');
+  if (inner) inner.innerHTML = html + (bridge ? `<p class="penny-speech" style="margin-top:.6rem;">${bridge}</p>` : '');
+  if (el) el.remove();
+  const book = area.querySelector('.penny-storybook');
+  if (book && book.scrollIntoView) book.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+window.pennyMusicAside = pennyMusicAside;
 
 function _pennyChatReading(area) {
   const aid = area.id;
@@ -12262,6 +12314,23 @@ function pennyChatNotNow(areaId, el) {
 }
 window.pennyChatNotNow = pennyChatNotNow;
 
+// Backing out of finding a book: straight into the chat. If they came from the chat,
+// skip the hello and pick the conversation back up.
+const PENNY_BACKOUT_LINES = [
+  "Of course. The books aren't going anywhere.",
+  "Oh, good. I wasn't quite ready to stop talking either.",
+  "Of course! There's no rush. There's never any rush in here."
+];
+function pennyBackOut(areaId, el) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  if (!area._pennyInChat) { pennyChatStart(areaId, el); return; }
+  if (el) { el.disabled = true; el.style.opacity = '.5'; }
+  const line = PENNY_BACKOUT_LINES[Math.floor(Math.random() * PENNY_BACKOUT_LINES.length)];
+  setTimeout(() => _pennyChatBack(area, `<span class="penny-action">She smiles and leans back on the desk.</span><p class="penny-speech">${line}</p>`), 300);
+}
+window.pennyBackOut = pennyBackOut;
+
 function pennyChatToBook(areaId, el) {
   const area = document.getElementById(areaId);
   if (!area) return;
@@ -12283,6 +12352,7 @@ function pennyChatToBook(areaId, el) {
         <button class="penny-action-btn" onclick="pennySelectOption('trust','${aid}',this)">"I trust you, Penny."</button>
         <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
         <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
+        <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually — can we just talk for a bit?"</button>
       </div>`;
   }, 300);
 }
@@ -12343,6 +12413,7 @@ function _pennyShowOptions(area) {
       <button class="penny-action-btn" onclick="pennySelectOption('trust','${aid}',this)">"I trust you, Penny."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
+      <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually — can we just talk for a bit?"</button>
     </div>
   `;
 }
@@ -12801,6 +12872,7 @@ function pennyAccept(areaId) {
     </div>
     <div style="text-align:center;padding:.5rem 1.5rem 1.5rem;">
       <button class="penny-action-btn" onclick="pennyWalkOut()">Walk out the front door.</button>
+      ${_pennyMusicAsideBtn(areaId, 'goodbye', 'margin-top:.5rem;')}
     </div>
   `;
 }
@@ -12919,6 +12991,7 @@ function pennyDecline(areaId, fromBranch) {
       <button class="penny-action-btn" onclick="pennySelectOption('trust','${aid}',this)">"I trust you, Penny."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
+      <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually — can we just talk for a bit?"</button>
     </div>
   `;
 }
