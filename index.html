@@ -4621,7 +4621,10 @@ function renderAnalysisVoting() {
   const area = document.getElementById('analysis-voting-area');
   if (!archives.length) { area.innerHTML = `<div class="empty"><div class="icon">📊</div><p>No archived months for ${esc(metricsYearLabel())} yet.</p></div>`; return; }
 
-  _votingTabArchives = archives; // Monthly Results tabs index into this same filtered list
+  // Monthly Results tabs include member/guest-pick months (shown with the chosen
+  // book instead of vote results) but never standalone Bonus Books.
+  const monthTabArchives = getMetricsFilteredArchives().filter(a => !a.bonusBook);
+  _votingTabArchives = monthTabArchives;
   const participationData = archives.map(a => Object.keys(a.votes||{}).length);
   const maxParticipation  = Math.max(...participationData, 1);
 
@@ -4665,10 +4668,10 @@ function renderAnalysisVoting() {
   </div>
 
   <div class="chart-wrap"><h3>Monthly Results</h3>
-    <div class="month-tabs">${archives.map((a,i)=>`<div class="month-tab ${i===archives.length-1?'active':''}" onclick="showMonthDetail(${i},this)" title="${esc(a.label)}">${esc(archiveMonthName(a.label) || a.label)}</div>`).join('')}</div>
+    <div class="month-tabs">${monthTabArchives.map((a,i)=>`<div class="month-tab ${i===monthTabArchives.length-1?'active':''}" onclick="showMonthDetail(${i},this)" title="${esc(a.label)}">${esc(archiveMonthName(a.label) || a.label)}</div>`).join('')}</div>
     <div id="month-detail"></div>
   </div>`;
-  showMonthDetail(archives.length-1, area.querySelector('.month-tab.active'));
+  showMonthDetail(monthTabArchives.length-1, area.querySelector('#analysis-voting-area .month-tab.active'));
 }
 
 // ── Voting Results Breakdown sub-tab ──────────────────────────────────────────
@@ -4758,7 +4761,7 @@ function renderAnalysisRankDist() {
       <div style="display:flex;align-items:baseline;gap:.5rem;margin-bottom:.25rem;flex-wrap:wrap;">
         <span style="font-family:'Playfair Display',serif;font-weight:700;color:var(--gold);">${i+1}.</span>
         <span style="font-size:.88rem;font-weight:500;">${esc(d.title)}</span>
-        <span style="font-size:.7rem;color:var(--soft);background:var(--cream);border:1px solid var(--border);padding:.1rem .5rem;border-radius:20px;white-space:nowrap;">${esc(d.month)}</span>
+        <span style="font-size:.7rem;color:var(--soft);background:var(--cream);border:1px solid var(--border);padding:.1rem .5rem;border-radius:20px;white-space:nowrap;">${esc(archiveMonthName(d.month) || d.month)}</span>
       </div>
       ${d.genre ? genrePillsHtml(d.genre) : ''}
       ${d.suggesters && d.suggesters.length ? `<div style="font-size:.72rem;color:var(--soft);margin-top:.3rem;margin-bottom:.4rem;">📌 Recommended by: <strong>${d.suggesters.map(s=>esc(s)).join(', ')}</strong></div>` : ''}
@@ -4973,8 +4976,8 @@ function _renderPageCountTable(page) {
         <tbody>
           ${slice.map(b => `<tr style="border-bottom:1px solid var(--border);">
             <td style="padding:.45rem .6rem;font-weight:500;">${esc(b.title)}</td>
-            <td style="padding:.45rem .6rem;color:var(--soft);">${esc(b.month)}</td>
-            <td style="padding:.45rem .6rem;text-align:center;color:var(--soft);font-size:.82rem;">${b.rank ? '#' + b.rank + ' of ' + b.totalInMonth : '—'}</td>
+            <td style="padding:.45rem .6rem;color:var(--soft);white-space:nowrap;" title="${esc(b.month)}">${esc(archiveMonthName(b.month) || b.month)}</td>
+            <td style="padding:.45rem .6rem;text-align:center;color:var(--soft);font-size:.82rem;white-space:nowrap;">${b.rank ? '#' + b.rank + ' of ' + b.totalInMonth : '—'}</td>
             <td style="padding:.45rem .6rem;text-align:right;font-weight:500;">${b.pageCount}</td>
             <td style="padding:.45rem .6rem;">
               ${b.winner ? '<span style="font-size:.7rem;padding:.1rem .45rem;border-radius:12px;background:#fff8e1;color:#b8860b;border:1px solid #f0d060;">won</span>' : ''}
@@ -5019,6 +5022,10 @@ function renderAnalysisMembers(_idMapM) {
   const voterFreq = {};
   archives.forEach(a => { Object.values(a.votes||{}).forEach(vd => { const k=resolveId(vd.discord,vd.email,_idMapM)||'Unknown'; voterFreq[k]=(voterFreq[k]||0)+1; }); });
   const topVoters = Object.entries(voterFreq).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,10);
+  // Only months that actually held a vote count toward consistency: member-pick
+  // and Bonus Book months (no vote round) and any month with no ballots at all
+  // are left out, so skipping them never counts against anyone.
+  const voteMonthCount = archives.filter(a => !a.memberPick && Object.keys(a.votes||{}).length > 0).length || 1;
 
   // ── Suggestion frequency ──
   const suggesterFreq = {};
@@ -5090,8 +5097,8 @@ function renderAnalysisMembers(_idMapM) {
   }
 
   area.innerHTML =
-    chartBlock('Most Consistent Voters', null,
-      topVoters, ([k])=>k, ([,c])=>c/archives.length*100, ([k,c])=>`${c}/${archives.length}`, null) +
+    chartBlock('Most Consistent Voters', `Out of the ${voteMonthCount} month${voteMonthCount!==1?'s':''} that held a vote. Months with no vote round don't count against anyone.`,
+      topVoters, ([k])=>k, ([,c])=>Math.min(100, c/voteMonthCount*100), ([k,c])=>`${c}/${voteMonthCount} · ${Math.round(Math.min(100, c/voteMonthCount*100))}%`, null) +
 
     chartBlock('Top Book Suggesters', null,
       topSuggesters, ([k])=>k, ([,c])=>c/maxSuggestions*100, ([k,c])=>`${c} book${c!==1?'s':''}`, null) +
@@ -5220,7 +5227,7 @@ function renderAnalysisReviews() {
           <div style="display:flex;align-items:baseline;gap:.4rem;flex-wrap:wrap;margin-bottom:.2rem;">${titleHtml}</div>
           ${meta.author ? `<div style="font-size:.78rem;color:var(--soft);">by ${esc(meta.author)}</div>` : ''}
           <div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;margin-top:.3rem;">
-            <span style="font-size:.7rem;color:var(--soft);background:var(--cream);border:1px solid var(--border);padding:.1rem .5rem;border-radius:20px;">${esc(month)}</span>
+            <span style="font-size:.7rem;color:var(--soft);background:var(--cream);border:1px solid var(--border);padding:.1rem .5rem;border-radius:20px;">${esc(archiveMonthName(month) || month)}</span>
             ${genre ? genrePillsHtml(genre) : ''}
           </div>
         </div>
@@ -5576,6 +5583,28 @@ function showMonthDetail(idx, el) {
   tabs.forEach(t => t.classList.remove('active'));
   if (el) el.classList.add('active');
   const a = _votingTabArchives[idx]; if (!a) return;
+  if (a.memberPick) {
+    // No vote round: show the chosen book and who picked it instead of results
+    const picks = (a.books || []).map(normBook);
+    const idMap = buildIdentityMap();
+    document.getElementById('month-detail').innerHTML = `
+      <p style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">No vote this month · <strong style="color:var(--gold);">Member or guest pick</strong></p>
+      ${picks.map(b => {
+        const names = [];
+        (b.suggesters || []).forEach(sg => { const n = resolveId(sg.discord || '', sg.email || '', idMap) || sg.discord || ''; if (n && !names.includes(n)) names.push(n); });
+        return `<div style="display:flex;gap:.85rem;align-items:flex-start;margin-bottom:.6rem;">
+          ${b.coverUrl ? `<img src="${esc(b.coverUrl)}" alt="Cover" style="width:56px;height:84px;object-fit:cover;border-radius:4px;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,.15);">` : ''}
+          <div style="min-width:0;">
+            <div style="font-family:'Playfair Display',serif;font-size:1rem;font-weight:600;">👑 ${esc(b.title || '')}</div>
+            ${b.author ? `<div style="font-size:.82rem;color:var(--soft);">by ${esc(b.author)}</div>` : ''}
+            ${names.length ? `<div style="font-size:.78rem;color:var(--soft);margin-top:.25rem;">Picked by <strong style="color:var(--ink);font-weight:500;">${names.map(esc).join(', ')}</strong></div>` : ''}
+            ${suggesterReasonsHtml(b.suggesters, { marginTop: '.35rem' })}
+          </div>
+        </div>`;
+      }).join('')}
+      <p style="font-size:.78rem;color:var(--soft);margin:.4rem 0 0;">This month's book was chosen directly by a member or guest instead of going to a vote, so there are no results to show and it isn't counted in voting stats.</p>`;
+    return;
+  }
   const nb = (a.books||[]).length, scores = {};
   (a.books||[]).forEach(b => scores[b.id] = 0);
   Object.values(a.votes||{}).forEach(vd => { (vd.ranking||vd).forEach((id, idx2) => { if (scores[id] !== undefined) scores[id] += (nb - idx2); }); });
@@ -10756,7 +10785,7 @@ function renderGenreDiversity() {
         <p style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">Discordecke Book Club suggestion history — add genres to unlock the diversity chart.</p>
         ${archives.map(a => `
           <div style="margin-bottom:.75rem;">
-            <div style="font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);margin-bottom:.3rem;">${esc(a.label)}</div>
+            <div style="font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);margin-bottom:.3rem;">${esc(archiveMonthName(a.label) || a.label)}</div>
             ${(a.books||[]).map(b => `<div style="font-size:.85rem;padding:.2rem 0;">${esc(b.title)} <span style="color:var(--soft);">by ${esc(b.author)}</span></div>`).join('')}
           </div>`).join('')}
       </div>`;
@@ -10832,7 +10861,7 @@ function renderGenreDiversity() {
         const filtered = Object.entries(genres).filter(([g]) => g.toLowerCase() !== 'non-fiction');
         if (!filtered.length) return '';
         return `<div style="margin-bottom:.75rem;">
-          <div style="font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);margin-bottom:.4rem;">${esc(month)}</div>
+          <div style="font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);margin-bottom:.4rem;">${esc(archiveMonthName(month) || month)}</div>
           <div style="display:flex;flex-wrap:wrap;gap:.35rem;">
             ${filtered.map(([g,c]) => {
               const col = GENRE_PILL_COLORS_MAP[g] || { bg:'#f5f5f5', text:'#616161', border:'#e0e0e0' };
