@@ -4694,7 +4694,7 @@ function renderAnalysisRankDist() {
     const bookMap = {}; // bookId -> { title, rankCounts, totalVoters, suggesters }
     (a.books||[]).forEach(b => {
       const nb2 = normBook(b);
-      bookMap[b.id] = { title: b.title, genre: b.genre||'', rankCounts:{}, totalVoters: voterCount, suggesters: nb2.suggesters.map(s=>s.discord||s.email||'').filter(Boolean) };
+      bookMap[b.id] = { title: b.title, author: b.author||'', genre: b.genre||'', rankCounts:{}, totalVoters: voterCount, suggesters: nb2.suggesters.map(s=>s.discord||s.email||'').filter(Boolean) };
     });
     Object.values(a.votes||{}).forEach(vd => {
       (vd.ranking||vd).forEach((id, idx) => {
@@ -4706,7 +4706,7 @@ function renderAnalysisRankDist() {
     Object.values(bookMap).forEach(d => {
       let ws=0,tot=0;
       Object.entries(d.rankCounts).forEach(([r,n])=>{ws+=+r*n;tot+=n;});
-      entries.push({ title:d.title, genre:d.genre||'', month:a.label, avgRank:tot>0?ws/tot:999, totalVoters:d.totalVoters, rankCounts:d.rankCounts, suggesters:d.suggesters||[] });
+      entries.push({ title:d.title, author:d.author||'', genre:d.genre||'', month:a.label, avgRank:tot>0?ws/tot:999, totalVoters:d.totalVoters, rankCounts:d.rankCounts, suggesters:d.suggesters||[] });
     });
   });
 
@@ -4760,7 +4760,7 @@ function renderAnalysisRankDist() {
     return `<div style="margin-bottom:1.25rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border);">
       <div style="display:flex;align-items:baseline;gap:.5rem;margin-bottom:.25rem;flex-wrap:wrap;">
         <span style="font-family:'Playfair Display',serif;font-weight:700;color:var(--gold);">${i+1}.</span>
-        <span style="font-size:.88rem;font-weight:500;">${esc(d.title)}</span>
+        <span style="font-size:.88rem;font-weight:500;">${esc(d.title)}${d.author ? `<span style="font-weight:400;color:var(--soft);font-size:.8rem;"> by ${esc(d.author)}</span>` : ''}</span>
         <span style="font-size:.7rem;color:var(--soft);background:var(--cream);border:1px solid var(--border);padding:.1rem .5rem;border-radius:20px;white-space:nowrap;">${esc(archiveMonthName(d.month) || d.month)}</span>
       </div>
       ${d.genre ? genrePillsHtml(d.genre) : ''}
