@@ -11952,40 +11952,52 @@ async function _pennyCurrentTrackLine() {
 // Each month has a small rotation; one line is picked at random per chat visit.
 // These are moods only — the site itself never changes with the season.
 const PENNY_CHAT_OPENERS_BY_MONTH = {
-  0:  ["Come in out of the cold. January is a good month for staying put.",
-       "New year, same stack. I like that about January.",
-       "I keep the kettle going all day in January. Horatio doesn't mind the steam."],
-  1:  ["February. Short month, long books. My favorite combination.",
-       "February's for rereading. Something you already know will be kind to you.",
-       "Euchre weather. Long evenings, a deck of cards, and someone who doesn't mind losing."],
-  2:  ["Spring's trying. It hasn't quite managed it yet.",
-       "Miranda's started leaning toward the window again. She can tell it's March before I can.",
-       "I always want something new to read in March. Something with a door in it."],
-  3:  ["Rain again. The plants are thrilled. So am I, honestly.",
-       "April is perfect painting weather. I leave the window open and listen to the rain.",
-       "Circe's perking up. She always knows it's spring before the calendar does."],
-  4:  ["May always smells like the calamondin in here. Don't tell the others it's her month.",
-       "Everything's blooming. Even Dorothea, which feels like a personal victory."],
-  5:  ["Long days. More reading light. I'm not complaining.",
-       "June. I read outside on my lunch, when there is a lunch.",
-       "I always mean to go home on time in June. I never do."],
-  6:  ["It's warm in here, I know. The window's open. It's doing its best.",
-       "July. Iced tea, which I'm told counts. I have my doubts.",
-       "Too hot to do anything but read. Which is lucky, really."],
-  7:  ["August. Everyone's on holiday except the books.",
-       "August is for the big books. The ones you've been putting off all year."],
-  8:  ["September always feels like a new term, doesn't it? Even when it isn't.",
-       "September. I've already started thinking about October. Don't tell anyone.",
-       "The light changes in September. Scheherazade notices. So do I."],
-  9:  ["You picked a good month to visit. October's my favorite — pumpkins on every porch, and trick-or-treaters at the end of it.",
-       "I may have put out a pumpkin or two. Or six. Please don't count them.",
-       "October means ghost stories. The good kind, the ones you have to read with the lamp on."],
-  10: ["November. Tea weather. Every day is tea weather, but November especially.",
-       "November's for long books and longer cups of tea.",
-       "Every Sunday's a rainy Sunday in November. I've got a whole stack of watercolor paper waiting."],
-  11: ["December. Mind the stacks — I may have overdone the garland.",
-       "Everyone wants a cozy book in December. I keep a stack behind the desk, just in case.",
-       "The records sound warmer in December. I don't think that's possible, but they do."]
+  // Each month: a lead line that sets the scene, then one of the follow-ups at random.
+  0:  { lead: "January. A good month for staying put.",
+        lines: ["Come in out of the cold — the kettle's on.",
+                "New year, same stack. I like that about it.",
+                "I keep the kettle going all day this time of year. Horatio doesn't mind the steam."] },
+  1:  { lead: "February. Short month, long books — my favorite combination.",
+        lines: ["It's a good month for rereading. Something you already know will be kind to you.",
+                "It's euchre weather, too. Long evenings, a deck of cards, and someone who doesn't mind losing.",
+                "The evenings are still long. I'm not complaining."] },
+  2:  { lead: "Spring's trying. It hasn't quite managed it yet.",
+        lines: ["Miranda's started leaning toward the window again. She can tell before I can.",
+                "I always want something new to read this time of year. Something with a door in it.",
+                "Every time the sun comes out I open the window. Every time, it goes right back in."] },
+  3:  { lead: "April. Rain again.",
+        lines: ["The plants are thrilled. So am I, honestly.",
+                "It's perfect painting weather. I leave the window open and listen to it.",
+                "Circe's perking up. She always knows it's spring before the calendar does."] },
+  4:  { lead: "You picked a good time to visit. May's when the calamondin blooms.",
+        lines: ["That's what you can smell. Don't tell the others it's her month.",
+                "Everything's blooming, actually. Even Dorothea, which feels like a personal victory."] },
+  5:  { lead: "June. Long days, more reading light.",
+        lines: ["I'm not complaining.",
+                "I read outside on my lunch, when there is a lunch.",
+                "I always mean to go home on time this month. I never do."] },
+  6:  { lead: "July. It's warm in here, I know.",
+        lines: ["The window's open. It's doing its best.",
+                "Iced tea, which I'm told counts. I have my doubts.",
+                "Too hot to do anything but read. Which is lucky, really."] },
+  7:  { lead: "August. Everyone's on holiday except the books.",
+        lines: ["It's the month for the big books. The ones you've been putting off all year.",
+                "It's quiet. I don't mind quiet."] },
+  8:  { lead: "September always feels like a new term, doesn't it? Even when it isn't.",
+        lines: ["I've already started thinking about October. Don't tell anyone.",
+                "The light changes this time of year. Scheherazade notices. So do I."] },
+  9:  { lead: "You picked a good month to visit. October's my favorite.",
+        lines: ["Pumpkins on every porch, and trick-or-treaters at the end of it.",
+                "I may have put out a pumpkin or two. Or six. Please don't count them.",
+                "It's ghost story season. The good kind, the ones you have to read with the lamp on."] },
+  10: { lead: "November. Tea weather.",
+        lines: ["Every day is tea weather, but especially now.",
+                "It's the month for long books and longer cups of tea.",
+                "Every Sunday's a rainy Sunday this month. I've got a whole stack of watercolor paper waiting."] },
+  11: { lead: "You picked a good time to visit. December's when this place looks its best.",
+        lines: ["Mind the stacks — I may have overdone the garland.",
+                "Everyone wants a cozy book this time of year. I keep a stack behind the desk, just in case.",
+                "The records sound warmer this time of year. I don't think that's possible, but they do."] }
 };
 
 // Greeting when a member chooses to just chat. Most have no stage direction on
@@ -12085,8 +12097,9 @@ function pennyChatStart(areaId, el) {
   const key = _pennyActiveKey(area);
   if (key) fbSet(PENNY_REF, { [key]: { usedChat: true, usedChat_ts: Date.now() } }).catch(()=>{});
   area._pennyChatUsed = area._pennyChatUsed || {};
-  const _monthLines = PENNY_CHAT_OPENERS_BY_MONTH[new Date().getMonth()] || [];
-  const opener = _monthLines.length ? _monthLines[Math.floor(Math.random() * _monthLines.length)] : '';
+  const _month = PENNY_CHAT_OPENERS_BY_MONTH[new Date().getMonth()];
+  const _monthLine = _month && _month.lines.length ? _month.lines[Math.floor(Math.random() * _month.lines.length)] : '';
+  const opener = _month ? [_month.lead, _monthLine].filter(Boolean).join(' ') : '';
   const greet = PENNY_CHAT_GREETINGS[Math.floor(Math.random() * PENNY_CHAT_GREETINGS.length)];
   setTimeout(() => {
     area.innerHTML = `
