@@ -11942,20 +11942,55 @@ async function _pennyCurrentTrackLine() {
 // Topics are always listed so members can find them without hunting.
 // Every topic returns to the hub; the hub always offers a book or the door.
 // ══════════════════════════════════════════════════════
+// Each month has a small rotation; one line is picked at random per chat visit.
+// These are moods only — the site itself never changes with the season.
 const PENNY_CHAT_OPENERS_BY_MONTH = {
-  0:  "Come in out of the cold. January is a good month for staying put.",
-  1:  "February. Short month, long books. My favorite combination.",
-  2:  "Spring's trying. It hasn't quite managed it yet.",
-  3:  "Rain again. The plants are thrilled. So am I, honestly.",
-  4:  "May always smells like the calamondin in here. Don't tell the others it's her month.",
-  5:  "Long days. More reading light. I'm not complaining.",
-  6:  "It's warm in here, I know. The window's open. It's doing its best.",
-  7:  "August. Everyone's on holiday except the books.",
-  8:  "September always feels like a new term, doesn't it? Even when it isn't.",
-  9:  "You picked a good month to visit. October is my favorite in here.",
-  10: "November. Tea weather. Every day is tea weather, but November especially.",
-  11: "December. Mind the stacks — I may have overdone the garland."
+  0:  ["Come in out of the cold. January is a good month for staying put.",
+       "New year, same stack. I like that about January.",
+       "I keep the kettle going all day in January. Horatio doesn't mind the steam."],
+  1:  ["February. Short month, long books. My favorite combination.",
+       "February's for rereading. Something you already know will be kind to you.",
+       "Euchre weather. Long evenings, a deck of cards, and someone who doesn't mind losing."],
+  2:  ["Spring's trying. It hasn't quite managed it yet.",
+       "Miranda's started leaning toward the window again. She can tell it's March before I can.",
+       "I always want something new to read in March. Something with a door in it."],
+  3:  ["Rain again. The plants are thrilled. So am I, honestly.",
+       "April is perfect painting weather. I leave the window open and listen to the rain.",
+       "Circe's perking up. She always knows it's spring before the calendar does."],
+  4:  ["May always smells like the calamondin in here. Don't tell the others it's her month.",
+       "Everything's blooming. Even Dorothea, which feels like a personal victory."],
+  5:  ["Long days. More reading light. I'm not complaining.",
+       "June. I read outside on my lunch, when there is a lunch.",
+       "I always mean to go home on time in June. I never do."],
+  6:  ["It's warm in here, I know. The window's open. It's doing its best.",
+       "July. Iced tea, which I'm told counts. I have my doubts.",
+       "Too hot to do anything but read. Which is lucky, really."],
+  7:  ["August. Everyone's on holiday except the books.",
+       "August is for the big books. The ones you've been putting off all year."],
+  8:  ["September always feels like a new term, doesn't it? Even when it isn't.",
+       "September. I've already started thinking about October. Don't tell anyone.",
+       "The light changes in September. Scheherazade notices. So do I."],
+  9:  ["You picked a good month to visit. October's my favorite — pumpkins on every porch, and trick-or-treaters at the end of it.",
+       "I may have put out a pumpkin or two. Or six. Please don't count them.",
+       "October means ghost stories. The good kind, the ones you have to read with the lamp on."],
+  10: ["November. Tea weather. Every day is tea weather, but November especially.",
+       "November's for long books and longer cups of tea.",
+       "Every Sunday's a rainy Sunday in November. I've got a whole stack of watercolor paper waiting."],
+  11: ["December. Mind the stacks — I may have overdone the garland.",
+       "Everyone wants a cozy book in December. I keep a stack behind the desk, just in case.",
+       "The records sound warmer in December. I don't think that's possible, but they do."]
 };
+
+// Greeting when a member chooses to just chat. Most have no stage direction on
+// purpose: the member may arrive while she's reading, dusting or making tea,
+// so a fixed action could contradict what she was just doing.
+const PENNY_CHAT_GREETINGS = [
+  { action: "She looks pleasantly surprised.", line: "Oh! A visitor who isn't in a hurry. I'd offer you a chair, but there's only the one, and I'm fairly sure it's mine." },
+  { action: "", line: "Oh, good. I was hoping someone would come by. The plants are lovely, but they're terrible at conversation when they haven't had enough sunlight." },
+  { action: "", line: "You're in luck. The kettle's just boiled and I've got nowhere to be." },
+  { action: "", line: "Of course! I was only alphabetizing. It can wait. It's been waiting since Tuesday." },
+  { action: "She glances at the clock, then decides not to care.", line: "Stay as long as you like. Nobody's ever in a hurry back here, and I'd hate for you to be the first." }
+];
 
 const PENNY_CHAT_TOPICS = {
   reading: { label: '"What are you reading right now?"' },
@@ -11991,7 +12026,7 @@ const PENNY_CHAT_TOPICS = {
   work:    { label: '"What\'s it like working here?"', lines: [
     { action: "She thinks about it.", line: "I read for an hour before I officially start. I consider it part of the job. Nobody has told me otherwise." },
     { action: "She glances at the drawer of her desk.", line: "On rainy Sundays I make bookmarks. If you ever find a little painting in one of the club's books — well. I don't sign them." },
-    { action: "Her face lights up.", line: "October is my favorite month in here. You should see the place at Halloween." },
+    { action: "Her face lights up.", line: "October is my favorite month. Pumpkins on every step, and then Halloween — I answer the door for every single trick-or-treater. Last year I had three dragons and a very small librarian." },
     { action: "She leans on the desk.", line: "When a new stack arrives, I read everyone's reasons first — why they suggested it. I feel like I know people before I've ever met them." },
     { action: "She laughs a little.", line: "My family still isn't entirely sure what I do. I tell them I've been reading a lot. That seems to cover it." }
   ]}
@@ -12043,13 +12078,15 @@ function pennyChatStart(areaId, el) {
   const key = _pennyActiveKey(area);
   if (key) fbSet(PENNY_REF, { [key]: { usedChat: true, usedChat_ts: Date.now() } }).catch(()=>{});
   area._pennyChatUsed = area._pennyChatUsed || {};
-  const opener = PENNY_CHAT_OPENERS_BY_MONTH[new Date().getMonth()] || '';
+  const _monthLines = PENNY_CHAT_OPENERS_BY_MONTH[new Date().getMonth()] || [];
+  const opener = _monthLines.length ? _monthLines[Math.floor(Math.random() * _monthLines.length)] : '';
+  const greet = PENNY_CHAT_GREETINGS[Math.floor(Math.random() * PENNY_CHAT_GREETINGS.length)];
   setTimeout(() => {
     area.innerHTML = `
       <div class="penny-storybook">
         <div class="penny-storybook-inner">
-          <span class="penny-action">She looks pleasantly surprised.</span>
-          <p class="penny-speech">Oh! A visitor who isn't in a hurry. I'd offer you a chair, but there's only the one, and I'm fairly sure it's mine.</p>
+          ${greet.action ? `<span class="penny-action">${greet.action}</span>` : ''}
+          <p class="penny-speech">${greet.line}</p>
           <span class="penny-action" style="margin-top:.4rem;">She leans on the desk.</span>
           ${opener ? `<p class="penny-speech">${opener}</p>` : ''}
           <p class="penny-speech">What's on your mind?</p>
