@@ -11415,6 +11415,7 @@ async function renderPennyTabInto(area) {
   let lastRecAsked = false;
   let lastRecNotYet = false;
   let knowsPlants = false;
+  let remindBook = null;
   const plantsHeard = {};
   let newCount = 1;
   if (_profileIdentity && _profileIdentity.key) {
@@ -11440,12 +11441,13 @@ async function renderPennyTabInto(area) {
       lastRecAsked = prev.lastRecAsked || false;
       lastRecNotYet = prev.lastRecNotYet || false;
       knowsPlants = !!prev.knowsPlants;
+      remindBook = prev.remindBook || null;
       Object.keys(prev).forEach(k => { if (k.startsWith('plant_') && prev[k]) plantsHeard[k.slice(6)] = true; });
     } catch(e) { /* degrade gracefully */ }
   }
 
   // Store state on the area element so stage functions can read it
-  area._pennyState = { isFirstVisit, memberName, lastRec, lastRecAsked, lastRecNotYet, knowsPlants, plantsHeard, visitCount: newCount };
+  area._pennyState = { isFirstVisit, memberName, lastRec, lastRecAsked, lastRecNotYet, knowsPlants, plantsHeard, remindBook, visitCount: newCount };
 
   // Always start at the door — first visit or return
   _pennyShowDoor(area);
@@ -12260,28 +12262,48 @@ window.pennyMusicAside = pennyMusicAside;
 
 function _pennyChatReading(area) {
   const aid = area.id;
+  const state = area._pennyState || (area._pennyState = {});
   let ctx, pool = [];
   try { ctx = _pennyGetMemberContext(); pool = _pennyBuildPool(ctx); } catch (e) { pool = []; }
   const excluded = area._pennyExcluded || [];
   const notMine = b => !(ctx && ctx.suggestedTitles && ctx.suggestedTitles.has(b.title.trim().toLowerCase()));
   const avail = pool.filter(b => !excluded.includes(b.id) && notMine(b));
-  // Prefer books she has a note on, newest stacks first
-  const noted = avail.filter(b => pennyNoteFor(b.title));
-  const noted2026 = noted.filter(b => !String(b.id).startsWith('hist_'));
-  const source = noted2026.length ? noted2026 : (noted.length ? noted : avail);
-  if (!source.length) {
-    _pennyChatBack(area, `<span class="penny-action">She glances at her empty desk.</span><p class="penny-speech">Would you believe I'm between books? It doesn't happen often. I'm waiting on the next stack.</p>`);
-    return;
-  }
-  const seen = (area._pennyChatUsed && area._pennyChatUsed.readingIds) || [];
-  const fresh = source.filter(b => !seen.includes(b.id));
-  const book = (fresh.length ? fresh : source)[Math.floor(Math.random() * (fresh.length ? fresh : source).length)];
   area._pennyChatUsed = area._pennyChatUsed || {};
+  const seen = area._pennyChatUsed.readingIds || [];
+
+  // A book the member asked her to remind them about comes first, once
+  let book = null, reminded = false;
+  if (state.remindBook && !area._pennyChatUsed.remindDone) {
+    const k = normTitleKey(state.remindBook.title);
+    book = avail.find(b => normTitleKey(b.title) === k) || null;
+    if (book) reminded = true;
+    area._pennyChatUsed.remindDone = true;
+    // One reminder only: clear it whether or not the book is still on her desk
+    // (it may have since won a month, or been one the member suggested)
+    state.remindBook = null;
+    const rk = _pennyActiveKey(area);
+    if (rk) fbSet(PENNY_REF, { [rk]: { remindBook: null } }).catch(()=>{});
+  }
+  if (!book) {
+    // Prefer books she has a note on, newest stacks first
+    const noted = avail.filter(b => pennyNoteFor(b.title));
+    const noted2026 = noted.filter(b => !String(b.id).startsWith('hist_'));
+    const source = noted2026.length ? noted2026 : (noted.length ? noted : avail);
+    if (!source.length) {
+      _pennyChatBack(area, `<span class="penny-action">She glances at her empty desk.</span><p class="penny-speech">Would you believe I'm between books? It doesn't happen often. I'm waiting on the next stack.</p>`);
+      return;
+    }
+    const fresh = source.filter(b => !seen.includes(b.id));
+    const from = fresh.length ? fresh : source;
+    book = from[Math.floor(Math.random() * from.length)];
+  }
   area._pennyChatUsed.readingIds = [...seen, book.id];
   area._pennyChatBook = book;
   area._pennyChatPool = avail;
   area._pennyMemberCtx = ctx;
-  const lead = PENNY_CHAT_READING_LEADS[Math.floor(Math.random() * PENNY_CHAT_READING_LEADS.length)](esc(book.title));
+  const lead = reminded
+    ? `Still <em>${esc(book.title)}</em>. You asked me to remind you about it, so — consider yourself reminded.`
+    : PENNY_CHAT_READING_LEADS[Math.floor(Math.random() * PENNY_CHAT_READING_LEADS.length)](esc(book.title));
   const note = pennyNoteFor(book.title);
   area.innerHTML = `
     <div class="penny-storybook">
@@ -12293,10 +12315,79 @@ function _pennyChatReading(area) {
     </div>
     <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
       <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
-      <button class="penny-action-btn" onclick="pennyChatTakeBook('${aid}',this)">"That sounds good. Could I take that one?"</button>
-      <button class="penny-action-btn" onclick="pennyChatNotNow('${aid}',this)">"Maybe another time."</button>
+      <button class="penny-action-btn" onclick="pennyChatBookOrigin('${aid}',this)">"Where'd that one come from?"</button>
+      ${_pennyBorrowBtn(area)}
+      <button class="penny-action-btn" onclick="pennyChatNotNow('${aid}',this)">"Sounds lovely. Tell me about it another time."</button>
     </div>`;
 }
+
+// "Could I borrow it?" plus a small note when it would replace their current Penny book
+function _pennyBorrowBtn(area) {
+  const book = area._pennyChatBook;
+  const cur = (area._pennyState || {}).lastRec;
+  const replaces = cur && cur.title && book && normTitleKey(cur.title) !== normTitleKey(book.title);
+  return `<button class="penny-action-btn" onclick="pennyChatTakeBook('${area.id}',this)">"Could I borrow it when you're done?"</button>
+    ${replaces ? `<p style="font-family:'DM Sans',sans-serif;font-size:11px;color:rgba(240,180,41,.55);margin:-.15rem 0 .2rem;text-align:center;">This will replace <em>${esc(cur.title)}</em> as your Penny recommendation.</p>` : ''}`;
+}
+
+// "Sam", "Sam and Priya", "Sam, Priya and Jo"
+function _pennyJoinNames(names) {
+  if (names.length <= 1) return names[0] || '';
+  return names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+}
+
+// Who suggested the book she's reading, quoting their reason when there is one
+function _pennyBookOriginHtml(book) {
+  const idMap = buildIdentityMap();
+  const people = [];
+  (book.suggesters || []).forEach(sg => {
+    const name = resolveId(sg.discord || '', sg.email || '', idMap) || sg.discord || '';
+    if (!name) return;
+    const existing = people.find(p => p.name === name);
+    if (existing) { if (!existing.reason && sg.reason) existing.reason = sg.reason; }
+    else people.push({ name, reason: (sg.reason || '').trim() });
+  });
+  if (!people.length) {
+    return `<p class="penny-speech">It came in with one of the club's stacks. I never did find out whose.</p>`;
+  }
+  const names = _pennyJoinNames(people.map(p => esc(p.name)));
+  const many = people.length > 1;
+  if (String(book.id).startsWith('hist_')) {
+    return `<p class="penny-speech">${names} suggested it a while back, before I kept proper records.</p>`;
+  }
+  const month = archiveMonthName(book.month);
+  const when = month ? ` back in ${month}` : '';
+  const withReason = people.filter(p => p.reason);
+  if (!withReason.length) {
+    return `<p class="penny-speech">${names} ${many ? (people.length === 2 ? 'both ' : 'all ') : ''}suggested it${when}. That was all the convincing I needed.</p>`;
+  }
+  const q = withReason[Math.floor(Math.random() * withReason.length)];
+  const who = many ? esc(q.name) : 'They';
+  return `<p class="penny-speech">${names} ${many ? (people.length === 2 ? 'both ' : 'all ') : ''}put it forward${when}. ${who} said — let me see — ‘${esc(q.reason)}’</p>
+    <p class="penny-speech">I've been thinking about that ever since.</p>`;
+}
+
+function pennyChatBookOrigin(areaId, el) {
+  const area = document.getElementById(areaId);
+  if (!area || !area._pennyChatBook) return;
+  if (el) { el.disabled = true; el.style.opacity = '.5'; }
+  const book = area._pennyChatBook;
+  setTimeout(() => {
+    area.innerHTML = `
+      <div class="penny-storybook">
+        <div class="penny-storybook-inner">
+          <span class="penny-action">She turns the book over in her hands.</span>
+          ${_pennyBookOriginHtml(book)}
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+        <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
+        ${_pennyBorrowBtn(area)}
+        <button class="penny-action-btn" onclick="pennyChatRemindMe('${areaId}',this)">"Sounds lovely. Remind me about it in the future?"</button>
+      </div>`;
+  }, 300);
+}
+window.pennyChatBookOrigin = pennyChatBookOrigin;
 
 function pennyChatTakeBook(areaId, el) {
   const area = document.getElementById(areaId);
@@ -12313,6 +12404,18 @@ function pennyChatNotNow(areaId, el) {
   setTimeout(() => _pennyChatBack(area, `<span class="penny-action">She sets it back by her teacup.</span><p class="penny-speech">Of course. It'll keep. Books are very patient.</p>`), 300);
 }
 window.pennyChatNotNow = pennyChatNotNow;
+
+// Remember the book; next visit, "What are you reading right now?" brings it up first
+function pennyChatRemindMe(areaId, el) {
+  const area = document.getElementById(areaId);
+  if (!area || !area._pennyChatBook) return;
+  if (el) { el.disabled = true; el.style.opacity = '.5'; }
+  const book = area._pennyChatBook;
+  const key = _pennyActiveKey(area);
+  if (key) fbSet(PENNY_REF, { [key]: { remindBook: { title: book.title, ts: Date.now() } } }).catch(()=>{});
+  setTimeout(() => _pennyChatBack(area, `<span class="penny-action">She tucks a slip of paper into the cover and sets it back by her teacup.</span><p class="penny-speech">I'll keep it right here. Ask me what I'm reading next time, and I'll remind you.</p>`), 300);
+}
+window.pennyChatRemindMe = pennyChatRemindMe;
 
 // Backing out of finding a book: straight into the chat. If they came from the chat,
 // skip the hello and pick the conversation back up.
@@ -12854,7 +12957,8 @@ function pennyAccept(areaId) {
   // Store last rec in Firestore if identity known
   const _paKey = _pennyActiveKey(area);
   if (_paKey && area._pennyLastRec) {
-    fbSet(PENNY_REF, { [_paKey]: { lastRec: { title: area._pennyLastRec.title, month: area._pennyLastRec.month, ts: Date.now() }, lastRecAsked: false, lastRecNotYet: false, acceptedRec: true, acceptedRec_ts: Date.now() } }).catch(()=>{});
+    fbSet(PENNY_REF, { [_paKey]: { lastRec: { title: area._pennyLastRec.title, month: area._pennyLastRec.month, ts: Date.now() }, lastRecAsked: false, lastRecNotYet: false, acceptedRec: true, acceptedRec_ts: Date.now(), ...((area._pennyState && area._pennyState.remindBook && normTitleKey(area._pennyState.remindBook.title) === normTitleKey(area._pennyLastRec.title)) ? { remindBook: null } : {}) } }).catch(()=>{});
+    if (area._pennyState) area._pennyState.lastRec = { title: area._pennyLastRec.title, month: area._pennyLastRec.month };
   }
 
   // Rare stacks hint — only on return visits, ~1 in 20 chance
@@ -13565,7 +13669,7 @@ async function adminResetMemberPenny() {
   area.innerHTML = '<em style="color:var(--gold);">Resetting…</em>';
   try {
     // Set member's penny data to a clean slate (visitCount 0, clear lastRec/lastRecAsked)
-    await fbSet(PENNY_REF, { [memberKey]: { visitCount: 0, lastVisit: null, lastRec: null, lastRecAsked: false, lastRecNotYet: false, knowsPlants: false, visitLog: [], badgeResetTs: Date.now() } });
+    await fbSet(PENNY_REF, { [memberKey]: { visitCount: 0, lastVisit: null, lastRec: null, lastRecAsked: false, lastRecNotYet: false, knowsPlants: false, remindBook: null, visitLog: [], badgeResetTs: Date.now() } });
     area.innerHTML = `<p style="color:var(--gold);">✓ ${esc(memberName)}'s Penny history has been cleared. Their next visit will be treated as a first visit.</p>`;
   } catch(e) {
     area.innerHTML = `<span style="color:#c55;">Error resetting: ${esc(e.message)}</span>`;
