@@ -4621,6 +4621,7 @@ function renderAnalysisVoting() {
   const area = document.getElementById('analysis-voting-area');
   if (!archives.length) { area.innerHTML = `<div class="empty"><div class="icon">📊</div><p>No archived months for ${esc(metricsYearLabel())} yet.</p></div>`; return; }
 
+  _votingTabArchives = archives; // Monthly Results tabs index into this same filtered list
   const participationData = archives.map(a => Object.keys(a.votes||{}).length);
   const maxParticipation  = Math.max(...participationData, 1);
 
@@ -5566,10 +5567,15 @@ function toggleRankingReviews(id, btn) {
 }
 window.toggleRankingReviews = toggleRankingReviews;
 
+// The tabs are built from the Metrics list (year filter applied, member-pick and
+// bonus months removed), so look the month up in that same list — not in the full
+// archive list, where the positions no longer line up.
+let _votingTabArchives = [];
 function showMonthDetail(idx, el) {
-  document.querySelectorAll('.month-tab').forEach(t => t.classList.remove('active'));
+  const tabs = el && el.parentElement ? el.parentElement.querySelectorAll('.month-tab') : document.querySelectorAll('#analysis-voting-area .month-tab');
+  tabs.forEach(t => t.classList.remove('active'));
   if (el) el.classList.add('active');
-  const a = getArchives()[idx]; if (!a) return;
+  const a = _votingTabArchives[idx]; if (!a) return;
   const nb = (a.books||[]).length, scores = {};
   (a.books||[]).forEach(b => scores[b.id] = 0);
   Object.values(a.votes||{}).forEach(vd => { (vd.ranking||vd).forEach((id, idx2) => { if (scores[id] !== undefined) scores[id] += (nb - idx2); }); });
@@ -8882,6 +8888,9 @@ function renderProfileOverview() {
     }).join('');
   };
 
+  // Winner of each single-winner month, for reviews saved without a book title
+  const _profWinnerByLabel = {};
+  getArchiveWinners().forEach(({ archive: a, winnerBooks }) => { if (winnerBooks.length === 1) _profWinnerByLabel[a.label] = winnerBooks[0]; });
   const reviewsHtml = myReviews.length
     ? _yearCollapsible(
         _groupByYear(myReviews, r => r.monthLabel),
@@ -8890,12 +8899,25 @@ function renderProfileOverview() {
           const stars = (rat >= 1 && rat <= 5)
             ? `<span style="color:var(--gold);letter-spacing:.05em;">${'★'.repeat(rat)}${'☆'.repeat(5 - rat)}</span>`
             : '—';
+          // Match the Books Suggested rows: bold title, "by Author", full month name.
+          // Co-winner reviews match on bookId; single months use that month's winner.
           const archiveEntry = archives.find(a => a.label === r.monthLabel);
-          const bookEntry = archiveEntry ? (archiveEntry.books || []).find(b => String(b.id) === String(r.bookId) || b.title === r.bookTitle) : null;
-          const title = (bookEntry && bookEntry.title) || r.bookTitle || r.book || r.monthLabel || '';
-          return `<div style="display:flex;justify-content:space-between;align-items:center;padding:.35rem 0;border-bottom:.5px solid var(--border);font-size:.88rem;">
-            <span>${esc(title)}</span>
-            <span style="font-size:.9rem;white-space:nowrap;">${stars}</span>
+          let bookEntry = null;
+          if (archiveEntry) {
+            const books = archiveEntry.books || [];
+            bookEntry = (r.bookId && books.find(b => String(b.id) === String(r.bookId)))
+              || (r.bookTitle && books.find(b => normTitleKey(b.title) === normTitleKey(r.bookTitle)))
+              || (_profWinnerByLabel[r.monthLabel] || null);
+          }
+          const title  = (bookEntry && bookEntry.title) || r.bookTitle || r.book || r.monthLabel || '';
+          const author = (bookEntry && bookEntry.author) || '';
+          const monthName = archiveMonthName(r.monthLabel) || r.monthLabel || '';
+          return `<div style="display:flex;justify-content:space-between;align-items:baseline;gap:.5rem;padding:.35rem 0;border-bottom:.5px solid var(--border);font-size:.88rem;">
+            <span style="min-width:0;"><strong>${esc(title)}</strong>${author ? ` <span style="color:var(--soft);font-size:.8rem;">by ${esc(author)}</span>` : ''}</span>
+            <span style="display:flex;align-items:baseline;gap:.6rem;white-space:nowrap;flex-shrink:0;">
+              <span style="font-size:.75rem;color:var(--soft);">${esc(monthName)}</span>
+              <span style="font-size:.9rem;">${stars}</span>
+            </span>
           </div>`;
         },
         `prof-rev-${myKey.replace(/[^a-z0-9]/gi,'_')}`
