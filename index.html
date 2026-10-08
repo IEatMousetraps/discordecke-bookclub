@@ -4061,11 +4061,12 @@ function renderReview() {
   const formContent = document.getElementById('review-form-content');
   if (!s.reviewsOpen) { closed.style.display = 'block'; formContent.style.display = 'none'; return; }
   closed.style.display = 'none'; formContent.style.display = 'block';
-  // Populate month dropdown from archives — real reading months first (chronological),
-  // Bonus Book / member-pick months always pinned to the bottom of the list.
+  // Populate month dropdown from archives — reading months first (chronological),
+  // standalone Bonus Books pinned to the bottom. Member-pick months (e.g. Aug 2026)
+  // are real club months, so they stay in their chronological place.
   const archives   = getArchives();
-  const realMonths = archives.filter(a => !a.memberPick);
-  const bonusMonths = archives.filter(a => a.memberPick);
+  const realMonths = archives.filter(a => !a.bonusBook);
+  const bonusMonths = archives.filter(a => a.bonusBook);
   const orderedArchives = [...realMonths, ...bonusMonths];
   const currentLabel = realMonths.length ? realMonths[realMonths.length - 1].label : null;
   const sel = document.getElementById('rv-month');
