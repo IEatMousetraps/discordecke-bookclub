@@ -1187,9 +1187,6 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 .penny-record-btn.is-playing .penny-record-disc { animation:pennyRecordSpin 1.8s linear infinite; }
 @keyframes pennyRecordGlow { 0%,100% { box-shadow:0 0 0 0 rgba(240,180,41,0); } 50% { box-shadow:0 0 12px 2px rgba(240,180,41,.35); } }
 @keyframes pennyRecordSpin { to { transform:rotate(360deg); } }
-/* Book Rankings & Reviews cover: mobile keeps 80x120; desktop gets a larger cover */
-.rank-cover{width:80px;height:120px;}
-@media (min-width:768px){.rank-cover{width:112px;height:168px;}}
 @media (prefers-reduced-motion: reduce) { .penny-record-btn, .penny-record-btn.is-playing .penny-record-disc { animation:none; } }
 .penny-record-player { width:min(520px, calc(100vw - 3rem)); aspect-ratio:16/9; border:6px solid #5a3e20; outline:1px solid rgba(240,180,41,.35); outline-offset:3px; border-radius:4px; overflow:hidden; background:#000; box-shadow:0 10px 24px rgba(0,0,0,.45); }
 .penny-record-player iframe { width:100%; height:100%; display:block; border:0; }
@@ -5567,7 +5564,7 @@ function renderRankings() {
     return `
     <div class="chart-wrap" style="margin-bottom:1rem;">
       <div style="display:flex;gap:1rem;align-items:flex-start;">
-        ${coverUrl ? `<img src="${esc(coverUrl)}" alt="Cover" class="rank-cover" style="object-fit:cover;border-radius:5px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.18);">` : ''}
+        ${coverUrl ? `<img src="${esc(coverUrl)}" alt="Cover" style="width:80px;height:120px;object-fit:cover;border-radius:5px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.18);">` : ''}
         <div style="flex:1;min-width:0;">
           <div style="display:flex;gap:.75rem;margin-bottom:.75rem;">
             <span style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--gold);flex-shrink:0;">${rank}.</span>
@@ -11419,6 +11416,7 @@ async function renderPennyTabInto(area) {
   let lastRecNotYet = false;
   let knowsPlants = false;
   let remindBook = null;
+  let knowsWays = false;
   const plantsHeard = {};
   let newCount = 1;
   if (_profileIdentity && _profileIdentity.key) {
@@ -11445,12 +11443,13 @@ async function renderPennyTabInto(area) {
       lastRecNotYet = prev.lastRecNotYet || false;
       knowsPlants = !!prev.knowsPlants;
       remindBook = prev.remindBook || null;
+      knowsWays = !!(prev.usedTrust || prev.usedCatalog || prev.usedQuiz);
       Object.keys(prev).forEach(k => { if (k.startsWith('plant_') && prev[k]) plantsHeard[k.slice(6)] = true; });
     } catch(e) { /* degrade gracefully */ }
   }
 
   // Store state on the area element so stage functions can read it
-  area._pennyState = { isFirstVisit, memberName, lastRec, lastRecAsked, lastRecNotYet, knowsPlants, plantsHeard, remindBook, visitCount: newCount };
+  area._pennyState = { isFirstVisit, memberName, lastRec, lastRecAsked, lastRecNotYet, knowsPlants, plantsHeard, remindBook, knowsWays, visitCount: newCount };
 
   // Always start at the door — first visit or return
   _pennyShowDoor(area);
@@ -11587,9 +11586,11 @@ function _pennyShowReturnGreeting(area, memberName) {
       <div class="penny-storybook-inner">
         <span class="penny-action">${scenario.return}</span>
         <p class="penny-speech">${returnLine}</p>
-        <p class="penny-speech">Another recommendation? Same three ways as before — I can just give you one, let the catalog decide, or ask you a few questions first.</p>
+        <p class="penny-speech">${state.knowsWays
+          ? 'Another recommendation? Same three ways as before — I can just give you one, let the catalog decide, or ask you a few questions first.'
+          : 'Here for a recommendation this time? There are three ways we can do it — I can just give you one, let the catalog decide, or ask you a few questions first.'}</p>
         <span class="penny-action" style="margin-top:.4rem;">She gives a small conspiratorial smile.</span>
-        <p class="penny-speech">The quiz is... well. It's still my favorite. Just putting that out there.</p>
+        <p class="penny-speech">The quiz is... well. It's ${state.knowsWays ? 'still ' : ''}my favorite. Just putting that out there.</p>
       </div>
     </div>
     <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
@@ -11692,8 +11693,8 @@ function pennyNotYetBranch(choice, areaId, el) {
           <div class="penny-storybook-inner">
             <span class="penny-action">Penny nods, completely unbothered.</span>
             <p class="penny-speech">Of course! Sometimes a book just isn't the right fit for the right moment. That's not a failure — that's just timing.</p>
-            <span class="penny-action" style="margin-top:.4rem;">She tucks the previous recommendation away mentally and looks at you with fresh eyes.</span>
-            <p class="penny-speech">Let's find you something better. You already know how this works — same three options. What's it going to be?</p>
+            <span class="penny-action" style="margin-top:.4rem;">She sets the old recommendation aside and looks at you with fresh eyes.</span>
+            <p class="penny-speech">Let's find you something better. ${(area._pennyState || {}).knowsWays ? "You already know how this works — same three options. What's it going to be?" : "I can just give you one, let the catalog decide, or ask you a few questions first. What's it going to be?"}</p>
             <span class="penny-action" style="margin-top:.4rem;">She gives a small conspiratorial smile.</span>
             <p class="penny-speech">The catalog has been particularly interesting lately, just saying.</p>
           </div>
@@ -11754,7 +11755,8 @@ function _pennyFollowUpReactionScene(area, reaction) {
     <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
       <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
       <button class="penny-action-btn" onclick="pennyReactionAnother('${reaction}','${aid}',this)">"I'd love another recommendation."</button>
-      <button class="penny-action-btn" onclick="pennyJustStopping('${aid}',this)">"Just wanted to let you know!"</button>
+      <button class="penny-action-btn" onclick="pennyJustStopping('${aid}',this,'${reaction}')">${{ loved: '"Just wanted to tell you!"', good: '"Just stopping by to let you know."', notforme: '"I just wanted to be honest with you."' }[reaction] || '"Just wanted to let you know!"'}</button>
+      <button class="penny-action-btn" onclick="pennyStayAfter('${aid}',this)">"Actually, could I stay a while?"</button>
     </div>
   `;
 }
@@ -11770,6 +11772,9 @@ function pennyReactionAnother(reaction, areaId, el) {
     notforme: { action: "Penny straightens up, newly determined.", line: "Right then. Let's try this again. I have a feeling about you — I just needed a little more information.", bridge: "Same three options, but I promise I'm approaching this differently this time.", nudge: null }
   };
   const s = scenes[reaction] || scenes.good;
+  // Someone whose last book came from the chat has never heard the three ways
+  const bridge = (area._pennyState || {}).knowsWays ? s.bridge
+    : "There are three ways we can do this — I can just give you one, let the catalog decide, or ask you a few questions first.";
   setTimeout(() => {
     area.innerHTML = `
       <div class="penny-storybook">
@@ -11777,7 +11782,7 @@ function pennyReactionAnother(reaction, areaId, el) {
           <span class="penny-action">${s.action}</span>
           <p class="penny-speech">${s.line}</p>
           <span class="penny-action" style="margin-top:.4rem;">She moves behind the desk, looking at you warmly.</span>
-          <p class="penny-speech">${s.bridge}</p>
+          <p class="penny-speech">${bridge}</p>
           ${s.nudge ? `<span class="penny-action" style="margin-top:.4rem;">She gives a small conspiratorial smile.</span><p class="penny-speech">${s.nudge}</p>` : ''}
         </div>
       </div>
@@ -11793,17 +11798,18 @@ function pennyReactionAnother(reaction, areaId, el) {
 }
 window.pennyReactionAnother = pennyReactionAnother;
 
-function pennyJustStopping(areaId, el) {
+function pennyJustStopping(areaId, el, reaction) {
   const area = document.getElementById(areaId);
   if (!area) return;
   if (el) { el.disabled = true; el.style.opacity = '.5'; }
   setTimeout(() => {
-    const stoppingLines = [
-      { action: "Penny presses a hand to her heart.", line: "That is — well. That's very kind of you. You didn't have to do that.", close: "Come back whenever you're ready for another one. I'll be here." },
-      { action: "She smiles warmly.", line: "Well I appreciate that. I really do. Come back whenever you're ready for the next one.", close: null },
-      { action: "Penny nods.", line: "Of course. Come back when you're ready. And thank you for being honest with me — it means more than you'd think.", close: null }
-    ];
-    const s = stoppingLines[Math.floor(Math.random() * stoppingLines.length)];
+    // Her reply matches what they told her about the book
+    const stoppingLines = {
+      loved:    { action: "Penny presses a hand to her heart.", line: "That is — well. That's very kind of you. You didn't have to do that.", close: "Come back whenever you're ready for another one. I'll be here." },
+      good:     { action: "She smiles warmly.", line: "Well I appreciate that. I really do. Come back whenever you're ready for the next one.", close: null },
+      notforme: { action: "Penny nods.", line: "Of course. Come back when you're ready. And thank you for being honest with me — it means more than you'd think.", close: null }
+    };
+    const s = stoppingLines[reaction] || stoppingLines.good;
     area.innerHTML = `
       <div class="penny-storybook">
         <div class="penny-storybook-inner">
@@ -11816,6 +11822,7 @@ function pennyJustStopping(areaId, el) {
       </div>
       <div style="text-align:center;padding:.5rem 1.5rem 1.5rem;">
         <button class="penny-action-btn" onclick="pennyWalkOut()">Walk out the front door.</button>
+        <button class="penny-action-btn" style="margin-top:.5rem;" onclick="pennyStayAfter('${areaId}',this)">"Actually, could I stay a while?"</button>
         ${_pennyMusicAsideBtn(areaId, 'goodbye', 'margin-top:.5rem;')}
       </div>
     `;
@@ -11967,7 +11974,7 @@ async function _pennyCurrentTrackLine() {
 const PENNY_CHAT_OPENERS_BY_MONTH = {
   // Each month: a lead line that sets the scene, then one of the follow-ups at random.
   0:  { lead: "January. A good month for staying put.",
-        lines: ["Come in out of the cold — the kettle's on.",
+        lines: ["Warm your hands for a minute — the kettle's on.",
                 "New year, same stack. I like that about it.",
                 "I keep the kettle going all day this time of year. Horatio doesn't mind the steam."] },
   1:  { lead: "February. Short month, long books — my favorite combination.",
@@ -12018,9 +12025,9 @@ const PENNY_CHAT_OPENERS_BY_MONTH = {
 // so a fixed action could contradict what she was just doing.
 const PENNY_CHAT_GREETINGS = [
   { action: "She looks pleasantly surprised.", line: "Oh! A visitor who isn't in a hurry. I'd offer you a chair, but there's only the one, and I'm fairly sure it's mine." },
-  { action: "", line: "Oh, good. I was hoping someone would come by. The plants are lovely, but they're terrible at conversation when they haven't had enough sunlight." },
+  { action: "", line: "Oh, good. The plants are lovely, but they're terrible at conversation when they haven't had enough sunlight." },
   { action: "", line: "You're in luck. The kettle's just boiled and I've got nowhere to be." },
-  { action: "", line: "Of course! I was only alphabetizing. It can wait. It's been waiting since Tuesday." },
+  { action: "", line: "Of course! The alphabetizing can wait. It's been waiting since Tuesday." },
   { action: "She glances at the clock, then decides not to care.", line: "Stay as long as you like. Nobody's ever in a hurry back here, and I'd hate for you to be the first." }
 ];
 
@@ -12058,8 +12065,8 @@ const PENNY_CHAT_TOPICS = {
   ]},
   work:    { label: '"What\'s it like working here?"', lines: [
     { action: "She thinks about it.", line: "I read for an hour before I officially start. I consider it part of the job. Nobody has told me otherwise." },
-    { action: "She glances at the drawer of her desk.", line: "On rainy Sundays I make bookmarks. If you ever find a little painting in one of the club's books — well. I don't sign them." },
-    { action: "Her face lights up.", line: "October is my favorite month. Pumpkins on every step, and then Halloween — I answer the door for every single trick-or-treater. Last year I had three dragons and a very small librarian." },
+    { action: "She glances at the drawer of her desk, then thinks better of it.", line: "Rainy Sundays are mine. I have a — hobby. It's not very interesting. Ask me something else." },
+    { action: "Her face lights up.", line: "Halloween is the best night of the year. I answer the door for every single trick-or-treater. Last year I had three dragons and a very small librarian." },
     { action: "She leans on the desk.", line: "When a new stack arrives, I read everyone's reasons first — why they suggested it. I feel like I know people before I've ever met them." },
     { action: "She laughs a little.", line: "My family still isn't entirely sure what I do. I tell them I've been reading a lot. That seems to cover it." }
   ]}
@@ -12248,9 +12255,9 @@ async function _pennyChatMusic(area) {
 // record is playing, and after she answers you're back on the same screen's options.
 const PENNY_MUSIC_ASIDE_BRIDGES = {
   hello:        "Anyway — what brings you in?",
-  welcomeback:  "Anyway. Another recommendation? Same three ways as always.",
+  welcomeback:  "Anyway — where were we?",
   stillreading: "Anyway. Take your time with that book.",
-  goodbye:      "Anyway. Don't let me keep you."
+  goodbye:      "Anyway. Stay or go — the records don't mind either way."
 };
 function _pennyMusicAsideBtn(areaId, ctx, extraStyle) {
   const hide = pennyRecordPlaying() ? '' : ' hidden';
@@ -12294,31 +12301,41 @@ function _pennyChatReading(area) {
     const rk = _pennyActiveKey(area);
     if (rk) fbSet(PENNY_REF, { [rk]: { remindBook: null } }).catch(()=>{});
   }
+  let repeat = false;
   if (!book) {
-    // Prefer books she has a note on, newest stacks first
-    const noted = avail.filter(b => pennyNoteFor(b.title));
-    const noted2026 = noted.filter(b => !String(b.id).startsWith('hist_'));
-    const source = noted2026.length ? noted2026 : (noted.length ? noted : avail);
-    if (!source.length) {
+    if (!avail.length) {
       _pennyChatBack(area, `<span class="penny-action">She glances at her empty desk.</span><p class="penny-speech">Would you believe I'm between books? It doesn't happen often. I'm waiting on the next stack.</p>`);
       return;
     }
-    const fresh = source.filter(b => !seen.includes(b.id));
-    const from = fresh.length ? fresh : source;
+    // Prefer books she has a note on, newest stacks first — but a book she hasn't
+    // already mentioned this visit always beats repeating one
+    const fresh = avail.filter(b => !seen.includes(b.id));
+    const tiers = list => {
+      const noted = list.filter(b => pennyNoteFor(b.title));
+      const noted2026 = noted.filter(b => !String(b.id).startsWith('hist_'));
+      return noted2026.length ? noted2026 : (noted.length ? noted : list);
+    };
+    const from = fresh.length ? tiers(fresh) : tiers(avail);
+    repeat = !fresh.length;
     book = from[Math.floor(Math.random() * from.length)];
   }
   area._pennyChatUsed.readingIds = [...seen, book.id];
   area._pennyChatBook = book;
   area._pennyChatPool = avail;
   area._pennyMemberCtx = ctx;
+  const askedBefore = seen.length > 0 && !repeat;
   const lead = reminded
     ? `Still <em>${esc(book.title)}</em>. You asked me to remind you about it, so — consider yourself reminded.`
-    : PENNY_CHAT_READING_LEADS[Math.floor(Math.random() * PENNY_CHAT_READING_LEADS.length)](esc(book.title));
+    : repeat
+      ? `Still <em>${esc(book.title)}</em>. I'm a slow reader when it's a good one.`
+      : askedBefore
+      ? `That, and <em>${esc(book.title)}</em>. I always have more than one on the go.`
+      : PENNY_CHAT_READING_LEADS[Math.floor(Math.random() * PENNY_CHAT_READING_LEADS.length)](esc(book.title));
   const note = pennyNoteFor(book.title);
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
-        <span class="penny-action">She holds up the book that's been sitting by her teacup.</span>
+        <span class="penny-action">${askedBefore && !reminded ? 'She reaches past her teacup for another book.' : "She holds up the book that's been sitting by her teacup."}</span>
         <p class="penny-speech">${lead}</p>
         ${note ? `<p class="penny-speech">${esc(note)}</p>` : `<p class="penny-speech">It's one of the club's. I like it more every time I open it.</p>`}
       </div>
@@ -12427,6 +12444,23 @@ function pennyChatRemindMe(areaId, el) {
 }
 window.pennyChatRemindMe = pennyChatRemindMe;
 
+// "Could I stay a while?" from a goodbye screen. Already chatting this visit → she just
+// picks the conversation back up; otherwise she opens the chat properly.
+const PENNY_STAY_LINES = [
+  "Oh, good. I was hoping you'd say that.",
+  "Of course. Pull up a — well. Stand wherever you like.",
+  "Stay as long as you like. I've got nowhere to be."
+];
+function pennyStayAfter(areaId, el) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  if (!area._pennyInChat) { pennyChatStart(areaId, el); return; }
+  if (el) { el.disabled = true; el.style.opacity = '.5'; }
+  const line = PENNY_STAY_LINES[Math.floor(Math.random() * PENNY_STAY_LINES.length)];
+  setTimeout(() => _pennyChatBack(area, `<span class="penny-action">She leans back on the desk, looking pleased.</span><p class="penny-speech">${line}</p>`), 300);
+}
+window.pennyStayAfter = pennyStayAfter;
+
 // Backing out of finding a book: straight into the chat. If they came from the chat,
 // skip the hello and pick the conversation back up.
 const PENNY_BACKOUT_LINES = [
@@ -12448,10 +12482,10 @@ function pennyChatToBook(areaId, el) {
   const area = document.getElementById(areaId);
   if (!area) return;
   if (el) { el.disabled = true; el.style.opacity = '.5'; }
-  const isFirst = (area._pennyState || {}).isFirstVisit !== false;
+  const knows = !!(area._pennyState || {}).knowsWays;
   setTimeout(() => {
-    // First-timers haven't heard the three ways yet — give them the full pitch
-    if (isFirst) { _pennyShowOptions(area); return; }
+    // Anyone who hasn't used the three ways yet gets the full pitch
+    if (!knows) { _pennyShowOptions(area); return; }
     const aid = area.id;
     area.innerHTML = `
       <div class="penny-storybook">
@@ -12517,7 +12551,7 @@ function _pennyShowOptions(area) {
         <p class="penny-speech">One — I'll give you one from my personal recommendations. No questions, no hints — I know these books like old friends, and I have a feeling one of them has been waiting for you.</p>
         <p class="penny-speech">Two — let fate decide. The card catalog has never steered me wrong. Not once.</p>
         <p class="penny-speech">Or three — you answer a few questions for me first. I like to know who I'm recommending to. It makes all the difference, I promise.</p>
-        <span class="penny-action">She drops her hand and straightens up slightly.</span>
+        <span class="penny-action">She tries, not very hard, to look neutral.</span>
         <p class="penny-speech">Any of them will work. I won't tell you which one I'd pick. But I will say — I wrote the quiz myself.</p>
       </div>
     </div>
@@ -12542,6 +12576,7 @@ function pennySelectOption(optionId, areaId, el) {
     const flag = flagMap[optionId];
     if (flag) fbSet(PENNY_REF, { [_psoKey]: { [flag]: true, [flag+'_ts']: Date.now() } }).catch(()=>{});
   }
+  if (area._pennyState) area._pennyState.knowsWays = true;
   setTimeout(() => {
     if (optionId === 'trust') _pennyBranchTrust(area);
     else if (optionId === 'catalog') _pennyBranchCatalog(area);
@@ -12866,8 +12901,8 @@ function _pennyOwnBookDialog(area, book, pool, fromBranch) {
       </div>
     </div>
     <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 1.5rem;position:relative;z-index:2;">
-      <button class="penny-action-btn" onclick="pennyOwnBookYes('${aid}')">Yes — let's do it.</button>
-      <button class="penny-action-btn" onclick="pennyOwnBookNo('${aid}')">No, not right now.</button>
+      <button class="penny-action-btn" onclick="pennyOwnBookYes('${aid}')">"Yes — let's do it."</button>
+      <button class="penny-action-btn" onclick="pennyOwnBookNo('${aid}')">"No, not right now."</button>
     </div>
   `;
 }
@@ -12887,7 +12922,7 @@ window.pennyOwnBookNo = function(areaId) {
   const pool = (area._pennyOwnPool || []).filter(b => !excluded.includes(b.id));
   const fromBranch = area._pennyOwnBranch;
   if (!pool.length) {
-    area.innerHTML = `<div class="penny-storybook"><div class="penny-storybook-inner"><p class="penny-speech">All right, not right now — got it. I'd have a second pick ready, but it seems we've gone through quite a few today. Come back soon.</p></div></div><div style="text-align:center;padding:.5rem 1.5rem 1.5rem;"><button class="penny-action-btn" onclick="pennyWalkOut()">Walk out the front door.</button></div>`;
+    area.innerHTML = `<div class="penny-storybook"><div class="penny-storybook-inner"><p class="penny-speech">All right, not right now — got it. I'd have a second pick ready, but it seems we've gone through quite a few today. Come back soon.</p></div></div><div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;"><button class="penny-action-btn" onclick="pennyBackOut('${areaId}',this)">"Could we just talk instead?"</button><button class="penny-action-btn" onclick="pennyWalkOut()">Walk out the front door.</button></div>`;
     return;
   }
   const backup = pool[Math.floor(Math.random() * pool.length)];
@@ -12924,7 +12959,12 @@ function _pennyShowRecommendation(area, book, fromBranch) {
   const suggesterName = suggester ? (suggester.discord || suggester.email || '') : '';
   const isHistorical = book.id.startsWith('hist_');
   const ownNote = pennyNoteFor(book.title);
-  const quote = ownNote ? esc(ownNote) : PENNY_CARD_QUOTES[Math.floor(Math.random() * PENNY_CARD_QUOTES.length)];
+  const factLine = isHistorical ? '' : _pennyPickFact(book);
+  const quoteOpts = PENNY_CARD_QUOTES.filter(q =>
+    (!/second place|runner-up/i.test(q) || book.rankPosition === 2) &&   // only for actual runners-up
+    (!/catalog/i.test(q) || fromBranch === 'catalog') &&                 // only when the catalog picked it
+    !factLine.includes(q));                                              // never repeat what she just said
+  const quote = ownNote ? esc(ownNote) : quoteOpts[Math.floor(Math.random() * quoteOpts.length)];
 
   // Store the recommendation so return visits can reference it
   area._pennyLastRec = book;
@@ -12932,7 +12972,7 @@ function _pennyShowRecommendation(area, book, fromBranch) {
   // Historical books get a warm personal disclosure instead of data facts
   const factSection = isHistorical
     ? `<p class="penny-speech">I should mention — I don't have the club's voting record on this one. It came through before things were tracked the way they are now. But I read it, and I think you should too.</p>`
-    : `<p class="penny-speech">${_pennyPickFact(book)}</p>`;
+    : `<p class="penny-speech">${factLine}</p>`;
 
   area.innerHTML = `
     <div class="penny-storybook">
@@ -12955,7 +12995,9 @@ function _pennyShowRecommendation(area, book, fromBranch) {
     <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
       <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
       <button class="penny-action-btn" onclick="pennyAccept('${aid}')">"Thank you, Penny. I'll give it a read."</button>
-      <button class="penny-action-btn" onclick="pennyDecline('${aid}','${fromBranch}')">"Thank you, Penny, but I don't think this one is for me. Could we try again?"</button>
+      ${fromBranch === 'chat'
+        ? `<button class="penny-action-btn" onclick="pennyChatNotNow('${aid}',this)">"Actually — maybe another time."</button>`
+        : `<button class="penny-action-btn" onclick="pennyDecline('${aid}','${fromBranch}')">"Thank you, Penny, but I don't think this one is for me. Could we try again?"</button>`}
     </div>
   `;
 }
@@ -12970,6 +13012,7 @@ function pennyAccept(areaId) {
     fbSet(PENNY_REF, { [_paKey]: { lastRec: { title: area._pennyLastRec.title, month: area._pennyLastRec.month, ts: Date.now() }, lastRecAsked: false, lastRecNotYet: false, acceptedRec: true, acceptedRec_ts: Date.now(), ...((area._pennyState && area._pennyState.remindBook && normTitleKey(area._pennyState.remindBook.title) === normTitleKey(area._pennyLastRec.title)) ? { remindBook: null } : {}) } }).catch(()=>{});
     if (area._pennyState) area._pennyState.lastRec = { title: area._pennyLastRec.title, month: area._pennyLastRec.month };
   }
+  if (area._pennyLastRec) (area._pennyExcluded = area._pennyExcluded || []).push(area._pennyLastRec.id);
 
   // Rare stacks hint — only on return visits, ~1 in 20 chance
   const state = area._pennyState || {};
@@ -12978,15 +13021,16 @@ function pennyAccept(areaId) {
       <div class="penny-storybook-inner">
         <span class="penny-action">Penny beams.</span>
         <p class="penny-speech">Oh wonderful! I just know you're going to love it. I really do.</p>
-        <span class="penny-action" style="margin-top:.4rem;">She straightens up the desk, then looks back at you warmly.</span>
+        <span class="penny-action" style="margin-top:.4rem;">She tucks the card inside the front cover and hands the book across the desk.</span>
         <p class="penny-speech">Come back and tell me what you thought, yes? I mean it. Good or bad — I want to know. The books and I will be here.</p>
-        <span class="penny-action" style="margin-top:.4rem;">She gives a small wave as you head for the door.</span>
         ${_pennyMaybeStacksHint(area._pennyState)}
       </div>
     </div>
-    <div style="text-align:center;padding:.5rem 1.5rem 1.5rem;">
-      <button class="penny-action-btn" onclick="pennyWalkOut()">Walk out the front door.</button>
-      ${_pennyMusicAsideBtn(areaId, 'goodbye', 'margin-top:.5rem;')}
+    <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+      <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you do?</em></p>
+      <button class="penny-action-btn" onclick="pennyStayAfter('${areaId}',this)">${area._pennyInChat ? '"Thank you. Can we keep talking?"' : '"Thank you. Could I stay a while?"'}</button>
+      <button class="penny-action-btn" onclick="pennyWalkOut()">Tuck the book under your arm and head for the door.</button>
+      ${_pennyMusicAsideBtn(areaId, 'goodbye')}
     </div>
   `;
 }
@@ -13118,7 +13162,7 @@ function _pennyBranchTrust(area) {
   const excluded = area._pennyExcluded || [];
   const available = pool.filter(b => !excluded.includes(b.id));
   if (!available.length) {
-    area.innerHTML = `<div class="penny-storybook"><div class="penny-storybook-inner"><p class="penny-speech">Oh my. I think we've gone through quite a few already. Come back another time — I'll have fresh ideas.</p></div></div>`;
+    area.innerHTML = `<div class="penny-storybook"><div class="penny-storybook-inner"><p class="penny-speech">Oh my. I think we've gone through quite a few already. Come back another time — I'll have fresh ideas.</p></div></div><div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;"><button class="penny-action-btn" onclick="pennyBackOut('${area.id}',this)">"Could we just talk instead?"</button><button class="penny-action-btn" onclick="pennyWalkOut()">Walk out the front door.</button></div>`;
     return;
   }
   const book = available[Math.floor(Math.random() * available.length)];
@@ -13197,7 +13241,7 @@ function pennyCatalogPick(zone, areaId) {
   const excluded = area._pennyExcluded || [];
   const available = pool.filter(b => !excluded.includes(b.id));
   if (!available.length) {
-    area.innerHTML = `<div class="penny-storybook"><div class="penny-storybook-inner"><p class="penny-speech">Oh my. I think we've gone through quite a few. Come back another time.</p></div></div>`;
+    area.innerHTML = `<div class="penny-storybook"><div class="penny-storybook-inner"><p class="penny-speech">Oh my. I think we've gone through quite a few. Come back another time.</p></div></div><div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;"><button class="penny-action-btn" onclick="pennyBackOut('${area.id}',this)">"Could we just talk instead?"</button><button class="penny-action-btn" onclick="pennyWalkOut()">Walk out the front door.</button></div>`;
     return;
   }
   const zoneData = PENNY_CATALOG_ZONES.find(z => z.id === zone) || PENNY_CATALOG_ZONES[2];
@@ -13210,7 +13254,7 @@ function pennyCatalogPick(zone, areaId) {
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
         <span class="penny-action">You reach out and pull open a drawer from the ${zoneData.label.toLowerCase()}. Inside is a single card. You take it and bring it back to the desk.</span>
-        <span class="penny-action" style="margin-top:.4rem;">${zoneData.reaction}</span>
+        <p class="penny-speech">${zoneData.reaction}</p>
         <span class="penny-action" style="margin-top:.4rem;">Penny takes it from you, turns it over, and studies it for a moment.</span>
         <p class="penny-speech">Now let's see what we have here... oh!! Oh this is a <em>good</em> one. Give me just a moment.</p>
         <span class="penny-action" style="margin-top:.4rem;">She disappears briefly into the stacks. She returns holding a book and places it on the desk in front of you with quiet triumph.</span>
@@ -13472,7 +13516,7 @@ function _pennyQuizFinish(area) {
   const pick = scored[0]?.book;
 
   if (!pick) {
-    area.innerHTML = `<div class="penny-storybook"><div class="penny-storybook-inner"><p class="penny-speech">Hm. My notes say quite a lot, but nothing's jumping out. Come back tomorrow — I'll have had time to think.</p></div></div>`;
+    area.innerHTML = `<div class="penny-storybook"><div class="penny-storybook-inner"><p class="penny-speech">Hm. My notes say quite a lot, but nothing's jumping out. Come back tomorrow — I'll have had time to think.</p></div></div><div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;"><button class="penny-action-btn" onclick="pennyBackOut('${area.id}',this)">"Could we just talk instead?"</button><button class="penny-action-btn" onclick="pennyWalkOut()">Walk out the front door.</button></div>`;
     return;
   }
 
