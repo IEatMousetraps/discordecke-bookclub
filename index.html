@@ -11415,7 +11415,6 @@ async function renderPennyTabInto(area) {
   let lastRecAsked = false;
   let lastRecNotYet = false;
   let knowsPlants = false;
-  let remindBook = null;
   let knowsWays = false;
   const plantsHeard = {};
   let newCount = 1;
@@ -11442,14 +11441,13 @@ async function renderPennyTabInto(area) {
       lastRecAsked = prev.lastRecAsked || false;
       lastRecNotYet = prev.lastRecNotYet || false;
       knowsPlants = !!prev.knowsPlants;
-      remindBook = prev.remindBook || null;
       knowsWays = !!(prev.usedTrust || prev.usedCatalog || prev.usedQuiz);
       Object.keys(prev).forEach(k => { if (k.startsWith('plant_') && prev[k]) plantsHeard[k.slice(6)] = true; });
     } catch(e) { /* degrade gracefully */ }
   }
 
   // Store state on the area element so stage functions can read it
-  area._pennyState = { isFirstVisit, memberName, lastRec, lastRecAsked, lastRecNotYet, knowsPlants, plantsHeard, remindBook, knowsWays, visitCount: newCount };
+  area._pennyState = { isFirstVisit, memberName, lastRec, lastRecAsked, lastRecNotYet, knowsPlants, plantsHeard, knowsWays, visitCount: newCount };
 
   // Always start at the door — first visit or return
   _pennyShowDoor(area);
@@ -12288,19 +12286,7 @@ function _pennyChatReading(area) {
   area._pennyChatUsed = area._pennyChatUsed || {};
   const seen = area._pennyChatUsed.readingIds || [];
 
-  // A book the member asked her to remind them about comes first, once
-  let book = null, reminded = false;
-  if (state.remindBook && !area._pennyChatUsed.remindDone) {
-    const k = normTitleKey(state.remindBook.title);
-    book = avail.find(b => normTitleKey(b.title) === k) || null;
-    if (book) reminded = true;
-    area._pennyChatUsed.remindDone = true;
-    // One reminder only: clear it whether or not the book is still on her desk
-    // (it may have since won a month, or been one the member suggested)
-    state.remindBook = null;
-    const rk = _pennyActiveKey(area);
-    if (rk) fbSet(PENNY_REF, { [rk]: { remindBook: null } }).catch(()=>{});
-  }
+  let book = null;
   let repeat = false;
   if (!book) {
     if (!avail.length) {
@@ -12324,9 +12310,7 @@ function _pennyChatReading(area) {
   area._pennyChatPool = avail;
   area._pennyMemberCtx = ctx;
   const askedBefore = seen.length > 0 && !repeat;
-  const lead = reminded
-    ? `Still <em>${esc(book.title)}</em>. You asked me to remind you about it, so — consider yourself reminded.`
-    : repeat
+  const lead = repeat
       ? `Still <em>${esc(book.title)}</em>. I'm a slow reader when it's a good one.`
       : askedBefore
       ? `That, and <em>${esc(book.title)}</em>. I always have more than one on the go.`
@@ -12335,7 +12319,7 @@ function _pennyChatReading(area) {
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
-        <span class="penny-action">${askedBefore && !reminded ? 'She reaches past her teacup for another book.' : "She holds up the book that's been sitting by her teacup."}</span>
+        <span class="penny-action">${askedBefore ? 'She reaches past her teacup for another book.' : "She holds up the book that's been sitting by her teacup."}</span>
         <p class="penny-speech">${lead}</p>
         ${note ? `<p class="penny-speech">${esc(note)}</p>` : `<p class="penny-speech">It's one of the club's. I like it more every time I open it.</p>`}
       </div>
@@ -12432,15 +12416,13 @@ function pennyChatNotNow(areaId, el) {
 }
 window.pennyChatNotNow = pennyChatNotNow;
 
-// Remember the book; next visit, "What are you reading right now?" brings it up first
+// "Remind me about it in the future?" — a polite decline. Nothing is saved.
+// (Penny used to hold the book and bring it up next visit; removed for now, may come back.)
 function pennyChatRemindMe(areaId, el) {
   const area = document.getElementById(areaId);
-  if (!area || !area._pennyChatBook) return;
+  if (!area) return;
   if (el) { el.disabled = true; el.style.opacity = '.5'; }
-  const book = area._pennyChatBook;
-  const key = _pennyActiveKey(area);
-  if (key) fbSet(PENNY_REF, { [key]: { remindBook: { title: book.title, ts: Date.now() } } }).catch(()=>{});
-  setTimeout(() => _pennyChatBack(area, `<span class="penny-action">She tucks a slip of paper into the cover and sets it back by her teacup.</span><p class="penny-speech">I'll keep it right here. Ask me what I'm reading next time, and I'll remind you.</p>`), 300);
+  setTimeout(() => _pennyChatBack(area, `<span class="penny-action">She smiles and sets it back by her teacup.</span><p class="penny-speech">Of course. It'll be right here whenever you're ready for it.</p>`), 300);
 }
 window.pennyChatRemindMe = pennyChatRemindMe;
 
@@ -13009,7 +12991,7 @@ function pennyAccept(areaId) {
   // Store last rec in Firestore if identity known
   const _paKey = _pennyActiveKey(area);
   if (_paKey && area._pennyLastRec) {
-    fbSet(PENNY_REF, { [_paKey]: { lastRec: { title: area._pennyLastRec.title, month: area._pennyLastRec.month, ts: Date.now() }, lastRecAsked: false, lastRecNotYet: false, acceptedRec: true, acceptedRec_ts: Date.now(), ...((area._pennyState && area._pennyState.remindBook && normTitleKey(area._pennyState.remindBook.title) === normTitleKey(area._pennyLastRec.title)) ? { remindBook: null } : {}) } }).catch(()=>{});
+    fbSet(PENNY_REF, { [_paKey]: { lastRec: { title: area._pennyLastRec.title, month: area._pennyLastRec.month, ts: Date.now() }, lastRecAsked: false, lastRecNotYet: false, acceptedRec: true, acceptedRec_ts: Date.now() } }).catch(()=>{});
     if (area._pennyState) area._pennyState.lastRec = { title: area._pennyLastRec.title, month: area._pennyLastRec.month };
   }
   if (area._pennyLastRec) (area._pennyExcluded = area._pennyExcluded || []).push(area._pennyLastRec.id);
