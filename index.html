@@ -2180,14 +2180,6 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
         </div>
       </div>
 
-      <!-- My Visit Reset -->
-      <div class="card" style="margin-bottom:1rem;">
-        <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.5rem;">Penny Preview</h3>
-        <p style="font-size:.85rem;color:var(--soft);margin-bottom:1rem;">This is your private view of Penny's tab — visible only to admins regardless of the toggle. Use it to test the experience before enabling it for members.</p>
-        <button class="btn btn-secondary btn-sm" onclick="adminResetPennyVisit()">Reset my visit history</button>
-        <span id="penny-reset-msg" style="font-size:.8rem;color:var(--gold);margin-left:.75rem;"></span>
-      </div>
-
       <!-- Card Catalog viewer (read-only) -->
       <div class="card" style="margin-bottom:1rem;">
         <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.4rem;">🗂️ Penny's Card Catalog</h3>
@@ -2267,12 +2259,6 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
         <div id="ph-list" style="margin-top:1rem;"></div>
       </div>
 
-      <div id="admin-penny-preview-area" style="background:#1a1208;border-radius:6px;padding:1.5rem 0;">
-        <p style="font-family:'Playfair Display',serif;font-style:italic;color:rgba(240,180,41,.4);font-size:14px;text-align:center;">Click "Load Preview" to render Penny.</p>
-        <div style="text-align:center;margin-top:.75rem;">
-          <button class="btn btn-secondary btn-sm" onclick="loadAdminPennyPreview()">Load Preview</button>
-        </div>
-      </div>
     </div><!-- /admin-sub-penny-admin -->
 
     <div id="admin-sub-reviews-admin" style="display:none;">
@@ -11576,7 +11562,7 @@ async function renderPennyTabInto(area) {
       const data = snap.exists() ? snap.data() : {};
       const memberKey = _profileIdentity.key;
       const prev = (data[memberKey] || {});
-      if (!_pennyCountedThisSession) {
+      if (!_pennyCountedThisSession || !prev.visitCount) {
         newCount = (prev.visitCount || 0) + 1;
         const now = Date.now();
         const visitUpdate = { visitCount: newCount, lastVisit: now };
@@ -12987,6 +12973,9 @@ function _pennyBranchBrowse(area) {
         <p class="penny-speech">And if you need any help, just come find me. I'll be right here.</p>
       </div>
     </div>
+    <div style="display:flex;justify-content:center;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 1.2rem;position:relative;z-index:2;">
+      <button class="penny-action-btn" onclick="pennyShelfLeave('${aid}',this)">Head back to Penny's desk.</button>
+    </div>
     <div class="pshelf" id="${aid}-pshelf">
       <div class="pshelf-controls">
         <input type="search" data-pshelf="q" placeholder="Search title, author or who suggested it…" aria-label="Search Penny's shelves">
@@ -13003,9 +12992,6 @@ function _pennyBranchBrowse(area) {
         <button type="button" class="pshelf-corridor" role="tab" data-pshelf-wing="Nonfiction" aria-selected="false"><span class="nm">Nonfiction →</span><span class="ct" data-pshelf-ct="Nonfiction"></span></button>
       </div>
       <div data-pshelf="stacks"></div>
-    </div>
-    <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
-      <button class="penny-action-btn" onclick="pennyShelfLeave('${aid}',this)">Head back to Penny's desk.</button>
     </div>
   `;
   const root = document.getElementById(`${aid}-pshelf`);
@@ -13045,6 +13031,8 @@ function _pennyBranchBrowse(area) {
     }
   });
   _pshelfRender(area);
+  const scene = area.querySelector('.penny-storybook');
+  if (scene && scene.scrollIntoView) scene.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function _pshelfOrigin(b) {
@@ -13182,7 +13170,6 @@ window.pennyShelfLeave = function(areaId, el) {
       <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('browse','${aid}',this)">"Let me look around a bit more."</button>
       <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually — can we just talk for a bit?"</button>
-      <button class="penny-action-btn" onclick="pennyWalkOut()">Walk out the front door.</button>
     </div>
   `;
 };
@@ -14400,11 +14387,30 @@ async function adminResetMemberPenny() {
   const memberKey = sel.value;
   if (!memberKey) { area.innerHTML = '<em>Select a member first.</em>'; return; }
   const memberName = sel.options[sel.selectedIndex]?.dataset?.name || memberKey;
-  if (!confirm(`Reset Penny history for ${memberName}? This will clear their visit count, last rec, and follow-up state.`)) return;
+  if (!confirm(`Reset Penny history for ${memberName}?\n\nThis wipes everything Penny remembers about them: visits, her clipboard and crossed-off books, plants she's told them about, and their Penny badges. Their next visit is a first visit. This can't be undone.`)) return;
   area.innerHTML = '<em style="color:var(--gold);">Resetting…</em>';
   try {
-    // Set member's penny data to a clean slate (visitCount 0, clear lastRec/lastRecAsked)
-    await fbSet(PENNY_REF, { [memberKey]: { visitCount: 0, lastVisit: null, lastRec: null, lastRecAsked: false, lastRecNotYet: false, card: [], cardHistory: [], knowsList: false, knowsPlants: false, remindBook: null, visitLog: [], badgeResetTs: Date.now() } });
+    // Replace their whole record (a merge would leave old flags behind, which kept
+    // Penny badges, plant memories and "you know the ways" alive after a reset)
+    const now = Date.now();
+    await runTransaction(db, async tx => {
+      const snap = await tx.get(PENNY_REF);
+      const data = snap.exists() ? snap.data() : {};
+      data[memberKey] = { badgeResetTs: now };
+      tx.set(PENNY_REF, data);
+    });
+    if (CACHE.pennyMembers) CACHE.pennyMembers[memberKey] = { badgeResetTs: now };
+    // Clear any admin grants/blocks on Penny badges so they can be re-earned cleanly
+    const cfg = JSON.parse(JSON.stringify(getBadgeConfig()));
+    const ov = (cfg.overrides || {})[memberKey];
+    if (ov) {
+      PENNY_BADGE_IDS.forEach(id => { delete ov[id]; });
+      if (!Object.keys(ov).length) delete cfg.overrides[memberKey];
+    }
+    if (!cfg.badgeResets) cfg.badgeResets = {};
+    cfg.badgeResets[memberKey] = Object.assign({}, cfg.badgeResets[memberKey] || {}, Object.fromEntries(PENNY_BADGE_IDS.map(id => [id, now])));
+    await fbSetFull(BADGE_CONFIG_REF, cfg);
+    if (typeof _badgeEarnerCounts !== 'undefined') _badgeEarnerCounts = null;
     area.innerHTML = `<p style="color:var(--gold);">✓ ${esc(memberName)}'s Penny history has been cleared. Their next visit will be treated as a first visit.</p>`;
   } catch(e) {
     area.innerHTML = `<span style="color:#c55;">Error resetting: ${esc(e.message)}</span>`;
