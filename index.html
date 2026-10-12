@@ -1000,6 +1000,52 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   color: var(--gold);
 }
 
+/* Penny's shelves ("I'd just like to browse") */
+.pshelf{width:calc(100% - 2rem);max-width:860px;margin:0 1rem 1.5rem;position:relative;z-index:2;}
+.pshelf-controls{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-bottom:.7rem;}
+.pshelf-controls input{flex:1 1 200px;min-width:0;background:#241a0c;border:1px solid rgba(240,180,41,.3);border-radius:2px;color:#f3e6c8;padding:.55rem .7rem;font:14px 'DM Sans',sans-serif;}
+.pshelf-controls input::placeholder{color:rgba(243,230,200,.45);}
+.pshelf-chip{background:transparent;border:1px solid rgba(240,180,41,.3);color:rgba(240,180,41,.8);border-radius:999px;padding:.35rem .8rem;font:13px 'DM Sans',sans-serif;cursor:pointer;}
+.pshelf-chip[aria-pressed="true"]{background:var(--gold);color:#1a1208;border-color:var(--gold);font-weight:700;}
+.pshelf-legend{display:flex;gap:1rem;flex-wrap:wrap;font-size:12px;color:rgba(243,230,200,.7);margin:0 0 .4rem;}
+.pshelf-count{color:rgba(243,230,200,.55);font-size:12px;margin:0 0 .4rem;}
+.pshelf-wing{font:600 12px 'DM Sans',sans-serif;letter-spacing:.24em;text-transform:uppercase;color:var(--gold);margin:1.4rem 0 .2rem;display:flex;align-items:center;gap:.6rem;}
+.pshelf-wing::after{content:'';flex:1;height:1px;background:rgba(240,180,41,.25);}
+.pshelf-ranges{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:.4rem 1.4rem;}
+.pshelf.list-mode .pshelf-ranges{grid-template-columns:1fr;}
+.pshelf-range{margin:.7rem 0 .9rem;min-width:0;}
+.pshelf-ranges .pshelf-detail{grid-column:1/-1;margin-top:0;}
+.pshelf-sign{display:block;font:italic 14px 'Playfair Display',serif;color:#f3e6c8;margin-bottom:.4rem;}
+.pshelf-sign small{font:11px 'DM Sans',sans-serif;color:rgba(243,230,200,.5);font-style:normal;margin-left:.4rem;}
+.pshelf-plank{display:flex;flex-wrap:wrap;gap:7px 3px;padding:0 6px 7px;background:repeating-linear-gradient(to bottom,transparent 0 164px,#5a3d1b 164px 171px);}
+.pshelf-slot{height:164px;display:flex;align-items:flex-end;}
+.pshelf-spine{position:relative;border-radius:2px 2px 0 0;cursor:pointer;border:0;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:space-between;overflow:hidden;transition:transform .15s;}
+.pshelf-spine:hover,.pshelf-spine:focus-visible,.pshelf-spine.open{transform:translateY(-6px);outline:none;}
+.pshelf-spine:focus-visible{box-shadow:0 0 0 2px var(--gold) !important;}
+.pshelf-spine .t{writing-mode:vertical-rl;transform:rotate(180deg);font:600 11px 'Playfair Display',serif;padding:6px 0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-height:calc(100% - 32px);}
+.pshelf-spine .lbl{background:#fbf7ee;color:#2a1d0a;font:700 8.5px/1 'DM Sans',sans-serif;width:20px;text-align:center;padding:3px 0;margin-bottom:5px;border-radius:1px;}
+.pshelf-spine .mark{position:absolute;top:4px;left:50%;transform:translateX(-50%);font-size:10px;line-height:1;}
+.pshelf-detail{background:#f5ecd8;border:1px solid #c8a96e;border-radius:3px;box-shadow:0 0 0 4px #1a1208,0 0 0 5px rgba(240,180,41,.2);padding:1rem 1.2rem;margin:.9rem 0 .4rem;color:#2a1d0a;}
+.pshelf-detail h3{font:600 18px 'Playfair Display',serif;margin:0;color:#2a1d0a;}
+.pshelf-detail .by{color:#8a6d3b;font-size:14px;margin:.1rem 0 .55rem;}
+.pshelf-pill{display:inline-block;font-size:11px;border:1px solid;border-radius:999px;padding:1px 8px;margin:0 .3rem .2rem 0;}
+.pshelf-meta{font-size:12px;color:#6b5636;margin-left:.2rem;}
+.pshelf-origin{font-size:13px;margin:.6rem 0 0;color:#4a3a1e;}
+.pshelf-why{margin:.6rem 0 0;font-size:13.5px;line-height:1.55;color:#3b2c12;}
+.pshelf-why .clip{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;}
+.pshelf-why button{background:none;border:0;padding:0;color:#7a5808;font:600 12px 'DM Sans',sans-serif;cursor:pointer;text-decoration:underline;}
+.pshelf-hand{font:italic 13.5px/1.5 'Playfair Display',serif;color:#3b2c12;background:#fbf3df;border:1px solid #d9c49a;padding:.6rem .8rem;margin:.7rem 0 0;transform:rotate(-.6deg);}
+.pshelf-hand span{display:block;font:600 10px 'DM Sans',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#8a6d3b;margin-bottom:.2rem;font-style:normal;}
+.pshelf-dbtns{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.8rem;}
+.pshelf-dbtns button{font:13px 'DM Sans',sans-serif;border-radius:2px;padding:.45rem .9rem;cursor:pointer;border:1px solid #8a6d3b;background:transparent;color:#2a1d0a;}
+.pshelf-dbtns button.primary{background:#2a1d0a;color:var(--gold);border-color:#2a1d0a;}
+.pshelf-row{display:grid;grid-template-columns:2.6rem 1fr auto;gap:.6rem;align-items:center;padding:.5rem .2rem;border:0;border-bottom:1px solid rgba(240,180,41,.15);color:#f3e6c8;cursor:pointer;background:none;text-align:left;font:inherit;width:100%;}
+.pshelf-row:hover{background:rgba(240,180,41,.06);}
+.pshelf-row .code{font:700 10px 'DM Sans',sans-serif;background:#fbf7ee;color:#2a1d0a;text-align:center;padding:3px 0;border-radius:1px;}
+.pshelf-row .tt{font:14px 'Playfair Display',serif;min-width:0;}
+.pshelf-row .tt small{display:block;font:12px 'DM Sans',sans-serif;color:rgba(243,230,200,.55);}
+.pshelf-empty{color:rgba(243,230,200,.6);font-style:italic;font-family:'Playfair Display',serif;padding:1rem 0;}
+
 /* option cards (Chunk 2) */
 .penny-options-grid {
   display: flex;
@@ -11596,6 +11642,7 @@ function _pennyShowReturnGreeting(area, memberName) {
       <button class="penny-action-btn" onclick="pennySelectOption('trust','${aid}',this)">"I trust you, Penny."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
+      <button class="penny-action-btn" onclick="pennySelectOption('browse','${aid}',this)">"I'd just like to browse."</button>
       <button class="penny-action-btn" onclick="pennyChatStart('${aid}',this)">"I just came to talk."</button>
       ${_pennyMusicAsideBtn(aid, 'welcomeback')}
     </div>
@@ -11702,6 +11749,7 @@ function pennyNotYetBranch(choice, areaId, el) {
           <button class="penny-action-btn" onclick="pennySelectOption('trust','${aid}',this)">"I trust you, Penny."</button>
           <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
           <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
+          <button class="penny-action-btn" onclick="pennySelectOption('browse','${aid}',this)">"I'd just like to browse."</button>
           <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually — can we just talk for a bit?"</button>
         </div>
       `;
@@ -11789,6 +11837,7 @@ function pennyReactionAnother(reaction, areaId, el) {
         <button class="penny-action-btn" onclick="pennySelectOption('trust','${aid}',this)">"I trust you, Penny."</button>
         <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
         <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
+        <button class="penny-action-btn" onclick="pennySelectOption('browse','${aid}',this)">"I'd just like to browse."</button>
         <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually — can we just talk for a bit?"</button>
       </div>
     `;
@@ -12481,6 +12530,7 @@ function pennyChatToBook(areaId, el) {
         <button class="penny-action-btn" onclick="pennySelectOption('trust','${aid}',this)">"I trust you, Penny."</button>
         <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
         <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
+        <button class="penny-action-btn" onclick="pennySelectOption('browse','${aid}',this)">"I'd just like to browse."</button>
         <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually — can we just talk for a bit?"</button>
       </div>`;
   }, 300);
@@ -12542,6 +12592,7 @@ function _pennyShowOptions(area) {
       <button class="penny-action-btn" onclick="pennySelectOption('trust','${aid}',this)">"I trust you, Penny."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
+      <button class="penny-action-btn" onclick="pennySelectOption('browse','${aid}',this)">"I'd just like to browse."</button>
       <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually — can we just talk for a bit?"</button>
     </div>
   `;
@@ -12554,18 +12605,251 @@ function pennySelectOption(optionId, areaId, el) {
   // Track badge events
   const _psoKey = _pennyActiveKey(area);
   if (_psoKey) {
-    const flagMap = { trust: 'usedTrust', catalog: 'usedCatalog', quiz: 'usedQuiz' };
+    const flagMap = { trust: 'usedTrust', catalog: 'usedCatalog', quiz: 'usedQuiz', browse: 'usedBrowse' };
     const flag = flagMap[optionId];
     if (flag) fbSet(PENNY_REF, { [_psoKey]: { [flag]: true, [flag+'_ts']: Date.now() } }).catch(()=>{});
   }
-  if (area._pennyState) area._pennyState.knowsWays = true;
+  if (area._pennyState && optionId !== 'browse') area._pennyState.knowsWays = true;
   setTimeout(() => {
-    if (optionId === 'trust') _pennyBranchTrust(area);
+    if (optionId === 'browse') _pennyBranchBrowse(area);
+    else if (optionId === 'trust') _pennyBranchTrust(area);
     else if (optionId === 'catalog') _pennyBranchCatalog(area);
     else if (optionId === 'quiz') _pennyBranchQuiz(area);
   }, 300);
 }
 window.pennySelectOption = pennySelectOption;
+
+// ══════════════════════════════════════════════════════
+// PENNY'S SHELVES — "I'd just like to browse."
+// Every book in her catalog, shelved like a library: Fiction / Nonfiction,
+// then a shelf per genre, then by author's last name.
+// ══════════════════════════════════════════════════════
+const _PSHELF_FICTION = new Set(['Classic Literature','Contemporary Fiction','Cozy','Crime','Fantasy','Historical Fiction','Horror','Literary Fiction','Magical Realism','Mystery','Romance','Science Fiction','Supernatural','Suspense','Thriller','Western']);
+const _PSHELF_NONFICTION = new Set(['Biography','Essays','Journalism','Memoir','Non-Fiction','Psychology','Self-Help']);
+const _PSHELF_SUFFIX = /\b(ph\.?d\.?|jr\.?|sr\.?|md|iii|ii)(?=\s|$)\.?/gi;
+
+// Section + shelf for a book. The first genre that clearly says fiction or nonfiction
+// decides the section (no clear genre = Fiction). "Non-Fiction" and "LGBTQ+" never name
+// a shelf; the book's other genre does.
+function _pshelfPlace(genres) {
+  let wing = 'Fiction';
+  for (const g of genres) {
+    if (_PSHELF_FICTION.has(g)) { wing = 'Fiction'; break; }
+    if (_PSHELF_NONFICTION.has(g)) { wing = 'Nonfiction'; break; }
+  }
+  let shelf = genres.filter(g => g !== 'Non-Fiction' && g !== 'LGBTQ+')[0] || '';
+  if (shelf === 'Comedy') shelf = 'Humor';
+  if (wing === 'Nonfiction' && shelf === 'Crime') shelf = 'True Crime';
+  if (!shelf || shelf === 'Other') shelf = 'Curiosities';
+  return { wing, shelf };
+}
+// First author's last name. "Penn and Kim Holderness" share one, so use the last author's.
+function _pshelfSurname(author) {
+  const parts = String(author || '').split(/\s+(?:and|&)\s+|,\s*/i).map(x => x.replace(_PSHELF_SUFFIX, '').trim()).filter(Boolean);
+  if (!parts.length) return '';
+  const words = parts[0].split(/\s+/);
+  const src = (words.length === 1 && parts.length > 1) ? parts[parts.length - 1].split(/\s+/) : words;
+  return src[src.length - 1] || '';
+}
+const _pshelfBare = t => String(t || '').replace(/^(the|a|an)\s+/i, '');
+function _pshelfCode(b) { return (_pshelfSurname(b.author) || _pshelfBare(b.title)).replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() || '—'; }
+function _pshelfSortKey(b) { return ((_pshelfSurname(b.author) || _pshelfBare(b.title)) + ' ' + _pshelfBare(b.title)).toLowerCase(); }
+function _pshelfHash(str) { let h = 0; for (const c of String(str)) h = (h * 31 + c.charCodeAt(0)) | 0; return Math.abs(h); }
+// Spine thickness from page count: ~22px for a slim book up to ~50px for a doorstop
+function _pshelfThick(pages) { const p = parseInt(pages, 10); if (!p) return 32; return Math.round(22 + Math.max(0, Math.min(1, (p - 120) / 680)) * 28); }
+function _pshelfColors(genre) {
+  const c = GENRE_PILL_COLORS_MAP[genre];
+  return c ? [c.bg, c.text, c.border] : ['#f5f5f5', '#616161', '#bdbdbd'];
+}
+const _pshelfOrd = n => { const sfx = ['th','st','nd','rd'], v = n % 100; return n + (sfx[(v - 20) % 10] || sfx[v] || sfx[0]); };
+
+// Turn Penny's catalog into shelf entries
+function _pshelfBooks() {
+  const idMap = buildIdentityMap();
+  return _pennyBuildPool(null).map(b => {
+    const genres = String(b.genre || '').split('/').map(g => g.trim()).filter(Boolean);
+    const people = [];
+    (b.suggesters || []).forEach(sg => {
+      const name = resolveId(sg.discord || '', sg.email || '', idMap) || sg.discord || '';
+      if (!name) return;
+      const ex = people.find(x => x.name === name);
+      if (ex) { if (!ex.reason && sg.reason) ex.reason = sg.reason; }
+      else people.push({ name, reason: String(sg.reason || '').trim() });
+    });
+    const historical = String(b.id).startsWith('hist_');
+    return Object.assign({}, b, {
+      genres, people, historical,
+      kind: b.broughtToPenny ? 'brought' : 'miss',
+      monthName: historical ? (b.month || '2025') : (archiveMonthName(b.month) || b.month || ''),
+      note: pennyNoteFor(b.title),
+      place: _pshelfPlace(genres)
+    });
+  });
+}
+
+function _pennyBranchBrowse(area) {
+  const aid = area.id;
+  area._pshelf = { books: _pshelfBooks(), filter: 'all', query: '', list: false, open: null, whyOpen: false };
+  const hasBrought = area._pshelf.books.some(b => b.kind === 'brought');
+  area.innerHTML = `
+    <div class="penny-storybook">
+      <div class="penny-storybook-inner">
+        <span class="penny-action">Penny gestures toward the shelves behind her desk.</span>
+        <p class="penny-speech">Of course. Everything the club didn't pick lives back here${hasBrought ? ', plus anything members have brought me since' : ''}. Fiction's shelved by author, the rest by subject. Take your time — just put things back where you found them.</p>
+      </div>
+    </div>
+    <div class="pshelf" id="${aid}-pshelf">
+      <div class="pshelf-controls">
+        <input type="search" data-pshelf="q" placeholder="Search title, author or who suggested it…" aria-label="Search Penny's shelves">
+        ${hasBrought ? `
+        <button type="button" class="pshelf-chip" data-pshelf-filter="all" aria-pressed="true">All</button>
+        <button type="button" class="pshelf-chip" data-pshelf-filter="miss" aria-pressed="false">🗳️ Near-misses</button>
+        <button type="button" class="pshelf-chip" data-pshelf-filter="brought" aria-pressed="false">📚 Brought to Penny</button>` : ''}
+        <button type="button" class="pshelf-chip" data-pshelf="view" aria-pressed="false">List view</button>
+      </div>
+      <div class="pshelf-legend"><span>🗳️ Suggested for a club vote, didn't win</span>${hasBrought ? '<span>📚 A member told Penny about it</span>' : ''}</div>
+      <p class="pshelf-count" data-pshelf="count"></p>
+      <div data-pshelf="stacks"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+      <button class="penny-action-btn" onclick="pennyShelfLeave('${aid}',this)">Head back to Penny's desk.</button>
+    </div>
+  `;
+  const root = document.getElementById(`${aid}-pshelf`);
+  root.querySelector('[data-pshelf="q"]').addEventListener('input', e => { area._pshelf.query = e.target.value; area._pshelf.open = null; _pshelfRender(area); });
+  root.querySelector('[data-pshelf="view"]').addEventListener('click', e => {
+    const st = area._pshelf; st.list = !st.list;
+    e.currentTarget.setAttribute('aria-pressed', String(st.list));
+    e.currentTarget.textContent = st.list ? 'Shelf view' : 'List view';
+    _pshelfRender(area);
+  });
+  root.querySelectorAll('[data-pshelf-filter]').forEach(ch => ch.addEventListener('click', () => {
+    area._pshelf.filter = ch.dataset.pshelfFilter; area._pshelf.open = null;
+    root.querySelectorAll('[data-pshelf-filter]').forEach(c => c.setAttribute('aria-pressed', String(c === ch)));
+    _pshelfRender(area);
+  }));
+  root.querySelector('[data-pshelf="stacks"]').addEventListener('click', e => {
+    const st = area._pshelf;
+    if (e.target.closest('[data-pshelf-more]')) { st.whyOpen = !st.whyOpen; _pshelfRender(area); return; }
+    if (e.target.closest('[data-pshelf-close]')) { st.open = null; _pshelfRender(area); return; }
+    if (e.target.closest('[data-pshelf-take]')) { _pshelfTake(area); return; }
+    const sp = e.target.closest('[data-pshelf-id]');
+    if (!sp) return;
+    st.open = st.open === sp.dataset.pshelfId ? null : sp.dataset.pshelfId;
+    st.whyOpen = false;
+    _pshelfRender(area);
+    if (st.open) {
+      const d = root.querySelector('.pshelf-detail');
+      if (d && d.scrollIntoView) d.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  });
+  _pshelfRender(area);
+}
+
+function _pshelfOrigin(b) {
+  const names = b.people.map(x => x.name);
+  const who = names.length ? ` by <b>${esc(_pennyJoinNames(names))}</b>` : '';
+  if (b.kind === 'brought') return `📚 Brought to Penny${who}${b.alreadyRead ? ' · they’ve read it' : ''}`;
+  if (b.historical) return `🗳️ Suggested${who}${b.monthName ? ` in ${esc(b.monthName)}` : ''}`;
+  const place = b.totalBooks ? ` · came ${_pshelfOrd(b.rankPosition)} of ${b.totalBooks}` : '';
+  return `🗳️ Suggested${who}${b.monthName ? ` for ${esc(b.monthName)}` : ''}${place}`;
+}
+
+function _pshelfDetail(b, whyOpen) {
+  const pills = b.genres.map(g => { const c = _pshelfColors(g); return `<span class="pshelf-pill" style="background:${c[0]};color:${c[1]};border-color:${c[2]}">${esc(g)}</span>`; }).join('');
+  const reasons = b.people.filter(x => x.reason);
+  const whyHtml = reasons.map(x => (reasons.length > 1 ? `<b>${esc(x.name)}:</b> ` : '') + esc(x.reason)).join('<br><br>');
+  const long = reasons.reduce((n, x) => n + x.reason.length, 0) > 260;
+  return `<div class="pshelf-detail" role="region" aria-label="${esc(b.title)}">
+    <h3>${esc(b.title)}</h3>
+    <p class="by">${esc(b.author || 'Author unknown')}</p>
+    ${pills}${b.pageCount ? `<span class="pshelf-meta">${esc(b.pageCount)} pages</span>` : ''}
+    <p class="pshelf-origin">${_pshelfOrigin(b)}</p>
+    ${whyHtml ? `<div class="pshelf-why"><div class="${long && !whyOpen ? 'clip' : ''}">${whyHtml}</div>${long ? `<button type="button" data-pshelf-more>${whyOpen ? 'Show less' : 'Read more'}</button>` : ''}</div>` : ''}
+    ${b.note ? `<p class="pshelf-hand"><span>Penny's note, tucked inside</span>“${esc(b.note)}”</p>` : ''}
+    <div class="pshelf-dbtns">
+      <button type="button" class="primary" data-pshelf-take>I'll take this one</button>
+      <button type="button" data-pshelf-close>Put it back</button>
+    </div>
+  </div>`;
+}
+
+function _pshelfRender(area) {
+  const st = area._pshelf;
+  const root = document.getElementById(`${area.id}-pshelf`);
+  if (!st || !root) return;
+  const q = st.query.trim().toLowerCase();
+  const shown = st.books.filter(b =>
+    (st.filter === 'all' || b.kind === st.filter) &&
+    (!q || [b.title, b.author, ...b.people.map(x => x.name)].some(x => String(x || '').toLowerCase().includes(q))));
+  root.classList.toggle('list-mode', st.list);
+  root.querySelector('[data-pshelf="count"]').textContent = `${shown.length} book${shown.length === 1 ? '' : 's'} on the shelves`;
+  const stacks = root.querySelector('[data-pshelf="stacks"]');
+  if (!shown.length) {
+    stacks.innerHTML = `<p class="pshelf-empty">Penny checks twice. Nothing on the shelves matches that.</p>`;
+    return;
+  }
+  const out = [];
+  ['Fiction', 'Nonfiction'].forEach(wing => {
+    const inWing = shown.filter(b => b.place.wing === wing);
+    if (!inWing.length) return;
+    out.push(`<div class="pshelf-wing">${wing}</div><div class="pshelf-ranges">`);
+    const shelves = [...new Set(inWing.map(b => b.place.shelf))]
+      .sort((a, b) => (a === 'Curiosities') - (b === 'Curiosities') || a.localeCompare(b));
+    shelves.forEach(sh => {
+      const books = inWing.filter(b => b.place.shelf === sh).sort((a, b) => _pshelfSortKey(a).localeCompare(_pshelfSortKey(b)));
+      const c = _pshelfColors(sh === 'True Crime' ? 'Crime' : sh);
+      let html = `<div class="pshelf-range"><span class="pshelf-sign">${esc(sh)}<small>${books.length}</small></span>`;
+      if (st.list) {
+        html += books.map(b => `<button type="button" class="pshelf-row" data-pshelf-id="${esc(b.id)}"><span class="code">${_pshelfCode(b)}</span><span class="tt">${esc(b.title)}<small>${esc(b.author)}</small></span><span aria-hidden="true">${b.kind === 'brought' ? '📚' : '🗳️'}</span></button>` + (st.open === b.id ? _pshelfDetail(b, st.whyOpen) : '')).join('');
+        out.push(html + `</div>`);
+      } else {
+        html += `<div class="pshelf-plank">` + books.map(b => {
+          const h = 124 + _pshelfHash(b.title) % 36, w = _pshelfThick(b.pageCount);
+          return `<span class="pshelf-slot"><button type="button" class="pshelf-spine${st.open === b.id ? ' open' : ''}" data-pshelf-id="${esc(b.id)}" style="width:${w}px;height:${h}px;background:${c[0]};color:${c[1]};box-shadow:inset 3px 0 0 ${c[2]}" aria-label="${esc(b.title)}${b.author ? ' by ' + esc(b.author) : ''}" title="${esc(b.title)}"><span class="mark">${b.kind === 'brought' ? '📚' : ''}</span><span class="t">${esc(b.title)}</span><span class="lbl">${_pshelfCode(b)}</span></button></span>`;
+        }).join('') + `</div></div>`;
+        out.push(html);
+        const open = books.find(b => b.id === st.open);
+        if (open) out.push(_pshelfDetail(open, st.whyOpen));
+      }
+    });
+    out.push(`</div>`);
+  });
+  stacks.innerHTML = out.join('');
+}
+
+// "I'll take this one" — a real Penny recommendation, same as the other three ways
+function _pshelfTake(area) {
+  const st = area._pshelf;
+  const book = st && st.books.find(b => b.id === st.open);
+  if (!book) return;
+  area._pennyLastRec = book;
+  area._pennyFromShelf = true;
+  pennyAccept(area.id);
+}
+
+window.pennyShelfLeave = function(areaId, el) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  if (el) { el.disabled = true; el.style.opacity = '.5'; }
+  const aid = area.id;
+  area.innerHTML = `
+    <div class="penny-storybook">
+      <div class="penny-storybook-inner">
+        <span class="penny-action">Penny looks up from her desk.</span>
+        <p class="penny-speech">Nothing jumped out? That's alright. The shelves will keep.</p>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+      <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
+      <button class="penny-action-btn" onclick="pennySelectOption('trust','${aid}',this)">"I trust you, Penny."</button>
+      <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
+      <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
+      <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually — can we just talk for a bit?"</button>
+      <button class="penny-action-btn" onclick="pennyWalkOut()">Walk out the front door.</button>
+    </div>
+  `;
+};
 
 // ══════════════════════════════════════════════════════
 // PENNY CHUNK 3 — Branch engines + recommendation card
@@ -12651,9 +12935,31 @@ function _pennyGetMemberContext() {
 
 // Global set of ALL winning titles across all months (lowercased)
 // A book is excluded from Penny's pool if it won in ANY month
+// Main title only: "Born to Run: A Hidden Tribe…" → "borntorun"
+function _pennyShortKey(title) { return normTitleKey(String(title || '').split(':')[0]); }
+
+// Books that won a month. .has(title, author) ignores punctuation, apostrophe style and
+// subtitles, so "Born to Run" and "Born to Run: A Hidden Tribe…" count as the same book.
 function _pennyWinningTitles() {
   const archives = getArchives();
-  const winningTitles = new Set();
+  const full = new Set(), short = new Map();
+  const winningTitles = {
+    add(title, author) {
+      const f = normTitleKey(title); if (!f) return;
+      full.add(f);
+      const sk = _pennyShortKey(title);
+      if (!short.has(sk)) short.set(sk, new Set());
+      short.get(sk).add(normTitleKey(author));
+    },
+    has(title, author) {
+      const f = normTitleKey(title); if (!f) return false;
+      if (full.has(f)) return true;
+      const authors = short.get(_pennyShortKey(title));
+      if (!authors) return false;
+      const ak = normTitleKey(author);
+      return !ak || authors.has(ak) || authors.has('');
+    }
+  };
   archives.forEach(a => {
     let winnerIds = a.dualWinners ? a.dualWinners.map(String) : (a.winner ? [String(a.winner)] : []);
     // If no explicit winner stored, compute from votes (highest Borda score)
@@ -12669,7 +12975,7 @@ function _pennyWinningTitles() {
       if (top.length) winnerIds = [top[0][0]];
     }
     (a.books || []).forEach(b => {
-      if (winnerIds.includes(String(b.id))) winningTitles.add(b.title.trim().toLowerCase());
+      if (winnerIds.includes(String(b.id))) winningTitles.add(b.title, b.author || '');
     });
   });
   return winningTitles;
@@ -12701,7 +13007,7 @@ function _pennyBuildPool(memberCtx) {
     (a.books || []).forEach(b => {
       const bid = String(b.id);
       // Exclude if this book won in any month (by title)
-      if (winningTitles.has(b.title.trim().toLowerCase())) return;
+      if (winningTitles.has(b.title, b.author || '')) return;
       // Exclude if this member put it last on their ballot
       if (lastPlaceIds.has(bid)) return;
 
@@ -12712,7 +13018,8 @@ function _pennyBuildPool(memberCtx) {
         if (Array.isArray(ranking) && ranking.map(String).includes(bid)) rankedByCount++;
       });
       let submissionCount = 0;
-      archives.forEach(a2 => { (a2.books||[]).forEach(b2 => { if (b2.title === b.title) submissionCount++; }); });
+      const tk = normTitleKey(b.title);
+      archives.forEach(a2 => { (a2.books||[]).forEach(b2 => { if (normTitleKey(b2.title) === tk) submissionCount++; }); });
 
       pool.push({
         id: bid, title: b.title, author: b.author || '',
@@ -12729,7 +13036,7 @@ function _pennyBuildPool(memberCtx) {
   // Deduplicate by title — if a book appeared in multiple losing months, keep the one with best rank
   const seen = new Map();
   pool.forEach(b => {
-    const key = b.title.trim().toLowerCase();
+    const key = normTitleKey(b.title);
     if (!seen.has(key) || b.rankPosition < seen.get(key).rankPosition) {
       seen.set(key, b);
     }
@@ -12738,8 +13045,9 @@ function _pennyBuildPool(memberCtx) {
   // Add manually-entered historical books (2025 data, etc.)
   const historical = CACHE.pennyHistorical || [];
   historical.forEach(h => {
-    if (!winningTitles.has((h.title||'').trim().toLowerCase()) && !seen.has((h.title||'').trim().toLowerCase())) {
-      seen.set(h.title.trim().toLowerCase(), {
+    const hk = normTitleKey(h.title);
+    if (hk && !winningTitles.has(h.title, h.author || '') && !seen.has(hk)) {
+      seen.set(hk, {
         id: 'hist_' + h.title.replace(/\s/g,'_'),
         title: h.title, author: h.author || '',
         genre: h.genre || '', pageCount: h.pageCount || null,
@@ -12998,11 +13306,16 @@ function pennyAccept(areaId) {
 
   // Rare stacks hint — only on return visits, ~1 in 20 chance
   const state = area._pennyState || {};
+  const fromShelf = !!area._pennyFromShelf;
+  area._pennyFromShelf = false;
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
-        <span class="penny-action">Penny beams.</span>
-        <p class="penny-speech">Oh wonderful! I just know you're going to love it. I really do.</p>
+        ${fromShelf
+          ? `<span class="penny-action">Penny glances at the spine and smiles.</span>
+        <p class="penny-speech">Good eye. That one's been waiting for someone to take it off the shelf.</p>`
+          : `<span class="penny-action">Penny beams.</span>
+        <p class="penny-speech">Oh wonderful! I just know you're going to love it. I really do.</p>`}
         <span class="penny-action" style="margin-top:.4rem;">She tucks the card inside the front cover and hands the book across the desk.</span>
         <p class="penny-speech">Come back and tell me what you thought, yes? I mean it. Good or bad — I want to know. The books and I will be here.</p>
         ${_pennyMaybeStacksHint(area._pennyState)}
@@ -13131,6 +13444,7 @@ function pennyDecline(areaId, fromBranch) {
       <button class="penny-action-btn" onclick="pennySelectOption('trust','${aid}',this)">"I trust you, Penny."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
+      <button class="penny-action-btn" onclick="pennySelectOption('browse','${aid}',this)">"I'd just like to browse."</button>
       <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually — can we just talk for a bit?"</button>
     </div>
   `;
@@ -13784,18 +14098,18 @@ function renderPennyCatalogAdmin() {
 
   // Excluded: every archived or historical title that didn't make it in, with the reason
   if (exEl) {
-    const inPool = new Set(pool.map(b => b.title.trim().toLowerCase()));
+    const inPool = new Set(pool.map(b => normTitleKey(b.title)));
     const winning = _pennyWinningTitles();
     const excluded = new Map();
     archives.forEach(a => (a.books || []).forEach(b => {
-      const k = (b.title || '').trim().toLowerCase();
+      const k = normTitleKey(b.title);
       if (!k || inPool.has(k) || excluded.has(k)) return;
-      excluded.set(k, { title: b.title, author: b.author || '', month: a.label, reason: winning.has(k) ? 'Won a month' : 'Excluded' });
+      excluded.set(k, { title: b.title, author: b.author || '', month: a.label, reason: winning.has(b.title, b.author || '') ? 'Won a month' : 'Excluded' });
     }));
     (CACHE.pennyHistorical || []).forEach(h => {
-      const k = (h.title || '').trim().toLowerCase();
+      const k = normTitleKey(h.title);
       if (!k || inPool.has(k) || excluded.has(k)) return;
-      excluded.set(k, { title: h.title, author: h.author || '', month: h.month || '2025', reason: winning.has(k) ? 'Won a month (2025 entry ignored)' : 'Excluded' });
+      excluded.set(k, { title: h.title, author: h.author || '', month: h.month || '2025', reason: winning.has(h.title, h.author || '') ? 'Won a month (2025 entry ignored)' : 'Excluded' });
     });
     const ex = [...excluded.values()];
     if (exSum) exSum.textContent = `Not in the catalog (${ex.length}) — winners are left out automatically`;
@@ -13906,22 +14220,22 @@ function downloadPennyCatalogCSV() {
   });
 
   // Titles left out of the catalog (winners etc.) so nothing goes missing
-  const inPool = new Set(pool.map(b => b.title.trim().toLowerCase()));
+  const inPool = new Set(pool.map(b => normTitleKey(b.title)));
   const winning = _pennyWinningTitles();
   const seenEx = new Set();
   archives.forEach(a => (a.books || []).forEach(b => {
-    const k = (b.title || '').trim().toLowerCase();
+    const k = normTitleKey(b.title);
     if (!k || inPool.has(k) || seenEx.has(k)) return;
     seenEx.add(k);
     const sugg = b.suggesters || [{ discord: b.discord || b.suggester || '', email: b.email || '' }];
-    rows.push([winning.has(k) ? 'Not in catalog: won a month' : 'Not in catalog', 'Archive', a.label, b.title, b.author || '', b.genre || '',
+    rows.push([winning.has(b.title, b.author || '') ? 'Not in catalog: won a month' : 'Not in catalog', 'Archive', a.label, b.title, b.author || '', b.genre || '',
       b.pageCount || '', whoOf(sugg), '', (a.books || []).length, '', '', '', whyOf(sugg)]);
   }));
   (CACHE.pennyHistorical || []).forEach(h => {
-    const k = (h.title || '').trim().toLowerCase();
+    const k = normTitleKey(h.title);
     if (!k || inPool.has(k) || seenEx.has(k)) return;
     seenEx.add(k);
-    rows.push([winning.has(k) ? 'Not in catalog: won a month' : 'Not in catalog', '2025 historical', h.month || '2025', h.title, h.author || '', h.genre || '',
+    rows.push([winning.has(h.title, h.author || '') ? 'Not in catalog: won a month' : 'Not in catalog', '2025 historical', h.month || '2025', h.title, h.author || '', h.genre || '',
       h.pageCount || '', h.suggestedBy || '', '', '', '', '', '', '']);
   });
 
