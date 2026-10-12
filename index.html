@@ -1000,6 +1000,18 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
   color: var(--gold);
 }
 
+/* Penny's library card */
+.penny-lcard{max-width:400px;width:calc(100% - 3rem);background:#fbf6e6;border:1px solid #d9c49a;border-top:10px solid #8a6438;border-radius:3px;margin:12px 1.5rem 1.2rem;box-shadow:0 2px 0 #c8a96e;transform:rotate(-.4deg);position:relative;z-index:2;}
+.penny-lcard::after{content:'';position:absolute;top:-17px;left:50%;transform:translateX(-50%);width:64px;height:14px;background:linear-gradient(#cfcfcf,#9a9a9a);border-radius:4px 4px 2px 2px;box-shadow:0 1px 2px rgba(0,0,0,.4);}
+.penny-lcard::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(to bottom,transparent 0 27px,rgba(90,140,200,.18) 27px 28px);pointer-events:none;}
+.penny-lcard h4{margin:0;padding:.55rem .9rem .35rem;font:600 10px 'DM Sans',sans-serif;letter-spacing:.18em;text-transform:uppercase;color:#a33;border-bottom:2px solid rgba(170,50,50,.35);display:flex;justify-content:space-between;gap:.5rem;}
+.penny-lcard h4 span{color:#8a6d3b;letter-spacing:.08em;white-space:nowrap;}
+.penny-lcard-row{display:grid;grid-template-columns:4.2rem 1fr;gap:.6rem;padding:.25rem .9rem;min-height:28px;align-items:center;}
+.penny-lcard-row .d{font:600 11px 'DM Sans',sans-serif;color:#6b5636;font-variant-numeric:tabular-nums;transform:rotate(-2deg);opacity:.85;}
+.penny-lcard-row .t{font:italic 13.5px 'Playfair Display',serif;color:#2a1d0a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.penny-lcard-row.next .t::after{content:' ← asking about this one';font:600 10px 'DM Sans',sans-serif;font-style:normal;color:#a33;letter-spacing:.04em;}
+.penny-btn-sub{display:block;font:11px 'DM Sans',sans-serif;color:rgba(240,180,41,.55);font-style:normal;margin-top:.1rem;}
+
 /* Penny's shelves ("I'd just like to browse") */
 .pshelf{width:calc(100% - 2rem);max-width:860px;margin:0 1rem 1.5rem;position:relative;z-index:2;}
 .pshelf-controls{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-bottom:.7rem;}
@@ -1041,6 +1053,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 .pshelf-dbtns{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.8rem;}
 .pshelf-dbtns button{font:13px 'DM Sans',sans-serif;border-radius:2px;padding:.45rem .9rem;cursor:pointer;border:1px solid #8a6d3b;background:transparent;color:#2a1d0a;}
 .pshelf-dbtns button.primary{background:#2a1d0a;color:var(--gold);border-color:#2a1d0a;}
+.pshelf-oncard{font:600 12.5px 'DM Sans',sans-serif;color:#6b5636;align-self:center;margin-right:.3rem;}
 .pshelf-row{display:grid;grid-template-columns:2.6rem 1fr auto;gap:.6rem;align-items:center;padding:.5rem .2rem;border:0;border-bottom:1px solid rgba(240,180,41,.15);color:#f3e6c8;cursor:pointer;background:none;text-align:left;font:inherit;width:100%;}
 .pshelf-row:hover{background:rgba(240,180,41,.06);}
 .pshelf-row .code{font:700 10px 'DM Sans',sans-serif;background:#fbf7ee;color:#2a1d0a;text-align:center;padding:3px 0;border-radius:1px;}
@@ -9157,32 +9170,37 @@ function renderProfileOverview() {
         const visits = pr.visitCount || 0;
         if (!visits) return '';
         const fmt = ts => ts ? new Date(ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—';
-        const lastRecTitle = pr.lastRec && pr.lastRec.title ? pr.lastRec.title : null;
         const lastVisitStr = fmt(pr.lastVisit);
-        // Look the recommended book back up (archive month first, then any archive,
-        // then Penny's historical pool) for its author, suggesters and their reasons.
-        let recAuthor = '', recSuggesters = [];
-        if (lastRecTitle) {
-          const tKey = normTitleKey(lastRecTitle);
+        const { card: penCard, history: penHist } = _pennyCardFromRecord(pr);
+        const readReturned = penHist.filter(h => h.reaction && h.reaction !== 'unfinished').length;
+        const _pIdMap = buildIdentityMap();
+        // Look a Penny book back up (archive month first, then any archive, then
+        // her historical pool) for its author, suggesters and their reasons.
+        const lookUp = (title, month) => {
+          const tKey = normTitleKey(title);
           const archs = getArchives();
-          const inMonth = archs.find(a => a.label === pr.lastRec.month);
+          const inMonth = archs.find(a => a.label === month);
           let bk = inMonth && (inMonth.books || []).find(b => normTitleKey(b.title) === tKey);
           if (!bk) archs.some(a => (bk = (a.books || []).find(b => normTitleKey(b.title) === tKey)));
-          if (bk) {
-            recAuthor = bk.author || '';
-            recSuggesters = normBook(bk).suggesters || [];
-          } else {
-            const h = (CACHE.pennyHistorical || []).find(x => normTitleKey(x.title) === tKey);
-            if (h) { recAuthor = h.author || ''; if (h.suggestedBy) recSuggesters = [{ discord: h.suggestedBy, email: '' }]; }
-          }
-        }
-        const _pIdMap = buildIdentityMap();
-        const recNames = [];
-        recSuggesters.forEach(sg => {
-          const n = resolveId(sg.discord || '', sg.email || '', _pIdMap) || sg.discord || '';
-          if (n && !recNames.includes(n)) recNames.push(n);
-        });
-        const recReasons = recSuggesters.filter(sg => sg && sg.reason);
+          if (bk) return { author: bk.author || '', suggesters: normBook(bk).suggesters || [] };
+          const h = (CACHE.pennyHistorical || []).find(x => normTitleKey(x.title) === tKey);
+          return h ? { author: h.author || '', suggesters: h.suggestedBy ? [{ discord: h.suggestedBy, email: '' }] : [] } : { author: '', suggesters: [] };
+        };
+        const nameOf = sg => resolveId(sg.discord || '', sg.email || '', _pIdMap) || sg.discord || '';
+        const cardItems = penCard.map((b, i) => {
+          const info = lookUp(b.title, b.month);
+          const names = [];
+          info.suggesters.forEach(sg => { const n = nameOf(sg); if (n && !names.includes(n)) names.push(n); });
+          const reasons = info.suggesters.filter(sg => sg && sg.reason);
+          return `<li style="font-size:.88rem;line-height:1.35;">
+            <em>"${esc(b.title)}"</em>${info.author ? `<span style="color:var(--soft);"> by ${esc(info.author)}</span>` : ''}${i === 0 ? `<span style="display:inline-block;font-size:.66rem;font-weight:700;letter-spacing:.04em;background:#fde8c8;color:#7a4f00;border-radius:3px;padding:0 .35rem;margin-left:.3rem;vertical-align:1px;">PENNY ASKS NEXT</span>` : ''}
+            <div style="font-size:.75rem;color:var(--soft);margin-top:.1rem;">${b.ts ? `On the list since ${fmt(b.ts)}` : 'On the list'}${names.length ? ` · suggested by ${names.map(n => `<strong style="color:var(--ink);font-weight:500;">${esc(n)}</strong>`).join(', ')}` : ''}</div>
+            ${reasons.length ? `<details style="margin-top:.25rem;font-size:.78rem;">
+              <summary style="cursor:pointer;color:var(--soft);">Why ${reasons.length > 1 ? 'they' : esc(nameOf(reasons[0]) || 'they')} recommended it</summary>
+              ${reasons.map(sg => `<div style="margin:.35rem 0 0 .75rem;font-style:italic;color:var(--ink);">${reasons.length > 1 ? `<span style="font-style:normal;font-weight:500;">${esc(nameOf(sg))}:</span> ` : ''}"${esc(sg.reason)}"</div>`).join('')}
+            </details>` : ''}
+          </li>`;
+        }).join('');
         return `<div style="border-radius:8px;overflow:hidden;margin-bottom:.1rem;">
           <div style="background:#1a1208;padding:.55rem 1rem .45rem;display:flex;align-items:center;gap:.6rem;">
             <span style="font-size:1rem;">🕯️</span>
@@ -9201,14 +9219,13 @@ function renderProfileOverview() {
               <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.15rem;">Last visit</div>
               <div style="font-size:.9rem;">${lastVisitStr}</div>
             </div>
-            ${lastRecTitle ? `<div style="flex:1;min-width:120px;">
-              <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.15rem;">Last recommendation</div>
-              <div style="font-size:.88rem;"><em>"${esc(lastRecTitle)}"</em>${recAuthor ? `<span style="color:var(--soft);"> by ${esc(recAuthor)}</span>` : ''}</div>
-              ${recNames.length ? `<div style="font-size:.75rem;color:var(--soft);margin-top:.15rem;">Suggested by ${recNames.map(n => `<strong style="color:var(--ink);font-weight:500;">${esc(n)}</strong>`).join(', ')}</div>` : ''}
-              ${recReasons.length ? `<details style="margin-top:.3rem;font-size:.78rem;">
-                <summary style="cursor:pointer;color:var(--soft);">Why ${recReasons.length > 1 ? 'they' : esc(resolveId(recReasons[0].discord || '', recReasons[0].email || '', _pIdMap) || recReasons[0].discord || 'they')} recommended it</summary>
-                ${recReasons.map(sg => `<div style="margin:.35rem 0 0 .75rem;font-style:italic;color:var(--ink);">${recReasons.length > 1 ? `<span style="font-style:normal;font-weight:500;">${esc(resolveId(sg.discord || '', sg.email || '', _pIdMap) || sg.discord || '')}:</span> ` : ''}"${esc(sg.reason)}"</div>`).join('')}
-              </details>` : ''}
+            <div>
+              <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.15rem;">Finished &amp; told Penny</div>
+              <div style="font-size:.9rem;font-weight:600;">${readReturned}</div>
+            </div>
+            ${penCard.length ? `<div style="flex:1 1 100%;">
+              <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.25rem;">On Penny's clipboard · ${penCard.length} of ${PENNY_CARD_LIMIT}</div>
+              <ol style="margin:0;padding:0;list-style:none;display:grid;gap:.5rem;">${cardItems}</ol>
             </div>` : ''}
           </div>
         </div>`;
@@ -11449,6 +11466,84 @@ async function renderPennyTab() {
 }
 window.renderPennyTab = renderPennyTab;
 
+// ══════════════════════════════════════════════════════
+// PENNY'S LIBRARY CARD — up to 3 of her books checked out at once.
+// Stored per member as arrays (written whole, so removals stick):
+//   card:        [{ title, month, ts, notYet }]  oldest first
+//   cardHistory: [{ title, month, out, returned, reaction }]  newest last
+// The older single lastRec is carried over the first time a card is read,
+// and lastRec/lastRecAsked/lastRecNotYet are kept in step for older views.
+// ══════════════════════════════════════════════════════
+const PENNY_CARD_LIMIT = 3;
+const PENNY_CARD_HISTORY_MAX = 60;
+function _pennyCardFromRecord(rec) {
+  rec = rec || {};
+  let card, history;
+  if (Array.isArray(rec.card)) {
+    card = rec.card.filter(b => b && b.title).map(b => ({ title: b.title, month: b.month || '', ts: b.ts || 0, notYet: !!b.notYet }));
+  } else {
+    card = (rec.lastRec && rec.lastRec.title && !rec.lastRecAsked)
+      ? [{ title: rec.lastRec.title, month: rec.lastRec.month || '', ts: rec.lastRec.ts || 0, notYet: !!rec.lastRecNotYet }]
+      : [];
+  }
+  if (Array.isArray(rec.cardHistory)) {
+    history = rec.cardHistory.filter(h => h && h.title);
+  } else {
+    history = (rec.lastRec && rec.lastRec.title && rec.lastRecAsked)
+      ? [{ title: rec.lastRec.title, month: rec.lastRec.month || '', out: rec.lastRec.ts || 0, returned: null, reaction: '' }]
+      : [];
+  }
+  card.sort((a, b) => (a.ts || 0) - (b.ts || 0));
+  return { card, history };
+}
+// The member's card as it stands now (from this visit's state, or the live cache)
+function _pennyCardGet(area) {
+  const st = (area && area._pennyState) || null;
+  if (st && Array.isArray(st.card)) return { card: st.card, history: st.cardHistory || [] };
+  const key = _pennyActiveKey(area);
+  const fresh = _pennyCardFromRecord(key ? (CACHE.pennyMembers || {})[key] : null);
+  if (st) { st.card = fresh.card; st.cardHistory = fresh.history; }
+  return fresh;
+}
+function _pennyCardSave(area, card, history) {
+  card = card.slice().sort((a, b) => (a.ts || 0) - (b.ts || 0));
+  history = history.slice(-PENNY_CARD_HISTORY_MAX);
+  const st = area && area._pennyState;
+  if (st) {
+    st.card = card; st.cardHistory = history;
+    st.lastRec = card.length ? { title: card[card.length - 1].title, month: card[card.length - 1].month } : st.lastRec;
+    st.lastRecAsked = !card.length;
+    st.lastRecNotYet = !!(card[0] && card[0].notYet);
+  }
+  const key = _pennyActiveKey(area);
+  if (!key) return;
+  const newest = card[card.length - 1];
+  const update = { card, cardHistory: history, lastRecAsked: !card.length, lastRecNotYet: !!(card[0] && card[0].notYet) };
+  if (newest) update.lastRec = { title: newest.title, month: newest.month, ts: newest.ts };
+  fbSet(PENNY_REF, { [key]: update }).catch(() => {});
+  if (CACHE.pennyMembers) CACHE.pennyMembers[key] = Object.assign({}, CACHE.pennyMembers[key] || {}, update);
+}
+// Check a book back in: off the card, into history with how it went
+function _pennyCardReturn(area, title, reaction) {
+  const { card, history } = _pennyCardGet(area);
+  const k = normTitleKey(title);
+  const idx = card.findIndex(b => normTitleKey(b.title) === k);
+  if (idx < 0) return;
+  const [b] = card.splice(idx, 1);
+  history.push({ title: b.title, month: b.month, out: b.ts || 0, returned: Date.now(), reaction: reaction || '' });
+  _pennyCardSave(area, card, history);
+}
+const _pennyCardDate = ts => ts ? new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase() : '—';
+// The little lined index card shown under Penny's speech
+// Penny's clipboard: the short list of books she's pointed this member toward
+function _pennyCardHtml(card, askingTitle, memberName) {
+  const ak = askingTitle ? normTitleKey(askingTitle) : '';
+  const rows = card.map(b => `<div class="penny-lcard-row${ak && normTitleKey(b.title) === ak ? ' next' : ''}"><span class="d">${_pennyCardDate(b.ts)}</span><span class="t">${esc(b.title)}</span></div>`).join('');
+  const who = memberName ? `Penny's list for ${esc(memberName)}` : "Penny's list for you";
+  return `<div class="penny-lcard" aria-label="${who}">
+    <h4>${who} <span>${card.length} of ${PENNY_CARD_LIMIT}</span></h4>${rows}</div>`;
+}
+
 async function renderPennyTabInto(area) {
 
   area.className = 'penny-loading';
@@ -11470,6 +11565,7 @@ async function renderPennyTabInto(area) {
   let lastRec = null;
   let lastRecAsked = false;
   let lastRecNotYet = false;
+  let card = [], cardHistory = [];
   let knowsPlants = false;
   let knowsWays = false;
   const plantsHeard = {};
@@ -11496,6 +11592,7 @@ async function renderPennyTabInto(area) {
       lastRec = prev.lastRec || null;
       lastRecAsked = prev.lastRecAsked || false;
       lastRecNotYet = prev.lastRecNotYet || false;
+      ({ card, history: cardHistory } = _pennyCardFromRecord(prev));
       knowsPlants = !!prev.knowsPlants;
       knowsWays = !!(prev.usedTrust || prev.usedCatalog || prev.usedQuiz);
       Object.keys(prev).forEach(k => { if (k.startsWith('plant_') && prev[k]) plantsHeard[k.slice(6)] = true; });
@@ -11503,7 +11600,7 @@ async function renderPennyTabInto(area) {
   }
 
   // Store state on the area element so stage functions can read it
-  area._pennyState = { isFirstVisit, memberName, lastRec, lastRecAsked, lastRecNotYet, knowsPlants, plantsHeard, knowsWays, visitCount: newCount };
+  area._pennyState = { isFirstVisit, memberName, lastRec, lastRecAsked, lastRecNotYet, card, cardHistory, knowsPlants, plantsHeard, knowsWays, visitCount: newCount };
 
   // Always start at the door — first visit or return
   _pennyShowDoor(area);
@@ -11511,6 +11608,7 @@ async function renderPennyTabInto(area) {
 
 function _pennyShowDoor(area) {
   if (area) area._pennyInChat = false; // a new visit starts outside the chat
+  if (area) { area._pennyPendingRec = null; area._pennyFollowBook = null; area._pennyFromShelf = false; area._pennyShelfOwn = false; area._pennyAlreadyOut = false; }
   // Outside the door: no record player, and any music stops
   if (area && area.id === 'penny-interaction-area') {
     if (typeof pennyRecordStop === 'function') pennyRecordStop();
@@ -11595,9 +11693,12 @@ function _pennyShowReturnGreeting(area, memberName) {
 
   area.className = '';
 
-  // If there's a previous recommendation that hasn't been asked about yet, do the follow-up first
-  if (state.lastRec && !state.lastRecAsked) {
-    const recTitle = state.lastRec.title || 'that book';
+  // Books still checked out: ask about the one that's been out longest
+  const { card } = _pennyCardGet(area);
+  if (card.length) {
+    const book = card[0];
+    area._pennyFollowBook = book;
+    const recTitle = book.title || 'that book';
     const followUpLines = [
       `Back again. Good.`,
       `I was hoping you'd come back.`,
@@ -11605,7 +11706,7 @@ function _pennyShowReturnGreeting(area, memberName) {
       `Oh, it's you. Good timing, actually.`
     ];
     const openLine = followUpLines[Math.floor(Math.random() * followUpLines.length)];
-    const askLine = state.lastRecNotYet
+    const askLine = book.notYet
       ? `Any progress on <em>${esc(recTitle)}</em>? No pressure. I'm just curious.`
       : `I've been meaning to ask — did you get a chance to read <em>${esc(recTitle)}</em>?`;
 
@@ -11617,11 +11718,14 @@ function _pennyShowReturnGreeting(area, memberName) {
           <p class="penny-speech">${askLine}</p>
         </div>
       </div>
+      ${card.length > 1 ? _pennyCardHtml(card, recTitle, state.memberName) : ''}
       <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
         <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
         <button class="penny-action-btn" onclick="pennyFollowUp('finished','${aid}',this)">"Yes, I finished it!"</button>
         <button class="penny-action-btn" onclick="pennyFollowUp('notyet','${aid}',this)">"Not yet..."</button>
+        ${card.length > 1 ? `<button class="penny-action-btn" onclick="pennyCardOther('${aid}',this)">"Actually, I finished a different one…"</button>` : ''}
         <button class="penny-action-btn" onclick="pennyChatStart('${aid}',this)">"Can we talk about something else first?"</button>
+        <button class="penny-action-btn" onclick="pennySelectOption('browse','${aid}',this)">"Mind if I just admire your collection?"</button>
       </div>
     `;
     return;
@@ -11667,9 +11771,11 @@ function pennyFollowUp(response, areaId, el) {
   // The follow-up is only cleared once the member actually tells her what they
   // thought (see pennyFollowUpReaction). "Not yet", or leaving partway through,
   // keeps the question for next time.
-  if (response !== 'finished') {
-    const _pfuKey = _pennyActiveKey(area);
-    if (_pfuKey) fbSet(PENNY_REF, { [_pfuKey]: { lastRecNotYet: true } }).catch(()=>{});
+  if (response !== 'finished' && area._pennyFollowBook) {
+    const { card, history } = _pennyCardGet(area);
+    const k = normTitleKey(area._pennyFollowBook.title);
+    card.forEach(b => { if (normTitleKey(b.title) === k) b.notYet = true; });
+    _pennyCardSave(area, card, history);
   }
 
   setTimeout(() => {
@@ -11772,10 +11878,15 @@ function pennyFollowUpReaction(reaction, areaId, el) {
   const area = document.getElementById(areaId);
   if (!area) return;
   if (el) { el.disabled = true; el.style.opacity = '.5'; }
-  // They've told her what they thought — now the follow-up is done
-  const _pfrKey = _pennyActiveKey(area);
-  if (_pfrKey) fbSet(PENNY_REF, { [_pfrKey]: { lastRecAsked: true, lastRecNotYet: false } }).catch(()=>{});
-  if (area._pennyState) area._pennyState.lastRecAsked = true;
+  // They've told her what they thought: that book is checked back in
+  const returning = area._pennyFollowBook;
+  area._pennyFollowBook = null;
+  if (returning) _pennyCardReturn(area, returning.title, reaction);
+  // Returning a book to make room for a new one: react briefly, then stamp the new one
+  if (area._pennyPendingRec) {
+    setTimeout(() => _pennyCardReturnedThenTake(area, reaction), 300);
+    return;
+  }
   setTimeout(() => _pennyFollowUpReactionScene(area, reaction), 300);
 }
 window.pennyFollowUpReaction = pennyFollowUpReaction;
@@ -11854,6 +11965,169 @@ function pennyReactionAnother(reaction, areaId, el) {
   }, 300);
 }
 window.pennyReactionAnother = pennyReactionAnother;
+
+// "Actually, I finished a different one…" — pick which book from the card
+function pennyCardOther(areaId, el) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  if (el) { el.disabled = true; el.style.opacity = '.5'; }
+  const aid = area.id;
+  const { card } = _pennyCardGet(area);
+  const first = card[0];
+  const others = card.slice(1);
+  setTimeout(() => {
+    area.innerHTML = `
+      <div class="penny-storybook">
+        <div class="penny-storybook-inner">
+          <span class="penny-action">Penny sets her pencil down, delighted.</span>
+          <p class="penny-speech">Oh! Which one?</p>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+        <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>You tell her…</em></p>
+        ${others.map((b, i) => `<button class="penny-action-btn" onclick="pennyCardFinishedPick(${i + 1},'${aid}',this)"><em>${esc(b.title)}</em><span class="penny-btn-sub">added ${esc(_pennyCardDate(b.ts).toLowerCase().replace(/^./, c => c.toUpperCase()))}</span></button>`).join('')}
+        ${first ? `<button class="penny-action-btn" onclick="pennyCardBackToFirst('${aid}',this)">"Never mind — I'll tell you about <em>${esc(first.title)}</em>."</button>` : ''}
+      </div>`;
+  }, 300);
+}
+window.pennyCardOther = pennyCardOther;
+
+window.pennyCardFinishedPick = function(idx, areaId, el) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  if (el) { el.disabled = true; el.style.opacity = '.5'; }
+  const { card } = _pennyCardGet(area);
+  if (!card[idx]) return;
+  area._pennyFollowBook = card[idx];
+  setTimeout(() => _pennyFollowUpFinished(area), 300);
+};
+
+window.pennyCardBackToFirst = function(areaId, el) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  if (el) { el.disabled = true; el.style.opacity = '.5'; }
+  setTimeout(() => _pennyShowReturnGreeting(area, (area._pennyState || {}).memberName || ''), 300);
+};
+
+// Card is full: return one before the new book can go out
+function _pennyCardFullScene(area) {
+  const aid = area.id;
+  const { card } = _pennyCardGet(area);
+  area.innerHTML = `
+    <div class="penny-storybook">
+      <div class="penny-storybook-inner">
+        <span class="penny-action">Penny picks up her pencil, then glances at her clipboard and pauses.</span>
+        <p class="penny-speech">Ah — your list is full. I only keep three going for each person, or I lose track.</p>
+        <p class="penny-speech">Is there one we can cross off?</p>
+      </div>
+    </div>
+    ${_pennyCardHtml(card, '', (area._pennyState || {}).memberName)}
+    <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+      <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you do?</em></p>
+      ${card.map((b, i) => `<button class="penny-action-btn" onclick="pennyCardReturnPick(${i},'${aid}',this)">Cross off <em>${esc(b.title)}</em>${i === 0 ? `<span class="penny-btn-sub">on the list since ${esc(_pennyCardDate(b.ts).toLowerCase().replace(/^./, c => c.toUpperCase()))}</span>` : ''}</button>`).join('')}
+      <button class="penny-action-btn" onclick="pennyCardKeep('${aid}',this)">"Never mind — I'll finish what I have first."</button>
+    </div>`;
+}
+
+window.pennyCardReturnPick = function(idx, areaId, el) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  if (el) { el.disabled = true; el.style.opacity = '.5'; }
+  const { card } = _pennyCardGet(area);
+  const book = card[idx];
+  if (!book) return;
+  area._pennyFollowBook = book;
+  const aid = area.id;
+  setTimeout(() => {
+    area.innerHTML = `
+      <div class="penny-storybook">
+        <div class="penny-storybook-inner">
+          <span class="penny-action">She finds <em>${esc(book.title)}</em> on her clipboard, pencil hovering.</span>
+          <p class="penny-speech">Did you finish it?</p>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+        <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
+        <button class="penny-action-btn" onclick="pennyCardReturnFinished('${aid}',this)">"I did!"</button>
+        <button class="penny-action-btn" onclick="pennyCardReturnUnfinished('${aid}',this)">"No — I don't think I'm going to."</button>
+      </div>`;
+  }, 300);
+};
+
+window.pennyCardReturnFinished = function(areaId, el) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  if (el) { el.disabled = true; el.style.opacity = '.5'; }
+  setTimeout(() => _pennyFollowUpFinished(area), 300);
+};
+
+window.pennyCardReturnUnfinished = function(areaId, el) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  if (el) { el.disabled = true; el.style.opacity = '.5'; }
+  const book = area._pennyFollowBook;
+  area._pennyFollowBook = null;
+  if (book) _pennyCardReturn(area, book.title, 'unfinished');
+  const aid = area.id;
+  setTimeout(() => {
+    area.innerHTML = `
+      <div class="penny-storybook">
+        <div class="penny-storybook-inner">
+          <span class="penny-action">She draws a neat line through it.</span>
+          <p class="penny-speech">That's alright. I'll cross it off. It'll be on the shelf if you ever change your mind.</p>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+        <button class="penny-action-btn" onclick="pennyAccept('${aid}')">"Thank you, Penny."</button>
+      </div>`;
+  }, 300);
+};
+
+// After returning a finished book to make room: a short reaction, then on to the new one
+function _pennyCardReturnedThenTake(area, reaction) {
+  const aid = area.id;
+  const lines = {
+    loved:    ['She claps her hands together once, delighted.', "I knew it. I just knew it."],
+    good:     ['Penny nods warmly.', "Pretty good! I'll take it."],
+    notforme: ['Penny takes it in stride, filing that away.', "Ah. Well — thank you for telling me. That's useful to know."]
+  };
+  const l = lines[reaction] || lines.good;
+  area.innerHTML = `
+    <div class="penny-storybook">
+      <div class="penny-storybook-inner">
+        <span class="penny-action">${l[0]}</span>
+        <p class="penny-speech">${l[1]}</p>
+        <span class="penny-action" style="margin-top:.4rem;">She draws a line through it and picks her pencil back up.</span>
+        <p class="penny-speech">Now. Where were we?</p>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+      <button class="penny-action-btn" onclick="pennyAccept('${aid}')">"Thank you, Penny."</button>
+    </div>`;
+}
+
+window.pennyCardKeep = function(areaId, el) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  if (el) { el.disabled = true; el.style.opacity = '.5'; }
+  area._pennyPendingRec = null;
+  area._pennyFromShelf = false;
+  area._pennyShelfOwn = false;
+  const aid = area.id;
+  setTimeout(() => {
+    area.innerHTML = `
+      <div class="penny-storybook">
+        <div class="penny-storybook-inner">
+          <span class="penny-action">Penny sets the book on the corner of her desk.</span>
+          <p class="penny-speech">Of course. Finish those first — I'll keep this one on the shelf for you.</p>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+        <button class="penny-action-btn" onclick="pennyStayAfter('${aid}',this)">${area._pennyInChat ? '"Thank you. Can we keep talking?"' : '"Thank you. Could I stay a while?"'}</button>
+        <button class="penny-action-btn" onclick="pennyWalkOut()">Walk out the front door.</button>
+      </div>`;
+  }, 300);
+};
 
 function pennyJustStopping(areaId, el, reaction) {
   const area = document.getElementById(areaId);
@@ -12394,10 +12668,11 @@ function _pennyChatReading(area) {
 // "Could I borrow it?" plus a small note when it would replace their current Penny book
 function _pennyBorrowBtn(area) {
   const book = area._pennyChatBook;
-  const cur = (area._pennyState || {}).lastRec;
-  const replaces = cur && cur.title && book && normTitleKey(cur.title) !== normTitleKey(book.title);
+  const { card } = _pennyCardGet(area);
+  const onCard = book && card.some(b => normTitleKey(b.title) === normTitleKey(book.title));
+  const full = !onCard && card.length >= PENNY_CARD_LIMIT && _pennyActiveKey(area);
   return `<button class="penny-action-btn" onclick="pennyChatTakeBook('${area.id}',this)">"Could I borrow it when you're done?"</button>
-    ${replaces ? `<p style="font-family:'DM Sans',sans-serif;font-size:11px;color:rgba(240,180,41,.55);margin:-.15rem 0 .2rem;text-align:center;">This will replace <em>${esc(cur.title)}</em> as your Penny recommendation.</p>` : ''}`;
+    ${full ? `<p style="font-family:'DM Sans',sans-serif;font-size:11px;color:rgba(240,180,41,.55);margin:-.15rem 0 .2rem;text-align:center;">Penny's list for you is full (${PENNY_CARD_LIMIT} of ${PENNY_CARD_LIMIT}). She'll ask you to cross one off first.</p>` : ''}`;
 }
 
 // "Sam", "Sam and Priya", "Sam, Priya and Jo"
@@ -12595,6 +12870,7 @@ function _pennyShowOptions(area) {
         <p class="penny-speech">Or three — you answer a few questions for me first. I like to know who I'm recommending to. It makes all the difference, I promise.</p>
         <span class="penny-action">She tries, not very hard, to look neutral.</span>
         <p class="penny-speech">Any of them will work. I won't tell you which one I'd pick. But I will say — I wrote the quiz myself.</p>
+        <p class="penny-speech">Oh — and if you'd rather just wander, the shelves are open. Take your time.</p>
       </div>
     </div>
     <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
@@ -12700,6 +12976,7 @@ function _pshelfBooks() {
 function _pennyBranchBrowse(area) {
   const aid = area.id;
   area._pshelf = { books: _pshelfBooks(), wing: 'Fiction', filter: 'all', query: '', list: false, open: null, whyOpen: false };
+  area._pshelf.onCard = new Set(_pennyCardGet(area).card.map(b => normTitleKey(b.title)));
   const hasBrought = area._pshelf.books.some(b => b.kind === 'brought');
   area.innerHTML = `
     <div class="penny-storybook">
@@ -12777,7 +13054,7 @@ function _pshelfOrigin(b) {
   return `🗳️ Suggested${who}${b.monthName ? ` for ${esc(b.monthName)}` : ''}${place}`;
 }
 
-function _pshelfDetail(b, whyOpen) {
+function _pshelfDetail(b, whyOpen, onCard) {
   const pills = b.genres.map(g => { const c = _pshelfColors(g); return `<span class="pshelf-pill" style="background:${c[0]};color:${c[1]};border-color:${c[2]}">${esc(g)}</span>`; }).join('');
   const reasons = b.people.filter(x => x.reason);
   const whyHtml = reasons.map(x => (reasons.length > 1 ? `<b>${esc(x.name)}:</b> ` : '') + `<span class="q">“${esc(x.reason)}”</span>`).join('<br><br>');
@@ -12791,7 +13068,9 @@ function _pshelfDetail(b, whyOpen) {
     ${whyHtml ? `<div class="pshelf-why"><span class="lab">${whyLabel}</span><div class="${long && !whyOpen ? 'clip' : ''}">${whyHtml}</div>${long ? `<button type="button" data-pshelf-more>${whyOpen ? 'Show less' : 'Read more'}</button>` : ''}</div>` : ''}
     ${b.note ? `<p class="pshelf-hand"><span>Penny's note, tucked inside</span>“${esc(b.note)}”</p>` : ''}
     <div class="pshelf-dbtns">
-      <button type="button" class="primary" data-pshelf-take>I'll take this one</button>
+      ${onCard
+        ? `<span class="pshelf-oncard">📋 Already on Penny's list for you</span>`
+        : `<button type="button" class="primary" data-pshelf-take>I'll take this one</button>`}
       <button type="button" data-pshelf-close>Put it back</button>
     </div>
   </div>`;
@@ -12837,7 +13116,7 @@ function _pshelfRender(area) {
       const c = _pshelfColors(sh === 'True Crime' ? 'Crime' : sh);
       let html = `<div class="pshelf-range"><span class="pshelf-sign">${esc(sh)}<small>${books.length}</small></span>`;
       if (st.list) {
-        html += books.map(b => `<button type="button" class="pshelf-row" data-pshelf-id="${esc(b.id)}"><span class="code">${_pshelfCode(b)}</span><span class="tt">${esc(b.title)}<small>${esc(b.author)}</small></span><span aria-hidden="true">${b.kind === 'brought' ? '📚' : '🗳️'}</span></button>` + (st.open === b.id ? _pshelfDetail(b, st.whyOpen) : '')).join('');
+        html += books.map(b => `<button type="button" class="pshelf-row" data-pshelf-id="${esc(b.id)}"><span class="code">${_pshelfCode(b)}</span><span class="tt">${esc(b.title)}<small>${esc(b.author)}</small></span><span aria-hidden="true">${b.kind === 'brought' ? '📚' : '🗳️'}</span></button>` + (st.open === b.id ? _pshelfDetail(b, st.whyOpen, st.onCard && st.onCard.has(normTitleKey(b.title))) : '')).join('');
         out.push(html + `</div>`);
       } else {
         html += `<div class="pshelf-plank">` + books.map(b => {
@@ -12846,7 +13125,7 @@ function _pshelfRender(area) {
         }).join('') + `</div></div>`;
         out.push(html);
         const open = books.find(b => b.id === st.open);
-        if (open) out.push(_pshelfDetail(open, st.whyOpen));
+        if (open) out.push(_pshelfDetail(open, st.whyOpen, st.onCard && st.onCard.has(normTitleKey(open.title))));
       }
     });
     out.push(`</div>`);
@@ -12861,6 +13140,9 @@ function _pshelfTake(area) {
   if (!book) return;
   area._pennyLastRec = book;
   area._pennyFromShelf = true;
+  // Same check the other three ways use to spot a member's own suggestion
+  const mine = (_pennyGetMemberContext().suggestedTitles) || new Set();
+  area._pennyShelfOwn = [...mine].some(t => normTitleKey(t) === normTitleKey(book.title));
   pennyAccept(area.id);
 }
 
@@ -12881,6 +13163,7 @@ window.pennyShelfLeave = function(areaId, el) {
       <button class="penny-action-btn" onclick="pennySelectOption('trust','${aid}',this)">"I trust you, Penny."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
+      <button class="penny-action-btn" onclick="pennySelectOption('browse','${aid}',this)">"Let me look around a bit more."</button>
       <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually — can we just talk for a bit?"</button>
       <button class="penny-action-btn" onclick="pennyWalkOut()">Walk out the front door.</button>
     </div>
@@ -12966,7 +13249,9 @@ function _pennyGetMemberContext() {
   const preferredGenres = Object.entries(genreScores).filter(([,v]) => v > 0).map(([g]) => g);
   const avoidGenres    = Object.entries(genreScores).filter(([,v]) => v < 0).map(([g]) => g);
 
-  return { lastPlaceIds, suggestedTitles, preferredGenres, avoidGenres };
+  // Books already on their library card aren't recommended again
+  const cardTitles = new Set(_pennyCardFromRecord((CACHE.pennyMembers || {})[myKey]).card.map(b => normTitleKey(b.title)));
+  return { lastPlaceIds, suggestedTitles, preferredGenres, avoidGenres, cardTitles };
 }
 
 // Global set of ALL winning titles across all months (lowercased)
@@ -13044,8 +13329,9 @@ function _pennyBuildPool(memberCtx) {
       const bid = String(b.id);
       // Exclude if this book won in any month (by title)
       if (winningTitles.has(b.title, b.author || '')) return;
-      // Exclude if this member put it last on their ballot
+      // Exclude if this member put it last on their ballot, or already has it checked out
       if (lastPlaceIds.has(bid)) return;
+      if (memberCtx && memberCtx.cardTitles && memberCtx.cardTitles.has(normTitleKey(b.title))) return;
 
       const bookScore = scores[bid] || 0;
       let rankedByCount = 0;
@@ -13082,7 +13368,7 @@ function _pennyBuildPool(memberCtx) {
   const historical = CACHE.pennyHistorical || [];
   historical.forEach(h => {
     const hk = normTitleKey(h.title);
-    if (hk && !winningTitles.has(h.title, h.author || '') && !seen.has(hk)) {
+    if (hk && !winningTitles.has(h.title, h.author || '') && !seen.has(hk) && !(memberCtx && memberCtx.cardTitles && memberCtx.cardTitles.has(hk))) {
       seen.set(hk, {
         id: 'hist_' + h.title.replace(/\s/g,'_'),
         title: h.title, author: h.author || '',
@@ -13332,11 +13618,29 @@ window._pennyShowRecommendation = _pennyShowRecommendation;
 function pennyAccept(areaId) {
   const area = document.getElementById(areaId);
   if (!area) return;
-  // Store last rec in Firestore if identity known
+  // Coming back from returning a book to make room: the new book was held aside
+  if (area._pennyPendingRec) { area._pennyLastRec = area._pennyPendingRec; area._pennyPendingRec = null; }
+  // Put the book on their library card (only members with a saved identity have one)
   const _paKey = _pennyActiveKey(area);
   if (_paKey && area._pennyLastRec) {
-    fbSet(PENNY_REF, { [_paKey]: { lastRec: { title: area._pennyLastRec.title, month: area._pennyLastRec.month, ts: Date.now() }, lastRecAsked: false, lastRecNotYet: false, acceptedRec: true, acceptedRec_ts: Date.now() } }).catch(()=>{});
-    if (area._pennyState) area._pennyState.lastRec = { title: area._pennyLastRec.title, month: area._pennyLastRec.month };
+    const { card, history } = _pennyCardGet(area);
+    const k = normTitleKey(area._pennyLastRec.title);
+    const already = card.some(b => normTitleKey(b.title) === k);
+    if (!already && card.length >= PENNY_CARD_LIMIT) {
+      area._pennyPendingRec = area._pennyLastRec;
+      _pennyCardFullScene(area);
+      return;
+    }
+    if (!already) card.push({ title: area._pennyLastRec.title, month: area._pennyLastRec.month || '', ts: Date.now(), notYet: false });
+    else area._pennyAlreadyOut = true;
+    const _rec = (CACHE.pennyMembers || {})[_paKey] || {};
+    if (!already && card.length >= 2 && !_rec.knowsList && !(area._pennyState || {}).knowsList) {
+      area._pennyExplainList = true;
+      if (area._pennyState) area._pennyState.knowsList = true;
+      fbSet(PENNY_REF, { [_paKey]: { knowsList: true } }).catch(()=>{});
+    }
+    _pennyCardSave(area, card, history);
+    fbSet(PENNY_REF, { [_paKey]: { acceptedRec: true, acceptedRec_ts: Date.now() } }).catch(()=>{});
   }
   if (area._pennyLastRec) (area._pennyExcluded = area._pennyExcluded || []).push(area._pennyLastRec.id);
 
@@ -13344,15 +13648,33 @@ function pennyAccept(areaId) {
   const state = area._pennyState || {};
   const fromShelf = !!area._pennyFromShelf;
   area._pennyFromShelf = false;
+  const shelfOwn = fromShelf && !!area._pennyShelfOwn;
+  area._pennyShelfOwn = false;
+  const alreadyOut = !!area._pennyAlreadyOut;
+  area._pennyAlreadyOut = false;
+  const explainList = !!area._pennyExplainList;
+  area._pennyExplainList = false;
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
-        ${fromShelf
+        ${alreadyOut
+          ? `<span class="penny-action">Penny checks her clipboard and laughs.</span>
+        <p class="penny-speech">You already have this one! It's on my list for you. I'm glad it keeps calling to you.</p>`
+          : shelfOwn
+          ? `<span class="penny-action">Penny glances at the spine, then back at you, and smiles.</span>
+        <p class="penny-speech">That's one of yours, isn't it? Good. I always hoped you'd get to it.</p>`
+          : fromShelf
           ? `<span class="penny-action">Penny glances at the spine and smiles.</span>
         <p class="penny-speech">Good eye. That one's been waiting for someone to take it off the shelf.</p>`
           : `<span class="penny-action">Penny beams.</span>
         <p class="penny-speech">Oh wonderful! I just know you're going to love it. I really do.</p>`}
-        <span class="penny-action" style="margin-top:.4rem;">She tucks the card inside the front cover and hands the book across the desk.</span>
+        <span class="penny-action" style="margin-top:.4rem;">${alreadyOut
+          ? 'She hands it back across the desk.'
+          : fromShelf
+          ? 'She jots the title down on her clipboard and hands the book across the desk.'
+          : 'She tucks the card inside the front cover and hands the book across the desk.'}</span>
+        ${explainList ? `${fromShelf ? '' : `<span class="penny-action" style="margin-top:.4rem;">She adds the title to a clipboard on the corner of her desk.</span>`}
+        <p class="penny-speech">I'm adding it to your list. I keep one for everyone now, so nobody's book gets lost.</p>` : ''}
         <p class="penny-speech">Come back and tell me what you thought, yes? I mean it. Good or bad — I want to know. The books and I will be here.</p>
         ${_pennyMaybeStacksHint(area._pennyState)}
       </div>
@@ -14024,11 +14346,21 @@ async function adminLoadMemberPennyData() {
     html += `<tr><td style="padding:.2rem .5rem .2rem 0;color:var(--soft);width:140px;">Visit count</td><td style="color:var(--fg);">${visits}</td></tr>`;
     html += `<tr><td style="padding:.2rem .5rem .2rem 0;color:var(--soft);">Last visit</td><td style="color:var(--fg);">${fmt(record.lastVisit)}</td></tr>`;
     html += `<tr><td style="padding:.2rem .5rem .2rem 0;color:var(--soft);">Stacks hint chance</td><td style="color:${hintPct >= 50 ? '#c06060' : hintPct > 0 ? 'var(--gold)' : 'var(--soft)'};">${hintLabel}</td></tr>`;
-    if (lastRecTitle) {
-      html += `<tr><td style="padding:.2rem .5rem .2rem 0;color:var(--soft);">Last rec</td><td style="color:var(--fg);">${esc(lastRecTitle)}${lastRecTs ? ` <span style="color:var(--soft);font-size:.8em;">· ${fmt(lastRecTs)}</span>` : ''}</td></tr>`;
-      html += `<tr><td style="padding:.2rem .5rem .2rem 0;color:var(--soft);">Follow-up asked</td><td style="color:var(--fg);">${lastRecAsked ? 'Yes' : 'Not yet'}</td></tr>`;
-    }
     html += `</table>`;
+    // Penny's clipboard: books on the list now, then books crossed off (newest first)
+    const { card: penCard, history: penHist } = _pennyCardFromRecord(record);
+    const fmtDay = ts => ts ? new Date(ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—';
+    const reactionLabel = { loved: 'loved it', good: 'pretty good', notforme: 'not for them', unfinished: 'unfinished' };
+    const cardRows = [
+      ...penCard.map((b, i) => [fmtDay(b.ts), b.title, `On list${i === 0 ? ' · asked about next' : ''}${b.notYet ? ' · said “not yet”' : ''}`]),
+      ...penHist.slice().reverse().map(h => [fmtDay(h.out), h.title, h.returned ? `Crossed off ${fmtDay(h.returned)}${h.reaction ? ' · ' + (reactionLabel[h.reaction] || h.reaction) : ''}` : 'Crossed off (before the clipboard)'])
+    ];
+    if (cardRows.length) {
+      html += `<p style="margin:.75rem 0 .3rem;font-size:.8rem;color:var(--soft);">Penny's clipboard · ${penCard.length} of ${PENNY_CARD_LIMIT} on the list:</p>`;
+      html += `<table style="width:100%;border-collapse:collapse;font-size:.8rem;"><tr><th style="text-align:left;padding:.2rem .5rem .2rem 0;color:var(--soft);font-weight:600;">Added</th><th style="text-align:left;padding:.2rem .5rem .2rem 0;color:var(--soft);font-weight:600;">Book</th><th style="text-align:left;padding:.2rem 0;color:var(--soft);font-weight:600;">Status</th></tr>`;
+      cardRows.forEach(([d, t, st]) => { html += `<tr><td style="padding:.2rem .5rem .2rem 0;color:var(--soft);white-space:nowrap;">${esc(d)}</td><td style="padding:.2rem .5rem .2rem 0;color:var(--fg);"><em>${esc(t)}</em></td><td style="padding:.2rem 0;color:var(--fg);">${esc(st)}</td></tr>`; });
+      html += `</table>`;
+    }
     if (visitHistory.length) {
       html += `<p style="margin:.75rem 0 .3rem;font-size:.8rem;color:var(--soft);">Visit log:</p><ul style="margin:0;padding-left:1.2rem;font-size:.8rem;color:var(--fg);">`;
       visitHistory.slice().reverse().forEach(ts => {
@@ -14055,7 +14387,7 @@ async function adminResetMemberPenny() {
   area.innerHTML = '<em style="color:var(--gold);">Resetting…</em>';
   try {
     // Set member's penny data to a clean slate (visitCount 0, clear lastRec/lastRecAsked)
-    await fbSet(PENNY_REF, { [memberKey]: { visitCount: 0, lastVisit: null, lastRec: null, lastRecAsked: false, lastRecNotYet: false, knowsPlants: false, remindBook: null, visitLog: [], badgeResetTs: Date.now() } });
+    await fbSet(PENNY_REF, { [memberKey]: { visitCount: 0, lastVisit: null, lastRec: null, lastRecAsked: false, lastRecNotYet: false, card: [], cardHistory: [], knowsList: false, knowsPlants: false, remindBook: null, visitLog: [], badgeResetTs: Date.now() } });
     area.innerHTML = `<p style="color:var(--gold);">✓ ${esc(memberName)}'s Penny history has been cleared. Their next visit will be treated as a first visit.</p>`;
   } catch(e) {
     area.innerHTML = `<span style="color:#c55;">Error resetting: ${esc(e.message)}</span>`;
