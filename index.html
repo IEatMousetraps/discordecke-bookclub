@@ -1010,6 +1010,55 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 .penny-lcard-row .d{font:600 11px 'DM Sans',sans-serif;color:#6b5636;font-variant-numeric:tabular-nums;transform:rotate(-2deg);opacity:.85;}
 .penny-lcard-row .t{font:italic 13.5px 'Playfair Display',serif;color:#2a1d0a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .penny-lcard-row.next .t::after{content:' ← asking about this one';font:600 10px 'DM Sans',sans-serif;font-style:normal;color:#a33;letter-spacing:.04em;}
+/* Tell Penny about a book: form fields + her laptop */
+.ptell-form{display:flex;flex-direction:column;gap:.7rem;margin-top:.9rem;}
+.ptell-two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem;}
+@media (max-width:480px){.ptell-two{grid-template-columns:1fr;}}
+.ptell-f{display:flex;flex-direction:column;gap:.3rem;}
+.ptell-f>span{font:600 10px 'DM Sans',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#7a5c2e;}
+.ptell-f input,.ptell-f select,.ptell-f textarea{font:14px 'DM Sans',sans-serif;width:100%;box-sizing:border-box;padding:.6rem .7rem;border:1px solid #c8a96e;border-radius:3px;background:#fffdf6;color:#2a1d0a;min-height:44px;}
+.ptell-f input:focus,.ptell-f select:focus,.ptell-f textarea:focus{border-color:#b08a3a;outline:2px solid rgba(240,180,41,.45);}
+.ptell-f textarea{resize:vertical;line-height:1.5;}
+.ptell-err{margin:.8rem 0 0;font:13px 'DM Sans',sans-serif;color:#a33;}
+.ptell-laptop{max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;}
+.ptell-screen{width:100%;box-sizing:border-box;background:#0f1410;border:14px solid #2a2a2a;border-bottom-width:18px;border-radius:12px 12px 4px 4px;padding:.9rem 1rem 1.1rem;font:12.5px/1.75 ui-monospace,SFMono-Regular,Menlo,Consolas,'Courier New',monospace;color:#f0b429;}
+.ptell-head{display:flex;justify-content:space-between;gap:.5rem;border-bottom:1px solid rgba(240,180,41,.3);padding-bottom:.4rem;margin-bottom:.6rem;font-size:11px;letter-spacing:.06em;}
+.ptell-head span:last-child{color:rgba(240,180,41,.6);white-space:nowrap;}
+.ptell-row{display:grid;grid-template-columns:9.5rem minmax(0,1fr);gap:.5rem;}
+@media (max-width:480px){.ptell-row{grid-template-columns:1fr;gap:0;margin-bottom:.3rem;}}
+.ptell-row .l{color:rgba(240,180,41,.55);}
+.ptell-row .v{color:#ffe3a3;white-space:pre-wrap;word-break:break-word;}
+.ptell-cursor{animation:ptell-blink 1s step-end infinite;}
+@keyframes ptell-blink{50%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.ptell-cursor{animation:none;}}
+.ptell-stamp{margin-top:.8rem;display:inline-block;background:#f0b429;color:#0f1410;padding:.15rem .6rem;font-weight:600;letter-spacing:.06em;}
+.ptell-base{width:108%;height:12px;background:#3a3a3a;border-radius:0 0 12px 12px;}
+/* Admin: Brought to Penny review tray */
+.pbr-count{display:inline-block;min-width:1.2em;margin-left:.35rem;padding:0 .35rem;border-radius:10px;background:var(--gold);color:#111;font-size:.68rem;font-weight:700;line-height:1.5;text-align:center;}
+.pbr-h{font:600 .95rem 'DM Sans',sans-serif;margin:.2rem 0 .6rem;}
+.pbr-n{display:inline-block;margin-left:.3rem;padding:0 .45rem;border-radius:10px;background:var(--cream);font-size:.75rem;color:var(--soft);font-weight:400;}
+.pbr-card{border:1px solid var(--border);border-radius:8px;padding:.9rem 1rem;margin-bottom:.8rem;background:var(--card);}
+.pbr-top{font-size:.8rem;color:var(--soft);margin-bottom:.5rem;}
+.pbr-warn{background:#fff8e1;border:1px solid #f0d27a;border-radius:6px;padding:.5rem .7rem;font-size:.82rem;color:#5a4400;margin-bottom:.6rem;}
+.pbr-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.6rem;}
+.pbr-grid label{display:flex;flex-direction:column;gap:.25rem;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);}
+.pbr-grid input,.pbr-grid select{font-size:.85rem;padding:.45rem .55rem;text-transform:none;letter-spacing:0;}
+.pbr-pages{display:flex;gap:.35rem;}
+.pbr-pages input{flex:1 1 5rem;min-width:4.5rem;width:auto;}
+.pbr-pages select{flex:1 1 6rem;min-width:0;width:auto;}
+.pbr-chips{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.6rem;}
+.pbr-chip{font-size:.72rem;padding:.15rem .55rem;border-radius:20px;background:var(--cream);color:#4a4636;}
+.pbr-why{margin-top:.6rem;background:var(--paper);border-radius:6px;padding:.55rem .7rem;font-size:.85rem;line-height:1.55;}
+.pbr-why span{display:block;font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);margin-bottom:.2rem;}
+.pbr-btns{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:.45rem;margin-top:.7rem;}
+.pbr-msg{font-size:.8rem;margin:.3rem 0 0;text-align:right;}
+.pbr-msg:empty{display:none;}
+.pbr-empty{font-size:.85rem;color:var(--soft);margin:.2rem 0 .6rem;}
+.pbr-det{margin-top:.8rem;}
+.pbr-det summary{cursor:pointer;font-size:.88rem;font-weight:600;}
+.pbr-list{display:flex;flex-direction:column;gap:.45rem;margin-top:.5rem;}
+.pbr-row{display:flex;justify-content:space-between;align-items:center;gap:.6rem;flex-wrap:wrap;border:1px solid var(--border);border-radius:6px;padding:.55rem .7rem;font-size:.85rem;}
+.pbr-soft{color:var(--soft);font-size:.8rem;}
 .penny-btn-sub{display:block;font:11px 'DM Sans',sans-serif;color:rgba(240,180,41,.55);font-style:normal;margin-top:.1rem;}
 
 /* Penny's shelves ("I'd just like to browse") */
@@ -1714,7 +1763,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
       <button class="sub-tab" onclick="goAdminTab('edit-books',this)">✏️ Edit Books</button>
       <button class="sub-tab" onclick="goAdminTab('quarterly-admin',this)">🎯 Quarterly</button>
       <button class="sub-tab" onclick="goAdminTab('surveys-admin',this)">📋 Surveys</button>
-      <button class="sub-tab" onclick="goAdminTab('penny-admin',this)">📚 Penny Preview</button>
+      <button class="sub-tab" onclick="goAdminTab('penny-admin',this)">📚 Penny Preview<span id="pbr-admin-count" class="pbr-count" style="display:none;" title="Books waiting for review"></span></button>
       <button class="sub-tab" onclick="goAdminTab('identities-admin',this)">🔗 Identities</button>
     </div>
 
@@ -2203,6 +2252,13 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
         </div>
       </div>
 
+      <!-- Brought to Penny: review tray -->
+      <div class="card" style="margin-bottom:1rem;">
+        <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.4rem;">📚 Brought to Penny</h3>
+        <p style="font-size:.85rem;color:var(--soft);margin-bottom:.75rem;">Books members told Penny about. Approving one puts it on her shelves with the 📚 Brought to Penny label, where members can browse and pick it. Penny only starts recommending it herself after it loses a club vote.</p>
+        <div id="pbr-admin"></div>
+      </div>
+
       <!-- Card Catalog viewer (read-only) -->
       <div class="card" style="margin-bottom:1rem;">
         <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.4rem;">🗂️ Penny's Card Catalog</h3>
@@ -2362,6 +2418,8 @@ const QUARTERLY_CONFIG_REF = doc(db, 'club', 'quarterlyConfig');
 const QUARTERLY_DRAFT_REF  = doc(db, 'club', 'quarterlyConfigDraft');
 const QUARTERLY_CARDS_REF  = doc(db, 'club', 'quarterlyCards');
 const PENNY_REF            = doc(db, 'club', 'pennyData');
+// Entries in pennyData that are shared lists, not member records
+const PENNY_SHARED_KEYS    = new Set(['historicalPool', 'broughtBooks', 'broughtInterest']);
 
 // ── In-memory cache kept fresh by real-time listeners ──
 let CACHE = {
@@ -2566,10 +2624,17 @@ function startListeners() {
   onSnapshot(PENNY_REF, snap => {
     const data = snap.exists() ? snap.data() : {};
     CACHE.pennyHistorical = data.historicalPool || [];
-    // Cache member penny records for badge checks (exclude the pool key)
+    CACHE.pennyBrought = Array.isArray(data.broughtBooks) ? data.broughtBooks : [];
+    CACHE.pennyInterest = (data.broughtInterest && typeof data.broughtInterest === 'object') ? data.broughtInterest : {};
+    // Cache member penny records for badge checks (exclude the shared lists)
     const memberRecords = {};
-    Object.entries(data).forEach(([k,v]) => { if (k !== 'historicalPool') memberRecords[k] = v; });
+    Object.entries(data).forEach(([k,v]) => { if (!PENNY_SHARED_KEYS.has(k)) memberRecords[k] = v; });
     CACHE.pennyMembers = memberRecords;
+    // Brought to Penny review tray (count always; the tray only while it's open)
+    if (typeof renderPennyBroughtAdmin === 'function') {
+      const _pbrSub = document.getElementById('admin-sub-penny-admin');
+      if (_pbrSub && _pbrSub.style.display !== 'none') renderPennyBroughtAdmin(); else _pbrUpdateCount();
+    }
     // Refresh badge dots now that penny data has updated
     if (typeof updateBadgeNavDot === 'function') updateBadgeNavDot();
     if (typeof updateProfileSubBadgeDot === 'function') updateProfileSubBadgeDot();
@@ -3587,7 +3652,7 @@ function renderResults() {
       const archBooks = latest.books || [];
       const archVotes = latest.votes || {};
       const nv = Object.keys(archVotes).length;
-      subtitleEl.textContent = `${latest.label} · final results · ${nv} voter${nv !== 1 ? 's' : ''}`;
+      subtitleEl.textContent = `${archiveMonthName(latest.label) || latest.label} · final results · ${nv} voter${nv !== 1 ? 's' : ''}`;
       if (!archBooks.length || !nv) {
         area.innerHTML = '<div class="empty"><div class="icon">🗳️</div><p>No vote data for the most recent month.</p></div>';
         return;
@@ -3617,7 +3682,7 @@ function renderResults() {
 
   const n = Object.keys(displayVotes).length;
   if (isArchiveFallback) {
-    subtitleEl.textContent = `${archiveLabel} · final results · ${n} voter${n !== 1 ? 's' : ''}`;
+    subtitleEl.textContent = `${archiveMonthName(archiveLabel) || archiveLabel} · final results · ${n} voter${n !== 1 ? 's' : ''}`;
   } else {
     subtitleEl.textContent = `Borda count · ${n} voter${n !== 1 ? 's' : ''} · ${displayBooks.length} book${displayBooks.length !== 1 ? 's' : ''}`;
   }
@@ -5915,6 +5980,7 @@ function goAdminTab(id, btn) {
   // penny-admin has no auto-render — content loads on button click
   if (id === 'penny-admin') {
     renderHistoricalBookList();
+    renderPennyBroughtAdmin(true);
     renderPennyCatalogAdmin();
     renderPennyNotesAdmin();
     // Populate member dropdown for visit history
@@ -7741,7 +7807,7 @@ function renderProgressTab() {
         return `<div class="card" style="padding:1rem 1.25rem;${bonusBook ? 'border-color:var(--gold);' : ''}">
           <div style="display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap;">
             <div style="flex:1;min-width:150px;">
-              <div style="font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:.2rem;" title="${bonusBook ? 'Standalone bonus book — not tied to a monthly vote' : 'Monthly winning pick'}">${bonusBook ? '🎁 Bonus Book' : '👑 ' + esc(month)}</div>
+              <div style="font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:.2rem;" title="${bonusBook ? 'Standalone bonus book — not tied to a monthly vote' : 'Monthly winning pick'}">${bonusBook ? '🎁 Bonus Book' : '👑 ' + esc(archiveMonthName(month) || month)}</div>
               <div style="font-weight:500;font-size:.95rem;">${esc(b.title)}</div>
               <div style="font-size:.78rem;color:var(--soft);">${esc(b.author)}</div>
             </div>
@@ -9001,7 +9067,7 @@ function renderMyReviews() {
       var titleHtml = bookTitle
         ? '<div style="font-weight:600;font-size:1rem;font-family:Playfair Display,serif;margin-bottom:.2rem;">' + esc(bookTitle) + '</div>'
         : '';
-      var monthHtml = '<div style="font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:var(--soft);margin-bottom:.5rem;">' + esc(r.month) + '</div>';
+      var monthHtml = '<div style="font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:var(--soft);margin-bottom:.5rem;">' + esc(archiveMonthName(r.month) || r.month) + '</div>';
 
       var details = [];
       if (r.read === 'yes' && r.finished === 'yes') details.push('Finished ✓');
@@ -11878,6 +11944,7 @@ function _pennyShowReturnGreeting(area, memberName) {
       <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('browse','${aid}',this)">"I'd just like to browse."</button>
+      ${_pennyTellBtn(aid)}
       <button class="penny-action-btn" onclick="pennyChatStart('${aid}',this)">"I just came to talk."</button>
       ${_pennyMusicAsideBtn(aid, 'welcomeback')}
     </div>
@@ -11987,6 +12054,7 @@ function pennyNotYetBranch(choice, areaId, el) {
           <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
           <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
           <button class="penny-action-btn" onclick="pennySelectOption('browse','${aid}',this)">"I'd just like to browse."</button>
+          ${_pennyTellBtn(aid)}
           <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually — can we just talk for a bit?"</button>
         </div>
       `;
@@ -12080,6 +12148,7 @@ function pennyReactionAnother(reaction, areaId, el) {
         <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
         <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
         <button class="penny-action-btn" onclick="pennySelectOption('browse','${aid}',this)">"I'd just like to browse."</button>
+        ${_pennyTellBtn(aid)}
         <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually — can we just talk for a bit?"</button>
       </div>
     `;
@@ -12937,6 +13006,7 @@ function pennyChatToBook(areaId, el) {
         <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
         <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
         <button class="penny-action-btn" onclick="pennySelectOption('browse','${aid}',this)">"I'd just like to browse."</button>
+        ${_pennyTellBtn(aid)}
         <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually — can we just talk for a bit?"</button>
       </div>`;
   }, 300);
@@ -13000,6 +13070,7 @@ function _pennyShowOptions(area) {
       <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('browse','${aid}',this)">"I'd just like to browse."</button>
+      ${_pennyTellBtn(aid)}
       <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually — can we just talk for a bit?"</button>
     </div>
   `;
@@ -13027,6 +13098,608 @@ function pennySelectOption(optionId, areaId, el) {
 window.pennySelectOption = pennySelectOption;
 
 // ══════════════════════════════════════════════════════
+// TELL PENNY ABOUT A BOOK — "I've got a book you should know about."
+// Members bring Penny books anytime. She types them into her laptop and they wait
+// in pennyData.broughtBooks as 'pending' until the admin approves them ('shelved').
+// Shelved books show on her shelves (browse only, 📚 Brought to Penny); she doesn't
+// hand them out through trust / catalog / quiz until they've lost a club vote.
+// A book she already has becomes an "also interested" note (pennyData.broughtInterest).
+// ══════════════════════════════════════════════════════
+function _pennyTellBtn(aid) {
+  return `<button class="penny-action-btn" onclick="pennyTellStart('${aid}',this)">"I've got a book you should know about."</button>`;
+}
+function _ptellMe(area) {
+  const id = _profileIdentity;
+  if (id && (id.email || id.discord)) return { discord: id.discord || '', email: id.email || '', key: id.key || pgKey(id.email, id.discord) };
+  if (_pennyActiveKey(area) === '__admin_preview__') return { discord: 'Admin preview', email: '', key: '__admin_preview__' };
+  return null;
+}
+const _ptellKeyOf = s => pgKey((s && s.email) || '', (s && s.discord) || '');
+// Members often leave off "The"/"A"/"An", so titles are compared without it
+const _ptellBare = t => String(t || '').trim().replace(/^(the|a|an)\s+/i, '');
+// Same book? Full title match, or same title before any colon with no conflicting author.
+function _ptellSameBook(t1, a1, t2, a2) {
+  const f1 = normTitleKey(_ptellBare(t1)), f2 = normTitleKey(_ptellBare(t2));
+  if (!f1 || !f2) return false;
+  if (f1 === f2) return true;
+  if (_pennyShortKey(_ptellBare(t1)) !== _pennyShortKey(_ptellBare(t2))) return false;
+  const x = normTitleKey(a1), y = normTitleKey(a2);
+  return !x || !y || x === y;
+}
+// Did the club already read it? (checked with and without a leading "The")
+function _ptellWon(title, author) {
+  const w = _pennyWinningTitles(), bare = _ptellBare(title);
+  return w.has(title, author || '') || w.has(bare, author || '') || w.has('The ' + bare, author || '');
+}
+// Does Penny already have this book somewhere? Returns null when it's new to her.
+function _ptellLookup(title, author, me) {
+  if (_ptellWon(title, author)) return { kind: 'winner' };
+  let hit = null;
+  const b = (CACHE.pennyBrought || []).find(x => x && _ptellSameBook(x.title, x.author, title, author));
+  if (b) {
+    const mine = !!me && (b.suggesters || []).some(s => _ptellKeyOf(s) === me.key);
+    hit = { kind: mine ? 'mine' : (b.status === 'shelved' ? 'shelf' : 'pending'), title: b.title, author: b.author || '' };
+  } else {
+    let pool = [];
+    try { pool = _pennyBuildPool(null); } catch (e) { pool = []; }
+    const p = pool.find(x => _ptellSameBook(x.title, x.author, title, author));
+    if (p) {
+      const mine = !!me && (p.suggesters || []).some(s => _ptellKeyOf(s) === me.key);
+      hit = { kind: mine ? 'mineVote' : 'shelf', title: p.title, author: p.author || '', rank: p.rankPosition, total: p.totalBooks };
+    }
+  }
+  if (hit && me && (hit.kind === 'shelf' || hit.kind === 'pending')) {
+    const ent = (CACHE.pennyInterest || {})[normTitleKey(hit.title)];
+    if (ent && (ent.members || []).some(m => _ptellKeyOf(m) === me.key)) hit.kind = 'noted';
+  }
+  return hit;
+}
+// Add "also interested" for this member (inside a transaction's data)
+function _ptellAddInterest(map, title, author, me) {
+  const k = normTitleKey(title);
+  const ent = map[k] ? Object.assign({}, map[k]) : { title, author: author || '', members: [] };
+  ent.members = (ent.members || []).slice();
+  if (!ent.members.some(m => _ptellKeyOf(m) === me.key)) ent.members.push({ discord: me.discord, email: me.email, ts: Date.now() });
+  map[k] = ent;
+}
+
+window.pennyTellStart = function(areaId, el) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  if (el) { el.disabled = true; el.style.opacity = '.5'; }
+  const key = _pennyActiveKey(area);
+  if (key) fbSet(PENNY_REF, { [key]: { usedTell: true, usedTell_ts: Date.now() } }).catch(() => {});
+  setTimeout(() => { _ptellOpen(area, true); }, 300);
+};
+function _ptellOpen(area, first) {
+  area._ptell = { step: 'book', first: !!first, title: '', author: '', section: '', g1: '', g2: '', pages: '', format: '',
+                  read: '', series: '', standalone: '', like: '', likeSkipped: false, match: null, busy: false, err: '' };
+  _ptellRender(area);
+}
+
+const _PTELL_ORDER = ['book', 'section', 'genre', 'pages', 'read', 'series', 'standalone', 'like', 'done'];
+function _ptellPast(st, step) { return _PTELL_ORDER.indexOf(st.step) > _PTELL_ORDER.indexOf(step); }
+function _ptellPagesOk(st) { const p = parseInt(st.pages, 10); return p > 0 && p < 5000 && !!st.format; }
+
+// The record on Penny's screen, filled in as the member answers
+function _ptellScreen(area) {
+  const st = area._ptell;
+  const active = { book: 'title', section: 'section', genre: 'genre', pages: 'pages', read: 'read', series: 'series', standalone: 'series', like: 'like' }[st.step] || '';
+  let heading = 'MEMBER SUGGESTIONS: NEW RECORD', rows;
+  if (st.match && ['dupe', 'noted', 'mine', 'winner'].includes(st.step)) {
+    heading = 'RECORD FOUND';
+    const m = st.match;
+    rows = [['title', 'TITLE', m.title || st.title], ['author', 'AUTHOR', m.author || st.author]];
+    if (m.kind === 'winner') rows.push(['where', 'STATUS', 'Read by the club']);
+    else if (m.kind === 'pending') rows.push(['where', 'STATUS', 'Waiting to be shelved']);
+    else rows.push(['where', 'LOCATION', 'On the shelves']);
+    if (st.step === 'dupe') rows.push(['also', 'ALSO INTERESTED', '', true]);
+    if (st.step === 'noted') rows.push(['also', 'ALSO INTERESTED', (_ptellMe(area) || {}).discord || 'You']);
+  } else {
+    const genre = [st.g1, st.g2].filter((g, i, a) => g && a.indexOf(g) === i).join(' / ') || (_ptellPast(st, 'genre') ? '(none given)' : '');
+    const pages = parseInt(st.pages, 10) > 0 ? `${parseInt(st.pages, 10)}${st.format ? ` (${st.format})` : ''}` : '';
+    const read = st.read === 'yes' ? 'Has read it' : st.read === 'no' ? "Hasn't read it yet" : '';
+    const series = st.series === 'no' ? 'Stands alone'
+      : st.series === 'yes' ? (st.standalone === 'yes' ? 'Series, reads on its own' : st.standalone === 'no' ? 'Series, best read in order' : st.standalone === 'notsure' ? 'Series, not sure if it stands alone' : 'Part of a series') : '';
+    const like = st.like.trim() || (st.likeSkipped ? '(no reason given)' : '');
+    rows = [['title', 'TITLE', st.title.trim()], ['author', 'AUTHOR', st.author.trim()], ['section', 'SECTION', st.section],
+            ['genre', 'GENRE', genre], ['pages', 'PAGES', pages], ['read', 'READ BY MEMBER', read], ['series', 'SERIES', series],
+            ['like', "MEMBER'S REASON", like], ['from', 'BROUGHT BY', (_ptellMe(area) || {}).discord || '']];
+  }
+  const stamp = st.step === 'done' ? 'SAVED: PENDING REVIEW' : st.step === 'noted' ? 'SAVED' : '';
+  return `<div class="ptell-laptop" aria-label="Penny's laptop screen">
+    <div class="ptell-screen">
+      <div class="ptell-head"><span>${heading}</span><span>${new Date().toISOString().slice(0, 10)}</span></div>
+      ${rows.map(([k, lab, val, cur]) => `<div class="ptell-row"><span class="l">${lab}</span><span class="v" data-ptell-v="${k}">${esc(val || '')}${(k === active || cur) ? '<span class="ptell-cursor" aria-hidden="true">▌</span>' : ''}</span></div>`).join('')}
+      ${stamp ? `<div class="ptell-stamp">${stamp}</div>` : ''}
+    </div>
+    <div class="ptell-base" aria-hidden="true"></div>
+  </div>`;
+}
+
+function _ptellRender(area) {
+  const st = area._ptell;
+  const aid = area.id;
+  const me = _ptellMe(area);
+  const say = (action, lines) => ({ action, lines });
+  const B = (label, go, off) => `<button class="penny-action-btn" data-ptell-go="${go}"${off ? ' disabled style="opacity:.4;cursor:not-allowed;"' : ''}>${label}</button>`;
+  let s, form = '', btns = '';
+  const m = st.match || {};
+  switch (st.step) {
+    case 'book':
+      s = st.first
+        ? say('Penny pulls her laptop across the desk and opens a new record.', ["Oh, I love this part. What's it called, and who wrote it?"])
+        : say('She opens a fresh record.', ["Alright. What's this one called, and who wrote it?"]);
+      form = `<div class="ptell-form">
+        <label class="ptell-f"><span>Title</span><input type="text" maxlength="200" data-ptell-f="title" value="${esc(st.title)}" placeholder="e.g. Beloved" autocomplete="off"></label>
+        <label class="ptell-f"><span>Author</span><input type="text" maxlength="160" data-ptell-f="author" value="${esc(st.author)}" placeholder="e.g. Toni Morrison" autocomplete="off"></label>
+      </div>`;
+      btns = B(`"That's the one."`, 'book', !st.title.trim() || !st.author.trim()) + B('"Never mind, maybe later."', 'desk');
+      break;
+    case 'section':
+      s = say('She types it in, reading the title back under her breath.', ['First things first. Fiction or nonfiction?']);
+      btns = B('"Fiction."', 'sec:Fiction') + B('"Nonfiction."', 'sec:Nonfiction');
+      break;
+    case 'genre': {
+      s = say('She tabs down to the next field.', [`And what kind of ${st.section === 'Nonfiction' ? 'nonfiction' : 'fiction'}? Pick up to two, or skip it if nothing fits.`]);
+      const opts = sel => GENRE_NAMES.map(n => `<option${n === sel ? ' selected' : ''}>${esc(n)}</option>`).join('');
+      form = `<div class="ptell-form ptell-two">
+        <label class="ptell-f"><span>Genre</span><select data-ptell-f="g1"><option value="">Primary</option>${opts(st.g1)}</select></label>
+        <label class="ptell-f"><span>Second genre</span><select data-ptell-f="g2"><option value="">Secondary (optional)</option>${opts(st.g2)}</select></label>
+      </div>`;
+      btns = B(`"That's it."`, 'genre', !st.g1 && !st.g2) + B(`"I'll skip this one."`, 'genreSkip');
+      break;
+    }
+    case 'pages':
+      s = say('Her fingers hover over the keys.', ["About how long is it? It doesn't have to be exact. Just tell me which edition you're looking at, since page counts change a lot between them."]);
+      form = `<div class="ptell-form ptell-two">
+        <label class="ptell-f"><span>Page count</span><input type="number" min="1" max="4999" inputmode="numeric" data-ptell-f="pages" value="${esc(st.pages)}" placeholder="e.g. 320"></label>
+        <label class="ptell-f"><span>Format</span><select data-ptell-f="format"><option value="">Format…</option>
+          <option value="hardcover"${st.format === 'hardcover' ? ' selected' : ''}>Hardcover</option>
+          <option value="paperback"${st.format === 'paperback' ? ' selected' : ''}>Paperback</option>
+          <option value="digital"${st.format === 'digital' ? ' selected' : ''}>Digital / eBook</option></select></label>
+      </div>`;
+      btns = B(`"That's about right."`, 'pages', !_ptellPagesOk(st));
+      break;
+    case 'read':
+      s = say('She types it in and nods.', ["Have you read it yourself, or is it one you've had your eye on?"]);
+      btns = B(`"I've read it."`, 'read:yes') + B(`"Not yet. It's on my list."`, 'read:no');
+      break;
+    case 'series':
+      s = st.read === 'yes'
+        ? say('Her hands pause over the keys.', ["Oh, you've <em>read</em> it? Then I'll want to hear everything.", 'Is it part of a series?'])
+        : say('She nods and keeps typing.', ["One you've had your eye on. Those are some of my favorites.", 'Is it part of a series?']);
+      btns = B(`"Yes, it's part of a series."`, 'series:yes') + B('"No, it stands alone."', 'series:no');
+      break;
+    case 'standalone':
+      s = say('She tabs down to the next field.', ['Can someone pick this one up on its own, or should they start with the earlier books?']);
+      btns = B('"It reads fine on its own."', 'sa:yes') + B('"Best read in order."', 'sa:no') + B(`"I'm not sure."`, 'sa:notsure');
+      break;
+    case 'like':
+      s = say('She turns the screen toward you and points at the last empty field.', ["Last one, and it's the one I care about most. What do you like about it?", "Skip the back-cover blurb. I can look that up myself. I want <em>your</em> reason."]);
+      form = `<div class="ptell-form">
+        <label class="ptell-f"><span>What do you like about it?</span><textarea rows="4" maxlength="1500" data-ptell-f="like" placeholder="Not the blurb! What caught your eye? A friend loved it, you like the author, the premise sounds wild…">${esc(st.like)}</textarea></label>
+      </div>`;
+      btns = B(`"Here's why."`, 'like', !st.like.trim() || st.busy) + B(`"I'd rather not say."`, 'likeSkip', st.busy);
+      break;
+    case 'done':
+      s = say('She hits save with a small flourish.', ["There. Once it's checked over, you'll find it on my shelves with your name on it. And when I'm putting together books for the club to vote on, this is the first place I look."]);
+      btns = B(`"I've got another one."`, 'again') + B(`"Head back to Penny's desk."`, 'desk');
+      break;
+    case 'winner':
+      s = say('She stops typing and peers at the screen.', ["Oh! The club's already read that one. It won a vote, so it never made it back to my shelves.", 'Is there another one you had in mind?']);
+      btns = B('"Let me think of another."', 'again') + B(`"Head back to Penny's desk."`, 'desk');
+      break;
+    case 'mine':
+      s = m.kind === 'mineVote'
+        ? say('She stops typing and smiles.', ["That's one you suggested for a vote, isn't it? It's already on my shelves with your name on it.", 'Is there another one you had in mind?'])
+        : say('She stops typing and smiles.', ["You've already told me about that one. It's right here in my files.", 'Is there another one you had in mind?']);
+      btns = B('"Let me think of another."', 'again') + B(`"Head back to Penny's desk."`, 'desk');
+      break;
+    case 'dupe': {
+      const extra = m.kind === 'pending'
+        ? "Someone else told me about it recently, so it's waiting to be shelved."
+        : (m.rank === 2 && m.total > 1 ? "It came in second in a vote, too. So close." : "It's been sitting back there waiting for the right reader.");
+      s = say('She stops typing. A match comes up on the screen.', ["Oh! I already have that one.", extra, 'Shall I note that you mentioned it too?']);
+      btns = B('"Yes, put me down."', 'note', st.busy) + B('"Actually, I meant a different book."', 'retype', st.busy);
+      break;
+    }
+    case 'noted':
+      s = say('She adds your name to the record and saves.', ['Done. It helps me to know when more than one of you is curious about the same book.']);
+      btns = B(`"I've got another one."`, 'again') + B(`"Head back to Penny's desk."`, 'desk');
+      break;
+    case 'already':
+      s = say('She glances at the screen and nods.', ["I've already got you down as interested in that one. I haven't forgotten.", 'Is there another one you had in mind?']);
+      btns = B('"Let me think of another."', 'again') + B(`"Head back to Penny's desk."`, 'desk');
+      break;
+    case 'noone':
+      s = say('Penny pauses, hands over the keys.', ["Before I can file anything, I'll need to know who you are. Pop your name in on the Profile tab first, and then come tell me all about it."]);
+      btns = B(`"Head back to Penny's desk."`, 'desk');
+      break;
+  }
+  const errHtml = st.err ? `<p class="ptell-err" role="alert">${esc(st.err)}</p>` : '';
+  area.innerHTML = `
+    <div class="penny-storybook">
+      <div class="penny-storybook-inner">
+        <span class="penny-action">${s.action}</span>
+        ${s.lines.map(l => `<p class="penny-speech">${l}</p>`).join('')}
+        ${form}
+        ${errHtml}
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 1.2rem;position:relative;z-index:2;">
+      <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
+      ${btns}
+    </div>
+    ${st.step === 'noone' ? '' : _ptellScreen(area)}
+  `;
+  area.querySelectorAll('[data-ptell-f]').forEach(inp => {
+    const f = inp.dataset.ptellF;
+    inp.addEventListener(inp.tagName === 'SELECT' ? 'change' : 'input', () => {
+      st[f] = inp.value;
+      if (st.err) { st.err = ''; const e = area.querySelector('.ptell-err'); if (e) e.remove(); }
+      _ptellLive(area);
+    });
+    if (inp.tagName === 'INPUT') inp.addEventListener('keydown', ev => {
+      if (ev.key !== 'Enter') return;
+      ev.preventDefault();
+      const go = area.querySelector('[data-ptell-go]');
+      if (go && !go.disabled) go.click();
+    });
+  });
+  area.querySelectorAll('[data-ptell-go]').forEach(btn => btn.addEventListener('click', () => { if (!btn.disabled) _ptellGo(area, btn.dataset.ptellGo); }));
+  const firstField = area.querySelector('[data-ptell-f]');
+  if (firstField && st.step === 'book' && !st.title) { try { firstField.focus({ preventScroll: true }); } catch (e) {} }
+}
+
+// Typing: refresh the screen and the next button without redrawing the inputs
+function _ptellLive(area) {
+  const st = area._ptell;
+  const old = area.querySelector('.ptell-laptop');
+  if (old) { const tmp = document.createElement('div'); tmp.innerHTML = _ptellScreen(area); old.replaceWith(tmp.firstElementChild); }
+  const first = area.querySelector('[data-ptell-go]');
+  if (!first) return;
+  const off = st.step === 'book' ? (!st.title.trim() || !st.author.trim())
+    : st.step === 'genre' ? (!st.g1 && !st.g2)
+    : st.step === 'pages' ? !_ptellPagesOk(st)
+    : st.step === 'like' ? (!st.like.trim() || st.busy) : first.disabled;
+  first.disabled = off;
+  first.style.opacity = off ? '.4' : '';
+  first.style.cursor = off ? 'not-allowed' : '';
+}
+
+function _ptellGo(area, go) {
+  const st = area._ptell;
+  const me = _ptellMe(area);
+  const to = step => { st.step = step; st.err = ''; _ptellRender(area); };
+  const [cmd, val] = go.split(':');
+  switch (cmd) {
+    case 'book': {
+      st.title = st.title.trim().replace(/\s+/g, ' ');
+      st.author = st.author.trim().replace(/\s+/g, ' ');
+      if (!st.title || !st.author) return;
+      if (!me) return to('noone');
+      st.match = _ptellLookup(st.title, st.author, me);
+      if (!st.match) return to('section');
+      if (st.match.kind === 'winner') return to('winner');
+      if (st.match.kind === 'mine' || st.match.kind === 'mineVote') return to('mine');
+      if (st.match.kind === 'noted') return to('already');
+      return to('dupe');
+    }
+    case 'sec': st.section = val; return to('genre');
+    case 'genre': return to('pages');
+    case 'genreSkip': st.g1 = ''; st.g2 = ''; return to('pages');
+    case 'pages': if (!_ptellPagesOk(st)) return; return to('read');
+    case 'read': st.read = val; return to('series');
+    case 'series': st.series = val; if (val === 'no') { st.standalone = ''; return to('like'); } return to('standalone');
+    case 'sa': st.standalone = val; return to('like');
+    case 'like': if (!st.like.trim()) return; st.likeSkipped = false; return _ptellSave(area);
+    case 'likeSkip': st.like = ''; st.likeSkipped = true; return _ptellSave(area);
+    case 'note': return _ptellNote(area);
+    case 'retype': st.match = null; return to('book');
+    case 'again': return _ptellOpen(area, false);
+    case 'desk': return _ptellDesk(area);
+  }
+}
+
+async function _ptellSave(area) {
+  const st = area._ptell;
+  const me = _ptellMe(area);
+  if (!me) { st.step = 'noone'; _ptellRender(area); return; }
+  if (st.busy) return;
+  st.busy = true; st.err = ''; _ptellRender(area);
+  const g = [st.g1, st.g2].filter((x, i, a) => x && a.indexOf(x) === i).join(' / ');
+  const rec = {
+    id: 'bp_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    status: 'pending',
+    title: st.title, author: st.author, section: st.section,
+    genre: g, pageCount: parseInt(st.pages, 10), pagesFormat: st.format,
+    suggesters: [{ discord: me.discord, email: me.email, reason: st.like.trim(), reasonQ: 'like',
+                   alreadyRead: st.read, series: st.series, standalone: st.series === 'yes' ? st.standalone : '' }],
+    submittedAt: Date.now()
+  };
+  if (me.key === '__admin_preview__') rec.test = true;
+  let outcome = 'saved';
+  try {
+    await runTransaction(db, async tx => {
+      outcome = 'saved';
+      const snap = await tx.get(PENNY_REF);
+      const data = snap.exists() ? snap.data() : {};
+      const list = (Array.isArray(data.broughtBooks) ? data.broughtBooks : []).slice();
+      const ex = list.find(x => x && _ptellSameBook(x.title, x.author, rec.title, rec.author));
+      if (ex) {
+        // Someone told her about it while this member was typing: note them instead
+        if ((ex.suggesters || []).some(s => _ptellKeyOf(s) === me.key)) { outcome = 'mine'; return; }
+        const im = Object.assign({}, data.broughtInterest || {});
+        _ptellAddInterest(im, ex.title, ex.author, me);
+        tx.set(PENNY_REF, { broughtInterest: im }, { mergeFields: ['broughtInterest'] });
+        outcome = 'noted';
+        return;
+      }
+      list.push(rec);
+      tx.set(PENNY_REF, { broughtBooks: list }, { mergeFields: ['broughtBooks'] });
+    });
+  } catch (e) {
+    st.busy = false;
+    st.err = "Hmm. My laptop didn't save that. Could you try again in a moment?";
+    _ptellRender(area);
+    return;
+  }
+  st.busy = false;
+  if (outcome === 'saved') {
+    CACHE.pennyBrought = (CACHE.pennyBrought || []).concat([rec]);
+    st.step = 'done';
+  } else if (outcome === 'noted') {
+    st.match = { kind: 'pending', title: st.title, author: st.author };
+    st.step = 'noted';
+  } else {
+    st.match = { kind: 'mine', title: st.title, author: st.author };
+    st.step = 'mine';
+  }
+  _ptellRender(area);
+}
+
+async function _ptellNote(area) {
+  const st = area._ptell;
+  const me = _ptellMe(area);
+  if (!me || !st.match || st.busy) return;
+  st.busy = true; st.err = ''; _ptellRender(area);
+  try {
+    await runTransaction(db, async tx => {
+      const snap = await tx.get(PENNY_REF);
+      const data = snap.exists() ? snap.data() : {};
+      const im = Object.assign({}, data.broughtInterest || {});
+      _ptellAddInterest(im, st.match.title, st.match.author, me);
+      tx.set(PENNY_REF, { broughtInterest: im }, { mergeFields: ['broughtInterest'] });
+    });
+  } catch (e) {
+    st.busy = false;
+    st.err = "Hmm. My laptop didn't save that. Could you try again in a moment?";
+    _ptellRender(area);
+    return;
+  }
+  const im = Object.assign({}, CACHE.pennyInterest || {});
+  _ptellAddInterest(im, st.match.title, st.match.author, me);
+  CACHE.pennyInterest = im;
+  st.busy = false;
+  st.step = 'noted';
+  _ptellRender(area);
+}
+
+// Back to her desk: the usual ways, plus telling her about another book
+function _ptellDesk(area) {
+  const aid = area.id;
+  area._ptell = null;
+  area.innerHTML = `
+    <div class="penny-storybook">
+      <div class="penny-storybook-inner">
+        <span class="penny-action">Penny closes the laptop and slides it to the corner of her desk.</span>
+        <p class="penny-speech">Now. Is there anything else I can do for you? I could find you something to read while you're here.</p>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+      <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
+      <button class="penny-action-btn" onclick="pennySelectOption('trust','${aid}',this)">"I trust you, Penny."</button>
+      <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
+      <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
+      <button class="penny-action-btn" onclick="pennySelectOption('browse','${aid}',this)">"I'd just like to browse."</button>
+      ${_pennyTellBtn(aid)}
+      <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually — can we just talk for a bit?"</button>
+    </div>
+  `;
+}
+
+// ══════════════════════════════════════════════════════
+// ADMIN — Brought to Penny: review tray, shelved list, "also interested" notes
+// ══════════════════════════════════════════════════════
+function _pbrDate(ts) { return ts ? new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''; }
+// Is this brought book already somewhere else Penny keeps books?
+function _pbrDupOf(rec) {
+  if (_ptellWon(rec.title, rec.author || '')) return { label: 'The club already read this one (it won a vote).', merge: false };
+  let pool = [];
+  try { pool = _pennyBuildPool(null); } catch (e) { pool = []; }
+  const p = pool.find(x => _ptellSameBook(x.title, x.author, rec.title, rec.author));
+  if (p) return { label: `Already on Penny's shelves as a near-miss: <em>${esc(p.title)}</em>.`, merge: true, title: p.title, author: p.author || '' };
+  const o = (CACHE.pennyBrought || []).find(x => x && x.id !== rec.id && _ptellSameBook(x.title, x.author, rec.title, rec.author));
+  if (o) return { label: `Another member brought this one too (${o.status === 'shelved' ? 'already shelved' : 'also waiting'}): <em>${esc(o.title)}</em>.`, merge: true, title: o.title, author: o.author || '' };
+  return null;
+}
+function _pbrInterestNames(title) {
+  const ent = (CACHE.pennyInterest || {})[normTitleKey(title)];
+  const idMap = buildIdentityMap();
+  return ((ent && ent.members) || []).map(m => resolveId(m.discord || '', m.email || '', idMap) || m.discord || m.email || '').filter(Boolean);
+}
+function _pbrWho(rec) {
+  const idMap = buildIdentityMap();
+  return (rec.suggesters || []).map(s => resolveId(s.discord || '', s.email || '', idMap) || s.discord || s.email || '').filter(Boolean).join(', ') || 'Unknown member';
+}
+
+function renderPennyBroughtAdmin(force) {
+  const box = document.getElementById('pbr-admin');
+  _pbrUpdateCount();
+  if (!box) return;
+  // Don't redraw while the admin is typing in a review card
+  if (!force && box.contains(document.activeElement) && /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)) return;
+  const all = (CACHE.pennyBrought || []).filter(Boolean);
+  const pending = all.filter(b => b.status !== 'shelved').sort((a, b) => (a.submittedAt || 0) - (b.submittedAt || 0));
+  const shelved = all.filter(b => b.status === 'shelved').sort((a, b) => (b.approvedAt || 0) - (a.approvedAt || 0));
+  const gOpts = sel => '<option value="">—</option>' + GENRE_NAMES.map(n => `<option${n === sel ? ' selected' : ''}>${esc(n)}</option>`).join('');
+  const chip = t => `<span class="pbr-chip">${t}</span>`;
+
+  const pendHtml = pending.length ? pending.map(b => {
+    const id = esc(b.id);
+    const s0 = (b.suggesters || [])[0] || {};
+    const gs = String(b.genre || '').split('/').map(x => x.trim()).filter(Boolean);
+    const dup = _pbrDupOf(b);
+    const interest = _pbrInterestNames(b.title);
+    const chips = [
+      b.test ? chip('Test from admin preview') : '',
+      s0.alreadyRead === 'yes' ? chip('Has read it') : s0.alreadyRead === 'no' ? chip("Hasn't read it yet") : '',
+      s0.series === 'no' ? chip('Stands alone')
+        : s0.series === 'yes' ? chip(s0.standalone === 'yes' ? 'Series, reads on its own' : s0.standalone === 'no' ? 'Series, best read in order' : 'Series, not sure if it stands alone') : '',
+      interest.length ? chip(`Also interested: ${esc(interest.join(', '))}`) : ''
+    ].join('');
+    return `<div class="pbr-card" data-pbr="${id}">
+      <div class="pbr-top"><span class="pbr-from">from <strong>${esc(_pbrWho(b))}</strong> · ${_pbrDate(b.submittedAt)}</span></div>
+      ${dup ? `<div class="pbr-warn">⚠️ ${dup.label}</div>` : ''}
+      <div class="pbr-grid">
+        <label>Title<input type="text" id="pbr-title-${id}" value="${esc(b.title || '')}"></label>
+        <label>Author<input type="text" id="pbr-author-${id}" value="${esc(b.author || '')}"></label>
+        <label>Section<select id="pbr-sec-${id}"><option${b.section !== 'Nonfiction' ? ' selected' : ''}>Fiction</option><option${b.section === 'Nonfiction' ? ' selected' : ''}>Nonfiction</option></select></label>
+        <label>Genre<select id="pbr-g1-${id}">${gOpts(gs[0] || '')}</select></label>
+        <label>Second genre<select id="pbr-g2-${id}">${gOpts(gs[1] || '')}</select></label>
+        <label>Pages<span class="pbr-pages"><input type="number" min="1" id="pbr-pages-${id}" value="${esc(b.pageCount || '')}"><select id="pbr-fmt-${id}">
+          <option value="hardcover"${b.pagesFormat === 'hardcover' ? ' selected' : ''}>Hardcover</option>
+          <option value="paperback"${b.pagesFormat === 'paperback' ? ' selected' : ''}>Paperback</option>
+          <option value="digital"${b.pagesFormat === 'digital' ? ' selected' : ''}>Digital</option></select></span></label>
+      </div>
+      ${chips ? `<div class="pbr-chips">${chips}</div>` : ''}
+      <div class="pbr-why"><span>What they like about it</span>${s0.reason ? `“${esc(s0.reason)}”` : '<em>No reason given</em>'}</div>
+      <div class="pbr-btns">
+        <button class="btn btn-secondary btn-sm" onclick="pbrDecline('${id}')">Decline</button>
+        ${dup && dup.merge ? `<button class="btn btn-secondary btn-sm" onclick="pbrMerge('${id}')">Merge as also interested</button>` : ''}
+        <button class="btn btn-primary btn-sm" onclick="pbrApprove('${id}')">Approve and shelve</button>
+      </div>
+      <p class="pbr-msg" id="pbr-msg-${id}" role="status"></p>
+    </div>`;
+  }).join('') : '<p class="pbr-empty">Nothing waiting. When a member tells Penny about a book, it shows up here.</p>';
+
+  const shelfHtml = shelved.length ? `<div class="pbr-list">${shelved.map(b => {
+    const interest = _pbrInterestNames(b.title);
+    return `<div class="pbr-row"><div><strong>${esc(b.title)}</strong> <span class="pbr-soft">— ${esc(b.author || '')}</span><br>
+      <span class="pbr-soft">${esc(b.section || 'Fiction')}${b.genre ? ' · ' + esc(b.genre) : ''} · from ${esc(_pbrWho(b))} · shelved ${_pbrDate(b.approvedAt)}${interest.length ? ` · also interested: ${esc(interest.join(', '))}` : ''}</span></div>
+      <button class="btn btn-secondary btn-sm" onclick="pbrUnshelve('${esc(b.id)}')">Take off the shelves</button></div>`;
+  }).join('')}</div>` : '<p class="pbr-empty">No approved books yet.</p>';
+
+  // Interest notes on books that aren't brought books (near-misses, 2025 books)
+  const broughtKeys = new Set(all.map(b => normTitleKey(b.title)));
+  const notes = Object.entries(CACHE.pennyInterest || {}).filter(([k, v]) => v && !broughtKeys.has(k) && (v.members || []).length);
+  const notesHtml = notes.length ? `<div class="pbr-list">${notes.sort((a, b) => (b[1].members.length - a[1].members.length)).map(([k, v]) =>
+    `<div class="pbr-row"><div><strong>${esc(v.title || k)}</strong>${v.author ? ` <span class="pbr-soft">— ${esc(v.author)}</span>` : ''}<br>
+      <span class="pbr-soft">${v.members.length} interested: ${esc(_pbrInterestNames(v.title || k).join(', '))}</span></div>
+      <button class="btn btn-secondary btn-sm" onclick="pbrClearInterest('${esc(k)}')">Clear</button></div>`).join('')}</div>`
+    : '<p class="pbr-empty">No notes yet. When a member tells Penny about a book she already has, she notes they\'re interested and it shows up here.</p>';
+
+  box.innerHTML = `
+    <h4 class="pbr-h">Waiting for review <span class="pbr-n">${pending.length}</span></h4>
+    ${pendHtml}
+    <details class="pbr-det"${shelved.length && !pending.length ? ' open' : ''}><summary>On Penny's shelves <span class="pbr-n">${shelved.length}</span></summary>
+      <p class="pbr-soft" style="margin:.4rem 0 .6rem;">Members can find these when they browse. Penny won't hand them out herself until they've lost a club vote. They stay here, ready for a Shelf month, even after a vote.</p>
+      ${shelfHtml}</details>
+    <details class="pbr-det"><summary>Also interested <span class="pbr-n">${notes.length}</span></summary>${notesHtml}</details>
+  `;
+}
+window.renderPennyBroughtAdmin = renderPennyBroughtAdmin;
+
+function _pbrUpdateCount() {
+  const el = document.getElementById('pbr-admin-count');
+  if (!el) return;
+  const n = (CACHE.pennyBrought || []).filter(b => b && b.status !== 'shelved').length;
+  el.textContent = n ? String(n) : '';
+  el.style.display = n ? '' : 'none';
+}
+
+// Change brought books inside a transaction. fn(list, interestMap, data) edits them in place.
+async function _pbrUpdate(fn, busyMsg) {
+  showLoading(busyMsg || 'Saving…');
+  try {
+    let saved = null;
+    await runTransaction(db, async tx => {
+      const snap = await tx.get(PENNY_REF);
+      const data = snap.exists() ? snap.data() : {};
+      const list = (Array.isArray(data.broughtBooks) ? data.broughtBooks : []).map(x => Object.assign({}, x));
+      const im = Object.assign({}, data.broughtInterest || {});
+      fn(list, im);
+      tx.set(PENNY_REF, { broughtBooks: list, broughtInterest: im }, { mergeFields: ['broughtBooks', 'broughtInterest'] });
+      saved = { list, im };
+    });
+    if (saved) { CACHE.pennyBrought = saved.list; CACHE.pennyInterest = saved.im; }
+    hideLoading();
+    renderPennyBroughtAdmin(true);
+    return true;
+  } catch (e) {
+    hideLoading();
+    alert('Save failed: ' + (e && e.message ? e.message : 'unknown error'));
+    return false;
+  }
+}
+
+window.pbrApprove = async function(id) {
+  const v = f => (document.getElementById(`pbr-${f}-${id}`) || {}).value || '';
+  const title = v('title').trim().replace(/\s+/g, ' '), author = v('author').trim().replace(/\s+/g, ' ');
+  const msg = document.getElementById('pbr-msg-' + id);
+  if (!title || !author) { if (msg) { msg.textContent = 'Title and author are both needed.'; msg.style.color = 'var(--red)'; } return; }
+  const genre = [v('g1'), v('g2')].filter((g, i, a) => g && a.indexOf(g) === i).join(' / ');
+  const pages = parseInt(v('pages'), 10);
+  await _pbrUpdate((list, im) => {
+    const b = list.find(x => x.id === id);
+    if (!b) throw new Error('That book is no longer waiting for review.');
+    // Keep any "also interested" notes if the title was corrected
+    const oldK = normTitleKey(b.title), newK = normTitleKey(title);
+    if (oldK !== newK && im[oldK]) {
+      const merged = Object.assign({ title, author, members: [] }, im[newK] || {});
+      merged.members = (merged.members || []).slice();
+      (im[oldK].members || []).forEach(m => { if (!merged.members.some(x => _ptellKeyOf(x) === _ptellKeyOf(m))) merged.members.push(m); });
+      im[newK] = merged; delete im[oldK];
+    }
+    Object.assign(b, { title, author, section: v('sec') === 'Nonfiction' ? 'Nonfiction' : 'Fiction', genre,
+                       pageCount: pages > 0 ? pages : null, pagesFormat: v('fmt') || b.pagesFormat || '',
+                       status: 'shelved', approvedAt: Date.now() });
+  }, 'Shelving…');
+};
+
+window.pbrDecline = async function(id) {
+  const b = (CACHE.pennyBrought || []).find(x => x && x.id === id);
+  if (!b || !confirm(`Decline "${b.title}"?\n\nIt's removed from Penny's files. The member isn't told.`)) return;
+  await _pbrUpdate(list => { const i = list.findIndex(x => x.id === id); if (i >= 0) list.splice(i, 1); }, 'Removing…');
+};
+
+window.pbrMerge = async function(id) {
+  const b = (CACHE.pennyBrought || []).find(x => x && x.id === id);
+  const dup = b && _pbrDupOf(b);
+  if (!b || !dup || !dup.merge) return;
+  if (!confirm(`Merge "${b.title}" into "${dup.title}"?\n\n${_pbrWho(b)} is noted as also interested, and this copy is removed. Their answers and reason aren't kept.`)) return;
+  await _pbrUpdate((list, im) => {
+    const i = list.findIndex(x => x.id === id);
+    if (i < 0) throw new Error('That book is no longer waiting for review.');
+    (list[i].suggesters || []).forEach(s => _ptellAddInterest(im, dup.title, dup.author, { discord: s.discord || '', email: s.email || '', key: _ptellKeyOf(s) }));
+    list.splice(i, 1);
+  }, 'Merging…');
+};
+
+window.pbrUnshelve = async function(id) {
+  const b = (CACHE.pennyBrought || []).find(x => x && x.id === id);
+  if (!b || !confirm(`Take "${b.title}" off Penny's shelves?\n\nIt's removed from Penny's files entirely. Anyone who already has it on Penny's list keeps it there.`)) return;
+  await _pbrUpdate(list => { const i = list.findIndex(x => x.id === id); if (i >= 0) list.splice(i, 1); }, 'Removing…');
+};
+
+window.pbrClearInterest = async function(key) {
+  const ent = (CACHE.pennyInterest || {})[key];
+  if (!ent || !confirm(`Clear the interest notes for "${ent.title || key}"?`)) return;
+  await _pbrUpdate((list, im) => { delete im[key]; }, 'Clearing…');
+};
+
+// ══════════════════════════════════════════════════════
 // PENNY'S SHELVES — "I'd just like to browse."
 // Every book in her catalog, shelved like a library: Fiction / Nonfiction,
 // then a shelf per genre, then by author's last name.
@@ -13049,6 +13722,16 @@ function _pshelfPlace(genres) {
   if (wing === 'Nonfiction' && shelf === 'Crime') shelf = 'True Crime';
   if (!shelf || shelf === 'Other') shelf = 'Curiosities';
   return { wing, shelf };
+}
+// Brought books go in the section the member chose (fiction or nonfiction)
+function _pshelfPlaceFor(b, genres) {
+  const pl = _pshelfPlace(genres);
+  if (b.fromPennyPile && (b.section === 'Fiction' || b.section === 'Nonfiction') && pl.wing !== b.section) {
+    pl.wing = b.section;
+    if (pl.wing === 'Nonfiction' && pl.shelf === 'Crime') pl.shelf = 'True Crime';
+    if (pl.wing === 'Fiction' && pl.shelf === 'True Crime') pl.shelf = 'Crime';
+  }
+  return pl;
 }
 // First author's last name. "Penn and Kim Holderness" share one, so use the last author's.
 function _pshelfSurname(author) {
@@ -13073,7 +13756,7 @@ const _pshelfOrd = n => { const sfx = ['th','st','nd','rd'], v = n % 100; return
 // Turn Penny's catalog into shelf entries
 function _pshelfBooks() {
   const idMap = buildIdentityMap();
-  return _pennyBuildPool(null).map(b => {
+  return _pennyBuildPool(null, { includeBrought: true }).map(b => {
     const genres = String(b.genre || '').split('/').map(g => g.trim()).filter(Boolean);
     const people = [];
     (b.suggesters || []).forEach(sg => {
@@ -13086,10 +13769,10 @@ function _pshelfBooks() {
     const historical = String(b.id).startsWith('hist_');
     return Object.assign({}, b, {
       genres, people, historical,
-      kind: b.broughtToPenny ? 'brought' : 'miss',
+      kind: b.fromPennyPile ? 'brought' : 'miss',
       monthName: historical ? (b.month || '2025') : (archiveMonthName(b.month) || b.month || ''),
       note: pennyNoteFor(b.title),
-      place: _pshelfPlace(genres)
+      place: _pshelfPlaceFor(b, genres)
     });
   });
 }
@@ -13176,7 +13859,7 @@ function _pshelfOrigin(b) {
   if (b.kind === 'brought') return `📚 Brought to Penny${who}${b.alreadyRead ? ' · they’ve read it' : ''}`;
   if (b.historical) return `🗳️ Suggested${who}${b.monthName ? ` in ${esc(b.monthName)}` : ''}`;
   const place = b.totalBooks ? ` · came ${_pshelfOrd(b.rankPosition)} of ${b.totalBooks}` : '';
-  return `🗳️ Suggested${who}${b.monthName ? ` for ${esc(b.monthName)}` : ''}${place}`;
+  return `🗳️ Suggested${who}${b.monthName ? ` for ${esc(b.monthName)}` : ''}${place}${b.broughtToPenny ? ' · 📚 also brought to Penny' : ''}`;
 }
 
 function _pshelfDetail(b, whyOpen, onCard) {
@@ -13270,7 +13953,9 @@ function _pshelfTake(area) {
   area._pennyFromShelf = true;
   // Same check the other three ways use to spot a member's own suggestion
   const mine = (_pennyGetMemberContext().suggestedTitles) || new Set();
-  area._pennyShelfOwn = [...mine].some(t => normTitleKey(t) === normTitleKey(book.title));
+  const myKey = _profileIdentity && _profileIdentity.key;
+  area._pennyShelfOwn = [...mine].some(t => normTitleKey(t) === normTitleKey(book.title))
+    || (!!myKey && book.kind === 'brought' && (book.suggesters || []).some(sg => _ptellKeyOf(sg) === myKey));
   pennyAccept(area.id);
 }
 
@@ -13307,6 +13992,7 @@ window.pennyShelfLeave = function(areaId, el) {
       <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('browse','${aid}',this)">"Let me look around a bit more."</button>
+      ${_pennyTellBtn(aid)}
       <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually — can we just talk for a bit?"</button>
     </div>
   `;
@@ -13444,7 +14130,7 @@ function _pennyWinningTitles() {
   return winningTitles;
 }
 
-function _pennyBuildPool(memberCtx) {
+function _pennyBuildPool(memberCtx, opts) {
   const lastPlaceIds = memberCtx ? memberCtx.lastPlaceIds : new Set();
   const archives = getArchives();
   const winningTitles = _pennyWinningTitles();
@@ -13492,7 +14178,8 @@ function _pennyBuildPool(memberCtx) {
         month: a.label, isWinner: false,
         bordaScore: bookScore, maxScore, voterCount, rankedByCount,
         rankPosition: rankMap[bid] || nb, totalBooks: nb,
-        submissionCount, pointsBehind: maxScore - bookScore
+        submissionCount, pointsBehind: maxScore - bookScore,
+        broughtToPenny: !!b.broughtToPenny
       });
     });
   });
@@ -13522,6 +14209,30 @@ function _pennyBuildPool(memberCtx) {
       });
     }
   });
+
+  // Books members brought Penny that the admin approved. Only for browsing her shelves
+  // (opts.includeBrought): she doesn't hand these out herself until they've lost a vote.
+  // If the club has voted on one since, the near-miss copy above already covers it.
+  if (opts && opts.includeBrought) {
+    (CACHE.pennyBrought || []).forEach(bb => {
+      if (!bb || bb.status !== 'shelved' || !bb.title) return;
+      if (winningTitles.has(bb.title, bb.author || '')) return;
+      const twin = [...seen.values()].find(x => _ptellSameBook(x.title, x.author, bb.title, bb.author));
+      if (twin) { twin.broughtToPenny = true; return; }
+      const bk = normTitleKey(bb.title);
+      if (memberCtx && memberCtx.cardTitles && memberCtx.cardTitles.has(bk)) return;
+      const ss = Array.isArray(bb.suggesters) ? bb.suggesters : [];
+      seen.set(bk, {
+        id: bb.id, title: bb.title, author: bb.author || '',
+        genre: bb.genre || '', pageCount: bb.pageCount || null, pagesFormat: bb.pagesFormat || '',
+        suggesters: ss, month: '', isWinner: false,
+        bordaScore: 0, maxScore: 0, voterCount: 0, rankedByCount: 0,
+        rankPosition: 99, totalBooks: 0, submissionCount: 1, pointsBehind: 0,
+        fromPennyPile: true, broughtToPenny: true, section: bb.section || '',
+        alreadyRead: ss.some(x => x && x.alreadyRead === 'yes')
+      });
+    });
+  }
 
   return [...seen.values()];
 }
@@ -13950,6 +14661,7 @@ function pennyDecline(areaId, fromBranch) {
       <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('browse','${aid}',this)">"I'd just like to browse."</button>
+      ${_pennyTellBtn(aid)}
       <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually — can we just talk for a bit?"</button>
     </div>
   `;
