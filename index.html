@@ -13541,8 +13541,13 @@ function _pennyOwnBookDialog(area, book, pool, fromBranch) {
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
         <span class="penny-action">Penny sets the book on the desk. You glance at the cover — and something about it is familiar.</span>
-        <p class="penny-speech">Huh. It looks like you actually made this suggestion. What do you think — want to give it a go now?</p>
+        <p class="penny-speech">Huh. <em>${esc(book.title)}</em> — that's one of yours, isn't it? You suggested it. What do you think — want to give it a go now?</p>
       </div>
+    </div>
+    <div class="penny-rec-card">
+      <div class="penny-rec-card-title">${esc(book.title)}</div>
+      ${book.author ? `<div class="penny-rec-card-author">${esc(book.author)}</div>` : ''}
+      <div class="penny-rec-card-meta">Suggested by you${book.month ? ' · ' + esc(String(book.month).replace(/\s*[-–—].*$/, '').trim()) : ''}</div>
     </div>
     <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 1.5rem;position:relative;z-index:2;">
       <button class="penny-action-btn" onclick="pennyOwnBookYes('${aid}')">"Yes — let's do it."</button>
