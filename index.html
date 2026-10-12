@@ -3402,7 +3402,7 @@ function buildSortable(books) {
           '<div class="book-title">' + esc(b.title) + '</div>' +
           '<div class="book-sub">' + esc(b.author) + '</div>' +
           (b.goodreadsUrl && /^https?:\/\//i.test(b.goodreadsUrl)
-            ? '<div class="book-sub" style="margin-top:.2rem;"><a href="' + esc(b.goodreadsUrl) + '" target="_blank" rel="noopener" style="color:var(--gold);font-weight:600;text-decoration:none;">Read the synopsis on Goodreads ↗</a></div>'
+            ? '<div class="book-sub" style="margin-top:.2rem;"><a href="' + esc(b.goodreadsUrl) + '" target="_blank" rel="noopener" style="color:#1a5fb4;font-weight:600;text-decoration:underline;">Read the synopsis on Goodreads ↗</a></div>'
             : '') +
           genrePillsHtml(b.genre) +
           bookFactsHtml(b) +
