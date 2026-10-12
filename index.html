@@ -1369,7 +1369,30 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
         </div>
         <div style="font-size:.75rem;color:var(--soft);margin-top:.5rem;">Page counts vary between formats — no need to be exact! We just want to give members a rough sense of the length when they're voting.</div>
       </div>
-      <div class="f-group"><label>Why are you recommending this book? <span style="font-size:.7rem;color:var(--soft);text-transform:none;letter-spacing:0;">(optional)</span></label><textarea id="s-reason" placeholder="Tell the club why they should read this…" rows="3"></textarea></div>
+      <div class="grid2">
+        <div class="f-group"><label>Have you already read it? *</label>
+          <div class="radio-group" style="flex-direction:row;gap:1.25rem;margin-top:.4rem;">
+            <label class="radio-opt"><input type="radio" name="s-read" value="yes"> Yes</label>
+            <label class="radio-opt"><input type="radio" name="s-read" value="no"> No</label>
+          </div>
+        </div>
+        <div class="f-group"><label>Is it part of a series? *</label>
+          <div class="radio-group" style="flex-direction:row;gap:1.25rem;margin-top:.4rem;">
+            <label class="radio-opt"><input type="radio" name="s-series" value="yes" onchange="suggestSeriesToggle()"> Yes</label>
+            <label class="radio-opt"><input type="radio" name="s-series" value="no" onchange="suggestSeriesToggle()"> No</label>
+          </div>
+        </div>
+      </div>
+      <div class="f-group" id="s-standalone-group" style="display:none;"><label>Can it be read on its own? *</label>
+        <div class="radio-group" style="flex-direction:row;gap:1.25rem;margin-top:.4rem;flex-wrap:wrap;">
+          <label class="radio-opt"><input type="radio" name="s-standalone" value="yes"> Yes</label>
+          <label class="radio-opt"><input type="radio" name="s-standalone" value="no"> No, read the earlier books first</label>
+          <label class="radio-opt"><input type="radio" name="s-standalone" value="unsure"> Not sure</label>
+        </div>
+      </div>
+      <div class="f-group"><label>What do you like about it? <span id="s-like-new" style="display:inline-block;font-size:.62rem;font-weight:700;letter-spacing:.06em;background:var(--gold);color:var(--black);border-radius:3px;padding:.05rem .35rem;margin-left:.25rem;vertical-align:1px;">NEW</span> <span style="font-size:.7rem;color:var(--soft);text-transform:none;letter-spacing:0;">(optional)</span></label>
+        <div style="font-size:.75rem;color:var(--soft);margin-bottom:.4rem;">No need to paste the synopsis. The admin will add a Goodreads link to each book so everyone can read it there. We want <em>your</em> reason.</div>
+        <textarea id="s-reason" placeholder="Not the blurb! What caught your eye? A friend loved it, you like the author, the premise sounds wild…" rows="3"></textarea></div>
       <label class="receipt-check"><input type="checkbox" id="s-receipt"> Download a copy of my submission (PDF)</label>
       <div id="suggest-identity-banner"></div>
       <button class="btn btn-primary" onclick="suggestBook()">Submit Suggestion</button>
@@ -2930,11 +2953,23 @@ function clearSuggestForm() {
   const g1 = document.getElementById('s-genre');  if (g1) g1.value = '';
   const g2 = document.getElementById('s-genre2'); if (g2) g2.value = '';
   const pf = document.getElementById('s-pages-format'); if (pf) pf.value = '';
+  document.querySelectorAll('input[name="s-read"],input[name="s-series"],input[name="s-standalone"]').forEach(r => { r.checked = false; });
+  suggestSeriesToggle();
 }
+function suggestSeriesToggle() {
+  const yes = document.querySelector('input[name="s-series"]:checked')?.value === 'yes';
+  const g = document.getElementById('s-standalone-group');
+  if (g) g.style.display = yes ? '' : 'none';
+  if (!yes) document.querySelectorAll('input[name="s-standalone"]').forEach(r => { r.checked = false; });
+}
+window.suggestSeriesToggle = suggestSeriesToggle;
 
 async function suggestBook() {
   const title = v('s-title'), author = v('s-author'),
         email = v('s-email'), discord = v('s-discord'), reason = v('s-reason');
+  const alreadyRead = document.querySelector('input[name="s-read"]:checked')?.value || '';
+  const series      = document.querySelector('input[name="s-series"]:checked')?.value || '';
+  const standalone  = series === 'yes' ? (document.querySelector('input[name="s-standalone"]:checked')?.value || '') : '';
   const genre1 = (document.getElementById('s-genre')?.value || '').trim();
   const genre2 = (document.getElementById('s-genre2')?.value || '').trim();
   const genre = [genre1, genre2].filter(Boolean).join(' / ');
@@ -2946,6 +2981,11 @@ async function suggestBook() {
   if (!pageCount || pageCount < 1) { showMsg('suggest-msg', 'Please enter a page count.', 'err'); return; }
   if (!pagesFormat) { showMsg('suggest-msg', 'Please select a format (hardcover, paperback, or digital).', 'err'); return; }
   if (!email.includes('@')) { showMsg('suggest-msg', 'Please enter a valid email.', 'err'); return; }
+  if (!alreadyRead) { showMsg('suggest-msg', 'Please say whether you\'ve already read it.', 'err'); return; }
+  if (!series) { showMsg('suggest-msg', 'Please say whether it\'s part of a series.', 'err'); return; }
+  if (series === 'yes' && !standalone) { showMsg('suggest-msg', 'Please say whether it can be read on its own.', 'err'); return; }
+  // New answers go in the same "reason" field Penny and the ballot already read; reasonQ marks which question it answered.
+  const newSuggester = { discord, email, reason, reasonQ: 'like', alreadyRead, series, standalone };
   // Read-check-write happens inside a Firestore transaction so two members
   // suggesting the same book at nearly the same moment can't both slip past
   // the duplicate check and create two separate entries (a race condition —
@@ -2963,7 +3003,7 @@ async function suggestBook() {
         if (existing.suggesters.some(s => resolveId(s.discord, s.email, idMap) === resolveId(discord, email, idMap))) {
           return { status: 'already' };
         }
-        existing.suggesters.push({ discord, email, reason });
+        existing.suggesters.push(newSuggester);
         if (genre && !existing.genre) existing.genre = genre;
         // Page count merge logic
         if (pageCount) {
@@ -2990,7 +3030,7 @@ async function suggestBook() {
         return { status: 'merged' };
       }
       if (books.length >= 30) return { status: 'max' };
-      books.push({ id: Date.now(), title, author, genre: genre || undefined, pageCount, pagesFormat, suggesters: [{ discord, email, reason }] });
+      books.push({ id: Date.now(), title, author, genre: genre || undefined, pageCount, pagesFormat, suggesters: [newSuggester] });
       tx.set(BOOKS_REF, { list: books });
       return { status: 'added' };
     });
@@ -3004,7 +3044,7 @@ async function suggestBook() {
   if (outcome.status === 'max') { showMsg('suggest-msg', 'Maximum 30 books reached.', 'err'); return; }
   clearSuggestForm();
   showMsg('suggest-msg', outcome.status === 'merged' ? '✓ Your recommendation was added to an existing entry!' : '✓ Book added!', 'ok');
-  if (document.getElementById('s-receipt')?.checked) downloadSuggestReceipt({ discord, email, title, author, reason, pageCount, pagesFormat });
+  if (document.getElementById('s-receipt')?.checked) downloadSuggestReceipt({ discord, email, title, author, reason, pageCount, pagesFormat, alreadyRead, series, standalone });
 }
 window.suggestBook = suggestBook;
 
@@ -3100,7 +3140,10 @@ function downloadSuggestReceipt(data) {
       { label: 'Book Title',       value: data.title },
       { label: 'Author',           value: data.author },
       { label: 'Page Count',        value: data.pageCount ? data.pageCount + ' pages (' + data.pagesFormat + ')' : '(not provided)' },
-      { label: 'Why Recommend?',   value: data.reason || '(not provided)' },
+      { label: 'Already read it?', value: data.alreadyRead === 'yes' ? 'Yes' : 'No' },
+      { label: 'Part of a series?', value: data.series === 'yes' ? 'Yes' : 'No' },
+      data.series === 'yes' ? { label: 'Reads on its own?', value: data.standalone === 'yes' ? 'Yes' : data.standalone === 'no' ? 'No, read the earlier books first' : 'Not sure' } : null,
+      { label: 'What do you like about it?', value: data.reason || '(not provided)' },
     ]
   });
 }
@@ -3145,6 +3188,8 @@ function renderSuggest() {
   const g2 = document.getElementById('s-genre2');
   if (g1 && !g1.options.length) g1.innerHTML = genreOptionsHtml('— Primary —');
   if (g2 && !g2.options.length) g2.innerHTML = genreOptionsHtml('— Secondary —');
+  const newTag = document.getElementById('s-like-new');
+  if (newTag && Date.now() > new Date('2027-01-01T00:00:00').getTime()) newTag.style.display = 'none';
   const s = getSettings(), books = getBooks();
   const closed = document.getElementById('suggest-closed-banner');
   const formContent = document.getElementById('suggest-form-content');
@@ -3164,6 +3209,7 @@ function renderSuggest() {
         <div class="book-title">${esc(b.title)}</div>
         <div class="book-sub">${esc(b.author)}</div>
         ${genrePillsHtml(b.genre)}
+        ${bookFactsHtml(b)}
         ${b.pageCount ? `<div class="book-sub" style="margin-top:.25rem;">📄 ${b.pageCount} pages <span style="color:var(--soft);font-size:.78em;">(${b.pagesFormat})</span>${b.pageCountAlt ? ` <span style="color:var(--soft);font-size:.78em;">· ${b.pageCountAlt} pages (${b.pagesFormatAlt})</span>` : ''}</div>` : ''}
         ${blurbs}
       </div>
@@ -3253,13 +3299,31 @@ function genrePillsHtml(genreStr) {
 // a book's suggesters are shown (Suggest list, Vote page, Results, Rankings).
 // One book can have multiple suggesters, each with their own reason, so this
 // renders one quote block per suggester who filled one in.
+// Small pills for the "already read it?" and "part of a series?" answers.
+// Older suggestions have neither answer, so they show nothing.
+function bookFactsHtml(b) {
+  const ss = (b && b.suggesters) || [];
+  const readers = ss.filter(s => s && s.alreadyRead === 'yes').length;
+  const inSeries = ss.some(s => s && s.series === 'yes');
+  const pills = [];
+  if (readers) pills.push(readers === 1 ? '📖 Someone here has read it' : `📖 ${readers} members have read it`);
+  if (inSeries) {
+    const tail = ss.some(s => s && s.standalone === 'no') ? 'best read in order'
+               : ss.some(s => s && s.standalone === 'yes') ? 'reads on its own' : 'not sure if it stands alone';
+    pills.push(`📚 Part of a series · ${tail}`);
+  }
+  if (!pills.length) return '';
+  return '<div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.3rem;">' +
+    pills.map(t => `<span style="font-size:.68rem;padding:.15rem .55rem;border-radius:20px;background:var(--cream);color:var(--ink);border:1px solid var(--border);">${t}</span>`).join('') + '</div>';
+}
+
 function suggesterReasonsHtml(suggesters, opts) {
   opts = opts || {};
   const reasons = (suggesters||[]).filter(s => s && s.reason);
   if (!reasons.length) return '';
   const marginTop = opts.marginTop || '.3rem';
   return reasons.map(s =>
-    `<div class="book-sub" style="margin-top:${marginTop};"><strong>Why are you recommending this book?</strong></div>` +
+    `<div class="book-sub" style="margin-top:${marginTop};"><strong>${s.reasonQ === 'like' ? 'What they like about it' : 'Why are you recommending this book?'}</strong></div>` +
     `<div class="book-sub" style="margin-left:.75rem;font-style:italic;">"${esc(s.reason)}"</div>`
   ).join('');
 }
@@ -3311,7 +3375,7 @@ function buildSortable(books) {
       // still showing "why recommending" blurbs via cv.showReasons \u2014 off by
       // default, since a reason can sometimes hint at the title/plot.
       var coverReasonsHtml = cv.showReasons ? suggesterReasonsHtml(b.suggesters, { marginTop: '.35rem' }) : '';
-      var metaHtml = (b.genre ? genrePillsHtml(b.genre) : '') + pageCountHtml + paletteSwatches + coverReasonsHtml;
+      var metaHtml = (b.genre ? genrePillsHtml(b.genre) : '') + bookFactsHtml(b) + pageCountHtml + paletteSwatches + coverReasonsHtml;
       d.innerHTML =
         '<div class="rank-badge">' + (i+1) + '</div>' +
         '<div style="flex:1;display:flex;align-items:center;gap:1rem;padding:.5rem 0;">' +
@@ -3337,7 +3401,11 @@ function buildSortable(books) {
         '<div class="book-info" style="flex:1">' +
           '<div class="book-title">' + esc(b.title) + '</div>' +
           '<div class="book-sub">' + esc(b.author) + '</div>' +
+          (b.goodreadsUrl && /^https?:\/\//i.test(b.goodreadsUrl)
+            ? '<div class="book-sub" style="margin-top:.2rem;"><a href="' + esc(b.goodreadsUrl) + '" target="_blank" rel="noopener" style="color:var(--gold);font-weight:600;text-decoration:none;">Read the synopsis on Goodreads ↗</a></div>'
+            : '') +
           genrePillsHtml(b.genre) +
+          bookFactsHtml(b) +
           pcHtml +
           blurbs +
         '</div>' +
@@ -5809,11 +5877,21 @@ function renderAdmin() {
     const vd = votes[n];
     return `<div class="voter-row"><div><div>${esc(n)}</div><div class="voter-meta">${esc(vd.email||'')}${vd.discord?' · '+esc(vd.discord):''}</div></div><button class="btn btn-danger btn-sm" onclick="deleteVote('${esc(n)}')">Remove</button></div>`;
   }).join('') : '<p style="font-size:.85rem;color:var(--soft);">No votes yet.</p>';
-  document.getElementById('admin-book-list').innerHTML = books.length ? books.map(b => `
-    <div class="book-item" style="margin-bottom:.35rem;">
-      <div class="book-info"><div class="book-title">${esc(b.title)}</div><div class="book-sub">${esc(b.author)} &middot; ${normBook(b).suggesters.map(s=>esc(s.discord)).join(', ')}</div></div>
+  // Don't redraw the book list while the admin is typing a Goodreads link (live updates would wipe it)
+  const _bookListEl = document.getElementById('admin-book-list');
+  if (!(_bookListEl && _bookListEl.contains(document.activeElement))) {
+  _bookListEl.innerHTML = books.length ? books.map(b => `
+    <div class="book-item" style="margin-bottom:.35rem;flex-wrap:wrap;">
+      <div class="book-info" style="min-width:180px;"><div class="book-title">${esc(b.title)}</div><div class="book-sub">${esc(b.author)} &middot; ${normBook(b).suggesters.map(s=>esc(s.discord)).join(', ')}</div></div>
       <button class="btn btn-danger btn-sm" onclick="deleteBook(${b.id})">Remove</button>
+      <div style="flex-basis:100%;display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;">
+        <input type="url" id="gr-link-${b.id}" value="${esc(b.goodreadsUrl||'')}" placeholder="Goodreads link, e.g. https://www.goodreads.com/book/show/…" style="flex:1;min-width:200px;font-size:.8rem;padding:.35rem .6rem;">
+        <button class="btn btn-secondary btn-sm" onclick="saveGoodreadsLink(${b.id})">${b.goodreadsUrl ? 'Update link' : 'Save link'}</button>
+        ${b.goodreadsUrl ? `<a href="${esc(b.goodreadsUrl)}" target="_blank" rel="noopener" style="font-size:.75rem;color:var(--gold);">Test ↗</a>` : '<span style="font-size:.72rem;color:var(--soft);">No link yet</span>'}
+        <span id="gr-msg-${b.id}" style="font-size:.75rem;"></span>
+      </div>
     </div>`).join('') : '<p style="font-size:.85rem;color:var(--soft);">No books.</p>';
+  }
   // surveys list now rendered in renderAdminSurveys() on the Surveys sub-tab
   renderRenameArchiveSelect();
   renderYearAdminCard();
@@ -7087,6 +7165,35 @@ async function wipeSurveyResponses(sid) {
 }
 window.wipeSurveyResponses = wipeSurveyResponses;
 async function deleteVote(name) { if (!confirm(`Remove vote for "${name}"?`)) return; showLoading('Removing…'); const v = getVotes(); delete v[name]; await fbSet(VOTES_REF, {map:v}); hideLoading(); }
+async function saveGoodreadsLink(id) {
+  const input = document.getElementById('gr-link-' + id);
+  const msg = document.getElementById('gr-msg-' + id);
+  const url = (input?.value || '').trim();
+  if (url && !/^https?:\/\//i.test(url)) {
+    if (msg) { msg.textContent = 'Link must start with https://'; msg.style.color = 'var(--red)'; }
+    return;
+  }
+  showLoading('Saving link…');
+  try {
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(BOOKS_REF);
+      const list = ((snap.exists() ? snap.data().list : []) || []);
+      const b = list.find(x => String(x.id) === String(id));
+      if (!b) throw new Error('That book is no longer in the current list.');
+      if (url) b.goodreadsUrl = url; else delete b.goodreadsUrl;
+      tx.set(BOOKS_REF, { list });
+    });
+    hideLoading();
+    if (input) input.blur();
+    renderAdmin();
+    const m2 = document.getElementById('gr-msg-' + id);
+    if (m2) { m2.textContent = url ? '✓ Saved' : '✓ Link removed'; m2.style.color = 'var(--green)'; }
+  } catch (err) {
+    hideLoading();
+    if (msg) { msg.textContent = 'Save failed: ' + (err && err.message ? err.message : 'unknown error'); msg.style.color = 'var(--red)'; }
+  }
+}
+window.saveGoodreadsLink = saveGoodreadsLink;
 async function deleteBook(id)   { if (!confirm('Remove this book?')) return; showLoading('Removing…'); await fbSet(BOOKS_REF, {list:getBooks().filter(b=>b.id!==id)}); hideLoading(); }
 async function clearVotes()     { if (!confirm('Clear ALL votes?')) return; showLoading('Clearing…'); await fbSet(VOTES_REF, {map:{}}); hideLoading(); renderAdmin(); }
 async function clearBooks()     { if (!confirm('Clear all books & votes?')) return; showLoading('Clearing…'); await fbSet(BOOKS_REF, {list:[]}); await fbSet(VOTES_REF, {map:{}}); hideLoading(); renderAdmin(); }
@@ -12973,8 +13080,8 @@ function _pshelfBooks() {
       const name = resolveId(sg.discord || '', sg.email || '', idMap) || sg.discord || '';
       if (!name) return;
       const ex = people.find(x => x.name === name);
-      if (ex) { if (!ex.reason && sg.reason) ex.reason = sg.reason; }
-      else people.push({ name, reason: String(sg.reason || '').trim() });
+      if (ex) { if (!ex.reason && sg.reason) { ex.reason = sg.reason; ex.like = sg.reasonQ === 'like'; } }
+      else people.push({ name, reason: String(sg.reason || '').trim(), like: sg.reasonQ === 'like' });
     });
     const historical = String(b.id).startsWith('hist_');
     return Object.assign({}, b, {
@@ -13076,7 +13183,10 @@ function _pshelfDetail(b, whyOpen, onCard) {
   const pills = b.genres.map(g => { const c = _pshelfColors(g); return `<span class="pshelf-pill" style="background:${c[0]};color:${c[1]};border-color:${c[2]}">${esc(g)}</span>`; }).join('');
   const reasons = b.people.filter(x => x.reason);
   const whyHtml = reasons.map(x => (reasons.length > 1 ? `<b>${esc(x.name)}:</b> ` : '') + `<span class="q">“${esc(x.reason)}”</span>`).join('<br><br>');
-  const whyLabel = reasons.length === 1 ? `Why ${esc(reasons[0].name)} suggested it` : 'Why they suggested it';
+  const likeOnly = reasons.length && reasons.every(x => x.like);
+  const whyLabel = likeOnly
+    ? (reasons.length === 1 ? `What ${esc(reasons[0].name)} likes about it` : 'What they like about it')
+    : (reasons.length === 1 ? `Why ${esc(reasons[0].name)} suggested it` : 'Why they suggested it');
   const long = reasons.reduce((n, x) => n + x.reason.length, 0) > 260;
   return `<div class="pshelf-detail" role="region" aria-label="${esc(b.title)}">
     <h3>${esc(b.title)}</h3>
