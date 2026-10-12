@@ -11745,8 +11745,8 @@ function _pennyShowReturnGreeting(area, memberName) {
         <span class="penny-action">${scenario.return}</span>
         <p class="penny-speech">${returnLine}</p>
         <p class="penny-speech">${state.knowsWays
-          ? 'Another recommendation? Same three ways as before — I can just give you one, let the catalog decide, or ask you a few questions first.'
-          : 'Here for a recommendation this time? There are three ways we can do it — I can just give you one, let the catalog decide, or ask you a few questions first.'}</p>
+          ? 'Another recommendation? Same as before — I can just give you one, let the catalog decide, or ask you a few questions first. Or you can browse the shelves yourself.'
+          : 'Here for a recommendation this time? I can just give you one, let the catalog decide, or ask you a few questions first. Or, if you\'d rather, you can browse the shelves yourself.'}</p>
         <span class="penny-action" style="margin-top:.4rem;">She gives a small conspiratorial smile.</span>
         <p class="penny-speech">The quiz is... well. It's ${state.knowsWays ? 'still ' : ''}my favorite. Just putting that out there.</p>
       </div>
@@ -11855,7 +11855,7 @@ function pennyNotYetBranch(choice, areaId, el) {
             <span class="penny-action">Penny nods, completely unbothered.</span>
             <p class="penny-speech">Of course! Sometimes a book just isn't the right fit for the right moment. That's not a failure — that's just timing.</p>
             <span class="penny-action" style="margin-top:.4rem;">She sets the old recommendation aside and looks at you with fresh eyes.</span>
-            <p class="penny-speech">Let's find you something better. ${(area._pennyState || {}).knowsWays ? "You already know how this works — same three options. What's it going to be?" : "I can just give you one, let the catalog decide, or ask you a few questions first. What's it going to be?"}</p>
+            <p class="penny-speech">Let's find you something better. ${(area._pennyState || {}).knowsWays ? "You already know how this works — same options as before, shelves included. What's it going to be?" : "I can just give you one, let the catalog decide, or ask you a few questions first. Or you can browse the shelves yourself. What's it going to be?"}</p>
             <span class="penny-action" style="margin-top:.4rem;">She gives a small conspiratorial smile.</span>
             <p class="penny-speech">The catalog has been particularly interesting lately, just saying.</p>
           </div>
@@ -11934,14 +11934,14 @@ function pennyReactionAnother(reaction, areaId, el) {
   if (el) { el.disabled = true; el.style.opacity = '.5'; }
   const aid = area.id;
   const scenes = {
-    loved:    { action: "Penny's face lights up.", line: "Oh wonderful! Let's find you something else then.", bridge: "You already know how this works, so I'll let you lead. Same three options as before — though don't feel like you have to pick the same one twice.", nudge: "The catalog has been particularly interesting lately, just saying." },
-    good:     { action: "Penny claps her hands together.", line: "Wonderful! Let's find you something else then.", bridge: "You already know how this works, so I'll let you lead. Same three options as before — though don't feel like you have to pick the same one twice.", nudge: "The catalog has been particularly interesting lately, just saying." },
-    notforme: { action: "Penny straightens up, newly determined.", line: "Right then. Let's try this again. I have a feeling about you — I just needed a little more information.", bridge: "Same three options, but I promise I'm approaching this differently this time.", nudge: null }
+    loved:    { action: "Penny's face lights up.", line: "Oh wonderful! Let's find you something else then.", bridge: "You already know how this works, so I'll let you lead. Same options as before, shelves included — though don't feel like you have to pick the same one twice.", nudge: "The catalog has been particularly interesting lately, just saying." },
+    good:     { action: "Penny claps her hands together.", line: "Wonderful! Let's find you something else then.", bridge: "You already know how this works, so I'll let you lead. Same options as before, shelves included — though don't feel like you have to pick the same one twice.", nudge: "The catalog has been particularly interesting lately, just saying." },
+    notforme: { action: "Penny straightens up, newly determined.", line: "Right then. Let's try this again. I have a feeling about you — I just needed a little more information.", bridge: "Same options as before, but I promise I'm approaching this differently this time.", nudge: null }
   };
   const s = scenes[reaction] || scenes.good;
   // Someone whose last book came from the chat has never heard the three ways
   const bridge = (area._pennyState || {}).knowsWays ? s.bridge
-    : "There are three ways we can do this — I can just give you one, let the catalog decide, or ask you a few questions first.";
+    : "I can just give you one, let the catalog decide, or ask you a few questions first. Or you can browse the shelves yourself.";
   setTimeout(() => {
     area.innerHTML = `
       <div class="penny-storybook">
@@ -12807,7 +12807,7 @@ function pennyChatToBook(areaId, el) {
       <div class="penny-storybook">
         <div class="penny-storybook-inner">
           <span class="penny-action">Penny straightens up, delighted.</span>
-          <p class="penny-speech">I was hoping you'd ask. Same three ways as always — how shall we do it?</p>
+          <p class="penny-speech">I was hoping you'd ask. Same as always — I can pick, the catalog can pick, I can quiz you, or you can browse. How shall we do it?</p>
         </div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
@@ -12867,10 +12867,10 @@ function _pennyShowOptions(area) {
         <p class="penny-speech">Now. I have a few ways we can do this.</p>
         <p class="penny-speech">One — I'll give you one from my personal recommendations. No questions, no hints — I know these books like old friends, and I have a feeling one of them has been waiting for you.</p>
         <p class="penny-speech">Two — let fate decide. The card catalog has never steered me wrong. Not once.</p>
-        <p class="penny-speech">Or three — you answer a few questions for me first. I like to know who I'm recommending to. It makes all the difference, I promise.</p>
-        <span class="penny-action">She tries, not very hard, to look neutral.</span>
+        <p class="penny-speech">Three — you answer a few questions for me first. I like to know who I'm recommending to. It makes all the difference, I promise.</p>
+        <p class="penny-speech">Or four — if you'd rather find it yourself, the shelves are open. Wander as long as you like.</p>
+        <span class="penny-action" style="margin-top:.4rem;">She tries, not very hard, to look neutral.</span>
         <p class="penny-speech">Any of them will work. I won't tell you which one I'd pick. But I will say — I wrote the quiz myself.</p>
-        <p class="penny-speech">Oh — and if you'd rather just wander, the shelves are open. Take your time.</p>
       </div>
     </div>
     <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
@@ -12983,6 +12983,8 @@ function _pennyBranchBrowse(area) {
       <div class="penny-storybook-inner">
         <span class="penny-action">Penny gestures toward the shelves behind her desk.</span>
         <p class="penny-speech">Of course. Everything the club didn't pick lives back here${hasBrought ? ', plus anything members have brought me since' : ''}. Fiction's shelved by author, the rest by subject. Take your time — just put things back where you found them.</p>
+        <span class="penny-action" style="margin-top:.4rem;">She settles back behind her desk.</span>
+        <p class="penny-speech">And if you need any help, just come find me. I'll be right here.</p>
       </div>
     </div>
     <div class="pshelf" id="${aid}-pshelf">
@@ -13146,16 +13148,31 @@ function _pshelfTake(area) {
   pennyAccept(area.id);
 }
 
+// What Penny says when you walk back to her desk from the shelves without a book
+const PENNY_SHELF_RETURNS = [
+  { action: "Penny looks up from her desk as you come back around the end of the shelves, and sets her pencil down.",
+    line: "Nothing jumped out? That's alright. The shelves will keep.",
+    offer: "Would you like a little help? I can pick one for you, let the catalog decide, or ask you a few questions. Or go back for another look — I won't mind." },
+  { action: "Penny glances up and smiles, as if she half expected you.",
+    line: "Back already? Sometimes browsing just tells you what you're not in the mood for. That's useful too.",
+    offer: "If you'd like, I can take it from here. I can choose one for you, the catalog can, or I can ask you a few questions first." },
+  { action: "Penny closes the book she was reading, keeping one finger in her page.",
+    line: "Too many choices? It happens to me too, and I work here.",
+    offer: "Let's narrow it down together. I can pick, the catalog can pick, or I can ask you a few questions. The shelves aren't going anywhere if you'd rather keep looking." }
+];
+
 window.pennyShelfLeave = function(areaId, el) {
   const area = document.getElementById(areaId);
   if (!area) return;
   if (el) { el.disabled = true; el.style.opacity = '.5'; }
   const aid = area.id;
+  const back = PENNY_SHELF_RETURNS[Math.floor(Math.random() * PENNY_SHELF_RETURNS.length)];
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
-        <span class="penny-action">Penny looks up from her desk.</span>
-        <p class="penny-speech">Nothing jumped out? That's alright. The shelves will keep.</p>
+        <span class="penny-action">${back.action}</span>
+        <p class="penny-speech">${back.line}</p>
+        <p class="penny-speech">${back.offer}</p>
       </div>
     </div>
     <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
