@@ -11442,6 +11442,7 @@ const PENNY_OPTIONS = [
 
 let _pennyRendering = false;
 let _pennyCountedThisSession = false; // prevents visit count incrementing more than once per session
+let _pennyMetKey = null; // member key Penny has already greeted this session, so she never re-introduces herself
 async function renderPennyTab() {
   const area = document.getElementById('penny-interaction-area');
   if (!area) return;
@@ -11573,14 +11574,19 @@ async function renderPennyTabInto(area) {
       } else {
         newCount = prev.visitCount || 1;
       }
-      isFirstVisit = (newCount === 1);
+      // She's met you if you've been greeted this session, or if she holds any memory of you
+      // (books, history, ways tried, plants, chat) — the visit count alone can lag behind.
+      const hadHistory = !!(prev.lastRec || prev.usedTrust || prev.usedCatalog || prev.usedQuiz
+        || prev.usedBrowse || prev.usedChat || prev.knowsPlants || prev.acceptedRec || prev.declinedRec
+        || (Array.isArray(prev.card) && prev.card.length) || (Array.isArray(prev.cardHistory) && prev.cardHistory.length));
+      isFirstVisit = (newCount === 1) && _pennyMetKey !== memberKey && !hadHistory;
       memberName = _profileIdentity.discord || _profileIdentity.email || '';
       lastRec = prev.lastRec || null;
       lastRecAsked = prev.lastRecAsked || false;
       lastRecNotYet = prev.lastRecNotYet || false;
       ({ card, history: cardHistory } = _pennyCardFromRecord(prev));
       knowsPlants = !!prev.knowsPlants;
-      knowsWays = !!(prev.usedTrust || prev.usedCatalog || prev.usedQuiz);
+      knowsWays = !!(prev.usedTrust || prev.usedCatalog || prev.usedQuiz || prev.usedBrowse);
       Object.keys(prev).forEach(k => { if (k.startsWith('plant_') && prev[k]) plantsHeard[k.slice(6)] = true; });
     } catch(e) { /* degrade gracefully */ }
   }
@@ -11629,7 +11635,10 @@ function pennyAdvance(stage, areaId) {
     if (aid === 'penny-interaction-area') { const rec = document.getElementById('penny-record'); if (rec) rec.hidden = false; }
     const scenario = PENNY_SCENARIOS[Math.floor(Math.random() * PENNY_SCENARIOS.length)];
     area._pennyScenario = scenario;
-    const isFirstVisit = (area._pennyState || {}).isFirstVisit !== false;
+    const st = area._pennyState || (area._pennyState = {});
+    const metAlready = _pennyMetKey !== null && _pennyMetKey === _pennyMetId();
+    if (metAlready) { st.isFirstVisit = false; st.sameSession = true; }
+    const isFirstVisit = st.isFirstVisit !== false;
     const nextStage = isFirstVisit ? 'greeting' : 'return-greeting';
     const enterText  = isFirstVisit ? scenario.entering : scenario.returnEntering;
     const enterPrompt = isFirstVisit ? scenario.prompt : scenario.returnPrompt;
@@ -11646,6 +11655,7 @@ function pennyAdvance(stage, areaId) {
       </div>
     `;
   } else if (stage === 'greeting') {
+    _pennyMetKey = _pennyMetId();
     const scenario = area._pennyScenario || PENNY_SCENARIOS[0];
     area.innerHTML = `
       <div class="penny-storybook">
@@ -11664,11 +11674,14 @@ function pennyAdvance(stage, areaId) {
       </div>
     `;
   } else if (stage === 'return-greeting') {
+    _pennyMetKey = _pennyMetId();
     _pennyShowReturnGreeting(area, (area._pennyState || {}).memberName || '');
   } else if (stage === 'options') {
     _pennyShowOptions(area);
   }
 }
+
+function _pennyMetId() { return (_profileIdentity && _profileIdentity.key) || '__anon__'; }
 
 function _pennyShowReturnGreeting(area, memberName) {
   // Reuse the scene chosen at the door so the greeting matches what you walked in on
@@ -11691,8 +11704,17 @@ function _pennyShowReturnGreeting(area, memberName) {
       `I thought I heard the door. Come in.`,
       `Oh, it's you. Good timing, actually.`
     ];
-    const openLine = followUpLines[Math.floor(Math.random() * followUpLines.length)];
-    const askLine = book.notYet
+    const soonLines = [
+      `Back already? Did you forget something?`,
+      `Oh — hello again. That was quick.`,
+      `You're back! I'd barely sat down.`
+    ];
+    const openLine = state.sameSession
+      ? soonLines[Math.floor(Math.random() * soonLines.length)]
+      : followUpLines[Math.floor(Math.random() * followUpLines.length)];
+    const askLine = state.sameSession
+      ? `Don't tell me you've already finished <em>${esc(recTitle)}</em>. That would be very impressive.`
+      : book.notYet
       ? `Any progress on <em>${esc(recTitle)}</em>? No pressure. I'm just curious.`
       : `I've been meaning to ask — did you get a chance to read <em>${esc(recTitle)}</em>?`;
 
@@ -11723,7 +11745,13 @@ function _pennyShowReturnGreeting(area, memberName) {
     `I was just thinking about you, actually. Well — thinking about a book. But you're here now.`,
     `Come in. I was hoping someone would stop by.`
   ];
-  const returnLine = returnLines[Math.floor(Math.random() * returnLines.length)];
+  const soonReturn = [
+    `Back already? I don't mind. Come in.`,
+    `Oh — hello again. Couldn't stay away?`
+  ];
+  const returnLine = state.sameSession
+    ? soonReturn[Math.floor(Math.random() * soonReturn.length)]
+    : returnLines[Math.floor(Math.random() * returnLines.length)];
 
   area.innerHTML = `
     <div class="penny-storybook">
@@ -12881,7 +12909,7 @@ function pennySelectOption(optionId, areaId, el) {
     const flag = flagMap[optionId];
     if (flag) fbSet(PENNY_REF, { [_psoKey]: { [flag]: true, [flag+'_ts']: Date.now() } }).catch(()=>{});
   }
-  if (area._pennyState && optionId !== 'browse') area._pennyState.knowsWays = true;
+  if (area._pennyState) area._pennyState.knowsWays = true;
   setTimeout(() => {
     if (optionId === 'browse') _pennyBranchBrowse(area);
     else if (optionId === 'trust') _pennyBranchTrust(area);
@@ -14242,61 +14270,6 @@ function _pennyActiveKey(areaEl) {
   return _profileIdentity && _profileIdentity.key ? _profileIdentity.key : null;
 }
 
-async function loadAdminPennyPreview() {
-  const area = document.getElementById('admin-penny-preview-area');
-  if (!area) return;
-
-  // Swap to dummy identity so all Penny writes go to __admin_preview__ in Firestore
-  // and never touch any real member's record.
-  const _savedIdentity = _profileIdentity;
-  const _savedPgIdentity = _pgIdentity;
-  const _savedBgIdentity = _bgIdentity;
-  _profileIdentity = _PENNY_PREVIEW_IDENTITY;
-  // _pennyCountedThisSession tracks per-session dedup — reset it so each
-  // preview load counts as a fresh visit for the dummy (matching real member behaviour).
-  _pennyCountedThisSession = false;
-
-  area.innerHTML = `
-    <div id="admin-penny-preview-inner" style="background:#1a1208;">
-      <div id="penny-interaction-area-preview" class="penny-loading">
-        <p style="font-family:'Playfair Display',serif;font-style:italic;color:rgba(240,180,41,.5);font-size:14px;">Penny is just finishing something…</p>
-      </div>
-    </div>
-  `;
-
-  await renderPennyTabInto(document.getElementById('penny-interaction-area-preview'));
-
-  // Restore real identity after render — Penny's ongoing interaction functions
-  // read _profileIdentity at call time, so they'll continue using the dummy
-  // for the lifetime of this preview session (area stays mounted).
-  // We only restore for the outer app context.
-  _profileIdentity = _savedIdentity;
-  _pgIdentity      = _savedPgIdentity;
-  _bgIdentity      = _savedBgIdentity;
-}
-window._pennyPreviewActive = () => !!document.getElementById('penny-interaction-area-preview');
-window.loadAdminPennyPreview = loadAdminPennyPreview;
-
-async function adminResetPennyVisit() {
-  const msg = document.getElementById('penny-reset-msg');
-  // If the preview area is mounted, reset the dummy — otherwise reset the real identity
-  const previewActive = !!document.getElementById('penny-interaction-area-preview');
-  const keyToReset = previewActive ? '__admin_preview__' : (_profileIdentity && _profileIdentity.key);
-  if (!keyToReset) {
-    if (msg) msg.textContent = 'No identity loaded — visit the main site as yourself first.';
-    return;
-  }
-  try {
-    await fbSet(PENNY_REF, { [keyToReset]: { visitCount: 0, lastVisit: null, knowsPlants: false, lastRecNotYet: false } });
-    _pennyCountedThisSession = false;
-    if (msg) { msg.textContent = previewActive ? 'Preview reset. Click Load Preview to restart.' : 'Visit history reset. Reload the preview to see first-visit flow.'; }
-    _pennyRendering = false;
-  } catch(e) {
-    if (msg) msg.textContent = 'Error resetting: ' + e.message;
-  }
-}
-window.adminResetPennyVisit = adminResetPennyVisit;
-
 function adminPopulatePennyMemberDropdown() {
   const sel = document.getElementById('penny-member-select');
   if (!sel) return;
@@ -14411,6 +14384,9 @@ async function adminResetMemberPenny() {
     cfg.badgeResets[memberKey] = Object.assign({}, cfg.badgeResets[memberKey] || {}, Object.fromEntries(PENNY_BADGE_IDS.map(id => [id, now])));
     await fbSetFull(BADGE_CONFIG_REF, cfg);
     if (typeof _badgeEarnerCounts !== 'undefined') _badgeEarnerCounts = null;
+    // If you reset yourself, let Penny forget you in this open tab too
+    if (_pennyMetKey === memberKey) _pennyMetKey = null;
+    if (_profileIdentity && _profileIdentity.key === memberKey) _pennyCountedThisSession = false;
     area.innerHTML = `<p style="color:var(--gold);">✓ ${esc(memberName)}'s Penny history has been cleared. Their next visit will be treated as a first visit.</p>`;
   } catch(e) {
     area.innerHTML = `<span style="color:#c55;">Error resetting: ${esc(e.message)}</span>`;
