@@ -11600,7 +11600,7 @@ async function renderPennyTabInto(area) {
 
 function _pennyShowDoor(area) {
   if (area) area._pennyInChat = false; // a new visit starts outside the chat
-  if (area) { area._pennyPendingRec = null; area._pennyFollowBook = null; area._pennyFromShelf = false; area._pennyShelfOwn = false; area._pennyAlreadyOut = false; }
+  if (area) { area._pennyPendingRec = null; area._pennyFollowBook = null; area._pennyFromShelf = false; area._pennyShelfOwn = false; area._pennyAlreadyOut = false; area._pennyChatUsed = {}; area._pennyChatBook = null; }
   // Outside the door: no record player, and any music stops
   if (area && area.id === 'penny-interaction-area') {
     if (typeof pennyRecordStop === 'function') pennyRecordStop();
@@ -12660,13 +12660,13 @@ function _pennyChatReading(area) {
   const lead = repeat
       ? `Still <em>${esc(book.title)}</em>. I'm a slow reader when it's a good one.`
       : askedBefore
-      ? `That, and <em>${esc(book.title)}</em>. I always have more than one on the go.`
+      ? `Besides the one I just told you about? <em>${esc(book.title)}</em>. I always have more than one on the go.`
       : PENNY_CHAT_READING_LEADS[Math.floor(Math.random() * PENNY_CHAT_READING_LEADS.length)](esc(book.title));
   const note = pennyNoteFor(book.title);
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
-        <span class="penny-action">${askedBefore ? 'She reaches past her teacup for another book.' : "She holds up the book that's been sitting by her teacup."}</span>
+        <span class="penny-action">${askedBefore ? 'She reaches past her teacup for a second book.' : "She holds up the book that's been sitting by her teacup."}</span>
         <p class="penny-speech">${lead}</p>
         ${note ? `<p class="penny-speech">${esc(note)}</p>` : `<p class="penny-speech">It's one of the club's. I like it more every time I open it.</p>`}
       </div>
