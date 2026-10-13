@@ -8101,6 +8101,8 @@ const BADGE_DEFS = [
   { id:'penny-plant-all',   name:'Seven Characters in Search of Water', emoji:'🌱', tier:null, category:'penny', organic:true, desc:'Penny has told you about every one of her seven plants', check:p=>['dorothea','miranda','jane','horatio','scheherazade','circe','may'].every(k => !!p.pennyRecord['plant_' + k]) },
   { id:'penny-chat',        name:'Pull Up a Chair',      emoji:'🪑',  tier:null, category:'penny', organic:true, desc:'Stay and chat with Penny',                                  check:p=>!!p.pennyRecord.usedChat },
   { id:'penny-returned',    name:'Back Again',           emoji:'🔁',  tier:null, category:'penny', organic:true, desc:'Return to Penny for another visit',                         check:p=>( p.pennyRecord.visitCount||0)>=2 },
+  { id:'penny-brought',     name:'A Penny for Your Thoughts', emoji:'💌', tier:null, category:'penny', organic:true, desc:'Tell Penny about a book',                                   check:p=>!!p.pennyBroughtTs },
+  { id:'penny-road',        name:'The Road Less Traveled', emoji:'🛤️', tier:null, category:'penny', organic:true, desc:'A book you told Penny about made it onto a club ballot and won', check:p=>!!p.pennyRoadTs },
 
   // ── Quarterly Activity — Bingo (tiered families) ──────────────────────────
   { id:'q-first-touch',     name:'First Touch',          emoji:'⚽',  tier:'bronze', category:'quarterly', desc:'Earn your first bingo row on an approved card',                                    check:p=>p.qBingoMaxRows>=1 },
@@ -8903,6 +8905,9 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
       const pm = (typeof CACHE !== 'undefined' && CACHE.pennyMembers) ? CACHE.pennyMembers : {};
       return pm[myKey] || {};
     },
+    // Books this member told Penny about (badges: A Penny for Your Thoughts / The Road Less Traveled)
+    get pennyBroughtTs() { return _pennyBroughtTs(myKey, this.pennyRecord); },
+    get pennyRoadTs()    { return _pennyRoadWinTs(myKey, this.pennyRecord); },
   };
 }
 
@@ -9641,7 +9646,8 @@ function _buildBadgeFeedEvents() {
   const overrides  = cfg.overrides || {};
 
   // Only organic (non-adminOnly, non-custom) badges can be derived from archive replay
-  const organicBadges = allBadges.filter(b => !b.adminOnly && !b.custom && !b.monthlyBook);
+  // Penny badges are logged from her records below (section 4), with their real dates
+  const organicBadges = allBadges.filter(b => !b.adminOnly && !b.custom && !b.monthlyBook && b.category !== 'penny');
 
   // ── 1. Admin-granted badges with timestamps ──────────────────────────────
   Object.entries(overrides).forEach(([memberKey, memberOvs]) => {
@@ -9760,6 +9766,8 @@ function _buildBadgeFeedEvents() {
     { id:'penny-plant-scheherazade', name:'A Thousand and One Pearls', emoji:'📿', tsKey:'plant_scheherazade', check: r => !!r.plant_scheherazade },
     { id:'penny-plant-circe', name:'Exactly Where She Wants to Be', emoji:'🌺', tsKey:'plant_circe', check: r => !!r.plant_circe },
     { id:'penny-plant-may', name:'Tart and Honest', emoji:'🍊', tsKey:'plant_may', check: r => !!r.plant_may },
+    { id:'penny-brought', name:'A Penny for Your Thoughts', emoji:'💌', tsFn: (r, k) => _pennyBroughtTs(k, r), check: (r, k) => !!_pennyBroughtTs(k, r) },
+    { id:'penny-road', name:'The Road Less Traveled', emoji:'🛤️', tsFn: (r, k) => _pennyRoadWinTs(k, r), check: (r, k) => !!_pennyRoadWinTs(k, r) },
   ];
   const pennyMembers = CACHE.pennyMembers || {};
   Object.entries(pennyMembers).forEach(([memberKey, record]) => {
@@ -9767,10 +9775,10 @@ function _buildBadgeFeedEvents() {
     const entry = idMap.get(memberKey);
     const memberName = (entry || {}).displayName || memberKey;
     pennyBadgeDefs.forEach(pb => {
-      if (!pb.check(record)) return;
+      if (!pb.check(record, memberKey)) return;
       const ov = overrides[memberKey]?.[pb.id];
       if (ov === false) return;
-      const at = record[pb.tsKey] || record.lastVisit || null;
+      const at = (pb.tsFn ? pb.tsFn(record, memberKey) : record[pb.tsKey]) || record.lastVisit || null;
       if (!at) return;
       events.push({
         at, member: memberName,
@@ -11293,7 +11301,60 @@ function clearIdentityCookie() {
 function _badgeSeenKey(memberKey) { return 'dbc_badges_seen_' + memberKey; }
 function _pennyBadgeResetKey(memberKey) { return 'dbc_badges_penny_reset_' + memberKey; }
 
-const PENNY_BADGE_IDS = ['penny-met','penny-trust','penny-catalog','penny-quiz','penny-accepted','penny-declined','penny-returned','penny-chat','penny-plant-dorothea','penny-plant-miranda','penny-plant-jane','penny-plant-horatio','penny-plant-scheherazade','penny-plant-circe','penny-plant-may','penny-plant-all'];
+const PENNY_BADGE_IDS = ['penny-met','penny-trust','penny-catalog','penny-quiz','penny-accepted','penny-declined','penny-returned','penny-chat','penny-plant-dorothea','penny-plant-miranda','penny-plant-jane','penny-plant-horatio','penny-plant-scheherazade','penny-plant-circe','penny-plant-may','penny-plant-all','penny-brought','penny-road'];
+
+// ── Badges for books members tell Penny about ─────────────────────────────
+// Only books told to her after any Penny reset count, like her other badges.
+function _pennyMineBrought(key, rec) {
+  if (!key) return [];
+  const reset = (rec || {}).badgeResetTs || 0;
+  return (CACHE.pennyBrought || []).filter(b => b && (b.submittedAt || 0) > reset &&
+    (b.suggesters || []).some(sg => pgKey(sg.email || '', sg.discord || '') === key));
+}
+// A Penny for Your Thoughts: when they first told her about a book (0 = not yet).
+// The flag on their record keeps it even if the admin later declines the book.
+function _pennyBroughtTs(key, rec) {
+  rec = rec || {};
+  const ts = [];
+  if (rec.broughtBook) ts.push(rec.broughtBook_ts || 1);
+  _pennyMineBrought(key, rec).forEach(b => ts.push(b.submittedAt || 1));
+  return ts.length ? Math.min(...ts) : 0;
+}
+// Winner ids for one archived month (same rule as the rest of Penny: explicit winner, else top Borda)
+function _pennyArchiveWinnerIds(a) {
+  let ids = a.dualWinners ? a.dualWinners.map(String) : (a.winner ? [String(a.winner)] : []);
+  if (!ids.length && a.votes && a.books && a.books.length) {
+    const nb = a.books.length, sc = {};
+    a.books.forEach(b => { sc[String(b.id)] = 0; });
+    Object.values(a.votes).forEach(vd => {
+      const r = vd.ranking || vd;
+      if (Array.isArray(r)) r.forEach((id, idx) => { if (sc[String(id)] !== undefined) sc[String(id)] += (nb - idx); });
+    });
+    const top = Object.entries(sc).sort((x, y) => y[1] - x[1]);
+    if (top.length) ids = [top[0][0]];
+  }
+  return ids;
+}
+// The Road Less Traveled: a book they told Penny about later won a club vote (0 = not yet).
+// Member-pick and bonus months don't count, since there was no vote.
+function _pennyRoadWinTs(key, rec) {
+  const mine = _pennyMineBrought(key, rec);
+  if (!mine.length) return 0;
+  let best = 0;
+  getArchives().forEach(a => {
+    if (a.memberPick || a.bonusBook || !Object.keys(a.votes || {}).length) return;
+    const ids = _pennyArchiveWinnerIds(a);
+    const at = a.archivedAt || 0;
+    (a.books || []).forEach(b => {
+      if (!ids.includes(String(b.id))) return;
+      if (mine.some(m => _ptellSameBook(m.title, m.author, b.title, b.author) && (!at || at >= (m.submittedAt || 0)))) {
+        const t = at || 1;
+        if (!best || t < best) best = t;
+      }
+    });
+  });
+  return best;
+}
 
 // If admin has reset this member's Penny history since they last visited badges,
 // scrub penny badge IDs from their local seen-snapshot so they re-alert when re-earned.
@@ -13555,6 +13616,13 @@ async function _ptellSave(area) {
   st.busy = false;
   if (outcome === 'saved') {
     CACHE.pennyBrought = (CACHE.pennyBrought || []).concat([rec]);
+    const upd = { broughtBook: true, broughtBook_ts: rec.submittedAt };
+    const prevRec = (CACHE.pennyMembers || {})[me.key] || {};
+    if (!prevRec.broughtBook) {
+      fbSet(PENNY_REF, { [me.key]: upd }).catch(() => {});
+      if (CACHE.pennyMembers) CACHE.pennyMembers[me.key] = Object.assign({}, prevRec, upd);
+    }
+    if (typeof updateBadgeNavDot === 'function') updateBadgeNavDot();
     st.step = 'done';
   } else if (outcome === 'noted') {
     st.match = { kind: 'pending', title: st.title, author: st.author };
