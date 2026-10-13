@@ -9553,28 +9553,46 @@ function renderAdminBadgeManager() {
 }
 window.renderAdminBadgeManager = renderAdminBadgeManager;
 
+// One entry per person. Keyed the way their own data is keyed (normEmail(email) || normId(discord)),
+// but merged through the identity map so someone who sometimes left out their email, or used a
+// slightly different discord spelling, doesn't show up twice.
+function _memberIdentityEntry(discord, email, idMap) {
+  const nd = normId(discord), ne = normEmail(email);
+  if (ne) for (const [, e] of idMap) if (e.email && normEmail(e.email) === ne) return e;
+  for (const [, e] of idMap) if (e.normIds.has(nd)) return e;
+  if (nd.length >= 4) for (const [, e] of idMap) for (const al of e.normIds) if (al.length >= 4 && levenshtein(nd, al, 2) <= 2) return e;
+  return null;
+}
+function _memberKeyFor(entry, discord, email) {
+  const fallback = normEmail(email) || normId(discord);
+  if (!entry) return fallback;
+  const ne = normEmail(entry.email || '');
+  // If their records already live under one of their ids, use that one
+  const pm = CACHE.pennyMembers || {};
+  const cands = [ne, ...entry.normIds].filter(Boolean);
+  const withData = cands.find(k => pm[k]);
+  return withData || ne || entry.canonId || fallback;
+}
 function buildAllMembersMap() {
   const archives   = getArchives();
   const allReviews = getReviews();
   const idMap      = buildIdentityMap();
   const members    = new Map();
+  const add = (discord, email) => {
+    if (!discord && !email) return;
+    const entry = _memberIdentityEntry(discord, email, idMap);
+    const key = _memberKeyFor(entry, discord, email);
+    const name = entry ? entry.displayName : resolveId(discord, email, idMap);
+    const em = (entry && entry.email) || email || '';
+    const cur = members.get(key);
+    if (!cur) members.set(key, { name, discord: (entry && entry.displayName) || discord, email: em, key });
+    else if (!cur.email && em) cur.email = em;
+  };
   archives.forEach(a => {
-    Object.values(a.votes||{}).forEach(vd => {
-      const name = resolveId(vd.discord,vd.email,idMap);
-      const key  = normEmail(vd.email)||normId(vd.discord);
-      if (!members.has(key)) members.set(key,{name,discord:vd.discord,email:vd.email,key});
-    });
-    (a.books||[]).map(normBook).forEach(b=>b.suggesters.forEach(s=>{
-      const name = resolveId(s.discord,s.email,idMap);
-      const key  = normEmail(s.email)||normId(s.discord);
-      if (!members.has(key)) members.set(key,{name,discord:s.discord,email:s.email,key});
-    }));
+    Object.values(a.votes||{}).forEach(vd => add(vd.discord, vd.email));
+    (a.books||[]).map(normBook).forEach(b=>b.suggesters.forEach(s => add(s.discord, s.email)));
   });
-  Object.values(allReviews).forEach(entries=>(entries||[]).forEach(r=>{
-    const name = resolveId(r.discord,r.email,idMap);
-    const key  = normEmail(r.email)||normId(r.discord);
-    if (!members.has(key)) members.set(key,{name,discord:r.discord,email:r.email,key});
-  }));
+  Object.values(allReviews).forEach(entries=>(entries||[]).forEach(r => add(r.discord, r.email)));
   return members;
 }
 
