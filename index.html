@@ -11841,9 +11841,7 @@ function pennyAdvance(stage, areaId) {
       </div>
       <div style="text-align:center;padding:.5rem 1.5rem 1.5rem;">
         <p class="penny-door-prompt" style="margin-bottom:1.2rem;"><em>What do you say?</em></p>
-        <button class="penny-action-btn" onclick="pennyAdvance('options','${aid}')">"I'm here to find a book. I need something new to read."</button>
-        <button class="penny-action-btn" style="margin-top:.5rem;" onclick="pennyChatStart('${aid}',this)">"I just came to talk."</button>
-        ${_pennyMusicAsideBtn(aid, 'hello', 'margin-top:.5rem;')}
+        <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;">${_pennyTwoDoors(aid, 'hello')}</div>
       </div>
     `;
   } else if (stage === 'return-greeting') {
@@ -11905,8 +11903,8 @@ function _pennyShowReturnGreeting(area, memberName) {
         <button class="penny-action-btn" onclick="pennyFollowUp('finished','${aid}',this)">"Yes, I finished it!"</button>
         <button class="penny-action-btn" onclick="pennyFollowUp('notyet','${aid}',this)">"Not yet..."</button>
         ${card.length > 1 ? `<button class="penny-action-btn" onclick="pennyCardOther('${aid}',this)">"Actually, I finished a different one…"</button>` : ''}
-        <button class="penny-action-btn" onclick="pennyChatStart('${aid}',this)">"Can we talk about something else first?"</button>
-        <button class="penny-action-btn" onclick="pennySelectOption('browse','${aid}',this)">"Mind if I just admire your collection?"</button>
+        <button class="penny-action-btn" onclick="pennySomethingElse('${aid}',this)">"Something else first."</button>
+        ${_pennyMusicAsideBtn(aid, 'welcomeback')}
       </div>
     `;
     return;
@@ -11931,22 +11929,12 @@ function _pennyShowReturnGreeting(area, memberName) {
       <div class="penny-storybook-inner">
         <span class="penny-action">${scenario.return}</span>
         <p class="penny-speech">${returnLine}</p>
-        <p class="penny-speech">${state.knowsWays
-          ? 'Another recommendation? Same as before — I can just give you one, let the catalog decide, or ask you a few questions first. Or you can browse the shelves yourself.'
-          : 'Here for a recommendation this time? I can just give you one, let the catalog decide, or ask you a few questions first. Or, if you\'d rather, you can browse the shelves yourself.'}</p>
-        <span class="penny-action" style="margin-top:.4rem;">She gives a small conspiratorial smile.</span>
-        <p class="penny-speech">The quiz is... well. It's ${state.knowsWays ? 'still ' : ''}my favorite. Just putting that out there.</p>
+        <p class="penny-speech">${PENNY_WHAT_BRINGS[Math.floor(Math.random() * PENNY_WHAT_BRINGS.length)]}</p>
       </div>
     </div>
     <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
       <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
-      <button class="penny-action-btn" onclick="pennySelectOption('trust','${aid}',this)">"I trust you, Penny."</button>
-      <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
-      <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
-      <button class="penny-action-btn" onclick="pennySelectOption('browse','${aid}',this)">"I'd just like to browse."</button>
-      ${_pennyTellBtn(aid)}
-      <button class="penny-action-btn" onclick="pennyChatStart('${aid}',this)">"I just came to talk."</button>
-      ${_pennyMusicAsideBtn(aid, 'welcomeback')}
+      ${_pennyTwoDoors(aid, 'welcomeback')}
     </div>
   `;
 }
@@ -12054,8 +12042,7 @@ function pennyNotYetBranch(choice, areaId, el) {
           <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
           <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
           <button class="penny-action-btn" onclick="pennySelectOption('browse','${aid}',this)">"I'd just like to browse."</button>
-          ${_pennyTellBtn(aid)}
-          <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually — can we just talk for a bit?"</button>
+          <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually, let's just chat."</button>
         </div>
       `;
     }
@@ -12148,8 +12135,7 @@ function pennyReactionAnother(reaction, areaId, el) {
         <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
         <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
         <button class="penny-action-btn" onclick="pennySelectOption('browse','${aid}',this)">"I'd just like to browse."</button>
-        ${_pennyTellBtn(aid)}
-        <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually — can we just talk for a bit?"</button>
+        <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually, let's just chat."</button>
       </div>
     `;
   }, 300);
@@ -12627,7 +12613,7 @@ function _pennyChatButtons(area, extra) {
       <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
       ${extra || ''}
       ${Object.entries(PENNY_CHAT_TOPICS).map(([id, t]) => `<button class="penny-action-btn" ${id === 'music' ? 'data-penny-music="1" ' : ''}onclick="pennyChatTopic('${id}','${aid}',this)">${id === 'music' ? _pennyMusicLabel() : ((t.firstLabel && !(area._pennyState || {}).knowsPlants) ? t.firstLabel : t.label)}</button>`).join('')}
-      <button class="penny-action-btn" onclick="pennyChatToBook('${aid}',this)">"Actually — could you find me a book?"</button>
+      <button class="penny-action-btn" onclick="pennyTalkBooks('${aid}',this)">"Can we talk books?"</button>
       <button class="penny-action-btn" onclick="pennyChatLeave('${aid}',this)">"I should get going."</button>
     </div>`;
 }
@@ -12984,20 +12970,22 @@ function pennyBackOut(areaId, el) {
 }
 window.pennyBackOut = pennyBackOut;
 
+// "I'd love a recommendation." from the books screen. Anyone who hasn't used the
+// four ways yet gets her full explanation; everyone else gets the short version.
 function pennyChatToBook(areaId, el) {
   const area = document.getElementById(areaId);
   if (!area) return;
   if (el) { el.disabled = true; el.style.opacity = '.5'; }
   const knows = !!(area._pennyState || {}).knowsWays;
   setTimeout(() => {
-    // Anyone who hasn't used the three ways yet gets the full pitch
     if (!knows) { _pennyShowOptions(area); return; }
     const aid = area.id;
+    const w = PENNY_FOUR_WAYS_SHORT[Math.floor(Math.random() * PENNY_FOUR_WAYS_SHORT.length)];
     area.innerHTML = `
       <div class="penny-storybook">
         <div class="penny-storybook-inner">
-          <span class="penny-action">Penny straightens up, delighted.</span>
-          <p class="penny-speech">I was hoping you'd ask. Same as always — I can pick, the catalog can pick, I can quiz you, or you can browse. How shall we do it?</p>
+          <span class="penny-action">${w.action}</span>
+          <p class="penny-speech">${w.line}</p>
         </div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
@@ -13006,12 +12994,117 @@ function pennyChatToBook(areaId, el) {
         <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
         <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
         <button class="penny-action-btn" onclick="pennySelectOption('browse','${aid}',this)">"I'd just like to browse."</button>
-        ${_pennyTellBtn(aid)}
-        <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually — can we just talk for a bit?"</button>
+        <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually, let's just chat."</button>
       </div>`;
   }, 300);
 }
 window.pennyChatToBook = pennyChatToBook;
+
+// ══════════════════════════════════════════════════════
+// TWO DOORS + THE BOOKS SCREEN
+// Opening screens offer "Can we talk books?" / "I just came to visit."
+// The books screen asks: a recommendation, or something else?
+// ══════════════════════════════════════════════════════
+const PENNY_WHAT_BRINGS = [
+  "What brings you in today?",
+  "What can I do for you?",
+  "So. What are we doing today?"
+];
+function _pennyTwoDoors(aid, musicCtx) {
+  return `<button class="penny-action-btn" onclick="pennyTalkBooks('${aid}',this)">"Can we talk books?"</button>
+      <button class="penny-action-btn" onclick="pennyChatStart('${aid}',this)">"I just came to visit."</button>
+      ${musicCtx ? _pennyMusicAsideBtn(aid, musicCtx) : ''}`;
+}
+
+// Mixed and matched so it doesn't sound the same every visit
+const PENNY_BOOKS_LEADS = [
+  { action: "Penny's whole face lights up.", line: "Books? Oh, I love talking about books. Don't tell the plants, but they're my favorite subject." },
+  { action: "She sets down her pen.", line: "Books! Now you're speaking my language." },
+  { action: "Penny leans forward on the desk.", line: "Oh, books are my very favorite thing to talk about. Well, after reading them." },
+  { action: "She tucks her pencil behind her ear.", line: "Books? You've come to the right place. I'd be a little worried if you hadn't." },
+  { action: "Penny brightens.", line: "Books! My favorite subject, and I'm not even a little bit biased." }
+];
+const PENNY_BOOKS_ASKS = [
+  "Are you looking for something new to read, or is it something else?",
+  "Are you here for a recommendation, or did you bring me something?",
+  "Are you hunting for something to read, or is it something else?"
+];
+const PENNY_FOUR_WAYS_SHORT = [
+  { action: "Penny straightens up, delighted.", line: "I was hoping you'd say that. Same as always — I can pick, the catalog can pick, I can quiz you, or you can browse. How shall we do it?" },
+  { action: "She rubs her hands together.", line: "Wonderful. You know the options — I pick, the catalog picks, I ask you a few questions, or you wander the shelves. What'll it be?" },
+  { action: "Penny pulls her chair a little closer.", line: "Then let's find you something. Me, the catalog, the quiz, or the shelves?" }
+];
+let _pennyBooksLastLead = -1;
+
+function _pennyBooksScreen(area, opts) {
+  opts = opts || {};
+  const aid = area.id;
+  let scene;
+  if (opts.fromLaptop) {
+    scene = `<span class="penny-action">Penny closes the laptop and slides it to the corner of her desk.</span>
+        <p class="penny-speech">Now. Anything else I can do for you? I could find you something to read while you're here.</p>`;
+  } else {
+    let li;
+    do { li = Math.floor(Math.random() * PENNY_BOOKS_LEADS.length); } while (PENNY_BOOKS_LEADS.length > 1 && li === _pennyBooksLastLead);
+    _pennyBooksLastLead = li;
+    const lead = PENNY_BOOKS_LEADS[li];
+    const ask = PENNY_BOOKS_ASKS[Math.floor(Math.random() * PENNY_BOOKS_ASKS.length)];
+    scene = `<span class="penny-action">${lead.action}</span>
+        <p class="penny-speech">${lead.line}</p>
+        <p class="penny-speech">${ask}</p>`;
+  }
+  area.innerHTML = `
+    <div class="penny-storybook">
+      <div class="penny-storybook-inner">
+        ${scene}
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+      <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
+      <button class="penny-action-btn" onclick="pennyChatToBook('${aid}',this)">"I'd love a recommendation."</button>
+      ${_pennyTellBtn(aid)}
+      <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually, let's just chat."</button>
+    </div>
+  `;
+}
+function pennyTalkBooks(areaId, el) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  if (el) { el.disabled = true; el.style.opacity = '.5'; }
+  setTimeout(() => _pennyBooksScreen(area), 300);
+}
+window.pennyTalkBooks = pennyTalkBooks;
+
+// "Something else first." on the "did you read it?" greeting. Her question keeps until next time.
+const PENNY_SOMETHING_ELSE = [
+  { action: "Penny waves a hand.", line: "Of course. It'll keep." },
+  { action: "She smiles and sets the question aside.", line: "No rush. You can tell me another time." },
+  { action: "Penny nods.", line: "Fair enough. I'll ask again later — consider yourself warned." }
+];
+function pennySomethingElse(areaId, el) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  if (el) { el.disabled = true; el.style.opacity = '.5'; }
+  const aid = area.id;
+  const r = PENNY_SOMETHING_ELSE[Math.floor(Math.random() * PENNY_SOMETHING_ELSE.length)];
+  const ask = PENNY_WHAT_BRINGS[Math.floor(Math.random() * PENNY_WHAT_BRINGS.length)];
+  setTimeout(() => {
+    area.innerHTML = `
+      <div class="penny-storybook">
+        <div class="penny-storybook-inner">
+          <span class="penny-action">${r.action}</span>
+          <p class="penny-speech">${r.line}</p>
+          <p class="penny-speech">${ask}</p>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+        <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
+        ${_pennyTwoDoors(aid, 'welcomeback')}
+      </div>
+    `;
+  }, 300);
+}
+window.pennySomethingElse = pennySomethingElse;
 
 function pennyChatLeave(areaId, el, mode) {
   const area = document.getElementById(areaId);
@@ -13060,6 +13153,7 @@ function _pennyShowOptions(area) {
         <p class="penny-speech">Two — let fate decide. The card catalog has never steered me wrong. Not once.</p>
         <p class="penny-speech">Three — you answer a few questions for me first. I like to know who I'm recommending to. It makes all the difference, I promise.</p>
         <p class="penny-speech">Or four — if you'd rather find it yourself, the shelves are open. Wander as long as you like.</p>
+        <p class="penny-speech">And if you ever come across a book I should know about, just tell me. That's how my shelves grow.</p>
         <span class="penny-action" style="margin-top:.4rem;">She tries, not very hard, to look neutral.</span>
         <p class="penny-speech">Any of them will work. I won't tell you which one I'd pick. But I will say — I wrote the quiz myself.</p>
       </div>
@@ -13070,8 +13164,7 @@ function _pennyShowOptions(area) {
       <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('browse','${aid}',this)">"I'd just like to browse."</button>
-      ${_pennyTellBtn(aid)}
-      <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually — can we just talk for a bit?"</button>
+      <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually, let's just chat."</button>
     </div>
   `;
 }
@@ -13486,27 +13579,10 @@ async function _ptellNote(area) {
   _ptellRender(area);
 }
 
-// Back to her desk: the usual ways, plus telling her about another book
+// Back to her desk: the books screen, so a recommendation is one click away
 function _ptellDesk(area) {
-  const aid = area.id;
   area._ptell = null;
-  area.innerHTML = `
-    <div class="penny-storybook">
-      <div class="penny-storybook-inner">
-        <span class="penny-action">Penny closes the laptop and slides it to the corner of her desk.</span>
-        <p class="penny-speech">Now. Is there anything else I can do for you? I could find you something to read while you're here.</p>
-      </div>
-    </div>
-    <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
-      <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
-      <button class="penny-action-btn" onclick="pennySelectOption('trust','${aid}',this)">"I trust you, Penny."</button>
-      <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
-      <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
-      <button class="penny-action-btn" onclick="pennySelectOption('browse','${aid}',this)">"I'd just like to browse."</button>
-      ${_pennyTellBtn(aid)}
-      <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually — can we just talk for a bit?"</button>
-    </div>
-  `;
+  _pennyBooksScreen(area, { fromLaptop: true });
 }
 
 // ══════════════════════════════════════════════════════
@@ -13992,8 +14068,7 @@ window.pennyShelfLeave = function(areaId, el) {
       <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('browse','${aid}',this)">"Let me look around a bit more."</button>
-      ${_pennyTellBtn(aid)}
-      <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually — can we just talk for a bit?"</button>
+      <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually, let's just chat."</button>
     </div>
   `;
 };
@@ -14661,8 +14736,7 @@ function pennyDecline(areaId, fromBranch) {
       <button class="penny-action-btn" onclick="pennySelectOption('catalog','${aid}',this)">"The card catalog."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('quiz','${aid}',this)">"Ask me your questions."</button>
       <button class="penny-action-btn" onclick="pennySelectOption('browse','${aid}',this)">"I'd just like to browse."</button>
-      ${_pennyTellBtn(aid)}
-      <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually — can we just talk for a bit?"</button>
+      <button class="penny-action-btn" onclick="pennyBackOut('${aid}',this)">"Actually, let's just chat."</button>
     </div>
   `;
 }
