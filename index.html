@@ -425,7 +425,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 .pc-earned { text-align:center; color:var(--gold); font-size:.85rem; line-height:1.5; margin:.25rem 0 .5rem; }
 .pc-card { width:100%; aspect-ratio:1.36 / 1; perspective:1600px; cursor:pointer; }
 .pc-inner { position:relative; width:100%; height:100%; transform-style:preserve-3d; transition:transform .7s ease; }
-.pc-card.pc-flipped .pc-inner { transform:rotateY(180deg); }
+.pc-card.pc-flipped .pc-inner, .bm-card.pc-flipped .pc-inner { transform:rotateY(180deg); }
 .pc-face { position:absolute; inset:0; backface-visibility:hidden; -webkit-backface-visibility:hidden; display:flex; align-items:center; justify-content:center; }
 .pc-face img { max-width:100%; max-height:100%; object-fit:contain; border-radius:6px; box-shadow:0 6px 20px rgba(0,0,0,.5); }
 .pc-face img:not([src]) { display:none; }
@@ -447,7 +447,26 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 .artifact-admin-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
 .artifact-admin-prev { aspect-ratio:1.36 / 1; border:1px dashed rgba(255,255,255,.2); border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:.8rem; color:var(--soft); margin-bottom:.5rem; overflow:hidden; }
 .artifact-admin-prev img { max-width:100%; max-height:100%; object-fit:contain; }
-@media (max-width:600px) { .artifact-admin-grid { grid-template-columns:1fr; } .artifact-thumb { flex-basis:100%; } .pc-modal { padding:.5rem; } .pc-modal-box { padding:1rem .6rem 1.25rem; } }
+.bm-story { display:flex; flex-direction:column; align-items:center; }
+.bm-story-inline { margin:0 auto 1rem; position:relative; z-index:2; padding-top:.5rem; }
+.bm-card { height:min(62vh, 540px); aspect-ratio:1 / 3; perspective:1600px; cursor:pointer; }
+.bm-card .pc-face img { width:100%; height:100%; object-fit:cover; border-radius:3px; }
+.bm-backside { width:100%; height:100%; background:#fbf6ea; color:#3a2a14; border-radius:3px; box-shadow:0 6px 20px rgba(0,0,0,.5); padding:12% 9%; display:flex; flex-direction:column; align-items:center; text-align:center; gap:.9rem; font-family:Georgia,'Times New Roman',serif; }
+.bm-back-name { font-family:'Playfair Display',Georgia,serif; font-style:italic; font-size:1.05rem; line-height:1.25; margin-top:15%; }
+.bm-back-rule { width:30%; border-top:1px solid #b08a3e; }
+.bm-back-after { font-size:.78rem; line-height:1.5; }
+.bm-back-found { font-size:.72rem; line-height:1.45; margin-top:auto; color:#6b5634; }
+.bm-back-sig { font-size:.8rem; font-style:italic; color:#6b5634; }
+.artifact-thumb.bm-thumb { flex:0 0 70px; aspect-ratio:1 / 3; font-size:1.6rem; }
+.bm-admin-row { display:flex; gap:1rem; padding:.9rem 0; border-top:1px solid rgba(255,255,255,.08); flex-wrap:wrap; }
+.bm-admin-prev { flex:0 0 90px; aspect-ratio:1 / 3; border:1px dashed rgba(255,255,255,.2); border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:.72rem; color:var(--soft); overflow:hidden; text-align:center; }
+.bm-admin-prev img { width:100%; height:100%; object-fit:cover; }
+.bm-admin-fields { flex:1; min-width:240px; display:flex; flex-direction:column; }
+.bm-admin-fields label { font-size:.76rem; color:var(--soft); margin:.45rem 0 .15rem; }
+.bm-admin-fields input[type=text], .bm-admin-fields textarea { width:100%; }
+.bm-admin-btns { display:flex; gap:.4rem; flex-wrap:wrap; align-items:center; margin-top:.55rem; }
+.bm-admin-btns select { background:var(--bg2); color:var(--fg); border:1px solid rgba(255,255,255,.15); border-radius:4px; padding:.3rem .5rem; font-size:.8rem; max-width:220px; }
+@media (max-width:600px) { .artifact-admin-grid { grid-template-columns:1fr; } .artifact-thumb:not(.bm-thumb) { flex-basis:100%; } .pc-modal { padding:.5rem; } .pc-modal-box { padding:1rem .6rem 1.25rem; } }
 
 /* ═══════════════ PENNY'S ═══════════════ */
 #tab-penny { padding: 0; background: #1a1208; }
@@ -1959,10 +1978,10 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
         </details>
       </div>
 
-      <!-- Book club artifacts (postcard now; bookmarks later) -->
+      <!-- Book club artifacts: the postcard and Penny's bookmarks -->
       <div class="card" style="margin-bottom:1rem;">
         <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.4rem;">📮 Artifacts</h3>
-        <p style="font-size:.85rem;color:var(--soft);margin-bottom:.75rem;">Images for things members can find and keep in <em>My Artifacts</em>. The postcard drops from Penny's record crate (1 in 3 per visit after a member's first record, guaranteed by the third). Images are shrunk on upload and stored in the database, and only load when someone opens them.</p>
+        <p style="font-size:.85rem;color:var(--soft);margin-bottom:.75rem;">Images for things members can find and keep in <em>My Artifacts</em>. The postcard drops from Penny's record crate (1 in 3 per visit after a member's first record, guaranteed by the third). Penny gifts bookmarks from her desk drawer when a member she trusts (all seven plants) accepts a book from her: never their first book, at most one per member per quarter. Images are shrunk on upload and stored in the database, and only load when someone opens them.</p>
         <div id="artifacts-admin"></div>
       </div>
 
@@ -11259,14 +11278,14 @@ window.qaDrawerCheck = function() {
 const PENNY_SCENARIOS = [
   {
     // Scenario 1: Reading her book
-    entering: 'The door swings open. Inside is a small, warm library. A woman in glasses is sitting in an armchair, deeply absorbed in a book. She doesn\'t notice you at first. A few seconds pass. She turns a page.',
+    entering: 'The door swings open. Inside is a cozy office with high ceilings. A desk faces the door, and behind it a card catalog rises nearly to the ceiling. Over by the window on the far wall, a woman in glasses is curled up in an armchair, deeply absorbed in a book. She doesn\'t notice you at first. A few seconds pass. She turns a page.',
     action:   'You clear your throat.',
     prompt:   'What do you do?',
     startle:  'She jumps slightly, fumbling to keep her page, then looks up.',
     greeting: 'Oh! Oh goodness — sorry, I was just at a very good part. Actually, do you want to know what happens? No. No, I won\'t do that to you. How can I help?',
-    setup:    'She sets her book down, stands up, and moves behind a small wooden desk. Behind her, a card catalog rises almost to the ceiling, a wooden ladder leaning against it. The whole place smells like old paper and something vaguely like tea. She looks at you expectantly.',
+    setup:    'She sets her book down, crosses the room, and settles in behind her desk, the card catalog and its rolling ladder at her back. The whole place smells like old paper and something vaguely like tea. She looks at you expectantly.',
     // Return visits: same scene, but she's Penny now, not a stranger
-    returnEntering: 'The door swings open. The little library is warm and quiet. Penny is curled up in the armchair, deep in a book. She doesn\'t notice you at first. A few seconds pass. She turns a page.',
+    returnEntering: 'The door swings open. Penny\'s office is warm and quiet. She\'s curled up in the armchair by the window, deep in a book. She doesn\'t notice you at first. A few seconds pass. She turns a page.',
     returnAction:   'You clear your throat.',
     returnPrompt:   'What do you do?',
     return:         'She jumps slightly, fumbling to keep her page, then looks up and sees it\'s you. Her face breaks into a warm smile of recognition.'
@@ -11480,7 +11499,8 @@ async function renderPennyTabInto(area) {
 
 function _pennyShowDoor(area) {
   if (area) area._pennyInChat = false; // a new visit starts outside the chat
-  _pennyVisitStartTs = Date.now(); _pcRolledVisit = false; // each visit gets its own postcard roll
+  _pennyVisitStartTs = Date.now(); _pcRolledVisit = false; _bmRolledVisit = false; // each visit gets its own postcard and bookmark roll
+  if (typeof _artifactLoadMeta === 'function') _artifactLoadMeta(true);   // fresh bookmark list for the drawer
   if (area) { area._pennyPendingRec = null; area._pennyFollowBook = null; area._pennyFromShelf = false; area._pennyShelfOwn = false; area._pennyAlreadyOut = false; area._pennyChatUsed = {}; area._pennyChatBook = null; }
   // Outside the door: no record player, and any music stops
   if (area && area.id === 'penny-interaction-area') {
@@ -12184,6 +12204,7 @@ window.pennyRecordToggle = pennyRecordToggle;
 // and only load when someone opens the postcard.
 // Member record fields: postcardTries, postcardFound, postcardFound_ts,
 // postcardLookedUp, postcardLookedUp_ts. A Penny reset clears them all.
+// Bookmarks are further down ("Penny's bookmarks").
 // ══════════════════════════════════════════════════════
 const ARTIFACTS_REF = doc(db, 'club', 'artifacts');
 const ARTIFACT_IMG_REFS = {
@@ -12206,6 +12227,7 @@ const _artifactImgCache = {};    // side -> data URL (only while it matches the 
 const _artifactImgVer = {};      // side -> upload time of the cached image
 let _pennyVisitStartTs = 0;      // set when a visit starts at the door
 let _pcRolledVisit = false;      // one roll per visit
+let _bmRolledVisit = false;      // one bookmark roll per visit
 
 async function _artifactLoadMeta(force) {
   if (_artifactMeta && !force) return _artifactMeta;
@@ -12274,7 +12296,7 @@ function _postcardMaybeDrop(prev) {
 // ── Modal shell ──
 let _pcReturnFocus = null;
 let _pcEscapable = false;
-function _pcOpenModal(html, escapable) {
+function _pcOpenModal(html, escapable, title) {
   _pcCloseModal(true);
   _pcReturnFocus = document.activeElement;
   _pcEscapable = !!escapable;
@@ -12284,7 +12306,7 @@ function _pcOpenModal(html, escapable) {
   el.setAttribute('role', 'dialog');
   el.setAttribute('aria-modal', 'true');
   el.setAttribute('aria-labelledby', 'pc-modal-title');
-  el.innerHTML = `<div class="pc-modal-box"><h2 id="pc-modal-title" class="pc-sr">A postcard</h2><div id="pc-modal-body">${html}</div></div>`;
+  el.innerHTML = `<div class="pc-modal-box"><h2 id="pc-modal-title" class="pc-sr">${_pcEsc(title || 'A postcard')}</h2><div id="pc-modal-body">${html}</div></div>`;
   document.body.appendChild(el);
   document.body.style.overflow = 'hidden';
   _pcFocusFirst();
@@ -12427,22 +12449,79 @@ function _postcardShowFollowUp(area) {
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
-        ${area._pennySkipReturnAction ? '' : `<span class="penny-action">${scenario.return}</span>`}
-        <p class="penny-speech">I looked him up. Ranganathan. He was a librarian in India, a very important one. Those five lines on the back are his "laws." A lot of librarians from around the world accept the laws as the foundations of their philosophy. People still teach them. Isn't that neat?</p>
+        <span class="penny-action">${scenario.return}</span>
+        <p class="penny-speech">Oh, it's you. Come in.</p>
+        <span class="penny-action" style="margin-top:.4rem;">She reaches for the postcard propped against her lamp.</span>
+        <p class="penny-speech">Before anything else, I have to tell you. I looked him up.</p>
       </div>
     </div>
     <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
-      <button class="penny-action-btn" onclick="pennyPostcardFollowUpDone('${aid}')">"It really is."</button>
+      <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
+      <button class="penny-action-btn" onclick="pennyPostcardFollowUpAnd('${aid}',this)">"And?"</button>
     </div>`;
 }
-function pennyPostcardFollowUpDone(areaId) {
+function pennyPostcardFollowUpAnd(areaId, el) {
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  if (el) { el.disabled = true; el.style.opacity = '.5'; }
+  setTimeout(() => {
+    area.innerHTML = `
+      <div class="penny-storybook">
+        <div class="penny-storybook-inner">
+          <span class="penny-action">She turns the postcard over in her hands.</span>
+          <p class="penny-speech">Ranganathan. He was a librarian in India, a very important one. Those five lines on the back are his "laws." A lot of librarians from around the world accept the laws as the foundations of their philosophy. People still teach them. Isn't that neat?</p>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+        <button class="penny-action-btn" onclick="pennyPostcardFollowUpDone('${areaId}',this)">"It really is."</button>
+      </div>`;
+  }, 300);
+}
+window.pennyPostcardFollowUpAnd = pennyPostcardFollowUpAnd;
+// After the postcard follow-up: no second "Come in." Straight to her question, or the two doors.
+function pennyPostcardFollowUpDone(areaId, el) {
   const area = document.getElementById(areaId);
   const key = _profileIdentity && _profileIdentity.key;
   if (key) _pcUpdateRec(key, { postcardLookedUp: true, postcardLookedUp_ts: Date.now() });
   if (!area) return;
-  area._pennySkipReturnAction = true;   // she's already looked up from what she was doing
-  _pennyShowReturnGreeting(area, (area._pennyState || {}).memberName || '');
-  area._pennySkipReturnAction = false;
+  if (el) { el.disabled = true; el.style.opacity = '.5'; }
+  const aid = area.id;
+  const st = area._pennyState || {};
+  const { card } = _pennyCardGet(area);
+  setTimeout(() => {
+    if (card.length) {
+      const book = card[0];
+      area._pennyFollowBook = book;
+      area.innerHTML = `
+        <div class="penny-storybook">
+          <div class="penny-storybook-inner">
+            <span class="penny-action">She props the postcard back against the lamp.</span>
+            <p class="penny-speech">Anyway. Did you finish <em>${esc(book.title)}</em>?</p>
+          </div>
+        </div>
+        ${card.length > 1 ? _pennyCardHtml(card, book.title, st.memberName) : ''}
+        <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+          <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
+          <button class="penny-action-btn" onclick="pennyFollowUp('finished','${aid}',this)">"Yes, I finished it!"</button>
+          <button class="penny-action-btn" onclick="pennyFollowUp('notyet','${aid}',this)">"Not yet..."</button>
+          ${card.length > 1 ? `<button class="penny-action-btn" onclick="pennyCardOther('${aid}',this)">"Actually, I finished a different one…"</button>` : ''}
+          <button class="penny-action-btn" onclick="pennySomethingElse('${aid}',this)">"Something else first."</button>
+          ${_pennyMusicAsideBtn(aid, 'welcomeback')}
+        </div>`;
+    } else {
+      area.innerHTML = `
+        <div class="penny-storybook">
+          <div class="penny-storybook-inner">
+            <span class="penny-action">She props the postcard back against the lamp.</span>
+            <p class="penny-speech">Anyway. ${PENNY_WHAT_BRINGS[Math.floor(Math.random() * PENNY_WHAT_BRINGS.length)]}</p>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">
+          <p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you say?</em></p>
+          ${_pennyTwoDoors(aid, 'welcomeback')}
+        </div>`;
+    }
+  }, 300);
 }
 window.pennyPostcardFollowUpDone = pennyPostcardFollowUpDone;
 
@@ -12452,14 +12531,21 @@ async function renderMyArtifacts() {
   if (!el) return;
   let key = _profileIdentity && _profileIdentity.key;
   if (!key) { const c = loadIdentityCookie(); if (c && (c.email || c.discord)) key = pgKey(c.email || '', c.discord || ''); }
-  if (!key || !_postcardHas(key)) {
+  if (!key) { el.innerHTML = `<div class="card"><p style="color:var(--soft);margin:0;">Nothing here yet.</p></div>`; return; }
+  await _artifactLoadMeta(true);
+  const rec = _postcardRecFor(key);
+  const hasPostcard = _postcardHas(key);
+  const marks = _bmHeldBy(rec);
+  if (!hasPostcard && !marks.length) {
     el.innerHTML = `<div class="card"><p style="color:var(--soft);margin:0;">Nothing here yet.</p></div>`;
     return;
   }
-  const rec = _postcardRecFor(key);
-  const when = rec.postcardFound_ts ? new Date(rec.postcardFound_ts).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '';
-  const desc = [POSTCARD_DESC[0]].concat(rec.postcardLookedUp ? [POSTCARD_DESC[1]] : []);
-  el.innerHTML = `
+  const fmtDay = ts => ts ? new Date(ts).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '';
+  let html = '';
+  if (hasPostcard) {
+    const when = fmtDay(rec.postcardFound_ts);
+    const desc = [POSTCARD_DESC[0]].concat(rec.postcardLookedUp ? [POSTCARD_DESC[1]] : []);
+    html += `
     <div class="card artifact-card">
       <button type="button" class="artifact-thumb" onclick="openPostcardViewer()" aria-label="Look at the postcard">
         <img id="artifact-postcard-thumb" alt="" hidden>
@@ -12472,10 +12558,41 @@ async function renderMyArtifacts() {
         <button type="button" class="btn btn-secondary btn-sm" onclick="openPostcardViewer()">Look at it</button>
       </div>
     </div>`;
-  await _artifactLoadMeta(true);
-  const url = await _artifactImg('front');
-  const img = document.getElementById('artifact-postcard-thumb');
-  if (img && url) { img.src = url; img.hidden = false; const ph = img.nextElementSibling; if (ph) ph.hidden = true; }
+  }
+  const all = _bmAll();
+  marks.forEach(m => {
+    const b = all[m.id] || {};
+    html += `
+    <div class="card artifact-card">
+      <button type="button" class="artifact-thumb bm-thumb" onclick="openBookmarkViewer('${m.id}')" aria-label="Look at the bookmark${b.name ? ': ' + _pcEsc(b.name) : ''}">
+        <img data-bm-thumb="${_pcEsc(m.id)}" alt="" hidden>
+        <span class="artifact-thumb-ph">🔖</span>
+      </button>
+      <div class="artifact-text">
+        <h3>${esc(b.name || 'A bookmark')}</h3>
+        ${m.ts ? `<p class="artifact-when">${m.how === 'given' ? 'From Penny' : 'Found'} ${fmtDay(m.ts)}</p>` : ''}
+        <p>A watercolor bookmark from Penny's desk drawer${b.paintedAfter ? `. She painted it after reading <em>${esc(b.paintedAfter)}</em>` : ''}. There's only one, and it's yours.</p>
+        ${b.line ? `<p><em>“${esc(b.line)}”</em></p>` : ''}
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="openBookmarkViewer('${m.id}')">Look at it</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="printBookmark('${m.id}')">🖨️ Print (2×6")</button>
+        </div>
+      </div>
+    </div>`;
+  });
+  el.innerHTML = html;
+  if (hasPostcard) {
+    const url = await _artifactImg('front');
+    const img = document.getElementById('artifact-postcard-thumb');
+    if (img && url) { img.src = url; img.hidden = false; const ph = img.nextElementSibling; if (ph) ph.hidden = true; }
+  }
+  for (const m of marks) {
+    const url = await _bmImg(m.id);
+    el.querySelectorAll(`img[data-bm-thumb="${m.id}"]`).forEach(img => {
+      if (!url) return;
+      img.src = url; img.hidden = false; const ph = img.nextElementSibling; if (ph) ph.hidden = true;
+    });
+  }
 }
 window.renderMyArtifacts = renderMyArtifacts;
 
@@ -12495,13 +12612,16 @@ async function renderArtifactsAdmin() {
       <textarea id="aa-alt-${s}" rows="4" style="width:100%;">${_pcEsc(_postcardAlt(s))}</textarea>
     </div>`;
   el.innerHTML = `
+    <h4 style="font-family:'Playfair Display',serif;font-size:1rem;margin:0 0 .5rem;">📮 The postcard</h4>
     <div class="artifact-admin-grid">${side('front', 'photo side')}${side('back', 'written side')}</div>
     <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-top:.6rem;">
       <button class="btn btn-primary btn-sm" onclick="adminArtifactSaveAlt()">Save alt text</button>
       <button class="btn btn-secondary btn-sm" onclick="openPostcardViewer()">Preview the postcard</button>
       <span id="aa-msg" style="font-size:.8rem;color:var(--gold);"></span>
     </div>
-    <p style="font-size:.78rem;color:var(--soft);margin-top:.6rem;">${m.hasFront && m.hasBack ? '✅ Both sides are uploaded, so the postcard can drop for members.' : '⚠️ The postcard won’t drop for anyone until both sides are uploaded.'}</p>`;
+    <p style="font-size:.78rem;color:var(--soft);margin-top:.6rem;">${m.hasFront && m.hasBack ? '✅ Both sides are uploaded, so the postcard can drop for members.' : '⚠️ The postcard won’t drop for anyone until both sides are uploaded.'}</p>
+    <div id="bookmarks-admin" style="border-top:1px solid rgba(240,180,41,.18);margin-top:1rem;"></div>`;
+  renderBookmarksAdmin();
   for (const s of ['front', 'back']) {
     if (!m['has' + (s === 'front' ? 'Front' : 'Back')]) continue;
     const url = await _artifactImg(s);
@@ -12512,7 +12632,8 @@ async function renderArtifactsAdmin() {
 window.renderArtifactsAdmin = renderArtifactsAdmin;
 
 // Shrink the upload so it fits comfortably in one Firestore doc (1 MB limit)
-function _artifactShrink(file) {
+// size = { w, h }: center-crop to that ratio and store at exactly that size (bookmarks)
+function _artifactShrink(file, size) {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
     r.onerror = () => reject(new Error('Could not read the file'));
@@ -12521,10 +12642,20 @@ function _artifactShrink(file) {
       img.onerror = () => reject(new Error('That file isn’t an image I can read'));
       img.onload = () => {
         let w = img.naturalWidth, h = img.naturalHeight;
-        const max = 1400;
-        if (w > max) { h = Math.round(h * max / w); w = max; }
-        const c = document.createElement('canvas'); c.width = w; c.height = h;
-        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        const c = document.createElement('canvas');
+        if (size && size.w && size.h) {
+          const want = size.w / size.h;
+          let sw = w, sh = h;
+          if (w / h > want) sw = Math.round(h * want); else sh = Math.round(w / want);
+          const sx = Math.round((w - sw) / 2), sy = Math.round((h - sh) / 2);
+          w = size.w; h = size.h; c.width = w; c.height = h;
+          c.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
+        } else {
+          const max = 1400;
+          if (w > max) { h = Math.round(h * max / w); w = max; }
+          c.width = w; c.height = h;
+          c.getContext('2d').drawImage(img, 0, 0, w, h);
+        }
         const webp = c.toDataURL('image/webp', 0.85).startsWith('data:image/webp');
         const type = webp ? 'image/webp' : 'image/jpeg';
         let q = 0.85, url = c.toDataURL(type, q);
@@ -12571,6 +12702,493 @@ async function adminArtifactSaveAlt() {
 }
 window.adminArtifactUpload = adminArtifactUpload;
 window.adminArtifactSaveAlt = adminArtifactSaveAlt;
+
+// ══════════════════════════════════════════════════════
+// Penny's bookmarks — one-of-a-kind watercolors from her desk drawer
+// Meta lives in the artifacts doc under `bookmarks` (id → { name, paintedAfter, line,
+// alt, live, hasImg, imgUpdated, created }) plus `bookmarkOdds`. Each image has its
+// own doc: club/artifactBookmark_<id>, stored at 600×1800 (2×6", 1:3).
+// Who holds what lives on the member's Penny record: bookmarks: [{ id, ts, name, how }]
+// and bookmarkFound_ts (the quarterly limit). A bookmark is "in the drawer" when no
+// member holds it, so a Penny reset (which replaces their record) puts theirs back.
+// ══════════════════════════════════════════════════════
+const BOOKMARK_DEFAULT_ODDS = 0.25;
+const BOOKMARK_W = 600, BOOKMARK_H = 1800;
+const _bmImgCache = {};   // id -> { ver, url }
+function _bmImgRef(id) { return doc(db, 'club', 'artifactBookmark_' + id); }
+function _bmAll() { return (_artifactMeta && _artifactMeta.bookmarks) || {}; }
+function _bmOdds() {
+  const o = Number(_artifactMeta && _artifactMeta.bookmarkOdds);
+  return (o > 0 && o <= 1) ? o : BOOKMARK_DEFAULT_ODDS;
+}
+// Bookmarks a member holds (only ones that still exist), oldest first
+function _bmHeldBy(rec) {
+  const all = _bmAll();
+  return (Array.isArray(rec && rec.bookmarks) ? rec.bookmarks : []).filter(b => b && all[b.id]);
+}
+// id -> { key, ts, name, how } for every bookmark someone holds
+function _bmOwners(members) {
+  const out = {};
+  Object.entries(members || CACHE.pennyMembers || {}).forEach(([k, r]) => {
+    (Array.isArray(r && r.bookmarks) ? r.bookmarks : []).forEach(b => { if (b && b.id) out[b.id] = Object.assign({ key: k }, b); });
+  });
+  return out;
+}
+function _bmQuarter(ts) { const d = new Date(ts); return d.getFullYear() * 4 + Math.floor(d.getMonth() / 3); }
+function _bmMonthYear(ts) { return ts ? new Date(ts).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : ''; }
+async function _bmImg(id) {
+  const ver = (_bmAll()[id] || {}).imgUpdated || 0;
+  const c = _bmImgCache[id];
+  if (c && c.ver === ver) return c.url;
+  try {
+    const snap = await getDoc(_bmImgRef(id));
+    const url = snap.exists() ? (snap.data().dataUrl || '') : '';
+    if (url) _bmImgCache[id] = { ver, url }; else delete _bmImgCache[id];
+    return url;
+  } catch (e) { return c ? c.url : ''; }
+}
+// Penny only gifts bookmarks to people she trusts: they've earned "Seven Characters in
+// Search of Water" (she's told them about all seven plants). An admin grant counts;
+// an admin block doesn't.
+const BOOKMARK_TRUST_BADGE = 'penny-plant-all';
+const BOOKMARK_TRUST_PLANTS = ['dorothea','miranda','jane','horatio','scheherazade','circe','may'];
+function _bmTrusts(key, rec) {
+  const ov = ((getBadgeConfig().overrides || {})[key] || {})[BOOKMARK_TRUST_BADGE];
+  if (ov === false) return false;
+  if (ov === true || (ov && ov.granted)) return true;
+  rec = rec || (CACHE.pennyMembers || {})[key] || {};
+  return BOOKMARK_TRUST_PLANTS.every(k => !!rec['plant_' + k]);
+}
+function _bmNameFor(key, fallback) {
+  if (fallback) return fallback;
+  try { const m = buildAllMembersMap().get(key); if (m && m.name) return m.name; } catch (e) {}
+  return '';
+}
+
+// ── The roll: called from pennyAccept once the book is on their card ──
+// Only for members Penny trusts (all seven plants), never their first book from her,
+// at most one found per calendar quarter, one roll per visit, and only if a live,
+// unclaimed bookmark with a painting is in the drawer.
+// Returns true if the drawer scene is taking over (it calls render() when done).
+function _bookmarkMaybeDrop(area, key, title, reaction, render) {
+  if (!key || key === '__admin_preview__' || _bmRolledVisit) return false;
+  if (!area || area.closest('#admin-penny-preview-inner')) return false;
+  const rec = (CACHE.pennyMembers || {})[key] || {};
+  if (!_bmTrusts(key, rec)) return false;   // no rapport yet, no roll
+  if (rec.bookmarkFound_ts && _bmQuarter(rec.bookmarkFound_ts) === _bmQuarter(Date.now())) return false;
+  const owners = _bmOwners();
+  const pool = Object.entries(_bmAll()).filter(([id, b]) => b && b.live && b.hasImg && !owners[id]).map(([id]) => id);
+  if (!pool.length) return false;      // nothing in the drawer, so no roll this visit
+  _bmRolledVisit = true;
+  if (Math.random() >= _bmOdds()) return false;
+  const name = _bmNameFor(key, (area._pennyState || {}).memberName);
+  // Behind the scenes, reserve one that nobody holds right now, so the bookmark Penny
+  // pulls out is always one that's really in the drawer. If the drawer turns out to be
+  // empty, there's no drawer scene and the visit carries on as usual.
+  area.querySelectorAll('button').forEach(b => { b.disabled = true; });   // no double "Thank you"
+  _bookmarkClaim(key, pool, name).then(got => {
+    if (!got || !document.body.contains(area)) { render(false); return; }
+    _bmImg(got.id);   // start loading while they read
+    area._bmScene = { id: got.id, key, name, title, reaction, render, claimed: got.ts };
+    _bookmarkScene(area, 'drawer');
+  }).catch(() => render(false));
+  return true;
+}
+
+// Pick and claim one in a single transaction, choosing only from bookmarks nobody holds
+// at that moment. Returns { id, ts }, or null if the drawer is empty.
+async function _bookmarkClaim(key, pool, name) {
+  const now = Date.now();
+  let id = null;
+  await runTransaction(db, async tx => {
+    const snap = await tx.get(PENNY_REF);
+    const data = snap.exists() ? snap.data() : {};
+    const taken = new Set();
+    Object.entries(data).forEach(([k, r]) => {
+      if (!PENNY_SHARED_KEYS.has(k) && Array.isArray(r && r.bookmarks)) r.bookmarks.forEach(b => { if (b && b.id) taken.add(b.id); });
+    });
+    const free = pool.filter(x => !taken.has(x));
+    if (!free.length) { id = null; return; }
+    id = free[Math.floor(Math.random() * free.length)];
+    const mine = Array.isArray((data[key] || {}).bookmarks) ? data[key].bookmarks.slice() : [];
+    mine.push({ id, ts: now, name: name || '', how: 'found' });
+    tx.set(PENNY_REF, { [key]: { bookmarks: mine, bookmarkFound_ts: now } }, { merge: true });
+  });
+  if (id && CACHE.pennyMembers) {
+    const r = CACHE.pennyMembers[key] || {};
+    const mine = (Array.isArray(r.bookmarks) ? r.bookmarks.slice() : []).filter(b => b.id !== id);
+    mine.push({ id, ts: now, name: name || '', how: 'found' });
+    CACHE.pennyMembers[key] = Object.assign({}, r, { bookmarks: mine, bookmarkFound_ts: now });
+  }
+  return id ? { id, ts: now } : null;
+}
+
+// ── The bookmark itself: painting first, flips to the back ──
+function _bookmarkBackHtml(b, foundName, foundTs) {
+  const my = _bmMonthYear(foundTs);
+  const found = foundName ? `by ${esc(foundName)}${my ? ', ' + my : ''}` : my;
+  return `<div class="bm-backside">
+      <div class="bm-back-name">${esc(b.name || 'A bookmark')}</div>
+      <div class="bm-back-rule"></div>
+      ${b.paintedAfter ? `<div class="bm-back-after">Painted after reading<br><em>${esc(b.paintedAfter)}</em></div>` : ''}
+      <div class="bm-back-found">${found ? `Found ${found}` : 'In Penny’s drawer'}</div>
+      <div class="bm-back-sig">— P.</div>
+    </div>`;
+}
+function _bookmarkCardHtml(id, foundName, foundTs) {
+  const b = _bmAll()[id] || {};
+  const alt = (b.alt || '').trim() || `A painted watercolor bookmark${b.name ? ': ' + b.name : ''}.`;
+  return `
+    <div class="bm-wrap" data-bm-id="${_pcEsc(id)}">
+      <div class="bm-card" onclick="bookmarkFlip(this)">
+        <div class="pc-inner">
+          <div class="pc-face pc-front" aria-hidden="false">
+            <img data-bm-img="${_pcEsc(id)}" alt="${_pcEsc(alt)}">
+            <span class="pc-loading">Loading…</span>
+          </div>
+          <div class="pc-face pc-back" aria-hidden="true">${_bookmarkBackHtml(b, foundName, foundTs)}</div>
+        </div>
+      </div>
+      <div class="pc-controls">
+        <button type="button" class="pc-flip-btn" onclick="bookmarkFlip(this)">Turn it over</button>
+        <span class="pc-side-note" aria-live="polite">Painted side</span>
+      </div>
+    </div>`;
+}
+async function _bookmarkFillImages(root) {
+  const imgs = [...(root || document).querySelectorAll('img[data-bm-img]')];
+  for (const img of imgs) {
+    const url = await _bmImg(img.dataset.bmImg);
+    const l = img.nextElementSibling;
+    if (url) { img.src = url; if (l) l.hidden = true; }
+    else if (l) l.textContent = 'The painting hasn’t been uploaded yet.';
+  }
+}
+function bookmarkFlip(el) {
+  const wrap = el && el.closest('.bm-wrap');
+  if (!wrap) return;
+  const card = wrap.querySelector('.bm-card');
+  const back = card.classList.toggle('pc-flipped');
+  const f = card.querySelector('.pc-front'), b = card.querySelector('.pc-back');
+  if (f) f.setAttribute('aria-hidden', back ? 'true' : 'false');
+  if (b) b.setAttribute('aria-hidden', back ? 'false' : 'true');
+  const note = wrap.querySelector('.pc-side-note');
+  if (note) note.textContent = back ? 'Back' : 'Painted side';
+  const btn = wrap.querySelector('.pc-flip-btn');
+  if (btn) btn.textContent = back ? 'Turn it back over' : 'Turn it over';
+}
+window.bookmarkFlip = bookmarkFlip;
+
+// ── The drawer scene (inside Penny's office, not a pop-up) ──
+const _bmBtnRow = (inner) => `<div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;max-width:520px;width:calc(100% - 3rem);margin:0 1.5rem 2rem;position:relative;z-index:2;">${inner}</div>`;
+function _bookmarkScene(area, stage) {
+  const sc = area && area._bmScene;
+  if (!sc) return;
+  const aid = area.id;
+  if (stage === 'drawer') {
+    const open = PENNY_BOOKMARK_OPEN_LINES[Math.floor(Math.random() * PENNY_BOOKMARK_OPEN_LINES.length)];
+    area.innerHTML = `
+      <div class="penny-storybook">
+        <div class="penny-storybook-inner">
+          ${sc.reaction || ''}
+          <span class="penny-action" style="margin-top:.4rem;">She jots <em>${esc(sc.title || 'the book')}</em> down on her clipboard. Then she stops, pen in the air.</span>
+          <p class="penny-speech">Actually — wait. I've been meaning to give you something.</p>
+          <span class="penny-action" style="margin-top:.4rem;">She pulls open the top drawer of her desk. It's full of slim painted strips of paper.</span>
+          <p class="penny-speech">${open.line}</p>
+          <span class="penny-action" style="margin-top:.4rem;">She looks through them for a moment, picks one out, and holds it across the desk.</span>
+        </div>
+      </div>
+      ${_bmBtnRow(`<p class="penny-door-prompt" style="margin-bottom:.25rem;"><em>What do you do?</em></p>
+        <button class="penny-action-btn" onclick="bookmarkSceneTake('${aid}',this)">Take it.</button>`)}`;
+  } else if (stage === 'look') {
+    const b = _bmAll()[sc.id] || {};
+    area.innerHTML = `
+      <div class="bm-story bm-story-inline">${_bookmarkCardHtml(sc.id, sc.name, sc.claimed)}</div>
+      <div class="penny-storybook">
+        <div class="penny-storybook-inner">
+          <span class="penny-action">She smiles at it a little, like she's remembering.</span>
+          <p class="penny-speech">${b.paintedAfter ? `I painted this one after reading <em>${esc(b.paintedAfter)}</em>.` : 'I painted this one on a rainy Sunday.'}${b.line ? ' ' + esc(b.line) : ''}</p>
+          <p class="penny-speech">It's yours now. Keep your place with it. It's a small thank you from me.</p>
+          <span class="penny-action" style="margin-top:.4rem;">She fiddles with the corner of her clipboard.</span>
+          <p class="penny-speech">When I took this job, I wasn't sure anyone would actually come in. I thought it would just be me, the books, and the plants, talking to ourselves.</p>
+          <p class="penny-speech">But you kept coming back. You tell me what you really thought, even when you didn't like it. You let me go on about my plants.</p>
+          <p class="penny-speech">I feel useful here. Like I'm actually needed. I didn't know how much I'd missed that.</p>
+          <span class="penny-action" style="margin-top:.4rem;">She goes a little pink.</span>
+          <p class="penny-speech">So — thank you. I think I've made a friend. I hope that's alright to say.</p>
+        </div>
+      </div>
+      <p class="pc-earned">🔖 Saved to <em>My Artifacts</em> in your profile.</p>
+      ${_bmBtnRow(`<button class="penny-action-btn" onclick="bookmarkSceneDone('${aid}',this)">"Thank you, Penny."</button>`)}`;
+    _bookmarkFillImages(area);
+  }
+}
+function bookmarkSceneTake(areaId, el) {
+  const area = document.getElementById(areaId);
+  if (!area || !area._bmScene) return;
+  if (el) { el.disabled = true; el.style.opacity = '.5'; }
+  setTimeout(() => _bookmarkScene(area, 'look'), 250);
+}
+function bookmarkSceneDone(areaId, el) {
+  const area = document.getElementById(areaId);
+  const sc = area && area._bmScene;
+  if (!sc) return;
+  if (el) { el.disabled = true; el.style.opacity = '.5'; }
+  area._bmScene = null;
+  setTimeout(() => { if (typeof sc.render === 'function') sc.render(true); }, 250);
+}
+window.bookmarkSceneTake = bookmarkSceneTake;
+window.bookmarkSceneDone = bookmarkSceneDone;
+
+// ── My Artifacts: look at one, or print it ──
+async function openBookmarkViewer(id, key) {
+  await _artifactLoadMeta(true);
+  const held = (_bmOwners()[id]) || {};
+  _pcOpenModal(`<div class="bm-story">${_bookmarkCardHtml(id, _bmNameFor(key || held.key, held.name), held.ts)}</div>
+    <div class="pc-actions"><button type="button" class="penny-action-btn" onclick="postcardCloseViewer()">Close</button></div>`, true, 'A bookmark');
+  _bookmarkFillImages(document.getElementById('pc-modal'));
+}
+window.openBookmarkViewer = openBookmarkViewer;
+
+// Prints exactly 2×6": the painting and the back side by side, each with crop marks
+async function printBookmark(id, key) {
+  const win = window.open('', '_blank');
+  if (!win) { alert('Your browser blocked the print window. Allow pop-ups for this site and try again.'); return; }
+  win.document.write('<p style="font-family:serif;padding:1rem;">Getting the bookmark ready…</p>');
+  await _artifactLoadMeta(true);
+  const b = _bmAll()[id] || {};
+  const held = _bmOwners()[id] || {};
+  const url = await _bmImg(id);
+  const back = _bookmarkBackHtml(b, _bmNameFor(key || held.key, held.name), held.ts);
+  const marks = `<i class="cm tl-h"></i><i class="cm tl-v"></i><i class="cm tr-h"></i><i class="cm tr-v"></i><i class="cm bl-h"></i><i class="cm bl-v"></i><i class="cm br-h"></i><i class="cm br-v"></i>`;
+  win.document.open();
+  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${_pcEsc(b.name || 'Bookmark')}</title>
+<style>
+@page { size: letter portrait; margin: 0.5in; }
+* { box-sizing: border-box; }
+body { margin:0; font-family: Georgia, 'Times New Roman', serif; color:#3a2a14; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+.sheet { display:flex; gap:1in; justify-content:center; padding-top:.5in; }
+.slot { position:relative; width:2in; height:6in; }
+.slot .lbl { position:absolute; top:-.35in; left:0; right:0; text-align:center; font:9pt Georgia,serif; color:#888; }
+.face { width:2in; height:6in; overflow:hidden; }
+.face img { width:2in; height:6in; object-fit:cover; display:block; }
+.cm { position:absolute; background:#000; display:block; }
+.tl-h,.tr-h,.bl-h,.br-h { height:.5pt; width:.25in; }
+.tl-v,.tr-v,.bl-v,.br-v { width:.5pt; height:.25in; }
+.tl-h { top:0; left:-.32in; } .tl-v { left:0; top:-.32in; }
+.tr-h { top:0; right:-.32in; } .tr-v { right:0; top:-.32in; }
+.bl-h { bottom:0; left:-.32in; } .bl-v { left:0; bottom:-.32in; }
+.br-h { bottom:0; right:-.32in; } .br-v { right:0; bottom:-.32in; }
+.bm-backside { width:2in; height:6in; background:#fbf6ea; padding:.35in .2in; display:flex; flex-direction:column; align-items:center; text-align:center; gap:.18in; }
+.bm-back-name { font-size:13pt; font-style:italic; line-height:1.2; margin-top:.4in; }
+.bm-back-rule { width:.6in; border-top:.75pt solid #b08a3e; }
+.bm-back-after { font-size:9.5pt; line-height:1.45; }
+.bm-back-found { font-size:8.5pt; line-height:1.4; margin-top:auto; color:#6b5634; }
+.bm-back-sig { font-size:10pt; font-style:italic; color:#6b5634; }
+.note { text-align:center; font:9pt Georgia,serif; color:#888; margin-top:.6in; }
+@media print { .note { display:none; } }
+</style></head><body>
+<div class="sheet">
+  <div class="slot"><span class="lbl">Front</span>${marks}<div class="face">${url ? `<img id="bm-print-img" src="${url}" alt="${_pcEsc(b.alt || '')}">` : ''}</div></div>
+  <div class="slot"><span class="lbl">Back</span>${marks}<div class="face">${back}</div></div>
+</div>
+<p class="note">Print at 100% (“Actual size”, not “Fit to page”). Cut along the crop marks and glue the two strips back to back.</p>
+</body></html>`);
+  win.document.close();
+  const go = () => { try { win.focus(); win.print(); } catch (e) {} };
+  const img = win.document.getElementById('bm-print-img');
+  if (img && !img.complete) { img.onload = go; img.onerror = go; } else setTimeout(go, 200);
+}
+window.printBookmark = printBookmark;
+
+// ── Admin → Artifacts → Bookmarks ──
+function _bmMembersSorted() {
+  try { return [...buildAllMembersMap().values()].sort((a, b) => (a.name || '').localeCompare(b.name || '')); } catch (e) { return []; }
+}
+async function renderBookmarksAdmin() {
+  const el = document.getElementById('bookmarks-admin');
+  if (!el) return;
+  const all = _bmAll();
+  const owners = _bmOwners();
+  const members = _bmMembersSorted();
+  const memberOpts = members.map(m => `<option value="${_pcEsc(m.key)}" data-name="${_pcEsc(m.name || '')}">${esc(m.name || m.discord || m.email || m.key)}</option>`).join('');
+  const ids = Object.keys(all).sort((a, b) => (all[a].created || 0) - (all[b].created || 0));
+  const inDrawer = ids.filter(id => all[id].live && all[id].hasImg && !owners[id]).length;
+  const fmtDay = ts => ts ? new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+  const row = id => {
+    const b = all[id], o = owners[id];
+    const status = o
+      ? `<span style="color:var(--gold);">Claimed by ${esc(_bmNameFor(o.key, o.name) || o.key)}, ${fmtDay(o.ts)}${o.how === 'given' ? ' (given by admin)' : ''}</span>`
+      : !b.hasImg ? '<span style="color:#c06060;">No painting uploaded yet</span>'
+      : b.live ? '<span style="color:#7fbf7f;">In the drawer</span>'
+      : '<span style="color:var(--soft);">In the drawer · not live</span>';
+    return `
+    <div class="bm-admin-row" id="bma-${id}">
+      <div class="bm-admin-prev" id="bma-prev-${id}">${b.hasImg ? 'Loading…' : 'No image'}</div>
+      <div class="bm-admin-fields">
+        <div style="display:flex;justify-content:space-between;gap:.5rem;flex-wrap:wrap;align-items:center;">
+          <strong style="color:var(--fg);">${esc(b.name || 'Untitled bookmark')}</strong>
+          <span style="font-size:.8rem;">${status}</span>
+        </div>
+        <label>Name</label><input type="text" id="bma-name-${id}" value="${_pcEsc(b.name || '')}" placeholder="e.g. Low Tide">
+        <label>Painted after reading</label><input type="text" id="bma-after-${id}" value="${_pcEsc(b.paintedAfter || '')}" placeholder="Book title">
+        <label>Penny's line (optional, follows “I painted this one after reading …”)</label><textarea id="bma-line-${id}" rows="2">${esc(b.line || '')}</textarea>
+        <label>Alt text (describe the painting)</label><textarea id="bma-alt-${id}" rows="2">${esc(b.alt || '')}</textarea>
+        <label style="display:flex;align-items:center;gap:.4rem;margin-top:.5rem;color:var(--fg);"><input type="checkbox" id="bma-live-${id}" ${b.live ? 'checked' : ''}> Live (can be found in Penny's drawer)</label>
+        <div class="bm-admin-btns">
+          <button class="btn btn-primary btn-sm" onclick="adminBookmarkSave('${id}')">Save</button>
+          <label class="btn btn-secondary btn-sm" style="cursor:pointer;">${b.hasImg ? 'Replace painting' : 'Upload painting'}
+            <input type="file" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="adminBookmarkUpload('${id}', this)">
+          </label>
+          ${b.hasImg ? `<button class="btn btn-secondary btn-sm" onclick="openBookmarkViewer('${id}')">Preview</button>` : ''}
+          <button class="btn btn-secondary btn-sm" style="color:#c06060;" onclick="adminBookmarkDelete('${id}')">Delete</button>
+        </div>
+        <div class="bm-admin-btns">
+          <select id="bma-give-${id}"><option value="">— give to a member —</option>${memberOpts}</select>
+          <button class="btn btn-secondary btn-sm" onclick="adminBookmarkGive('${id}')">Give</button>
+          ${o ? `<button class="btn btn-secondary btn-sm" onclick="adminBookmarkReturn('${id}')">Return to drawer</button>` : ''}
+        </div>
+        <span id="bma-msg-${id}" style="font-size:.8rem;color:var(--gold);"></span>
+      </div>
+    </div>`;
+  };
+  el.innerHTML = `
+    <h4 style="font-family:'Playfair Display',serif;font-size:1rem;margin:1.5rem 0 .3rem;">🔖 Bookmarks</h4>
+    <p style="font-size:.8rem;color:var(--soft);margin:0 0 .6rem;">Upload each painting at 2×6" (it's cropped from the center to 1:3 and stored at ${BOOKMARK_W}×${BOOKMARK_H}). Penny only gifts them to members she trusts: those who've earned <em>Seven Characters in Search of Water</em> (all seven plants). Each bookmark is one of a kind: once a member finds it, it's theirs. Turning <em>Live</em> off stops it dropping but never takes it from someone who has it. <strong>Give</strong> skips the quarterly limit and the scene, and takes it from whoever had it. A Penny reset puts that member's bookmarks back in the drawer.</p>
+    <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-bottom:.75rem;">
+      <label style="font-size:.82rem;color:var(--soft);">Drop chance per accepted book: 1 in</label>
+      <input type="number" id="bma-odds" min="1" max="50" step="1" value="${Math.round(1 / _bmOdds())}" style="width:4.5rem;">
+      <button class="btn btn-secondary btn-sm" onclick="adminBookmarkSaveOdds()">Save</button>
+      <button class="btn btn-primary btn-sm" onclick="adminBookmarkAdd()">+ Add a bookmark</button>
+      <span id="bma-msg" style="font-size:.8rem;color:var(--gold);"></span>
+    </div>
+    <p style="font-size:.8rem;color:var(--soft);margin:0 0 .75rem;">${ids.length} bookmark${ids.length === 1 ? '' : 's'} · ${Object.keys(owners).filter(id => all[id]).length} claimed · ${inDrawer} live in the drawer${inDrawer ? '' : ' (nothing can drop right now)'}</p>
+    ${ids.length ? ids.map(row).join('') : '<p style="font-size:.85rem;color:var(--soft);"><em>No bookmarks yet.</em></p>'}`;
+  for (const id of ids) {
+    if (!all[id].hasImg) continue;
+    const url = await _bmImg(id);
+    const p = document.getElementById('bma-prev-' + id);
+    if (p) p.innerHTML = url ? `<img src="${url}" alt="">` : 'Couldn’t load';
+  }
+}
+window.renderBookmarksAdmin = renderBookmarksAdmin;
+
+function _bmAdminMsg(id, t) { const m = document.getElementById(id ? 'bma-msg-' + id : 'bma-msg'); if (m) m.textContent = t; }
+async function adminBookmarkAdd() {
+  const id = 'bm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  try {
+    await fbSet(ARTIFACTS_REF, { bookmarks: { [id]: { name: '', paintedAfter: '', line: '', alt: '', live: false, hasImg: false, created: Date.now() } } });
+    await _artifactLoadMeta(true);
+    await renderBookmarksAdmin();
+    const n = document.getElementById('bma-name-' + id); if (n) n.focus();
+  } catch (e) { _bmAdminMsg('', 'Couldn’t add: ' + (e.message || e)); }
+}
+async function adminBookmarkSave(id) {
+  const v = k => ((document.getElementById(`bma-${k}-${id}`) || {}).value || '').trim();
+  const live = !!(document.getElementById('bma-live-' + id) || {}).checked;
+  const b = _bmAll()[id] || {};
+  if (live && !b.hasImg) { _bmAdminMsg(id, 'Upload the painting before making it live.'); return; }
+  try {
+    await fbSet(ARTIFACTS_REF, { bookmarks: { [id]: { name: v('name'), paintedAfter: v('after'), line: v('line'), alt: v('alt'), live, updated: Date.now() } } });
+    await _artifactLoadMeta(true);
+    await renderBookmarksAdmin();
+    _bmAdminMsg(id, 'Saved.');
+  } catch (e) { _bmAdminMsg(id, 'Save failed: ' + (e.message || e)); }
+}
+async function adminBookmarkUpload(id, input) {
+  const file = input && input.files && input.files[0];
+  if (!file) return;
+  _bmAdminMsg(id, 'Uploading…');
+  try {
+    const { url, w, h } = await _artifactShrink(file, { w: BOOKMARK_W, h: BOOKMARK_H });
+    const now = Date.now();
+    await fbSetFull(_bmImgRef(id), { dataUrl: url, w, h, updatedAt: now });
+    await fbSet(ARTIFACTS_REF, { bookmarks: { [id]: { hasImg: true, imgUpdated: now } } });
+    delete _bmImgCache[id];
+    await _artifactLoadMeta(true);
+    await renderBookmarksAdmin();
+    _bmAdminMsg(id, `Saved the painting (${Math.round(url.length / 1024)} KB).`);
+  } catch (e) {
+    _bmAdminMsg(id, 'Upload failed: ' + (e && e.message ? e.message : 'unknown error'));
+  } finally { input.value = ''; }
+}
+async function adminBookmarkSaveOdds() {
+  const n = Math.round(Number((document.getElementById('bma-odds') || {}).value));
+  if (!(n >= 1 && n <= 50)) { _bmAdminMsg('', 'Pick a number from 1 to 50.'); return; }
+  try {
+    await fbSet(ARTIFACTS_REF, { bookmarkOdds: 1 / n });
+    await _artifactLoadMeta(true);
+    _bmAdminMsg('', `Saved: 1 in ${n}.`);
+  } catch (e) { _bmAdminMsg('', 'Save failed: ' + (e.message || e)); }
+}
+// Take a bookmark away from whoever has it (and optionally give it to someone)
+async function _bmMove(id, toKey, toName) {
+  const now = Date.now();
+  await runTransaction(db, async tx => {
+    const snap = await tx.get(PENNY_REF);
+    const data = snap.exists() ? snap.data() : {};
+    const upd = {};
+    Object.entries(data).forEach(([k, r]) => {
+      if (PENNY_SHARED_KEYS.has(k) || !Array.isArray(r && r.bookmarks)) return;
+      if (r.bookmarks.some(b => b && b.id === id)) upd[k] = { bookmarks: r.bookmarks.filter(b => b && b.id !== id) };
+    });
+    if (toKey) {
+      const base = upd[toKey] ? upd[toKey].bookmarks : (Array.isArray((data[toKey] || {}).bookmarks) ? data[toKey].bookmarks.slice() : []);
+      base.push({ id, ts: now, name: toName || '', how: 'given' });
+      upd[toKey] = { bookmarks: base };
+    }
+    if (Object.keys(upd).length) tx.set(PENNY_REF, upd, { merge: true });
+  });
+}
+async function adminBookmarkGive(id) {
+  const sel = document.getElementById('bma-give-' + id);
+  const key = sel && sel.value;
+  if (!key) { _bmAdminMsg(id, 'Choose a member first.'); return; }
+  const name = sel.options[sel.selectedIndex].dataset.name || '';
+  const o = _bmOwners()[id];
+  if (o && o.key === key) { _bmAdminMsg(id, 'They already have it.'); return; }
+  if (o && !confirm(`${_bmNameFor(o.key, o.name) || o.key} has this bookmark. Give it to ${name || key} instead?`)) return;
+  try {
+    await _bmMove(id, key, name);
+    await renderBookmarksAdmin();
+    _bmAdminMsg(id, `Given to ${name || key}.`);
+  } catch (e) { _bmAdminMsg(id, 'Couldn’t give it: ' + (e.message || e)); }
+}
+async function adminBookmarkReturn(id) {
+  const o = _bmOwners()[id];
+  if (!o) return;
+  if (!confirm(`Take this bookmark back from ${_bmNameFor(o.key, o.name) || o.key} and put it back in Penny's drawer?`)) return;
+  try {
+    await _bmMove(id, null);
+    await renderBookmarksAdmin();
+    _bmAdminMsg(id, 'Back in the drawer.');
+  } catch (e) { _bmAdminMsg(id, 'Couldn’t return it: ' + (e.message || e)); }
+}
+async function adminBookmarkDelete(id) {
+  const b = _bmAll()[id] || {};
+  const o = _bmOwners()[id];
+  if (!confirm(`Delete “${b.name || 'this bookmark'}” for good?${o ? `\n\n${_bmNameFor(o.key, o.name) || o.key} has it. It will disappear from their artifacts.` : ''}`)) return;
+  try {
+    if (o) await _bmMove(id, null);
+    await runTransaction(db, async tx => {
+      const snap = await tx.get(ARTIFACTS_REF);
+      const data = snap.exists() ? snap.data() : {};
+      if (data.bookmarks) delete data.bookmarks[id];
+      tx.set(ARTIFACTS_REF, data);
+    });
+    await fbSetFull(_bmImgRef(id), { dataUrl: '', deletedAt: Date.now() });
+    delete _bmImgCache[id];
+    await _artifactLoadMeta(true);
+    await renderBookmarksAdmin();
+    _bmAdminMsg('', 'Deleted.');
+  } catch (e) { _bmAdminMsg('', 'Delete failed: ' + (e.message || e)); }
+}
+window.adminBookmarkAdd = adminBookmarkAdd;
+window.adminBookmarkSave = adminBookmarkSave;
+window.adminBookmarkUpload = adminBookmarkUpload;
+window.adminBookmarkSaveOdds = adminBookmarkSaveOdds;
+window.adminBookmarkGive = adminBookmarkGive;
+window.adminBookmarkReturn = adminBookmarkReturn;
+window.adminBookmarkDelete = adminBookmarkDelete;
 
 // Penny's line for the current record (waits briefly for YouTube to report the title)
 async function _pennyCurrentTrackLine() {
@@ -12699,10 +13317,9 @@ const PENNY_CHAT_TOPICS = {
 // Saved for later: once Penny is ready to talk about her bookmarks, these replace her shy answers.
 const PENNY_BOOKMARK_OPEN_LINES = [
     { action: "She pulls open the top drawer of her desk. It's full of slim painted strips of paper.", line: "I paint them on Sunday afternoons. Rainy ones, ideally. Records on, plants nearby, a whole sheet cut into strips." },
-    { action: "She picks one out of the drawer and turns it over in her fingers.", line: "Every time I start a book, I pick a new one. When I finish, I leave it inside. Whoever reads it next gets to keep it." },
-    { action: "She fans a few of them out on the desk. Washes of color, nothing in particular.", line: "They're not pictures of anything. Just colors that felt right that day. I don't plan them. Planning ruins them." },
-    { action: "She looks a little wistful.", line: "I never know who ends up with which one. I like that. It's a bit like leaving a light on for someone." },
-    { action: "She gives you a very serious look.", line: "Please don't dog-ear your pages. That's what the bookmarks are for. I'll make you as many as you like." },
+    { action: "She picks one out of the drawer and turns it over in her fingers.", line: "Every time I start a book, I pick a new one to use. I thought about leaving them inside the books for someone to find, but… I never got brave enough." },
+    { action: "She fans a few of them out on the desk. Washes of color, nothing in particular.", line: "Each one is whatever a book left me with. A color, a feeling, sometimes just the weather in it. I don't plan them. Planning ruins them." },
+    { action: "She looks a little wistful.", line: "I always use a bit too much water. The paper curls, the colors run into each other. I've stopped trying to fix it. That's where the good parts are." },
     { action: "She tries to close the drawer. It doesn't quite close.", line: "There are… more than I strictly need. Rainy Sundays happen a lot." }
   ];
 
@@ -14700,6 +15317,9 @@ function pennyAccept(areaId) {
       _pennyCardFullScene(area);
       return;
     }
+    // Has Penny given them a book before this one? (No bookmark on the very first.)
+    const _paPrev = (CACHE.pennyMembers || {})[_paKey] || {};
+    area._pennyBmEligible = !already && !!(_paPrev.acceptedRec || card.length || history.length);
     if (!already) card.push({ title: area._pennyLastRec.title, month: area._pennyLastRec.month || '', ts: Date.now(), notYet: false });
     else area._pennyAlreadyOut = true;
     const _rec = (CACHE.pennyMembers || {})[_paKey] || {};
@@ -14723,10 +15343,10 @@ function pennyAccept(areaId) {
   area._pennyAlreadyOut = false;
   const explainList = !!area._pennyExplainList;
   area._pennyExplainList = false;
-  area.innerHTML = `
-    <div class="penny-storybook">
-      <div class="penny-storybook-inner">
-        ${alreadyOut
+  const bmEligible = !!area._pennyBmEligible;
+  area._pennyBmEligible = false;
+  const bmTitle = (area._pennyLastRec && area._pennyLastRec.title) || '';
+  const reaction = alreadyOut
           ? `<span class="penny-action">Penny checks her clipboard and laughs.</span>
         <p class="penny-speech">You already have this one! It's on my list for you. I'm glad it keeps calling to you.</p>`
           : shelfOwn
@@ -14736,13 +15356,21 @@ function pennyAccept(areaId) {
           ? `<span class="penny-action">Penny glances at the spine and smiles.</span>
         <p class="penny-speech">Good eye. That one's been waiting for someone to take it off the shelf.</p>`
           : `<span class="penny-action">Penny beams.</span>
-        <p class="penny-speech">Oh wonderful! I just know you're going to love it. I really do.</p>`}
-        <span class="penny-action" style="margin-top:.4rem;">${alreadyOut
+        <p class="penny-speech">Oh wonderful! I just know you're going to love it. I really do.</p>`;
+  // withBookmark: the drawer scene already showed her reaction and the jotting down,
+  // so the goodbye picks up with the bookmark going into the book.
+  const render = (withBookmark) => { area.innerHTML = `
+    <div class="penny-storybook">
+      <div class="penny-storybook-inner">
+        ${withBookmark ? '' : reaction}
+        <span class="penny-action" style="margin-top:.4rem;">${withBookmark
+          ? 'She slips the bookmark between the pages and hands the book across the desk.'
+          : alreadyOut
           ? 'She hands it back across the desk.'
           : fromShelf
           ? 'She jots the title down on her clipboard and hands the book across the desk.'
           : 'She tucks the card inside the front cover and hands the book across the desk.'}</span>
-        ${explainList ? `${fromShelf ? '' : `<span class="penny-action" style="margin-top:.4rem;">She adds the title to a clipboard on the corner of her desk.</span>`}
+        ${explainList ? `${fromShelf || withBookmark ? '' : `<span class="penny-action" style="margin-top:.4rem;">She adds the title to a clipboard on the corner of her desk.</span>`}
         <p class="penny-speech">I'm adding it to your list. I keep one for everyone now, so nobody's book gets lost.</p>` : ''}
         <p class="penny-speech">Come back and tell me what you thought, yes? I mean it. Good or bad — I want to know. The books and I will be here.</p>
         ${_pennyMaybeRecordHint(area._pennyState)}
@@ -14754,7 +15382,10 @@ function pennyAccept(areaId) {
       <button class="penny-action-btn" onclick="pennyWalkOut()">Tuck the book under your arm and head for the door.</button>
       ${_pennyMusicAsideBtn(areaId, 'goodbye')}
     </div>
-  `;
+  `; };
+  // A painted bookmark from her drawer sometimes comes with the book; the usual goodbye follows
+  if (bmEligible && _bookmarkMaybeDrop(area, _paKey, bmTitle, reaction, render)) return;
+  render(false);
 }
 window.pennyAccept = pennyAccept;
 
@@ -15318,6 +15949,15 @@ async function adminLoadMemberPennyData() {
     html += `<tr><td style="padding:.2rem .5rem .2rem 0;color:var(--soft);">Last visit</td><td style="color:var(--fg);">${fmt(record.lastVisit)}</td></tr>`;
     html += `<tr><td style="padding:.2rem .5rem .2rem 0;color:var(--soft);">Record hint chance</td><td style="color:${hintPct >= 50 ? '#c06060' : hintPct > 0 ? 'var(--gold)' : 'var(--soft)'};">${hintLabel}</td></tr>`;
     html += `<tr><td style="padding:.2rem .5rem .2rem 0;color:var(--soft);">Postcard</td><td style="color:${record.postcardFound ? 'var(--gold)' : 'var(--fg)'};">${postcardLabel}</td></tr>`;
+    await _artifactLoadMeta(true);
+    const _bmHeld = _bmHeldBy(record);
+    const _bmAllM = _bmAll();
+    const _bmQ = record.bookmarkFound_ts && _bmQuarter(record.bookmarkFound_ts) === _bmQuarter(Date.now());
+    const _bmTrust = _bmTrusts(memberKey, record);
+    const bookmarkLabel = (_bmTrust ? '' : '<span style="color:var(--soft);">Penny doesn’t trust them with one yet (needs all seven plants)</span><br>') + (_bmHeld.length
+      ? _bmHeld.map(b => `${esc(_bmAllM[b.id].name || 'Untitled')} (${b.how === 'given' ? 'given' : 'found'} ${fmt(b.ts)})`).join('<br>')
+      : 'None yet') + (_bmQ ? '<br><span style="color:var(--soft);">Already found one this quarter</span>' : '');
+    html += `<tr><td style="padding:.2rem .5rem .2rem 0;color:var(--soft);vertical-align:top;">Bookmarks</td><td style="color:${_bmHeld.length ? 'var(--gold)' : 'var(--fg)'};">${bookmarkLabel}</td></tr>`;
     html += `</table>`;
     // Penny's clipboard: books on the list now, then books crossed off (newest first)
     const { card: penCard, history: penHist } = _pennyCardFromRecord(record);
@@ -15355,7 +15995,7 @@ async function adminResetMemberPenny() {
   const memberKey = sel.value;
   if (!memberKey) { area.innerHTML = '<em>Select a member first.</em>'; return; }
   const memberName = sel.options[sel.selectedIndex]?.dataset?.name || memberKey;
-  if (!confirm(`Reset Penny history for ${memberName}?\n\nThis wipes everything Penny remembers about them: visits, her clipboard and crossed-off books, plants she's told them about, the postcard in their artifacts, and their Penny badges. Their next visit is a first visit. This can't be undone.\n\nBooks they've brought Penny are NOT touched. They stay in her pool and on her shelves, and the member keeps \"A Penny for Your Thoughts\" and \"The Road Less Traveled\".`)) return;
+  if (!confirm(`Reset Penny history for ${memberName}?\n\nThis wipes everything Penny remembers about them: visits, her clipboard and crossed-off books, plants she's told them about, the postcard in their artifacts, their Penny badges, and any bookmarks they hold (those go back in Penny's drawer). Their next visit is a first visit. This can't be undone.\n\nBooks they've brought Penny are NOT touched. They stay in her pool and on her shelves, and the member keeps \"A Penny for Your Thoughts\" and \"The Road Less Traveled\".`)) return;
   area.innerHTML = '<em style="color:var(--gold);">Resetting…</em>';
   try {
     // Replace their whole record (a merge would leave old flags behind, which kept
@@ -15391,7 +16031,8 @@ async function adminResetMemberPenny() {
     // If you reset yourself, let Penny forget you in this open tab too
     if (_pennyMetKey === memberKey) _pennyMetKey = null;
     if (_profileIdentity && _profileIdentity.key === memberKey) _pennyCountedThisSession = false;
-    area.innerHTML = `<p style="color:var(--gold);">✓ ${esc(memberName)}'s Penny history has been cleared. Their next visit will be treated as a first visit. Books they brought Penny are still in her pool.</p>`;
+    area.innerHTML = `<p style="color:var(--gold);">✓ ${esc(memberName)}'s Penny history has been cleared. Their next visit will be treated as a first visit. Any bookmarks they had are back in Penny's drawer. Books they brought Penny are still in her pool.</p>`;
+    if (typeof renderBookmarksAdmin === 'function') renderBookmarksAdmin();
   } catch(e) {
     area.innerHTML = `<span style="color:#c55;">Error resetting: ${esc(e.message)}</span>`;
   }
