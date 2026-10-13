@@ -8103,6 +8103,7 @@ const BADGE_DEFS = [
   { id:'penny-returned',    name:'Back Again',           emoji:'🔁',  tier:null, category:'penny', organic:true, desc:'Return to Penny for another visit',                         check:p=>( p.pennyRecord.visitCount||0)>=2 },
   { id:'penny-brought',     name:'A Penny for Your Thoughts', emoji:'💌', tier:null, category:'penny', organic:true, desc:'Tell Penny about a book',                                   check:p=>!!p.pennyBroughtTs },
   { id:'penny-road',        name:'The Road Less Traveled', emoji:'🛤️', tier:null, category:'penny', organic:true, desc:'A book you told Penny about made it onto a club ballot and won', check:p=>!!p.pennyRoadTs },
+  { id:'penny-record',      name:'Drop the Needle',      emoji:'🎶',  tier:null, category:'penny', organic:true, desc:'Put on one of Penny\'s records',                             check:p=>!!p.pennyRecord.playedRecord },
 
   // ── Quarterly Activity — Bingo (tiered families) ──────────────────────────
   { id:'q-first-touch',     name:'First Touch',          emoji:'⚽',  tier:'bronze', category:'quarterly', desc:'Earn your first bingo row on an approved card',                                    check:p=>p.qBingoMaxRows>=1 },
@@ -9768,6 +9769,7 @@ function _buildBadgeFeedEvents() {
     { id:'penny-plant-may', name:'Tart and Honest', emoji:'🍊', tsKey:'plant_may', check: r => !!r.plant_may },
     { id:'penny-brought', name:'A Penny for Your Thoughts', emoji:'💌', tsFn: (r, k) => _pennyBroughtTs(k, r), check: (r, k) => !!_pennyBroughtTs(k, r) },
     { id:'penny-road', name:'The Road Less Traveled', emoji:'🛤️', tsFn: (r, k) => _pennyRoadWinTs(k, r), check: (r, k) => !!_pennyRoadWinTs(k, r) },
+    { id:'penny-record', name:'Drop the Needle', emoji:'🎶', tsKey:'playedRecord_ts', check: r => !!r.playedRecord },
   ];
   const pennyMembers = CACHE.pennyMembers || {};
   Object.entries(pennyMembers).forEach(([memberKey, record]) => {
@@ -11301,7 +11303,7 @@ function clearIdentityCookie() {
 function _badgeSeenKey(memberKey) { return 'dbc_badges_seen_' + memberKey; }
 function _pennyBadgeResetKey(memberKey) { return 'dbc_badges_penny_reset_' + memberKey; }
 
-const PENNY_BADGE_IDS = ['penny-met','penny-trust','penny-catalog','penny-quiz','penny-accepted','penny-declined','penny-returned','penny-chat','penny-plant-dorothea','penny-plant-miranda','penny-plant-jane','penny-plant-horatio','penny-plant-scheherazade','penny-plant-circe','penny-plant-may','penny-plant-all','penny-brought','penny-road'];
+const PENNY_BADGE_IDS = ['penny-met','penny-trust','penny-catalog','penny-quiz','penny-accepted','penny-declined','penny-returned','penny-chat','penny-plant-dorothea','penny-plant-miranda','penny-plant-jane','penny-plant-horatio','penny-plant-scheherazade','penny-plant-circe','penny-plant-may','penny-plant-all','penny-brought','penny-road','penny-record'];
 
 // ── Badges for books members tell Penny about ─────────────────────────────
 // Only books told to her after any Penny reset count, like her other badges.
@@ -12470,7 +12472,19 @@ function _pennyRecordUI(playing) {
   if (cap) cap.hidden = !playing;
 }
 
+// Drop the Needle badge: the first time this member puts on one of her records
+function _pennyMarkRecordPlayed() {
+  const key = _profileIdentity && _profileIdentity.key;
+  if (!key) return;
+  const prev = (CACHE.pennyMembers || {})[key] || {};
+  if (prev.playedRecord) return;
+  const upd = { playedRecord: true, playedRecord_ts: Date.now() };
+  fbSet(PENNY_REF, { [key]: upd }).catch(() => {});
+  if (CACHE.pennyMembers) CACHE.pennyMembers[key] = Object.assign({}, prev, upd);
+  if (typeof updateBadgeNavDot === 'function') updateBadgeNavDot();
+}
 async function pennyRecordStart() {
+  _pennyMarkRecordPlayed();
   // Needle back down on the same record, right where it was lifted
   if (_pennyYT) { _pennyYTPaused = false; try { _pennyYT.playVideo(); } catch(e) {} _pennyRecordUI(true); return; }
   const box = document.getElementById('penny-record-player');
