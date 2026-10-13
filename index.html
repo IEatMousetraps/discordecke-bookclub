@@ -11728,6 +11728,7 @@ async function renderPennyTabInto(area) {
   let card = [], cardHistory = [];
   let knowsPlants = false;
   let knowsWays = false;
+  let heardIntro = false;
   const plantsHeard = {};
   let newCount = 1;
   if (_profileIdentity && _profileIdentity.key) {
@@ -11760,12 +11761,14 @@ async function renderPennyTabInto(area) {
       ({ card, history: cardHistory } = _pennyCardFromRecord(prev));
       knowsPlants = !!prev.knowsPlants;
       knowsWays = !!(prev.usedTrust || prev.usedCatalog || prev.usedQuiz || prev.usedBrowse);
+      // Anyone who has used a way or told her about a book has heard who she is
+      heardIntro = !!(prev.heardIntro || knowsWays || prev.usedTell);
       Object.keys(prev).forEach(k => { if (k.startsWith('plant_') && prev[k]) plantsHeard[k.slice(6)] = true; });
     } catch(e) { /* degrade gracefully */ }
   }
 
   // Store state on the area element so stage functions can read it
-  area._pennyState = { isFirstVisit, memberName, lastRec, lastRecAsked, lastRecNotYet, card, cardHistory, knowsPlants, plantsHeard, knowsWays, visitCount: newCount };
+  area._pennyState = { isFirstVisit, memberName, lastRec, lastRecAsked, lastRecNotYet, card, cardHistory, knowsPlants, plantsHeard, knowsWays, heardIntro, visitCount: newCount };
 
   // Always start at the door — first visit or return
   _pennyShowDoor(area);
@@ -13049,9 +13052,26 @@ function _pennyBooksScreen(area, opts) {
     _pennyBooksLastLead = li;
     const lead = PENNY_BOOKS_LEADS[li];
     const ask = PENNY_BOOKS_ASKS[Math.floor(Math.random() * PENNY_BOOKS_ASKS.length)];
-    scene = `<span class="penny-action">${lead.action}</span>
+    const st = area._pennyState || (area._pennyState = {});
+    if (!st.heardIntro) {
+      // First time talking books with her: who she is, then the question
+      st.heardIntro = true;
+      const key = _pennyActiveKey(area);
+      if (key) fbSet(PENNY_REF, { [key]: { heardIntro: true } }).catch(() => {});
+      scene = `<span class="penny-action">${lead.action}</span>
+        <p class="penny-speech">${lead.line}</p>
+        <span class="penny-action" style="margin-top:.4rem;">She gestures around the archive warmly.</span>
+        <p class="penny-speech">Kaitlin brought me on to help members find their next great read — she gave me access to all the club's records, so I know quite a lot about what's been suggested, how things voted, all of it. Very thorough operation you've got here.</p>
+        <span class="penny-action" style="margin-top:.4rem;">She leans forward with a conspiratorial smile.</span>
+        <p class="penny-speech">I should mention — I only recommend books that your fellow members have suggested. I make it my business to read everything that comes through. It's a lot, honestly, but I wouldn't have it any other way. This is why recommendations are so important — the more your members suggest, the larger my TBR grows!</p>
+        <p class="penny-speech">And you don't have to wait for a vote, either. If you come across a book I should know about, you can tell me yourself. That's how my shelves grow.</p>
+        <span class="penny-action" style="margin-top:.6rem;">She straightens up. Back to business.</span>
+        <p class="penny-speech">${ask}</p>`;
+    } else {
+      scene = `<span class="penny-action">${lead.action}</span>
         <p class="penny-speech">${lead.line}</p>
         <p class="penny-speech">${ask}</p>`;
+    }
   }
   area.innerHTML = `
     <div class="penny-storybook">
@@ -13141,19 +13161,13 @@ function _pennyShowOptions(area) {
   area.innerHTML = `
     <div class="penny-storybook">
       <div class="penny-storybook-inner">
-        <span class="penny-action">Penny's face lights up. She clasps her hands together.</span>
+        <span class="penny-action">She clasps her hands together.</span>
         <p class="penny-speech">Oh, well you've come to exactly the right place. I have just the thing — well, several things actually. The question is how we find it.</p>
-        <span class="penny-action" style="margin-top:.4rem;">She gestures around the archive warmly.</span>
-        <p class="penny-speech">Kaitlin brought me on to help members find their next great read — she gave me access to all the club's records, so I know quite a lot about what's been suggested, how things voted, all of it. Very thorough operation you've got here.</p>
-        <span class="penny-action" style="margin-top:.4rem;">She leans forward with a conspiratorial smile.</span>
-        <p class="penny-speech">I should mention — I only recommend books that your fellow members have suggested. I make it my business to read everything that comes through. It's a lot, honestly, but I wouldn't have it any other way. This is why recommendations are so important — the more your members suggest, the larger my TBR grows!</p>
-        <span class="penny-action" style="margin-top:.6rem;">She straightens up. Back to business.</span>
-        <p class="penny-speech">Now. I have a few ways we can do this.</p>
+        <p class="penny-speech">I have a few ways we can do this.</p>
         <p class="penny-speech">One — I'll give you one from my personal recommendations. No questions, no hints — I know these books like old friends, and I have a feeling one of them has been waiting for you.</p>
         <p class="penny-speech">Two — let fate decide. The card catalog has never steered me wrong. Not once.</p>
         <p class="penny-speech">Three — you answer a few questions for me first. I like to know who I'm recommending to. It makes all the difference, I promise.</p>
         <p class="penny-speech">Or four — if you'd rather find it yourself, the shelves are open. Wander as long as you like.</p>
-        <p class="penny-speech">And if you ever come across a book I should know about, just tell me. That's how my shelves grow.</p>
         <span class="penny-action" style="margin-top:.4rem;">She tries, not very hard, to look neutral.</span>
         <p class="penny-speech">Any of them will work. I won't tell you which one I'd pick. But I will say — I wrote the quiz myself.</p>
       </div>
