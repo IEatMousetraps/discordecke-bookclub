@@ -12202,7 +12202,8 @@ const POSTCARD_ODDS = 1 / 3;     // chance per eligible visit
 const POSTCARD_MAX_TRIES = 3;    // guaranteed by the third eligible visit
 
 let _artifactMeta = null;        // { postcard: { hasFront, hasBack, frontAlt, backAlt, ... } }
-const _artifactImgCache = {};    // side -> data URL
+const _artifactImgCache = {};    // side -> data URL (only while it matches the latest upload)
+const _artifactImgVer = {};      // side -> upload time of the cached image
 let _pennyVisitStartTs = 0;      // set when a visit starts at the door
 let _pcRolledVisit = false;      // one roll per visit
 
@@ -12214,14 +12215,18 @@ async function _artifactLoadMeta(force) {
 }
 function _postcardMeta() { return (_artifactMeta && _artifactMeta.postcard) || {}; }
 function _postcardAlt(side) { const m = _postcardMeta(); return (m[side + 'Alt'] || '').trim() || POSTCARD_DEFAULT_ALT[side]; }
+// Re-uploading a side in Admin replaces it for everyone: the cached copy is only
+// used while its upload time still matches the one in the artifacts doc.
 async function _artifactImg(side) {
-  if (_artifactImgCache[side]) return _artifactImgCache[side];
+  const ver = _postcardMeta()[side + 'Updated'] || 0;
+  if (_artifactImgCache[side] && _artifactImgVer[side] === ver) return _artifactImgCache[side];
   try {
     const snap = await getDoc(ARTIFACT_IMG_REFS[side]);
     const url = snap.exists() ? (snap.data().dataUrl || '') : '';
-    if (url) _artifactImgCache[side] = url;
+    if (url) { _artifactImgCache[side] = url; _artifactImgVer[side] = ver; }
+    else { delete _artifactImgCache[side]; delete _artifactImgVer[side]; }
     return url;
-  } catch (e) { return ''; }
+  } catch (e) { return _artifactImgCache[side] || ''; }
 }
 function _postcardRecFor(key) { return ((CACHE.pennyMembers || {})[key]) || {}; }
 // Found it, or the admin granted the badge by hand
@@ -12251,7 +12256,7 @@ function _postcardMaybeDrop(prev) {
   setTimeout(async () => {
     const tab = document.getElementById('tab-penny');
     if (!tab || !tab.classList.contains('active') || document.getElementById('pc-modal')) { _pcRolledVisit = false; return; }
-    await _artifactLoadMeta();
+    await _artifactLoadMeta(true);
     const m = _postcardMeta();
     if (!m.hasFront || !m.hasBack) return;   // nothing to find until both sides are uploaded
     const tries = (_postcardRecFor(key).postcardTries || 0) + 1;
@@ -12321,12 +12326,12 @@ function _postcardCardHtml() {
     <div class="pc-card" id="pc-card" onclick="postcardFlip()">
       <div class="pc-inner">
         <div class="pc-face pc-front" aria-hidden="false">
-          <img data-pc-side="front" alt="${_pcEsc(_postcardAlt('front'))}" ${_artifactImgCache.front ? `src="${_artifactImgCache.front}"` : ''}>
-          <span class="pc-loading" ${_artifactImgCache.front ? 'hidden' : ''}>Loading…</span>
+          <img data-pc-side="front" alt="${_pcEsc(_postcardAlt('front'))}">
+          <span class="pc-loading">Loading…</span>
         </div>
         <div class="pc-face pc-back" aria-hidden="true">
-          <img data-pc-side="back" alt="${_pcEsc(_postcardAlt('back'))}" ${_artifactImgCache.back ? `src="${_artifactImgCache.back}"` : ''}>
-          <span class="pc-loading" ${_artifactImgCache.back ? 'hidden' : ''}>Loading…</span>
+          <img data-pc-side="back" alt="${_pcEsc(_postcardAlt('back'))}">
+          <span class="pc-loading">Loading…</span>
         </div>
       </div>
     </div>
@@ -12360,7 +12365,7 @@ window.postcardFlip = postcardFlip;
 
 // Just looking at it (from My Artifacts)
 async function openPostcardViewer() {
-  await _artifactLoadMeta();
+  await _artifactLoadMeta(true);
   _pcOpenModal(`${_postcardCardHtml()}
     <div class="pc-actions"><button type="button" class="penny-action-btn" onclick="postcardCloseViewer()">Close</button></div>`, true);
   _postcardFillImages();
@@ -12467,7 +12472,7 @@ async function renderMyArtifacts() {
         <button type="button" class="btn btn-secondary btn-sm" onclick="openPostcardViewer()">Look at it</button>
       </div>
     </div>`;
-  await _artifactLoadMeta();
+  await _artifactLoadMeta(true);
   const url = await _artifactImg('front');
   const img = document.getElementById('artifact-postcard-thumb');
   if (img && url) { img.src = url; img.hidden = false; const ph = img.nextElementSibling; if (ph) ph.hidden = true; }
@@ -12499,7 +12504,6 @@ async function renderArtifactsAdmin() {
     <p style="font-size:.78rem;color:var(--soft);margin-top:.6rem;">${m.hasFront && m.hasBack ? '✅ Both sides are uploaded, so the postcard can drop for members.' : '⚠️ The postcard won’t drop for anyone until both sides are uploaded.'}</p>`;
   for (const s of ['front', 'back']) {
     if (!m['has' + (s === 'front' ? 'Front' : 'Back')]) continue;
-    delete _artifactImgCache[s];
     const url = await _artifactImg(s);
     const p = document.getElementById('aa-prev-' + s);
     if (p) p.innerHTML = url ? `<img src="${url}" alt="">` : 'Couldn’t load the image';
@@ -12543,7 +12547,7 @@ async function adminArtifactUpload(side, input) {
     await fbSetFull(ARTIFACT_IMG_REFS[side], { dataUrl: url, w, h, updatedAt: Date.now() });
     const flag = side === 'front' ? 'hasFront' : 'hasBack';
     await fbSet(ARTIFACTS_REF, { postcard: { [flag]: true, [side + 'Updated']: Date.now() } });
-    delete _artifactImgCache[side];
+    delete _artifactImgCache[side]; delete _artifactImgVer[side];
     await renderArtifactsAdmin();
     const m2 = document.getElementById('aa-msg');
     if (m2) m2.textContent = `Saved the ${side === 'front' ? 'photo' : 'written'} side (${Math.round(url.length / 1024)} KB).`;
