@@ -12630,6 +12630,7 @@ async function renderArtifactsAdmin() {
       <textarea id="aa-alt-${s}" rows="4" style="width:100%;">${_pcEsc(_postcardAlt(s))}</textarea>
     </div>`;
   el.innerHTML = `
+    <div id="artifact-holders" style="margin-bottom:1.25rem;">${_artifactHoldersHtml()}</div>
     <h4 style="font-family:'Playfair Display',serif;font-size:1rem;margin:0 0 .5rem;">📮 The postcard</h4>
     <div class="artifact-admin-grid">${side('front', 'photo side')}${side('back', 'written side')}</div>
     <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-top:.6rem;">
@@ -12648,6 +12649,42 @@ async function renderArtifactsAdmin() {
   }
 }
 window.renderArtifactsAdmin = renderArtifactsAdmin;
+
+// ── Admin: quick view of who has found what ──
+function _artifactHoldersHtml() {
+  const pm = CACHE.pennyMembers || {};
+  const overrides = (getBadgeConfig().overrides || {});
+  const fmt = ts => ts ? new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+  const nameOf = (k, fallback) => _bmNameFor(k, fallback) || k;
+  const allBm = _bmAll();
+  const rows = [];   // { name, postcard, bookmarks: [] }
+  const keys = new Set(Object.keys(pm));
+  Object.entries(overrides).forEach(([k, ov]) => { const o = ov && ov['penny-postcard']; if (o === true || (o && o.granted)) keys.add(k); });
+  keys.forEach(k => {
+    if (k === '__admin_preview__') return;
+    const r = pm[k] || {};
+    let postcard = '';
+    if (r.postcardFound) postcard = `Found ${fmt(r.postcardFound_ts)}${r.postcardLookedUp ? '' : ' · follow-up still to come'}`;
+    else if (_postcardHas(k)) postcard = 'Given by admin (badge)';
+    const marks = _bmHeldBy(r).map(b => ({ name: (allBm[b.id] || {}).name || 'Untitled', how: b.how, ts: b.ts }));
+    if (!postcard && !marks.length) return;
+    rows.push({ name: nameOf(k, marks.length ? (_bmHeldBy(r)[0] || {}).name : ''), postcard, marks });
+  });
+  rows.sort((a, b) => (b.marks.length + (b.postcard ? 1 : 0)) - (a.marks.length + (a.postcard ? 1 : 0)) || a.name.localeCompare(b.name));
+  const nPost = rows.filter(r => r.postcard).length;
+  const nMarks = rows.reduce((n, r) => n + r.marks.length, 0);
+  const body = rows.length ? `<table style="width:100%;border-collapse:collapse;font-size:.82rem;margin-top:.5rem;">
+      <tr><th style="text-align:left;padding:.25rem .5rem .25rem 0;color:var(--soft);font-weight:600;">Member</th><th style="text-align:left;padding:.25rem .5rem;color:var(--soft);font-weight:600;">📮 Postcard</th><th style="text-align:left;padding:.25rem 0 .25rem .5rem;color:var(--soft);font-weight:600;">🔖 Bookmarks</th></tr>
+      ${rows.map(r => `<tr style="border-top:1px solid rgba(255,255,255,.08);">
+        <td style="padding:.35rem .5rem .35rem 0;vertical-align:top;color:var(--fg);"><strong>${esc(r.name)}</strong></td>
+        <td style="padding:.35rem .5rem;vertical-align:top;color:${r.postcard ? 'var(--gold)' : 'var(--soft)'};">${r.postcard ? esc(r.postcard) : '—'}</td>
+        <td style="padding:.35rem 0 .35rem .5rem;vertical-align:top;">${r.marks.length ? r.marks.map(m => `<div><span style="color:var(--gold);">${esc(m.name)}</span> <span style="color:var(--soft);">· ${m.how === 'given' ? 'given' : 'found'} ${fmt(m.ts)}</span></div>`).join('') : '<span style="color:var(--soft);">—</span>'}</td>
+      </tr>`).join('')}
+    </table>` : '<p style="font-size:.82rem;color:var(--soft);margin:.5rem 0 0;">Nobody has found anything yet.</p>';
+  return `<details class="pbr-det" open><summary style="cursor:pointer;font-family:'Playfair Display',serif;font-size:1rem;">👀 Who has what <span class="pbr-n">${rows.length}</span></summary>
+    <p style="font-size:.8rem;color:var(--soft);margin:.4rem 0 0;">${nPost} member${nPost === 1 ? ' has' : 's have'} the postcard · ${nMarks} bookmark${nMarks === 1 ? '' : 's'} in members' hands. A Penny reset clears both for that member.</p>
+    ${body}</details>`;
+}
 
 // Shrink the upload so it fits comfortably in one Firestore doc (1 MB limit)
 // size = { w, h }: center-crop to that ratio and store at exactly that size (bookmarks)
@@ -13025,6 +13062,8 @@ function _bmMembersSorted() {
 async function renderBookmarksAdmin() {
   const el = document.getElementById('bookmarks-admin');
   if (!el) return;
+  const holders = document.getElementById('artifact-holders');
+  if (holders) holders.innerHTML = _artifactHoldersHtml();
   const all = _bmAll();
   const owners = _bmOwners();
   const members = _bmMembersSorted();
@@ -16376,6 +16415,7 @@ function renderHistoricalBookList() {
         ${b.genre ? ` · <span style="color:var(--soft);">${esc(b.genre)}</span>` : ''}
         ${b.pageCount ? ` · <span style="color:var(--soft);">${b.pageCount} pp</span>` : ''}
       </div>
+      <button class="btn btn-secondary btn-sm" onclick="adminJumpEditHistorical(${i})">Edit</button>
       <button class="btn btn-danger btn-sm" onclick="adminRemoveHistoricalBook(${i})">Remove</button>
     </div>
   `).join('');
@@ -16429,6 +16469,39 @@ async function adminRemoveHistoricalBook(index) {
   } catch(e) { console.warn('Remove failed:', e); }
 }
 window.adminRemoveHistoricalBook = adminRemoveHistoricalBook;
+// Edit lives in Admin → Edit Books → Historical Books (2025); this jumps there and opens the book
+function adminJumpEditHistorical(index) {
+  goAdminTab('edit-books', document.querySelector(`.sub-tab[onclick*="'edit-books'"]`));
+  renderEditHistoricalBooks();
+  openEditHistoricalBook(index);
+  const row = document.getElementById('ehb-row-' + index);
+  if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+window.adminJumpEditHistorical = adminJumpEditHistorical;
+
+// When a book's title is corrected, members who already have it on Penny's list see the new title
+async function _pennyRetitleCards(oldTitle, newTitle) {
+  const k = normTitleKey(oldTitle);
+  if (!k || oldTitle === newTitle) return;
+  await runTransaction(db, async tx => {
+    const snap = await tx.get(PENNY_REF);
+    const data = snap.exists() ? snap.data() : {};
+    const members = {};
+    Object.entries(data).forEach(([mk, r]) => {
+      if (PENNY_SHARED_KEYS.has(mk) || !r || typeof r !== 'object') return;
+      const fix = arr => Array.isArray(arr) && arr.some(x => x && normTitleKey(x.title) === k)
+        ? arr.map(x => x && normTitleKey(x.title) === k ? Object.assign({}, x, { title: newTitle }) : x) : null;
+      const c = fix(r.card), h = fix(r.cardHistory);
+      if (!c && !h) return;
+      const r2 = Object.assign({}, r);
+      if (c) r2.card = c;
+      if (h) r2.cardHistory = h;
+      members[mk] = r2;
+    });
+    // Member keys are emails (dots), so a plain merge rather than field paths
+    if (Object.keys(members).length) tx.set(PENNY_REF, members, { merge: true });
+  });
+}
 
 // ── Historical pool book editing (Edit Books tab) ─────
 function renderEditHistoricalBooks() {
@@ -16502,13 +16575,16 @@ async function saveHistoricalBook(index, uid) {
   if (!title) { if (msg) msg.textContent = 'Title is required.'; return; }
   const books = JSON.parse(JSON.stringify(CACHE.pennyHistorical || []));
   if (!books[index]) { if (msg) msg.textContent = 'Book not found.'; return; }
+  const oldTitle = books[index].title || '';
   books[index] = { ...books[index], title, author: author||'', suggestedBy: suggestedBy||'', month: month||'', genre: genre||'' };
   if (pageCount) books[index].pageCount = pageCount; else delete books[index].pageCount;
   try {
     await fbSet(PENNY_REF, { historicalPool: books });
     CACHE.pennyHistorical = books;
+    if (oldTitle !== title) { try { await _pennyRetitleCards(oldTitle, title); } catch (e) { console.warn('Retitle on lists failed:', e); } }
     cancelEditHistoricalBook();
     renderEditHistoricalBooks();
+    if (typeof renderHistoricalBookList === 'function') renderHistoricalBookList();
   } catch(e) {
     if (msg) msg.textContent = 'Error saving: ' + e.message;
   }
