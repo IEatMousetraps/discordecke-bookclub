@@ -11303,14 +11303,17 @@ function clearIdentityCookie() {
 function _badgeSeenKey(memberKey) { return 'dbc_badges_seen_' + memberKey; }
 function _pennyBadgeResetKey(memberKey) { return 'dbc_badges_penny_reset_' + memberKey; }
 
+// Badges tied to books members brought Penny. A Penny reset leaves these alone,
+// because the books themselves stay in the pool.
+const PENNY_BROUGHT_BADGE_IDS = ['penny-brought', 'penny-road'];
 const PENNY_BADGE_IDS = ['penny-met','penny-trust','penny-catalog','penny-quiz','penny-accepted','penny-declined','penny-returned','penny-chat','penny-plant-dorothea','penny-plant-miranda','penny-plant-jane','penny-plant-horatio','penny-plant-scheherazade','penny-plant-circe','penny-plant-may','penny-plant-all','penny-brought','penny-road','penny-record'];
 
 // ── Badges for books members tell Penny about ─────────────────────────────
-// Only books told to her after any Penny reset count, like her other badges.
+// Every book they've told her about counts, even from before a Penny reset:
+// those books stay in her pool, so the credit for bringing them stays too.
 function _pennyMineBrought(key, rec) {
   if (!key) return [];
-  const reset = (rec || {}).badgeResetTs || 0;
-  return (CACHE.pennyBrought || []).filter(b => b && (b.submittedAt || 0) > reset &&
+  return (CACHE.pennyBrought || []).filter(b => b &&
     (b.suggesters || []).some(sg => pgKey(sg.email || '', sg.discord || '') === key));
 }
 // A Penny for Your Thoughts: when they first told her about a book (0 = not yet).
@@ -11369,7 +11372,7 @@ function _maybeClearPennyBadgesFromSnapshot(memberKey) {
   if (resetTs <= lastClearedTs) return;
   // Reset is newer than last clear — scrub penny IDs from seen snapshot
   const seenIds = _getSeenBadgeIds(memberKey);
-  PENNY_BADGE_IDS.forEach(id => seenIds.delete(id));
+  PENNY_BADGE_IDS.forEach(id => { if (!PENNY_BROUGHT_BADGE_IDS.includes(id)) seenIds.delete(id); });
   try { localStorage.setItem(_badgeSeenKey(memberKey), JSON.stringify([...seenIds])); } catch {}
   try { localStorage.setItem(_pennyBadgeResetKey(memberKey), String(resetTs)); } catch {}
 }
@@ -15357,34 +15360,43 @@ async function adminResetMemberPenny() {
   const memberKey = sel.value;
   if (!memberKey) { area.innerHTML = '<em>Select a member first.</em>'; return; }
   const memberName = sel.options[sel.selectedIndex]?.dataset?.name || memberKey;
-  if (!confirm(`Reset Penny history for ${memberName}?\n\nThis wipes everything Penny remembers about them: visits, her clipboard and crossed-off books, plants she's told them about, and their Penny badges. Their next visit is a first visit. This can't be undone.`)) return;
+  if (!confirm(`Reset Penny history for ${memberName}?\n\nThis wipes everything Penny remembers about them: visits, her clipboard and crossed-off books, plants she's told them about, and their Penny badges. Their next visit is a first visit. This can't be undone.\n\nBooks they've brought Penny are NOT touched. They stay in her pool and on her shelves, and the member keeps \"A Penny for Your Thoughts\" and \"The Road Less Traveled\".`)) return;
   area.innerHTML = '<em style="color:var(--gold);">Resetting…</em>';
   try {
     // Replace their whole record (a merge would leave old flags behind, which kept
     // Penny badges, plant memories and "you know the ways" alive after a reset)
     const now = Date.now();
+    let fresh = { badgeResetTs: now };
     await runTransaction(db, async tx => {
       const snap = await tx.get(PENNY_REF);
       const data = snap.exists() ? snap.data() : {};
-      data[memberKey] = { badgeResetTs: now };
+      const old = data[memberKey] || {};
+      // Books they brought Penny stay in the pool, so keep their record of bringing one
+      fresh = { badgeResetTs: now };
+      if (old.broughtBook) { fresh.broughtBook = true; fresh.broughtBook_ts = old.broughtBook_ts || null; }
+      // Only this member's record is replaced. Everything else in the doc, including the
+      // shared pool (historicalPool, broughtBooks, broughtInterest), is written back as it was.
+      data[memberKey] = fresh;
+      PENNY_SHARED_KEYS.forEach(k => { if (snap.exists() && k in snap.data()) data[k] = snap.data()[k]; });
       tx.set(PENNY_REF, data);
     });
-    if (CACHE.pennyMembers) CACHE.pennyMembers[memberKey] = { badgeResetTs: now };
+    if (CACHE.pennyMembers) CACHE.pennyMembers[memberKey] = Object.assign({}, fresh);
     // Clear any admin grants/blocks on Penny badges so they can be re-earned cleanly
     const cfg = JSON.parse(JSON.stringify(getBadgeConfig()));
     const ov = (cfg.overrides || {})[memberKey];
     if (ov) {
-      PENNY_BADGE_IDS.forEach(id => { delete ov[id]; });
+      PENNY_BADGE_IDS.forEach(id => { if (!PENNY_BROUGHT_BADGE_IDS.includes(id)) delete ov[id]; });
       if (!Object.keys(ov).length) delete cfg.overrides[memberKey];
     }
     if (!cfg.badgeResets) cfg.badgeResets = {};
-    cfg.badgeResets[memberKey] = Object.assign({}, cfg.badgeResets[memberKey] || {}, Object.fromEntries(PENNY_BADGE_IDS.map(id => [id, now])));
+    const resetIds = PENNY_BADGE_IDS.filter(id => !PENNY_BROUGHT_BADGE_IDS.includes(id));
+    cfg.badgeResets[memberKey] = Object.assign({}, cfg.badgeResets[memberKey] || {}, Object.fromEntries(resetIds.map(id => [id, now])));
     await fbSetFull(BADGE_CONFIG_REF, cfg);
     if (typeof _badgeEarnerCounts !== 'undefined') _badgeEarnerCounts = null;
     // If you reset yourself, let Penny forget you in this open tab too
     if (_pennyMetKey === memberKey) _pennyMetKey = null;
     if (_profileIdentity && _profileIdentity.key === memberKey) _pennyCountedThisSession = false;
-    area.innerHTML = `<p style="color:var(--gold);">✓ ${esc(memberName)}'s Penny history has been cleared. Their next visit will be treated as a first visit.</p>`;
+    area.innerHTML = `<p style="color:var(--gold);">✓ ${esc(memberName)}'s Penny history has been cleared. Their next visit will be treated as a first visit. Books they brought Penny are still in her pool.</p>`;
   } catch(e) {
     area.innerHTML = `<span style="color:#c55;">Error resetting: ${esc(e.message)}</span>`;
   }
