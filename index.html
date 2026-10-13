@@ -14363,6 +14363,46 @@ function _pbrWho(rec) {
   return (rec.suggesters || []).map(s => resolveId(s.discord || '', s.email || '', idMap) || s.discord || s.email || '').filter(Boolean).join(', ') || 'Unknown member';
 }
 
+// The edit fields for a brought book (used for review and for fixing shelved books)
+let _pbrEditing = null;   // id of the shelved book being edited
+function _pbrFormGrid(b) {
+  const id = esc(b.id);
+  const gs = String(b.genre || '').split('/').map(x => x.trim()).filter(Boolean);
+  const gOpts = sel => '<option value="">—</option>' + GENRE_NAMES.map(n => `<option${n === sel ? ' selected' : ''}>${esc(n)}</option>`).join('');
+  return `<div class="pbr-grid">
+        <label>Title<input type="text" id="pbr-title-${id}" value="${esc(b.title || '')}"></label>
+        <label>Author<input type="text" id="pbr-author-${id}" value="${esc(b.author || '')}"></label>
+        <label>Section<select id="pbr-sec-${id}"><option${b.section !== 'Nonfiction' ? ' selected' : ''}>Fiction</option><option${b.section === 'Nonfiction' ? ' selected' : ''}>Nonfiction</option></select></label>
+        <label>Genre<select id="pbr-g1-${id}">${gOpts(gs[0] || '')}</select></label>
+        <label>Second genre<select id="pbr-g2-${id}">${gOpts(gs[1] || '')}</select></label>
+        <label>Pages<span class="pbr-pages"><input type="number" min="1" id="pbr-pages-${id}" value="${esc(b.pageCount || '')}"><select id="pbr-fmt-${id}">
+          <option value="hardcover"${b.pagesFormat === 'hardcover' ? ' selected' : ''}>Hardcover</option>
+          <option value="paperback"${b.pagesFormat === 'paperback' ? ' selected' : ''}>Paperback</option>
+          <option value="digital"${b.pagesFormat === 'digital' ? ' selected' : ''}>Digital</option></select></span></label>
+      </div>`;
+}
+// Read the edit fields. Returns null (and shows why) if title or author is missing.
+function _pbrReadForm(id, b) {
+  const v = f => (document.getElementById(`pbr-${f}-${id}`) || {}).value || '';
+  const title = v('title').trim().replace(/\s+/g, ' '), author = v('author').trim().replace(/\s+/g, ' ');
+  const msg = document.getElementById('pbr-msg-' + id);
+  if (!title || !author) { if (msg) { msg.textContent = 'Title and author are both needed.'; msg.style.color = 'var(--red)'; } return null; }
+  const pages = parseInt(v('pages'), 10);
+  return { title, author, section: v('sec') === 'Nonfiction' ? 'Nonfiction' : 'Fiction',
+           genre: [v('g1'), v('g2')].filter((g, i, a) => g && a.indexOf(g) === i).join(' / '),
+           pageCount: pages > 0 ? pages : null, pagesFormat: v('fmt') || (b && b.pagesFormat) || '' };
+}
+// Keep "also interested" notes with the book when its title is corrected
+function _pbrMoveInterest(im, oldTitle, title, author) {
+  const oldK = normTitleKey(oldTitle), newK = normTitleKey(title);
+  if (oldK === newK) { if (im[newK]) im[newK] = Object.assign({}, im[newK], { title, author }); return; }
+  if (!im[oldK]) return;
+  const merged = Object.assign({ title, author, members: [] }, im[newK] || {});
+  merged.members = (merged.members || []).slice();
+  (im[oldK].members || []).forEach(m => { if (!merged.members.some(x => _ptellKeyOf(x) === _ptellKeyOf(m))) merged.members.push(m); });
+  im[newK] = merged; delete im[oldK];
+}
+
 function renderPennyBroughtAdmin(force) {
   const box = document.getElementById('pbr-admin');
   _pbrUpdateCount();
@@ -14372,13 +14412,11 @@ function renderPennyBroughtAdmin(force) {
   const all = (CACHE.pennyBrought || []).filter(Boolean);
   const pending = all.filter(b => b.status !== 'shelved').sort((a, b) => (a.submittedAt || 0) - (b.submittedAt || 0));
   const shelved = all.filter(b => b.status === 'shelved').sort((a, b) => (b.approvedAt || 0) - (a.approvedAt || 0));
-  const gOpts = sel => '<option value="">—</option>' + GENRE_NAMES.map(n => `<option${n === sel ? ' selected' : ''}>${esc(n)}</option>`).join('');
   const chip = t => `<span class="pbr-chip">${t}</span>`;
 
   const pendHtml = pending.length ? pending.map(b => {
     const id = esc(b.id);
     const s0 = (b.suggesters || [])[0] || {};
-    const gs = String(b.genre || '').split('/').map(x => x.trim()).filter(Boolean);
     const dup = _pbrDupOf(b);
     const interest = _pbrInterestNames(b.title);
     const chips = [
@@ -14391,17 +14429,7 @@ function renderPennyBroughtAdmin(force) {
     return `<div class="pbr-card" data-pbr="${id}">
       <div class="pbr-top"><span class="pbr-from">from <strong>${esc(_pbrWho(b))}</strong> · ${_pbrDate(b.submittedAt)}</span></div>
       ${dup ? `<div class="pbr-warn">⚠️ ${dup.label}</div>` : ''}
-      <div class="pbr-grid">
-        <label>Title<input type="text" id="pbr-title-${id}" value="${esc(b.title || '')}"></label>
-        <label>Author<input type="text" id="pbr-author-${id}" value="${esc(b.author || '')}"></label>
-        <label>Section<select id="pbr-sec-${id}"><option${b.section !== 'Nonfiction' ? ' selected' : ''}>Fiction</option><option${b.section === 'Nonfiction' ? ' selected' : ''}>Nonfiction</option></select></label>
-        <label>Genre<select id="pbr-g1-${id}">${gOpts(gs[0] || '')}</select></label>
-        <label>Second genre<select id="pbr-g2-${id}">${gOpts(gs[1] || '')}</select></label>
-        <label>Pages<span class="pbr-pages"><input type="number" min="1" id="pbr-pages-${id}" value="${esc(b.pageCount || '')}"><select id="pbr-fmt-${id}">
-          <option value="hardcover"${b.pagesFormat === 'hardcover' ? ' selected' : ''}>Hardcover</option>
-          <option value="paperback"${b.pagesFormat === 'paperback' ? ' selected' : ''}>Paperback</option>
-          <option value="digital"${b.pagesFormat === 'digital' ? ' selected' : ''}>Digital</option></select></span></label>
-      </div>
+      ${_pbrFormGrid(b)}
       ${chips ? `<div class="pbr-chips">${chips}</div>` : ''}
       <div class="pbr-why"><span>What they like about it</span>${s0.reason ? `“${esc(s0.reason)}”` : '<em>No reason given</em>'}</div>
       <div class="pbr-btns">
@@ -14415,9 +14443,22 @@ function renderPennyBroughtAdmin(force) {
 
   const shelfHtml = shelved.length ? `<div class="pbr-list">${shelved.map(b => {
     const interest = _pbrInterestNames(b.title);
+    if (_pbrEditing === b.id) {
+      const id = esc(b.id);
+      return `<div class="pbr-card" data-pbr="${id}">
+      <div class="pbr-top"><span class="pbr-from">Editing · from <strong>${esc(_pbrWho(b))}</strong> · shelved ${_pbrDate(b.approvedAt)}</span></div>
+      ${_pbrFormGrid(b)}
+      <div class="pbr-btns">
+        <button class="btn btn-secondary btn-sm" onclick="pbrEditCancel()">Cancel</button>
+        <button class="btn btn-primary btn-sm" onclick="pbrEditSave('${id}')">Save changes</button>
+      </div>
+      <p class="pbr-msg" id="pbr-msg-${id}" role="status"></p>
+    </div>`;
+    }
     return `<div class="pbr-row"><div><strong>${esc(b.title)}</strong> <span class="pbr-soft">— ${esc(b.author || '')}</span><br>
       <span class="pbr-soft">${esc(b.section || 'Fiction')}${b.genre ? ' · ' + esc(b.genre) : ''} · from ${esc(_pbrWho(b))} · shelved ${_pbrDate(b.approvedAt)}${interest.length ? ` · also interested: ${esc(interest.join(', '))}` : ''}</span></div>
-      <button class="btn btn-secondary btn-sm" onclick="pbrUnshelve('${esc(b.id)}')">Take off the shelves</button></div>`;
+      <span style="display:flex;gap:.4rem;flex-wrap:wrap;"><button class="btn btn-secondary btn-sm" onclick="pbrEdit('${esc(b.id)}')">Edit</button>
+      <button class="btn btn-secondary btn-sm" onclick="pbrUnshelve('${esc(b.id)}')">Take off the shelves</button></span></div>`;
   }).join('')}</div>` : '<p class="pbr-empty">No approved books yet.</p>';
 
   // Interest notes on books that aren't brought books (near-misses, 2025 books)
@@ -14432,7 +14473,7 @@ function renderPennyBroughtAdmin(force) {
   box.innerHTML = `
     <h4 class="pbr-h">Waiting for review <span class="pbr-n">${pending.length}</span></h4>
     ${pendHtml}
-    <details class="pbr-det"${shelved.length && !pending.length ? ' open' : ''}><summary>On Penny's shelves <span class="pbr-n">${shelved.length}</span></summary>
+    <details class="pbr-det"${(shelved.length && !pending.length) || _pbrEditing ? ' open' : ''}><summary>On Penny's shelves <span class="pbr-n">${shelved.length}</span></summary>
       <p class="pbr-soft" style="margin:.4rem 0 .6rem;">Members can find these when they browse. Penny won't hand them out herself until they've lost a club vote. They stay here, ready for a Shelf month, even after a vote.</p>
       ${shelfHtml}</details>
     <details class="pbr-det"><summary>Also interested <span class="pbr-n">${notes.length}</span></summary>${notesHtml}</details>
@@ -14474,27 +14515,69 @@ async function _pbrUpdate(fn, busyMsg) {
 }
 
 window.pbrApprove = async function(id) {
-  const v = f => (document.getElementById(`pbr-${f}-${id}`) || {}).value || '';
-  const title = v('title').trim().replace(/\s+/g, ' '), author = v('author').trim().replace(/\s+/g, ' ');
-  const msg = document.getElementById('pbr-msg-' + id);
-  if (!title || !author) { if (msg) { msg.textContent = 'Title and author are both needed.'; msg.style.color = 'var(--red)'; } return; }
-  const genre = [v('g1'), v('g2')].filter((g, i, a) => g && a.indexOf(g) === i).join(' / ');
-  const pages = parseInt(v('pages'), 10);
+  const f = _pbrReadForm(id, (CACHE.pennyBrought || []).find(x => x && x.id === id));
+  if (!f) return;
   await _pbrUpdate((list, im) => {
     const b = list.find(x => x.id === id);
     if (!b) throw new Error('That book is no longer waiting for review.');
-    // Keep any "also interested" notes if the title was corrected
-    const oldK = normTitleKey(b.title), newK = normTitleKey(title);
-    if (oldK !== newK && im[oldK]) {
-      const merged = Object.assign({ title, author, members: [] }, im[newK] || {});
-      merged.members = (merged.members || []).slice();
-      (im[oldK].members || []).forEach(m => { if (!merged.members.some(x => _ptellKeyOf(x) === _ptellKeyOf(m))) merged.members.push(m); });
-      im[newK] = merged; delete im[oldK];
-    }
-    Object.assign(b, { title, author, section: v('sec') === 'Nonfiction' ? 'Nonfiction' : 'Fiction', genre,
-                       pageCount: pages > 0 ? pages : null, pagesFormat: v('fmt') || b.pagesFormat || '',
-                       status: 'shelved', approvedAt: Date.now() });
+    _pbrMoveInterest(im, b.title, f.title, f.author);
+    Object.assign(b, f, { status: 'shelved', approvedAt: Date.now() });
   }, 'Shelving…');
+};
+
+// ── Fixing a book that's already on Penny's shelves (typos and such) ──
+window.pbrEdit = function(id) { _pbrEditing = id; renderPennyBroughtAdmin(true); const t = document.getElementById('pbr-title-' + id); if (t) t.focus(); };
+window.pbrEditCancel = function() { _pbrEditing = null; renderPennyBroughtAdmin(true); };
+window.pbrEditSave = async function(id) {
+  const cur = (CACHE.pennyBrought || []).find(x => x && x.id === id);
+  if (!cur) { _pbrEditing = null; renderPennyBroughtAdmin(true); return; }
+  const f = _pbrReadForm(id, cur);
+  if (!f) return;
+  const oldTitle = cur.title || '';
+  const retitled = normTitleKey(oldTitle) !== normTitleKey(f.title) || oldTitle !== f.title;
+  showLoading('Saving…');
+  try {
+    let saved = null;
+    await runTransaction(db, async tx => {
+      const snap = await tx.get(PENNY_REF);
+      const data = snap.exists() ? snap.data() : {};
+      const list = (Array.isArray(data.broughtBooks) ? data.broughtBooks : []).map(x => Object.assign({}, x));
+      const im = Object.assign({}, data.broughtInterest || {});
+      const b = list.find(x => x.id === id);
+      if (!b) throw new Error('That book is no longer on Penny\'s shelves.');
+      _pbrMoveInterest(im, b.title, f.title, f.author);
+      const was = b.title;
+      Object.assign(b, f, { editedAt: Date.now() });
+      const members = {};
+      // A member who already took it from her shelves sees the corrected title on Penny's list too
+      if (retitled) {
+        const k = normTitleKey(was);
+        Object.entries(data).forEach(([mk, r]) => {
+          if (PENNY_SHARED_KEYS.has(mk) || !r || typeof r !== 'object') return;
+          const fix = arr => Array.isArray(arr) && arr.some(x => x && normTitleKey(x.title) === k)
+            ? arr.map(x => x && normTitleKey(x.title) === k ? Object.assign({}, x, { title: f.title }) : x) : null;
+          const c = fix(r.card), h = fix(r.cardHistory);
+          if (!c && !h) return;
+          const r2 = Object.assign({}, r);
+          if (c) r2.card = c;
+          if (h) r2.cardHistory = h;
+          members[mk] = r2;
+        });
+      }
+      tx.set(PENNY_REF, { broughtBooks: list, broughtInterest: im }, { mergeFields: ['broughtBooks', 'broughtInterest'] });
+      // Member keys are emails (dots), so these go in a plain merge rather than by field path
+      if (Object.keys(members).length) tx.set(PENNY_REF, members, { merge: true });
+      saved = { list, im };
+    });
+    if (saved) { CACHE.pennyBrought = saved.list; CACHE.pennyInterest = saved.im; }
+    hideLoading();
+    _pbrEditing = null;
+    renderPennyBroughtAdmin(true);
+  } catch (e) {
+    hideLoading();
+    const msg = document.getElementById('pbr-msg-' + id);
+    if (msg) { msg.textContent = 'Save failed: ' + (e && e.message ? e.message : 'unknown error'); msg.style.color = 'var(--red)'; }
+  }
 };
 
 window.pbrDecline = async function(id) {
