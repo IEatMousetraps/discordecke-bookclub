@@ -1109,7 +1109,11 @@ body.on-home #meeting-banner{display:none !important;}
 .hm-av{width:32px;height:32px;border-radius:50%;background:var(--cream);color:#5c4300;font-weight:700;font-size:.72rem;display:flex;align-items:center;justify-content:center;flex:none;text-transform:uppercase;}
 .hm-stars{color:#b07d00;letter-spacing:1px;margin-left:.35rem;font-size:.8rem;}
 .hm-star-off{color:#d9d2c2;}
-.hm-q{font-size:.88rem;color:#4a443a;font-style:italic;margin-top:.35rem;padding:.55rem .8rem;border:1px solid var(--border);border-radius:10px;background:#fff;width:fit-content;max-width:100%;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+.hm-q{font-size:.88rem;color:#4a443a;font-style:italic;margin-top:.35rem;padding:.55rem .8rem;border:1px solid var(--border);border-radius:10px;background:#fff;width:fit-content;max-width:100%;}
+.hm-q-text{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;line-height:1.5;}
+.hm-q.open .hm-q-text{display:block;-webkit-line-clamp:unset;overflow:visible;}
+.hm-more{display:inline-block;background:none;border:none;color:#7a5a00;font:600 .8rem 'DM Sans',sans-serif;font-style:normal;text-decoration:underline;text-underline-offset:2px;padding:.4rem 0 .1rem;cursor:pointer;min-height:32px;}
+.hm-more[hidden]{display:none;}
 .hm-link{background:none;border:none;color:#7a5a00;font:600 .85rem 'DM Sans',sans-serif;cursor:pointer;padding:.6rem 0 0;white-space:nowrap;}
 .hm-helper{position:relative;background:#fff4d6;border:1px solid #f0d58a;border-radius:14px;padding:1.1rem 1rem 1.1rem 1.1rem;margin-bottom:1.25rem;}
 .hm-helper h3{padding-right:1.6rem;}
@@ -19418,7 +19422,27 @@ function renderHome() {
   const right = homeHelperCard() + (s.pennyVisible ? homePennyCard() : '') + homeLastBookCard() + homeQuarterlyCard(id);
   el.innerHTML = `<div class="hm-hello"><h2>${greet}${name ? ', ' + esc(name) : ''}</h2><p>Here's what's happening in the club this month.</p></div>
     <div class="hm-grid"><div class="hm-col">${left}</div><div class="hm-col">${right}</div></div>`;
+  homeFitReviews();
 }
+// Remembers which reviews a member expanded, so a live data refresh doesn't collapse them
+const _hmOpenReviews = new Set();
+function homeFitReviews() {
+  document.querySelectorAll('#home-content .hm-q').forEach(q => {
+    const t = q.querySelector('.hm-q-text'), b = q.querySelector('.hm-more');
+    if (!t || !b) return;
+    b.hidden = !(q.classList.contains('open') || t.scrollHeight > t.clientHeight + 2);
+  });
+}
+function homeToggleReview(btn) {
+  const q = btn.closest('.hm-q');
+  const open = q.classList.toggle('open');
+  if (open) _hmOpenReviews.add(q.dataset.rv); else _hmOpenReviews.delete(q.dataset.rv);
+  btn.textContent = open ? 'Show less' : 'Read more';
+  btn.setAttribute('aria-expanded', String(open));
+}
+window.homeToggleReview = homeToggleReview;
+let _hmFitTimer = null;
+window.addEventListener('resize', () => { clearTimeout(_hmFitTimer); _hmFitTimer = setTimeout(homeFitReviews, 150); });
 window.renderHome = renderHome;
 
 function homeMeetingHtml() {
@@ -19557,6 +19581,7 @@ function homeReviewsCard() {
   // The book we're reading now comes first, then the newest reviews of anything else
   list.sort((x, y) => (Number(y.isCur) - Number(x.isCur)) || (y.ts - x.ts));
   const rows = list.slice(0, 3).map(({ r, month, txt }) => {
+    const rvKey = `${month}|${r.discord || ''}|${r.ts || ''}`;
     let title = r.bookTitle || '';
     if (!title && byLabel[month]) { const w = homeWinners(byLabel[month]); title = w[0] ? w[0].title : ''; }
     const who = String(r.discord || r.name || 'A member').replace(/#\d+$/, '');
@@ -19564,7 +19589,7 @@ function homeReviewsCard() {
     const stars = n >= 1 && n <= 5 ? `<span class="hm-stars" aria-label="${n} out of 5 stars">${homeStars(n)}</span>` : '';
     return `<div class="hm-rv"><span class="hm-av" aria-hidden="true">${esc(who.slice(0, 2))}</span><div style="min-width:0;">
       <div class="hm-t">${esc(who)}${stars}${title ? `<span class="hm-d" style="display:inline;font-weight:500;"> · ${esc(title)}</span>` : ''}</div>
-      <div class="hm-q">“${esc(txt)}”</div></div></div>`;
+      <div class="hm-q${_hmOpenReviews.has(rvKey) ? ' open' : ''}" data-rv="${esc(rvKey)}"><div class="hm-q-text">“${esc(txt)}”</div><button type="button" class="hm-more" hidden aria-expanded="${_hmOpenReviews.has(rvKey)}" onclick="homeToggleReview(this)">${_hmOpenReviews.has(rvKey) ? 'Show less' : 'Read more'}</button></div></div></div>`;
   }).join('');
   return `<div class="hm-card o-rv"><div class="hm-lbl">What members are saying</div>${rows}
     <button type="button" class="hm-link" onclick="homeGo('rankings')">See all reviews and rankings →</button></div>`;
