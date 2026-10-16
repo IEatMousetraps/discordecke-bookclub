@@ -317,6 +317,7 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 .passport-status-line { font-size: .82rem; color: var(--soft); margin-bottom: 1rem; }
 
 /* Book detail modal / inline form */
+.qa-cell-open { outline: 3px solid var(--gold); outline-offset: 2px; }
 .qa-book-drawer {
   border: 1px solid var(--gold);
   border-radius: 8px;
@@ -17119,6 +17120,7 @@ function renderBingoCard(container, cfg, card, memberKey) {
     html += '</div>';
   }
   container.innerHTML = html;
+  _qaPlaceDrawer(container);
 }
 
 // ── PASSPORT CARD render ───────────────────────────────
@@ -17240,6 +17242,7 @@ function renderPassportCard(container, cfg, card, memberKey) {
   </div>`;
 
   container.innerHTML = html;
+  _qaPlaceDrawer(container);
 }
 
 // ── Identity / load ────────────────────────────────────
@@ -17511,6 +17514,37 @@ function _qaRerender(s) {
   if (s.cfg.mode === 'bingo') renderBingoCard(s.main, s.cfg, card, s.key);
   else renderPassportCard(s.main, s.cfg, card, s.key);
 }
+
+
+// Put the book form right under the row of the square/stamp that was tapped,
+// instead of after the whole board (which meant scrolling on phones).
+let _qaDrawerShownFor = null;
+function _qaPlaceDrawer(container) {
+  const drawer = container.querySelector('#qa-drawer');
+  const grid = container.querySelector('.passport-grid, .bingo-grid');
+  if (!drawer || !grid || _qaOpenDrawer === null) { _qaDrawerShownFor = null; return; }
+  const cells = [...grid.children].filter(c => c.dataset && c.dataset.idx !== undefined);
+  const pos = cells.findIndex(c => +c.dataset.idx === _qaOpenDrawer);
+  if (pos < 0) return;
+  const cols = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length || 1;
+  const rowEnd = Math.min(cells.length - 1, Math.floor(pos / cols) * cols + cols - 1);
+  drawer.style.gridColumn = '1 / -1';
+  drawer.style.margin = '.15rem 0 .35rem';
+  drawer.style.scrollMarginBottom = '100px'; // clear the phone bottom bar
+  drawer.style.scrollMarginTop = '12px';
+  cells[rowEnd].after(drawer);
+  cells.forEach(c => c.classList.toggle('qa-cell-open', c === cells[pos]));
+  // Only scroll when a different square is opened, not on every refresh
+  if (_qaDrawerShownFor !== _qaOpenDrawer) {
+    _qaDrawerShownFor = _qaOpenDrawer;
+    requestAnimationFrame(() => drawer.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
+  }
+}
+let _qaPlaceTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(_qaPlaceTimer);
+  _qaPlaceTimer = setTimeout(() => { const m = document.getElementById('quarterly-main'); if (m) _qaPlaceDrawer(m); }, 150);
+});
 
 // Open/close the book drawer for a bingo cell
 window.qaToggleCell = function(idx) {
