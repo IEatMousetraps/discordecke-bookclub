@@ -1058,7 +1058,8 @@ nav#app-nav .nav-more-menu .nm-plain{color:#7a5a00;font-weight:600;font-size:.85
   #admin-nav-btn{display:none !important;}
   .mh-actions{display:flex;align-items:center;gap:.45rem;flex:none;}
   nav#app-nav{display:none;}
-  #mobile-tabbar{display:flex;position:fixed;left:max(12px, env(safe-area-inset-left));right:max(12px, env(safe-area-inset-right));bottom:calc(12px + env(safe-area-inset-bottom));z-index:60;background:var(--black);border:1px solid rgba(240,180,41,.55);border-radius:20px;padding:.3rem .25rem;box-shadow:0 10px 28px rgba(0,0,0,.28);}
+  #mobile-tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:60;background:var(--black);border-top:2px solid var(--gold);padding:.4rem max(14px, env(safe-area-inset-left)) calc(.85rem + env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-right));}
+  html::after{content:'';position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top);background:var(--black);z-index:70;pointer-events:none;}
   main{padding-bottom:calc(8.5rem + env(safe-area-inset-bottom));}
 }
 
