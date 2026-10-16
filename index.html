@@ -1033,6 +1033,10 @@ nav#app-nav .nav-more-menu .nm-plain{color:#7a5a00;font-weight:600;font-size:.85
 #mobile-tabbar .badge-notify-dot{position:absolute;top:4px;right:calc(50% - 17px);margin:0;background:#e2543b;animation:badge-pulse-red 1.8s ease-out infinite;}
 .mh-penny{background:var(--gold);color:var(--black);border:none;border-radius:999px;font:700 .8rem 'DM Sans',sans-serif;padding:.6rem .85rem;cursor:pointer;white-space:nowrap;min-height:40px;display:inline-flex;align-items:center;gap:.35rem;}
 .mh-penny svg.ic{width:16px;height:16px;}
+.mh-penny-lbl{display:flex;flex-direction:column;align-items:flex-start;line-height:1.05;text-align:left;}
+.mh-penny-lbl b{font-weight:700;font-size:.8rem;}
+.mh-penny-lbl span{font-weight:600;font-size:.68rem;letter-spacing:.02em;}
+.mh-penny{padding:.45rem .8rem .45rem .7rem;}
 .mh-penny.is-on{box-shadow:0 0 0 2px #fff;}
 .mh-menu{width:44px;height:44px;border-radius:8px;border:1px solid #444;background:none;color:#fff;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;}
 .nav-sheet{position:fixed;inset:0;z-index:80;display:none;}
@@ -1219,7 +1223,7 @@ body.on-home #meeting-banner{display:none !important;}
     </div>
   </div>
   <div class="mh-actions">
-    <button type="button" class="mh-penny penny-entry" onclick="homeGo('penny')"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h14v5a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6Z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M7 2v2M11 2v2"/></svg>Penny's</button>
+    <button type="button" class="mh-penny penny-entry" onclick="homeGo('penny')"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h14v5a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6Z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M7 2v2M11 2v2"/></svg><span class="mh-penny-lbl"><b>Penny's</b><span>Office</span></span></button>
     <button type="button" class="mh-menu" onclick="openNavSheet()" aria-label="Open menu" aria-haspopup="dialog"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
   </div>
 </header>
@@ -1234,7 +1238,7 @@ body.on-home #meeting-banner{display:none !important;}
   <button data-tab="results" onclick="goTab('results',this)">Results</button>
   <button data-tab="review" onclick="goTab('review',this)">Review</button>
   <button data-tab="profile" onclick="goTab('profile',this)">My Profile<span id="badge-notify-dot" class="badge-notify-dot" style="display:none;"></span></button>
-  <button data-tab="penny" id="penny-nav-btn" class="nav-penny penny-entry" onclick="goTab('penny',this)"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h14v5a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6Z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M7 2v2M11 2v2"/></svg>Penny's</button>
+  <button data-tab="penny" id="penny-nav-btn" class="nav-penny penny-entry" onclick="goTab('penny',this)"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h14v5a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6Z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M7 2v2M11 2v2"/></svg>Penny's Office</button>
   <div class="nav-more-wrap">
     <button type="button" id="nav-more-btn" class="nav-more" onclick="toggleMoreMenu(event)" aria-haspopup="true" aria-expanded="false" aria-controls="nav-more-menu"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>More</button>
     <div id="nav-more-menu" class="nav-more-menu" hidden>
@@ -1274,7 +1278,7 @@ body.on-home #meeting-banner{display:none !important;}
   <div class="ns-scrim" onclick="closeNavSheet()"></div>
   <div class="ns-panel" role="dialog" aria-label="Menu">
     <div class="ns-grab"></div>
-    <button type="button" class="ns-penny penny-entry" onclick="sheetGo('penny')"><span class="ns-cup"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h14v5a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6Z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M7 2v2M11 2v2"/></svg></span><span><b>Penny's</b><small>Book ideas, or just a chat</small></span></button>
+    <button type="button" class="ns-penny penny-entry" onclick="sheetGo('penny')"><span class="ns-cup"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h14v5a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6Z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M7 2v2M11 2v2"/></svg></span><span><b>Penny's Office</b><small>Book ideas, or just a chat</small></span></button>
     <div class="ns-h">Explore</div>
     <button type="button" class="ns-item" onclick="sheetGo('rankings')">Book Rankings &amp; Reviews</button>
     <button type="button" class="ns-item" onclick="sheetGo('analysis')">Book Club Metrics</button>
@@ -1714,7 +1718,7 @@ body.on-home #meeting-banner{display:none !important;}
           <button class="btn btn-secondary btn-sm" style="margin-left:.5rem;" onclick="toggleSetting('reviewsOpen')">Toggle</button>
         </div>
         <div>
-          <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.3rem;">Penny's</div>
+          <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.3rem;">Penny's Office</div>
           <span id="a-penny-pill" class="pill pill-closed">Hidden</span>
         </div>
       </div>
@@ -11822,7 +11826,7 @@ function _pennyShowDoor(area) {
     <div class="penny-door-scene">
       <p class="penny-door-prompt">You find a door. There's a small sign on it.</p>
       <div class="penny-door-sign">
-        <span class="penny-door-sign-title">Penny's</span>
+        <span class="penny-door-sign-title">Penny's Office</span>
         <span class="penny-door-sign-sub">Recommended Reading</span>
         <span class="penny-door-sign-est">Est. 2026</span>
       </div>
@@ -19647,9 +19651,9 @@ function homeHelperCard() {
 
 function homePennyCard() {
   return `<div class="hm-penny o-penny penny-entry">
-    <div class="hm-penny-top"><span class="hm-penny-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h14v5a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6Z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M7 2v2M11 2v2"/></svg></span><h3>Penny's</h3></div>
+    <div class="hm-penny-top"><span class="hm-penny-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h14v5a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6Z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M7 2v2M11 2v2"/></svg></span><h3>Penny's Office</h3></div>
     <p>Looking for your next read? Penny's shelves are full of ideas. Or maybe you'd just like to chat?</p>
-    <button type="button" onclick="homeGo('penny')">Stop by Penny's</button>
+    <button type="button" onclick="homeGo('penny')">Stop by Penny's Office</button>
   </div>`;
 }
 
@@ -19756,7 +19760,7 @@ const TOUR_STEPS = [
   { tab: 'results', title: 'Results',        text: 'Around the 25th, the winning book is revealed here.' },
   { tab: 'review',  title: 'Review',         text: 'Finished a book, or decided it wasn\'t for you? Leave a review any time. There\'s no deadline.' },
   { tab: 'profile', title: 'My Profile',     text: 'Track your reading, see your badges and look back at your reviews.' },
-  { tab: 'more',    title: 'Penny\'s and more', text: 'Visit Penny for book ideas or a chat. Book Rankings, Club Metrics and everything else live in the menu.' },
+  { tab: 'more',    title: 'Penny\'s Office and more', text: 'Visit Penny\'s Office for book ideas or a chat. Book Rankings, Club Metrics and everything else live in the menu.' },
 ];
 let _tour = null;
 function _tourIsPhone() { return window.matchMedia('(max-width:700px)').matches; }
