@@ -5889,6 +5889,34 @@ function renderAdmin() {
   renderRenameArchiveSelect();
   renderYearAdminCard();
   renderHomeAdmin();
+  cleanupRetiredBadges();
+}
+
+// Runs when the admin panel opens: if retired badges have crept back into the saved
+// badge settings, take them out for good, along with every member's earned/override marks.
+let _retiredBadgeCleanupBusy = false;
+async function cleanupRetiredBadges() {
+  const cfg = getBadgeConfig();
+  const retired = (cfg.customBadges || []).filter(isRetiredBadge);
+  if (!retired.length || _retiredBadgeCleanupBusy) return;
+  _retiredBadgeCleanupBusy = true;
+  try {
+    const ids = new Set(retired.map(b => b.id));
+    const next = JSON.parse(JSON.stringify(cfg));
+    next.customBadges = (next.customBadges || []).filter(b => !ids.has(b.id));
+    Object.keys(next.overrides || {}).forEach(k => {
+      ids.forEach(id => { delete next.overrides[k][id]; });
+      if (!Object.keys(next.overrides[k]).length) delete next.overrides[k];
+    });
+    ['disabled', 'hidden', 'organic'].forEach(f => { if (next[f]) ids.forEach(id => { delete next[f][id]; }); });
+    await fbSetFull(BADGE_CONFIG_REF, next); // full write, so the removals actually stick
+    _badgeEarnerCounts = null;
+    console.log('[badges] removed retired badges:', [...ids].join(', '));
+  } catch (e) {
+    console.warn('[badges] retired badge cleanup failed', e);
+  } finally {
+    _retiredBadgeCleanupBusy = false;
+  }
 }
 
 function goAdminTab(id, btn) {
@@ -8075,9 +8103,21 @@ const BADGE_DEFS = [
 
 // Returns all BADGE_DEFS + custom badges, respecting disabled/hidden for members
 // organic badges are always included here — the renderer decides visibility per-member
+// Badges retired with The Stacks easter egg (removed Oct 13, 2026). An old copy of the
+// site still open on someone's device used to add these back into the badge settings
+// automatically, so they're ignored here no matter what the saved settings say.
+function isRetiredBadge(b) {
+  if (!b) return false;
+  const name = String(b.name || '').trim().toLowerCase();
+  const desc = String(b.desc || '').toLowerCase();
+  const id   = String(b.id || '').toLowerCase();
+  return ['the archivist', 'the aide', 'the historian'].includes(name)
+      || /explored the club archive|club archive hidden|reshelved every book/.test(desc)
+      || /stacks/.test(id);
+}
 function getAllBadges({ includeHidden = false, includeDisabled = false } = {}) {
   const cfg = getBadgeConfig();
-  const custom = (cfg.customBadges || []).map(cb => ({
+  const custom = (cfg.customBadges || []).filter(cb => !isRetiredBadge(cb)).map(cb => ({
     id: cb.id, name: cb.name, emoji: cb.emoji || '\U0001f3c5', tier: null,
     desc: cb.desc, check: () => false, adminOnly: true, custom: true,
     iconDataUrl: cb.iconDataUrl || null,
@@ -10311,7 +10351,7 @@ function renderAdminCustomBadgesList() {
   const area = document.getElementById('admin-custom-badges-list');
   if (!area) return;
   const cfg = getBadgeConfig();
-  const custom = cfg.customBadges||[];
+  const custom = (cfg.customBadges||[]).filter(b => !isRetiredBadge(b));
   if (!custom.length) { area.innerHTML = '<p style="font-size:.85rem;color:var(--soft);">No custom badges created yet.</p>'; return; }
   area.innerHTML = custom.map(b=>`
     <div style="display:flex;align-items:center;gap:.75rem;padding:.65rem .75rem;background:var(--cream);border-radius:6px;margin-bottom:.4rem;flex-wrap:wrap;">
@@ -10331,7 +10371,15 @@ async function adminDeleteCustomBadge(id) {
   showLoading('Deleting…');
   const cfg = JSON.parse(JSON.stringify(getBadgeConfig()));
   cfg.customBadges = (cfg.customBadges||[]).filter(b=>b.id!==id);
-  await fbSet(BADGE_CONFIG_REF, cfg);
+  // Also clear every member's earned/override mark and any setting for this badge, so it
+  // can't come back already "earned" if it's ever re-added. Full write: a merge write
+  // would silently leave the removed keys in place.
+  Object.keys(cfg.overrides || {}).forEach(k => {
+    delete cfg.overrides[k][id];
+    if (!Object.keys(cfg.overrides[k]).length) delete cfg.overrides[k];
+  });
+  ['disabled', 'hidden', 'organic'].forEach(f => { if (cfg[f]) delete cfg[f][id]; });
+  await fbSetFull(BADGE_CONFIG_REF, cfg);
   _badgeEarnerCounts = null; // invalidate cache
   hideLoading();
   renderAdminCustomBadgesList();
