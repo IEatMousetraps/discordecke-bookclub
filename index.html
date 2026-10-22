@@ -1214,6 +1214,238 @@ header .logo-wrap:focus-visible{outline:2px solid var(--gold);outline-offset:4px
 .tour-bts .skip{background:none;border:none;color:var(--soft);font:600 .82rem 'DM Sans',sans-serif;cursor:pointer;padding:.5rem 0;margin-right:auto;}
 .tour-bts .back{background:none;border:1px solid var(--border);border-radius:8px;padding:.55rem .9rem;font:600 .85rem 'DM Sans',sans-serif;cursor:pointer;min-height:40px;}
 .tour-bts .next{background:var(--black);color:#fff;border:none;border-radius:8px;padding:.6rem 1.1rem;font:700 .85rem 'DM Sans',sans-serif;cursor:pointer;min-height:40px;}
+
+/* ══ My Profile (revamped Oct 2026) ══
+   Every color here comes from these tokens, so a dark theme only needs to redefine them. */
+:root{
+  --surface:#ffffff; --surface-2:#eeebe3; --surface-3:#f7f5f0;
+  --line:#e2ddd1; --line-soft:#f0ede6;
+  --text:#1d1a15; --text-2:#4a443a; --muted:#6b6458; --link:#7a5a00;
+  --tint-gold:#fff4d6; --tint-gold-line:#f0d58a; --tint-gold-ink:#5c4300;
+  --dot:#e2543b; --danger-ink:#b3341f;
+  --invert:#111111; --invert-line:#3a3326; --invert-text:#e8e4da; --invert-soft:#c9c3b6; --invert-accent:#f0b429;
+  --penny-bg:#1a1208; --penny-paper:#f5ecd8; --penny-ink:#3b2a14; --penny-soft:#6b5a3a; --penny-rule:#e6d8b8; --penny-sub:#cdbf9f;
+  --st-notstarted-bg:#f5f5f5; --st-notstarted-fg:#555555;
+  --st-reading-bg:#e3f2fd;    --st-reading-fg:#1565c0;
+  --st-finished-bg:#e8f5e9;   --st-finished-fg:#2d7a3a;
+  --st-dnf-bg:#fce4ec;        --st-dnf-fg:#c0392b;
+  --st-cntr-bg:#f3e8ff;       --st-cntr-fg:#7b5ea7;
+  --st-preread-bg:#e0f4ff;    --st-preread-fg:#0077b6;
+  --st-unset:#d9d2c2;
+}
+body.on-profile main{max-width:1060px;}
+#profile-identity-card{max-width:708px;margin-left:auto;margin-right:auto;}
+.pf-gate-head h2{font-family:'Playfair Display',serif;font-size:1.6rem;color:var(--text);}
+.pf-gate-head p{color:var(--muted);font-size:.9rem;margin:.25rem 0 1rem;}
+.pf-me{display:flex;align-items:center;gap:1rem;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:1.1rem 1.25rem;flex-wrap:wrap;}
+.pf-av{width:56px;height:56px;border-radius:50%;background:var(--gold);color:var(--black);font:700 1.3rem 'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;flex:none;}
+.pf-nm{font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:700;color:var(--text);line-height:1.15;overflow-wrap:anywhere;}
+.pf-who{font-size:.8rem;color:var(--muted);margin-top:.2rem;}
+.pf-who button{background:none;border:none;color:var(--link);font:600 .8rem 'DM Sans',sans-serif;text-decoration:underline;text-underline-offset:2px;cursor:pointer;padding:.2rem 0;}
+.pf-stats{margin-left:auto;display:flex;}
+.pf-st{background:none;border:none;border-left:1px solid var(--line-soft);padding:.25rem 1.1rem;text-align:center;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--text);min-width:84px;}
+.pf-st:first-child{border-left:none;}
+.pf-st b{display:block;font-size:1.4rem;font-weight:700;line-height:1.2;}
+.pf-st span{font-size:.72rem;color:var(--muted);}
+.pf-st:hover b{color:var(--link);}
+.pf-ndot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--dot);margin-left:4px;vertical-align:5px;}
+.pf-tabs{display:inline-flex;gap:4px;background:var(--surface-2);border-radius:12px;padding:4px;margin-top:1.1rem;max-width:100%;overflow-x:auto;}
+.pf-tab{background:none;border:none;font:600 .88rem 'DM Sans',sans-serif;color:var(--text-2);padding:.6rem 1.05rem;border-radius:9px;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:.4rem;min-height:40px;}
+.pf-tab:hover:not(.on){background:var(--surface);}
+.pf-tab.on{background:var(--invert);color:var(--invert-accent);}
+.pf-tab .badge-notify-dot{margin:0;background:var(--dot);animation:none;box-shadow:none;}
+.pf-panel{margin-top:1.25rem;}
+.pf-grid{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:1.25rem;align-items:start;}
+.pf-col{display:flex;flex-direction:column;gap:1.25rem;min-width:0;}
+.pf-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:1.25rem;}
+.pf-card.gold{border-color:var(--tint-gold-line);}
+.pf-lbl{font-size:.68rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.75rem;display:flex;align-items:center;gap:.5rem;}
+.pf-lbl .r{margin-left:auto;letter-spacing:0;text-transform:none;font-weight:600;font-size:.8rem;color:var(--muted);}
+.pf-lbl .r.new{color:var(--danger-ink);}
+.pf-link{background:none;border:none;color:var(--link);font:600 .85rem 'DM Sans',sans-serif;cursor:pointer;padding:.6rem 0 0;display:inline-flex;align-items:center;gap:.3rem;}
+.pf-soft{font-size:.88rem;color:var(--text-2);line-height:1.5;}
+.pf-act{background:var(--gold);color:var(--black);border:none;font:700 .8rem 'DM Sans',sans-serif;padding:.55rem .9rem;border-radius:8px;cursor:pointer;white-space:nowrap;min-height:40px;}
+.pf-act.ghost{background:none;border:1px solid var(--tint-gold-line);color:var(--tint-gold-ink);}
+/* tour helper (dark, so it isn't mistaken for Home's) */
+.pf-helper{position:relative;background:var(--invert);border:1px solid var(--invert-line);border-radius:14px;padding:1.1rem;color:var(--invert-text);}
+.pf-helper h3{font-size:.95rem;color:var(--invert-accent);display:flex;align-items:center;gap:.45rem;padding-right:1.6rem;}
+.pf-helper p{font-size:.85rem;color:var(--invert-soft);margin-top:.3rem;line-height:1.45;}
+.pf-helper .bts{margin-top:.75rem;}
+.pf-helper .go{background:var(--invert-accent);color:var(--invert);border:none;font:600 .8rem 'DM Sans',sans-serif;padding:.6rem .9rem;border-radius:8px;cursor:pointer;}
+.pf-helper .x{position:absolute;top:6px;right:6px;width:36px;height:36px;border-radius:50%;border:none;background:none;color:var(--invert-soft);cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.pf-helper .slim{display:none;flex:1;align-items:center;gap:.3rem;white-space:nowrap;}
+.pf-helper .slim button{background:none;border:none;color:var(--invert-accent);font:700 .82rem 'DM Sans',sans-serif;text-decoration:underline;text-underline-offset:2px;cursor:pointer;padding:.4rem 0;}
+/* Penny's list */
+.pf-penny{background:var(--penny-bg);border-radius:14px;padding:1.25rem;color:var(--penny-paper);}
+.pf-penny-top{display:flex;gap:.8rem;align-items:center;}
+.pf-penny-ic{width:44px;height:44px;border-radius:12px;background:var(--penny-paper);color:var(--penny-soft);display:flex;align-items:center;justify-content:center;flex:none;}
+.pf-penny h3{font-family:'Playfair Display',serif;font-size:1.25rem;}
+.pf-penny .sub{font-size:.8rem;color:var(--penny-sub);margin-top:.1rem;}
+.pf-clip{list-style:none;margin:1rem 0 0;padding:.2rem 1rem;background:var(--penny-paper);color:var(--penny-ink);border-radius:12px;}
+.pf-clip li{display:flex;gap:.75rem;padding:.75rem 0;border-bottom:1px solid var(--penny-rule);}
+.pf-clip li:last-child{border-bottom:none;}
+.pf-clip .n{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--penny-soft);font-size:.75rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none;color:var(--penny-soft);}
+.pf-clip .t{font-family:'Playfair Display',serif;font-weight:700;font-size:1rem;}
+.pf-clip .t em{font-family:'DM Sans',sans-serif;font-style:normal;font-weight:500;font-size:.82rem;color:var(--penny-soft);}
+.pf-clip .d{font-size:.78rem;color:var(--penny-soft);margin-top:.1rem;}
+.pf-clip .d strong{color:var(--penny-ink);font-weight:600;}
+.pf-clip details{margin-top:.3rem;font-size:.78rem;color:var(--penny-soft);}
+.pf-clip summary{cursor:pointer;}
+.pf-clip details div{margin:.35rem 0 0 .75rem;font-style:italic;color:var(--penny-ink);}
+.pf-next{display:inline-block;font:700 .62rem 'DM Sans',sans-serif;letter-spacing:.06em;text-transform:uppercase;background:var(--gold);color:var(--black);border-radius:4px;padding:.1rem .4rem;margin-left:.4rem;vertical-align:2px;}
+.pf-tell{margin-top:.9rem;font-size:.88rem;color:var(--penny-sub);}
+.pf-tell button{background:none;border:none;padding:0;color:var(--gold);font:700 .88rem 'DM Sans',sans-serif;text-decoration:underline;text-underline-offset:3px;cursor:pointer;}
+/* rows (suggestions) */
+.pf-yr{display:flex;align-items:center;gap:.4rem;background:none;border:none;font:700 .75rem 'DM Sans',sans-serif;letter-spacing:.08em;color:var(--text-2);padding:.4rem 0;cursor:pointer;}
+.pf-yr span{font-weight:500;letter-spacing:0;color:var(--muted);}
+.pf-row{display:flex;align-items:baseline;gap:.6rem;padding:.6rem 0;border-bottom:1px solid var(--line-soft);font-size:.88rem;flex-wrap:wrap;}
+.pf-row:last-child{border-bottom:none;}
+.pf-row .a{color:var(--muted);font-size:.8rem;}
+.pf-row .m{margin-left:auto;font-size:.78rem;color:var(--muted);white-space:nowrap;}
+.pf-won{font-size:.68rem;font-weight:700;background:var(--tint-gold);border:1px solid var(--tint-gold-line);color:var(--link);border-radius:999px;padding:0 .5rem;}
+/* badges mini */
+.pf-medals{display:flex;gap:.55rem;flex-wrap:wrap;}
+.pf-md{width:46px;height:46px;border-radius:50%;background:var(--tint-gold);display:flex;align-items:center;justify-content:center;font-size:1.35rem;position:relative;flex:none;}
+.pf-md img{width:30px;height:30px;object-fit:contain;}
+.pf-md.n::after{content:'';position:absolute;top:0;right:0;width:11px;height:11px;border-radius:50%;background:var(--dot);border:2px solid var(--surface);}
+.pf-bsum{font-size:.8rem;color:var(--muted);margin-top:.7rem;line-height:1.45;}
+.pf-bsum b{color:var(--text);}
+/* reading tally */
+.pf-tal{display:flex;align-items:center;gap:.6rem;padding:.35rem 0;font-size:.85rem;}
+.pf-tal .k{width:118px;color:var(--text-2);flex:none;}
+.pf-tal .bar{flex:1;height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden;}
+.pf-tal .bar i{display:block;height:100%;}
+.pf-tal .v{width:24px;text-align:right;font-weight:700;}
+.pf-sv{display:flex;align-items:center;gap:.75rem;}
+.pf-sv .t{font-weight:700;font-size:.92rem;}
+.pf-sv .d{font-size:.8rem;color:var(--muted);margin-top:.1rem;}
+.pf-sv .pf-act{margin-left:auto;}
+/* status colors */
+.st-notstarted{--st-bg:var(--st-notstarted-bg);--st-fg:var(--st-notstarted-fg);}
+.st-reading{--st-bg:var(--st-reading-bg);--st-fg:var(--st-reading-fg);}
+.st-finished{--st-bg:var(--st-finished-bg);--st-fg:var(--st-finished-fg);}
+.st-dnf{--st-bg:var(--st-dnf-bg);--st-fg:var(--st-dnf-fg);}
+.st-chosenottoread{--st-bg:var(--st-cntr-bg);--st-fg:var(--st-cntr-fg);}
+.st-preread{--st-bg:var(--st-preread-bg);--st-fg:var(--st-preread-fg);}
+/* My Reading */
+.pf-note{font-size:.82rem;color:var(--muted);}
+.pf-list{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:.25rem 1.25rem .6rem;margin-top:.9rem;}
+.pf-yh{display:flex;align-items:center;gap:.6rem;width:100%;background:none;border:none;padding:.9rem 0 .6rem;cursor:pointer;text-align:left;font-family:'DM Sans',sans-serif;color:var(--text);}
+.pf-yh .y{font-family:'Playfair Display',serif;font-size:1.35rem;font-weight:700;}
+.pf-yh .s{font-size:.8rem;color:var(--muted);}
+.pf-yh svg{margin-left:auto;color:var(--text-2);transition:transform .2s;}
+.pf-yh[aria-expanded="false"] svg{transform:rotate(180deg);}
+.pf-list.closed{padding-bottom:.25rem;}
+.pf-colh{display:grid;grid-template-columns:56px minmax(0,1fr) 200px minmax(0,380px);gap:1rem;font-size:.66rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:.5rem 0 .2rem;border-top:1px solid var(--line-soft);}
+.pf-bk{display:grid;grid-template-columns:56px minmax(0,1fr) 200px minmax(0,380px);gap:1rem;align-items:center;padding:.85rem 0;border-bottom:1px solid var(--line-soft);}
+.pf-bk:last-child{border-bottom:none;}
+.pf-bk .hm-cover{width:56px;height:84px;padding:0;font-size:0;}
+.pf-mo{font-size:.66rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--link);}
+.pf-mo.bonus{color:var(--st-reading-fg);}
+.pf-bt{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--text);margin-top:.15rem;line-height:1.25;}
+.pf-ba{font-size:.8rem;color:var(--muted);margin-top:.1rem;}
+.pf-cav{font-size:.75rem;color:var(--muted);margin-top:.35rem;line-height:1.4;}
+.pf-sel{position:relative;display:inline-block;}
+.pf-sel select{appearance:none;-webkit-appearance:none;background:var(--st-bg,var(--surface));color:var(--st-fg,var(--text-2));border:1.5px solid var(--st-fg,var(--st-unset));border-radius:999px;font:600 .8rem 'DM Sans',sans-serif;padding:.5rem 2rem .5rem .9rem;min-height:40px;cursor:pointer;max-width:100%;}
+.pf-sel.unset select{border-style:dashed;}
+.pf-sel select:focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
+.pf-sel::after{content:'';position:absolute;right:.85rem;top:50%;width:6px;height:6px;border-right:2px solid var(--st-fg,var(--text-2));border-bottom:2px solid var(--st-fg,var(--text-2));transform:translateY(-70%) rotate(45deg);pointer-events:none;}
+.pf-rv{display:flex;align-items:center;gap:.7rem;min-width:0;}
+.pf-rv .pf-act{margin-left:auto;}
+.pf-stars{color:var(--link);font-size:.92rem;letter-spacing:1px;white-space:nowrap;flex:none;}
+.pf-stars .off{color:var(--st-unset);}
+.pf-snip{font-size:.82rem;color:var(--text-2);font-style:italic;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.pf-snipwrap{min-width:0;flex:1;}
+.pf-snipwrap.open .pf-snip{display:block;-webkit-line-clamp:unset;overflow:visible;}
+.pf-more{background:none;border:none;color:var(--link);font:600 .78rem 'DM Sans',sans-serif;text-decoration:underline;text-underline-offset:2px;cursor:pointer;padding:.25rem 0;}
+.pf-muted{font-size:.8rem;color:var(--muted);}
+.pf-muted.due{color:var(--tint-gold-ink);font-weight:600;}
+/* Badges */
+.pf-inner{display:flex;gap:1.3rem;border-bottom:1px solid var(--line);margin-bottom:1rem;}
+.pf-inner button{background:none;border:none;font:600 .95rem 'DM Sans',sans-serif;color:var(--muted);padding:.4rem .1rem .7rem;border-bottom:3px solid transparent;margin-bottom:-1px;cursor:pointer;}
+.pf-inner button.on{color:var(--text);border-bottom-color:var(--gold);}
+.pf-newband{position:relative;background:var(--tint-gold);border:1px solid var(--tint-gold-line);border-radius:14px;padding:1rem 1.1rem;margin-bottom:1.25rem;}
+.pf-newband h3{font-size:.95rem;color:var(--tint-gold-ink);padding-right:2rem;}
+.pf-newband .x{position:absolute;top:6px;right:6px;width:36px;height:36px;border-radius:50%;border:none;background:none;color:var(--tint-gold-ink);cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.pf-newrow{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:.6rem;margin-top:.7rem;}
+.pf-newrow .pf-bdg{border-color:transparent;}
+.pf-nums{font-size:.8rem;color:var(--muted);margin-bottom:1rem;line-height:1.5;}
+.pf-cat{margin-bottom:1.6rem;}
+.pf-ch{display:flex;align-items:baseline;gap:.6rem;padding-bottom:.45rem;border-bottom:1px solid var(--line);margin-bottom:.75rem;}
+.pf-ch h3{font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--text);}
+.pf-ch .c{margin-left:auto;font-size:.78rem;color:var(--muted);}
+.pf-bg{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.6rem;}
+.pf-bdg{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:.8rem;display:flex;gap:.7rem;align-items:flex-start;text-align:left;font-family:'DM Sans',sans-serif;color:var(--text);}
+button.pf-bdg{cursor:pointer;}
+.pf-bdg .pf-md{width:42px;height:42px;font-size:1.25rem;}
+.pf-bdg .nm{font-weight:700;font-size:.85rem;line-height:1.25;}
+.pf-bdg .ds{font-size:.76rem;color:var(--muted);margin-top:.15rem;line-height:1.35;}
+.pf-bdg .tr{font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--link);margin-bottom:.1rem;}
+.pf-bdg .mm{font-size:.72rem;color:var(--link);font-weight:600;text-decoration:underline;margin-top:.3rem;}
+.pf-bdg.locked{background:var(--surface-3);border-style:dashed;}
+.pf-bdg.locked .pf-md{background:var(--surface-2);filter:grayscale(1);opacity:.6;}
+.pf-subyr{display:flex;align-items:center;gap:.4rem;background:none;border:none;font:700 .72rem 'DM Sans',sans-serif;letter-spacing:.08em;color:var(--muted);padding:.2rem 0;margin:.2rem 0 .5rem;cursor:pointer;}
+.pf-locked-btn{display:flex;align-items:center;gap:.6rem;width:100%;background:var(--surface);border:1px dashed var(--st-unset);border-radius:14px;padding:.9rem 1.1rem;font:600 .92rem 'DM Sans',sans-serif;color:var(--text-2);cursor:pointer;text-align:left;margin-top:.5rem;}
+.pf-locked-btn span{font-weight:400;color:var(--muted);font-size:.8rem;}
+.pf-locked-btn svg{transition:transform .2s;}
+.pf-locked-btn[aria-expanded="true"] svg{transform:rotate(90deg);}
+.pf-locked{margin-top:1.25rem;}
+/* Surveys */
+.pf-open{background:var(--tint-gold);border-color:var(--tint-gold-line);margin-bottom:1rem;}
+.pf-sr{border-bottom:1px solid var(--line-soft);}
+.pf-sr:last-child{border-bottom:none;}
+.pf-sr-h{display:flex;align-items:center;gap:.6rem;width:100%;background:none;border:none;padding:.8rem 0;text-align:left;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--text);}
+.pf-sr-h b{font-weight:600;font-size:.92rem;}
+.pf-sr-h small{display:block;font-size:.75rem;color:var(--muted);}
+.pf-sr-h svg{margin-left:auto;color:var(--muted);transition:transform .2s;}
+.pf-sr-h[aria-expanded="true"] svg{transform:rotate(180deg);}
+.pf-ans{background:var(--surface-3);border-radius:10px;padding:.7rem .9rem;margin:0 0 .8rem;}
+.pf-ans .q{font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);}
+.pf-ans .a{font-size:.88rem;color:var(--text);margin:.15rem 0 .65rem;white-space:pre-wrap;}
+.pf-ans .a:last-child{margin-bottom:0;}
+.pf-ans .when{font-size:.72rem;color:var(--muted);margin-bottom:.5rem;}
+.pf-empty{text-align:center;padding:2rem 1rem;color:var(--muted);font-size:.9rem;}
+#my-artifacts-area .artifact-card{border-radius:14px;}
+#my-artifacts-area .artifact-thumb{background:var(--surface-2);border-color:var(--line);}
+#my-artifacts-area .artifact-when{color:var(--link);}
+/* Home: stats line */
+.hm-stats{display:flex;align-items:center;width:100%;max-width:520px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:.45rem .3rem .45rem .5rem;margin-top:.9rem;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--text);text-align:center;}
+.hm-stats:hover{border-color:var(--tint-gold-line);}
+.hm-stats .s{flex:1;padding:.1rem .4rem;}
+.hm-stats .s + .s{border-left:1px solid var(--line-soft);}
+.hm-stats b{display:block;font-size:1.05rem;font-weight:700;}
+.hm-stats .s{color:var(--text);}
+.hm-stats .s > span{font-size:.72rem;color:var(--muted);}
+.hm-stats .go{flex:none;width:32px;color:var(--link);display:flex;align-items:center;justify-content:center;}
+@media (max-width:860px){
+  .pf-grid{display:flex;flex-direction:column;gap:1.25rem;align-items:stretch;}
+  .pf-col{display:contents;}
+  .o-pfhelp{order:0;} .o-pfbadges{order:1;} .o-pfpenny{order:2;} .o-pftally{order:3;} .o-pfsug{order:4;} .o-pfsurv{order:5;}
+  .pf-colh{display:none;}
+  .pf-bk{grid-template-columns:56px minmax(0,1fr);grid-template-areas:"cv info" "cv st" "rv rv";align-items:start;column-gap:.85rem;row-gap:.5rem;}
+  .pf-bk > .hm-cover{grid-area:cv;}
+  .pf-bk > .info{grid-area:info;}
+  .pf-bk > .st{grid-area:st;}
+  .pf-bk > .pf-rv{grid-area:rv;}
+}
+@media (max-width:700px){
+  .pf-me{padding:.9rem;gap:.75rem;}
+  .pf-av{width:46px;height:46px;font-size:1.1rem;}
+  .pf-nm{font-size:1.3rem;}
+  .pf-stats{margin-left:0;width:100%;border-top:1px solid var(--line-soft);padding-top:.6rem;}
+  .pf-st{flex:1;min-width:0;padding:.1rem .3rem;}
+  .pf-st b{font-size:1.1rem;}
+  .pf-st span{font-size:.66rem;}
+  .pf-tabs{display:flex;}
+  .pf-tab{flex:1 0 auto;justify-content:center;padding:.55rem .7rem;font-size:.82rem;}
+  .pf-helper{display:flex;align-items:center;gap:.3rem;padding:.3rem .3rem .3rem .8rem;border-radius:10px;font-size:.82rem;}
+  .pf-helper h3,.pf-helper p,.pf-helper .bts{display:none;}
+  .pf-helper .slim{display:flex;}
+  .pf-helper .x{position:static;flex:none;}
+  .pf-card,.pf-penny{padding:1rem;}
+  .pf-list{padding:.2rem .9rem .5rem;}
+  .hm-stats{max-width:none;}
+}
 @media (prefers-reduced-motion: reduce){.tour-spot{transition:none;}}
 </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -1504,63 +1736,49 @@ header .logo-wrap:focus-visible{outline:2px solid var(--gold);outline-offset:4px
 
 <!-- ══════════════ MY PROFILE ══════════════ -->
 <div id="tab-profile" class="section">
-  <div class="sec-head"><h2>👤 My Profile</h2><p>Your reading record, badges, and progress all in one place.</p></div>
-
   <!-- Shared identity gate -->
   <div id="profile-identity-card" class="card">
+    <div class="pf-gate-head"><h2>My Profile</h2><p>Your reading, reviews, badges and survey answers, all in one place.</p></div>
     <div class="grid2">
-      <div class="f-group"><label>Email *</label><input type="email" id="profile-email" placeholder="you@email.com"></div>
-      <div class="f-group"><label>Discord Username *</label><input type="text" id="profile-discord" placeholder="user#0000"></div>
+      <div class="f-group"><label for="profile-email">Email *</label><input type="email" id="profile-email" placeholder="you@email.com"></div>
+      <div class="f-group"><label for="profile-discord">Discord Username *</label><input type="text" id="profile-discord" placeholder="user#0000"></div>
     </div>
     <button class="btn btn-primary" onclick="loadProfile()">Load My Profile</button>
     <div id="profile-identity-msg"></div>
   </div>
 
-  <!-- Sub-tab bar and panels (shown after login) -->
+  <!-- Header, tabs and panels (shown once we know who you are) -->
   <div id="profile-subtabs" style="display:none;">
-    <div class="sub-tabs">
-      <button class="sub-tab active" id="profile-sub-btn-overview" onclick="goProfileSubTab('overview',this)">Overview</button>
-      <button class="sub-tab" id="profile-sub-btn-progress" onclick="goProfileSubTab('progress',this)">My Progress</button>
-      <button class="sub-tab" id="profile-sub-btn-badges" onclick="goProfileSubTab('badges',this)">My Badges<span id="profile-badge-sub-dot" class="badge-notify-dot" style="display:none;"></span></button>
-      <button class="sub-tab" id="profile-sub-btn-artifacts" onclick="goProfileSubTab('artifacts',this)">My Artifacts</button>
-      <button class="sub-tab" id="profile-sub-btn-surveys" onclick="goProfileSubTab('surveys',this)">My Surveys</button>
-      <button class="sub-tab" id="profile-sub-btn-reviews" onclick="goProfileSubTab('reviews',this)">My Reviews</button>
+    <div id="pf-head"></div>
+    <div class="pf-tabs" role="tablist" aria-label="My Profile sections">
+      <button type="button" role="tab" class="pf-tab on" id="profile-sub-btn-overview" aria-selected="true" onclick="goProfileSubTab('overview',this)">Overview</button>
+      <button type="button" role="tab" class="pf-tab" id="profile-sub-btn-reading" aria-selected="false" onclick="goProfileSubTab('reading',this)">My Reading</button>
+      <button type="button" role="tab" class="pf-tab" id="profile-sub-btn-badges" aria-selected="false" onclick="goProfileSubTab('badges',this)">Badges<span id="profile-badge-sub-dot" class="badge-notify-dot" style="display:none;" aria-label="new"></span></button>
+      <button type="button" role="tab" class="pf-tab" id="profile-sub-btn-surveys" aria-selected="false" onclick="goProfileSubTab('surveys',this)">Surveys</button>
     </div>
 
-    <!-- Overview sub-panel -->
-    <div id="profile-sub-overview">
+    <div id="profile-sub-overview" class="pf-panel" role="tabpanel">
       <div id="profile-overview-area"></div>
     </div>
 
-    <!-- My Progress sub-panel -->
-    <div id="profile-sub-progress" style="display:none;">
+    <div id="profile-sub-reading" class="pf-panel" role="tabpanel" style="display:none;">
       <div id="progress-books-area"></div>
       <div id="pg-save-msg"></div>
-      <div class="sec-head" style="margin-top:2rem;"><h2>Club Reading Leaderboard</h2><p>See where everyone's at across all winning books.</p></div>
-      <div id="progress-leaderboard"></div>
     </div>
 
-    <!-- My Badges sub-panel -->
-    <div id="profile-sub-badges" style="display:none;">
-      <div id="badge-new-alert"></div>
-      <div id="badges-summary" class="card" style="margin-bottom:1.25rem;"></div>
-      <div id="badges-area"></div>
+    <div id="profile-sub-badges" class="pf-panel" role="tabpanel" style="display:none;">
+      <div id="pf-badges-inner"></div>
+      <div id="pf-badges-pane">
+        <div id="badge-new-alert"></div>
+        <div id="badges-area"></div>
+      </div>
+      <div id="pf-artifacts-pane" style="display:none;">
+        <div id="my-artifacts-area"></div>
+      </div>
     </div>
 
-    <!-- My Artifacts sub-panel -->
-    <div id="profile-sub-artifacts" style="display:none;">
-      <div class="sec-head" style="margin-bottom:1rem;"><h2>Book Club Artifacts</h2><p>Things you've found around the club.</p></div>
-      <div id="my-artifacts-area"></div>
-    </div>
-
-    <!-- My Surveys sub-panel -->
-    <div id="profile-sub-surveys" style="display:none;">
+    <div id="profile-sub-surveys" class="pf-panel" role="tabpanel" style="display:none;">
       <div id="surveys-my-responses-main"></div>
-    </div>
-
-    <!-- My Reviews sub-panel -->
-    <div id="profile-sub-reviews" style="display:none;">
-      <div id="my-reviews-area"></div>
     </div>
   </div>
 </div>
@@ -2060,7 +2278,7 @@ header .logo-wrap:focus-visible{outline:2px solid var(--gold);outline-offset:4px
       <!-- Monthly Book Badge Creator -->
       <div class="card">
         <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.5rem;">Create Monthly Book Badge</h3>
-        <p style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">These badges are awarded automatically when a member marks a specific winning book as Finished on their My Progress page.</p>
+        <p style="font-size:.82rem;color:var(--soft);margin-bottom:.75rem;">These badges are awarded automatically when a member marks a specific winning book as Finished on their My Reading page.</p>
         <div class="grid2">
           <div class="f-group"><label>Badge Name</label><input type="text" id="mbb-name" placeholder="e.g. Beartown Reader"></div>
           <div class="f-group"><label>Description</label><input type="text" id="mbb-desc" placeholder="e.g. Finished Beartown — April 2026"></div>
@@ -2260,7 +2478,7 @@ header .logo-wrap:focus-visible{outline:2px solid var(--gold);outline-offset:4px
       <!-- Book club artifacts: the postcard and Penny's bookmarks -->
       <div class="card" style="margin-bottom:1rem;">
         <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:.4rem;">📮 Artifacts</h3>
-        <p style="font-size:.85rem;color:var(--soft);margin-bottom:.75rem;">Images for things members can find and keep in <em>My Artifacts</em>. The postcard drops from Penny's record crate (1 in 3 per visit after a member's first record, guaranteed by the third). Penny gifts bookmarks from her desk drawer when a member she trusts (all seven plants) accepts a book from her: never their first book, at most one per member per quarter. Images are shrunk on upload and stored in the database, and only load when someone opens them.</p>
+        <p style="font-size:.85rem;color:var(--soft);margin-bottom:.75rem;">Images for things members can find and keep in their profile (<em>Badges → Artifacts</em>). The postcard drops from Penny's record crate (1 in 3 per visit after a member's first record, guaranteed by the third). Penny gifts bookmarks from her desk drawer when a member she trusts (all seven plants) accepts a book from her: never their first book, at most one per member per quarter. Images are shrunk on upload and stored in the database, and only load when someone opens them.</p>
         <div id="artifacts-admin"></div>
       </div>
 
@@ -3882,101 +4100,39 @@ window.loadMySurveyResponses = loadMySurveyResponses;
 function renderMySurveyResponses() {
   const main = document.getElementById('surveys-my-responses-main');
   if (!main) return;
-  if (!_srIdentity) return;
-  const { email, discord } = _srIdentity;
-  const idMap      = buildIdentityMap();
-  const myName     = resolveId(discord, email, idMap);
-  const myEmail    = normEmail(email);
-  const allSurveys = getSurveys();
-  const allResps   = getSurveyResponses();
+  const who = _srIdentity || _profileIdentity;
+  if (!who) return;
+  const sv = pfSurveyState(who.email || '', who.discord || '');
+  if (!sv.all.length) { main.innerHTML = '<div class="pf-card pf-empty">No club surveys yet. When one opens, you\'ll find it here.</div>'; return; }
 
-  // Find every survey this member has responded to.
-  // Mirrors the badge check: email exact match first, then resolved identity name.
-  const participated = allSurveys.map(s => {
-    const resps = allResps[s.id] || [];
-    const mine  = resps.filter(r => {
-      const rEmail = normEmail(r.email || '');
-      if (myEmail && rEmail && rEmail === myEmail) return true;
-      const rDiscord = r.discord || r.name || '';
-      if (rDiscord) {
-        const rResolved = resolveId(rDiscord, r.email || '', idMap);
-        if (myName && rResolved === myName) return true;
-      }
-      return false;
-    });
-    return mine.length ? { survey: s, responses: mine } : null;
-  }).filter(Boolean);
+  const openHtml = sv.open.map(s => `<div class="pf-card pf-open"><div class="pf-sv"><div><div class="t">${esc(s.title)}</div><div class="d">Open now</div></div><button type="button" class="pf-act" onclick="homeGo('surveys')">Take it</button></div></div>`).join('');
 
-  const totalSurveys = allSurveys.length;
-  const completedCount = participated.length;
-
-  // Summary card
-  let summaryHtml = `
-    <div class="card" style="margin-bottom:1.25rem;">
-      <div style="display:flex;align-items:center;gap:1.25rem;flex-wrap:wrap;">
-        <div style="font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;color:var(--gold);">${completedCount}</div>
-        <div>
-          <div style="font-weight:500;font-size:.95rem;">Survey${completedCount!==1?'s':''} Completed</div>
-          <div style="font-size:.8rem;color:var(--soft);">${completedCount} of ${totalSurveys} published survey${totalSurveys!==1?'s':''}</div>
-        </div>
-        ${completedCount === 0 ? '' : `<div style="margin-left:auto;font-size:.82rem;color:var(--soft);">
-          ${completedCount >= totalSurveys && totalSurveys >= 3 ? '<span class="pill pill-open">All surveys complete 📊</span>' :
-            completedCount >= 3 ? '<span class="pill pill-open">Voice of the Club 🎤</span>' :
-            completedCount >= 1 ? '<span class="pill pill-open">Heard 📋</span>' : ''}
-        </div>`}
-      </div>
-    </div>`;
-
-  if (!participated.length) {
-    main.innerHTML = summaryHtml + `<div class="empty"><div class="icon">📋</div><p>No survey responses found for this account.</p><p style="margin-top:.4rem;font-size:.78rem;">Make sure your email and Discord match what you used when submitting.</p></div>`;
-    return;
-  }
-
-  const responseCards = participated.map(({ survey: s, responses }) => {
-    const responseDivs = responses.map((r, ri) => {
-      const dateStr = r.ts ? new Date(r.ts).toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' }) : 'Unknown date';
-      const answerRows = s.questions.map(q => {
+  const fmt = ts => ts ? new Date(ts).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '';
+  const rows = sv.answered.slice().sort((x, y) => y.last - x.last).map(({ survey: s, responses, last }) => {
+    const id = 'pf-sv-' + String(s.id).replace(/[^\w-]/g, '_');
+    const open = pfIsOpen(id, false);
+    const many = responses.length > 1;
+    const body = responses.slice().sort((x, y) => (y.ts || 0) - (x.ts || 0)).map(r => {
+      const qa = (s.questions || []).map(q => {
         const ans = r.answers ? r.answers[q.id] : undefined;
-        let displayAns = '';
-        if (ans === undefined || ans === '' || ans === null) {
-          displayAns = '<span style="color:var(--soft);font-style:italic;">No answer</span>';
-        } else if (q.type === 'rating') {
-          const max = q.max || 5;
-          const stars = '★'.repeat(+ans) + '☆'.repeat(Math.max(0, max - +ans));
-          displayAns = `<span style="color:var(--gold);letter-spacing:.05em;">${stars}</span> <span style="color:var(--soft);font-size:.8rem;">${ans} / ${max}</span>`;
-        } else {
-          displayAns = `<span style="color:var(--ink);">${esc(String(ans))}</span>`;
-        }
-        return `<div style="padding:.6rem 0;border-bottom:1px solid var(--border);">
-          <div style="font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);margin-bottom:.25rem;">${esc(q.prompt)}</div>
-          <div style="font-size:.9rem;">${displayAns}</div>
-        </div>`;
+        let shown;
+        if (ans === undefined || ans === '' || ans === null) shown = '<span style="color:var(--muted);font-style:italic;">No answer</span>';
+        else if (q.type === 'rating') {
+          const max = q.max || 5, n = Math.max(0, Math.min(max, +ans || 0));
+          shown = `<span class="pf-stars" aria-label="${n} out of ${max}">${'★'.repeat(n)}<span class="off">${'★'.repeat(max - n)}</span></span>`;
+        } else shown = esc(Array.isArray(ans) ? ans.join(', ') : String(ans));
+        return `<div class="q">${esc(q.prompt)}</div><div class="a">${shown}</div>`;
       }).join('');
-      return `<div style="${ri > 0 ? 'margin-top:1rem;padding-top:1rem;border-top:2px dashed var(--border);' : ''}">
-        <div style="font-size:.72rem;color:var(--soft);margin-bottom:.5rem;letter-spacing:.04em;">Submitted ${dateStr}</div>
-        ${answerRows}
-      </div>`;
+      return `<div class="pf-ans">${many ? `<div class="when">Submitted ${esc(fmt(r.ts))}</div>` : ''}${qa}</div>`;
     }).join('');
-
-    const statusPill = s.active
-      ? '<span class="pill pill-open">Active</span>'
-      : '<span class="pill pill-closed">Closed</span>';
-
-    const safeId = String(s.id).replace(/[^a-z0-9]/gi, '_');
-
-    return `<div class="card" style="margin-bottom:1.25rem;overflow:hidden;">
-      <div onclick="toggleSurveyResponse('${safeId}')" style="display:flex;align-items:center;gap:.65rem;cursor:pointer;user-select:none;">
-        <span id="sr-chevron-${safeId}" style="font-size:.8rem;color:var(--soft);flex-shrink:0;">▸</span>
-        <h3 style="flex:1;font-family:'Playfair Display',serif;font-size:1.1rem;margin:0;">${esc(s.title)}</h3>
-        ${statusPill}
-      </div>
-      <div id="sr-body-${safeId}" style="display:none;margin-top:1rem;">
-        ${responseDivs}
-      </div>
+    return `<div class="pf-sr">
+      <button type="button" class="pf-sr-h" aria-expanded="${open}" aria-controls="${id}" onclick="pfFold(this)"><span><b>${esc(s.title)}</b><small>Answered ${esc(fmt(last))}${s.active ? ' · still open' : ''}</small></span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+      <div id="${id}"${open ? '' : ' hidden'}>${body}</div>
     </div>`;
   }).join('');
 
-  main.innerHTML = summaryHtml + responseCards;
+  main.innerHTML = openHtml + `<div class="pf-card"><div class="pf-lbl">Your answers<span class="r">${sv.answered.length} of ${sv.all.length} survey${sv.all.length === 1 ? '' : 's'}</span></div>
+    ${rows || '<p class="pf-soft">You haven\'t answered any surveys yet.</p>'}</div>`;
 }
 window.renderMySurveyResponses = renderMySurveyResponses;
 
@@ -5204,7 +5360,7 @@ function renderAnalysisMembers(_idMapM) {
     ? `<div class="chart-wrap"><h3>Highest Finish Rate</h3><p style="color:var(--soft);font-size:.875rem;">Not enough data yet.</p></div>`
     : `<div class="chart-wrap">
       <h3>Highest Finish Rate</h3>
-      <p style="font-size:.78rem;color:var(--soft);margin-bottom:1rem;">Of the winning books they reviewed, how many did they finish? The dashed line is the club's overall finish rate (${Math.round(clubFinishPct)}%). Minimum 2 reviews to appear. · Note: this data is based solely on reviews submitted on the Review tab — it does not reflect reading progress logged under My Progress.</p>
+      <p style="font-size:.78rem;color:var(--soft);margin-bottom:1rem;">Of the winning books they reviewed, how many did they finish? The dashed line is the club's overall finish rate (${Math.round(clubFinishPct)}%). Minimum 2 reviews to appear. · Note: this data is based solely on reviews submitted on the Review tab — it does not reflect reading progress logged under My Reading.</p>
       <div style="display:grid;grid-template-columns:minmax(80px,140px) 1fr auto;gap:.35rem .9rem;align-items:center;font-size:.8rem;padding:0 .4rem;">
         <div></div>
         <div style="position:relative;height:1.1rem;font-size:.68rem;color:var(--soft);">
@@ -7724,81 +7880,111 @@ window.loadProgress = loadProgress;
 
 function renderProgressTab() {
   const area = document.getElementById('progress-books-area');
-  if (!area) return;
-
-  const archives = getArchives();
-
-  // Always compute winner entries for leaderboard (no identity needed)
-  const winnerEntries = archives.map(a => {
-    const dualIds = a.dualWinners || [];
-    let winners;
-    if (dualIds.length) {
-      winners = (a.books || []).filter(b => dualIds.includes(String(b.id)));
-    } else {
-      const nb = (a.books || []).length;
-      const scores = {};
-      (a.books || []).forEach(b => scores[b.id] = 0);
-      Object.values(a.votes || {}).forEach(vd => {
-        (vd.ranking || vd).forEach((id, idx) => {
-          if (scores[id] !== undefined) scores[id] += (nb - idx);
-        });
-      });
-      const sorted = [...(a.books || [])].sort((x, y) => scores[y.id] - scores[x.id]);
-      winners = sorted.length ? [sorted[0]] : [];
-    }
-    return { month: a.label, winners, bonusBook: !!a.bonusBook, caveat: a.caveat || '', windowEnd: a.windowEnd || null };
-  }).filter(e => e.winners.length);
-
-  renderProgressLeaderboard(winnerEntries);
-
-  if (!_pgIdentity) return; // personal section requires identity
-
-  if (!archives.length) {
-    area.innerHTML = '<div class="empty"><div class="icon">📚</div><p>No archived months yet. Winner books will appear here once the admin archives a month.</p></div>';
+  if (!area || !_profileIdentity) return;
+  _pfSyncIdentities();
+  const me = pfMe();
+  const books = pfBooks(me);
+  if (!books.length) {
+    area.innerHTML = '<div class="pf-card pf-empty">No club books yet. Each month\'s winning book shows up here once the month is wrapped up.</div>';
     return;
   }
-
-  const progress = getReadingProgress();
-  const myProgress = progress[_pgIdentity.key] || {};
-
-  const statuses = [
-    { key: 'not-started',       label: 'Not Started',       emoji: '📋' },
-    { key: 'reading',           label: 'Reading',           emoji: '👀' },
-    { key: 'finished',          label: 'Finished',          emoji: '✅' },
-    { key: 'dnf',               label: 'DNF',               emoji: '❌' },
-    { key: 'chose-not-to-read', label: 'Chose Not to Read', emoji: '🚫' },
-    { key: 'pre-read',          label: 'Already Read',      emoji: '⏮️' },
-  ];
-
-  area.innerHTML = `
-    <p style="font-size:.82rem;color:var(--soft);margin-bottom:1.25rem;">Track your reading progress on each month's winning pick.</p>
-    ${winnerEntries.slice().reverse().map(({ month, winners, bonusBook, caveat, windowEnd }) =>
-      winners.map(b => {
-        const cur = myProgress[b.id] || 'not-started';
-        const windowClosed = bonusBook && windowEnd && Date.now() > windowEnd;
-        return `<div class="card" style="padding:1rem 1.25rem;${bonusBook ? 'border-color:var(--gold);' : ''}">
-          <div style="display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap;">
-            <div style="flex:1;min-width:150px;">
-              <div style="font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:.2rem;" title="${bonusBook ? 'Standalone bonus book — not tied to a monthly vote' : 'Monthly winning pick'}">${bonusBook ? '🎁 Bonus Book' : '👑 ' + esc(archiveMonthName(month) || month)}</div>
-              <div style="font-weight:500;font-size:.95rem;">${esc(b.title)}</div>
-              <div style="font-size:.78rem;color:var(--soft);">${esc(b.author)}</div>
-            </div>
-            <div style="display:flex;flex-wrap:wrap;gap:.45rem;">
-              ${statuses.map(st => `
-                <button class="progress-btn ${cur===st.key ? 'active-'+st.key.replace(/-/g,'') : ''}"
-                  onclick="setProgress('${b.id}','${st.key}',this)">
-                  ${st.emoji} ${st.label}
-                </button>`).join('')}
-            </div>
-          </div>
-          ${bonusBook && caveat ? `<div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border);font-size:.78rem;color:var(--soft);">${windowClosed ? '⏳ The limited-time badge window for this one has closed, but you can still read, track, and review it anytime. ' : ''}${esc(caveat)}</div>` : ''}
-          <div id="review-hint-${b.id}" style="${cur === 'finished' ? '' : 'display:none;'}margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border);font-size:.85rem;">
-            📝 Want to review this book? <a href="#" onclick="event.preventDefault();goToReviewForm('${String(month).replace(/'/g,"\\'")}','${b.id}');" style="color:var(--gold);font-weight:600;text-decoration:none;">Review it now →</a>
-          </div>
-        </div>`;
-      }).join('')
-    ).join('')}`;
+  const cur = homeCurrentArchive();
+  const groups = {};
+  books.forEach(x => { (groups[x.year] = groups[x.year] || []).push(x); });
+  const years = Object.keys(groups).sort((a, b) => (a === 'Other') - (b === 'Other') || b.localeCompare(a));
+  const thisYear = String(new Date().getFullYear());
+  const html = years.map((y, yi) => {
+    const list = groups[y].slice().reverse(); // newest first
+    const fin = list.filter(x => x.status === 'finished').length;
+    const rev = list.filter(x => x.review).length;
+    const id = 'pf-read-' + y;
+    const open = pfIsOpen(id, y === thisYear || yi === 0);
+    const rows = list.map(x => pfReadingRow(x, cur)).join('');
+    return `<div class="pf-list${open ? '' : ' closed'}">
+      <button type="button" class="pf-yh" aria-expanded="${open}" aria-controls="${id}" onclick="pfFold(this)"><span class="y">${esc(y)}</span><span class="s">${list.length} club book${list.length === 1 ? '' : 's'} · ${fin} finished · ${rev} reviewed</span>${PF_ICON.chev}</button>
+      <div id="${id}"${open ? '' : ' hidden'}>
+        <div class="pf-colh" aria-hidden="true"><span></span><span>Book</span><span>Your status</span><span>Your review</span></div>
+        ${rows}
+      </div>
+    </div>`;
+  }).join('');
+  area.innerHTML = `<p class="pf-note">Change a status any time. You'll get a quick check before it saves.</p>${html}`;
+  pfFitSnips();
 }
+window.renderProgressTab = renderProgressTab;
+
+function pfReadingRow(x, cur) {
+  const { a, b, isDual, status, review: rv } = x;
+  const bonus = !!a.bonusBook;
+  const mo = bonus ? 'Bonus book'
+    : [archiveMonthName(a.label) || a.label, a.memberPick ? 'Member pick' : '', cur && a.label === cur.label ? 'Now reading' : ''].filter(Boolean).join(' · ');
+  const windowClosed = bonus && a.windowEnd && Date.now() > a.windowEnd;
+  const caveat = bonus && a.caveat ? `<div class="pf-cav">${windowClosed ? 'The limited-time badge window for this one has closed, but you can still read, track and review it anytime. ' : ''}${esc(a.caveat)}</div>` : '';
+  const selId = 'pf-st-' + String(b.id).replace(/[^\w-]/g, '');
+  const cls = status ? 'st-' + status.replace(/-/g, '') : 'unset';
+  const select = `<div class="pf-sel ${cls}"><label class="hm-sr" for="${selId}">Your status for ${esc(b.title)}</label>
+    <select id="${selId}" onchange="pfSetProgress('${_jsAttr(b.id)}', this)">${status ? '' : '<option value="" selected disabled>Not marked yet</option>'}${
+      PF_STATUS_ORDER.map(k => `<option value="${k}"${k === status ? ' selected' : ''}>${esc(PROGRESS_LABELS[k] || k)}</option>`).join('')}</select></div>`;
+  const write = (ghost) => `<button type="button" class="pf-act${ghost ? ' ghost' : ''}" onclick="goToReviewForm('${_jsAttr(a.label)}','${isDual ? _jsAttr(b.id) : ''}')">Write review</button>`;
+  let review;
+  if (rv) {
+    const n = +rv.rating;
+    const lead = n >= 1 && n <= 5
+      ? `<span class="pf-stars" aria-label="${n} out of 5 stars">${'★'.repeat(n)}<span class="off">${'★'.repeat(5 - n)}</span></span>`
+      : `<span class="pf-muted">${rv.read === 'No' ? 'Didn\'t start' : 'No rating'}</span>`;
+    const txt = String(rv.why || rv.dnfWhy || '').trim();
+    const key = `${a.label}|${b.id}`;
+    const isOpen = _pfOpenSnips.has(key);
+    review = lead + (txt
+      ? `<div class="pf-snipwrap${isOpen ? ' open' : ''}" data-snip="${esc(key)}"><div class="pf-snip">“${esc(txt)}”</div><button type="button" class="pf-more" hidden aria-expanded="${isOpen}" onclick="pfToggleSnip(this)">${isOpen ? 'Show less' : 'Read more'}</button></div>`
+      : `<span class="pf-muted">Reviewed</span>`);
+  } else if (status === 'finished' || status === 'dnf' || status === 'pre-read') {
+    review = `<span class="pf-muted due">Not reviewed yet</span>${write(false)}`;
+  } else if (status === 'reading') {
+    review = `<span class="pf-muted">Whenever you're ready</span>${write(true)}`;
+  } else if (status) {
+    review = `<span class="pf-muted">—</span>`;
+  } else {
+    review = `<span class="pf-muted">Mark it to keep your record complete</span>`;
+  }
+  return `<div class="pf-bk">
+    ${homeCoverHtml(b)}
+    <div class="info"><div class="pf-mo${bonus ? ' bonus' : ''}">${esc(mo)}</div><div class="pf-bt">${esc(b.title)}</div>${b.author ? `<div class="pf-ba">by ${esc(b.author)}</div>` : ''}${caveat}</div>
+    <div class="st">${select}</div>
+    <div class="pf-rv">${review}</div>
+  </div>`;
+}
+
+function pfFitSnips() {
+  document.querySelectorAll('#progress-books-area .pf-snipwrap').forEach(w => {
+    const t = w.querySelector('.pf-snip'), b = w.querySelector('.pf-more');
+    if (!t || !b) return;
+    b.hidden = !(w.classList.contains('open') || t.scrollHeight > t.clientHeight + 2);
+  });
+}
+function pfToggleSnip(btn) {
+  const w = btn.closest('.pf-snipwrap');
+  const open = w.classList.toggle('open');
+  if (open) _pfOpenSnips.add(w.dataset.snip); else _pfOpenSnips.delete(w.dataset.snip);
+  btn.textContent = open ? 'Show less' : 'Read more';
+  btn.setAttribute('aria-expanded', String(open));
+}
+window.pfToggleSnip = pfToggleSnip;
+let _pfFitTimer = null;
+window.addEventListener('resize', () => { clearTimeout(_pfFitTimer); _pfFitTimer = setTimeout(pfFitSnips, 150); });
+
+async function pfSetProgress(bookId, sel) {
+  if (!_profileIdentity) return;
+  _pfSyncIdentities();
+  const status = sel.value;
+  const prev = (getReadingProgress()[_pgIdentity.key] || {})[bookId] || '';
+  if (!status || prev === status) return;
+  if (!(await confirmProgressChange(progressBookTitle(bookId), status))) { renderProgressTab(); return; }
+  await writeProgress(bookId, status);
+  renderProfileTab();
+  progressUndoToast(bookId, status, prev || 'not-started');
+}
+window.pfSetProgress = pfSetProgress;
 
 function goToReviewForm(month, bookId) {
   const rb = document.querySelector('nav button[data-tab=review]');
@@ -7820,7 +8006,7 @@ function goToReviewForm(month, bookId) {
 }
 window.goToReviewForm = goToReviewForm;
 
-// Shared write for a member's reading status (My Progress and the Home page both use it)
+// Shared write for a member's reading status (My Reading and the Home page both use it)
 async function writeProgress(bookId, status) {
   if (!_pgIdentity) return;
   const progress = JSON.parse(JSON.stringify(getReadingProgress()));
@@ -7860,109 +8046,6 @@ async function setProgress(bookId, status, btn) {
   progressUndoToast(bookId, status, prev);
 }
 window.setProgress = setProgress;
-
-function renderProgressLeaderboard(winnerEntries) {
-  const el = document.getElementById('progress-leaderboard');
-  if (!el) return;
-
-  const progress = getReadingProgress();
-  const archives = getArchives();
-
-  if (!archives.length || !winnerEntries || !winnerEntries.length) {
-    el.innerHTML = '<div class="empty"><div class="icon">📖</div><p>No data yet — check back once months have been archived.</p></div>';
-    return;
-  }
-
-  // Collect all winner book IDs
-  const allWinnerBooks = winnerEntries.flatMap(e => e.winners);
-  const totalBooks = allWinnerBooks.length;
-
-  // Build per-member stats from progress data
-  // We also pull known members from votes/suggestions so everyone shows up even without progress entries
-  const idMap = buildIdentityMap();
-  const memberMap = new Map(); // key → { name, finished, reading, dnf, notStarted, total }
-
-  // Seed known members from archives (votes)
-  archives.forEach(a => {
-    Object.values(a.votes || {}).forEach(vd => {
-      const name = resolveId(vd.discord, vd.email, idMap);
-      const key = normEmail(vd.email) || normId(vd.discord);
-      if (!memberMap.has(key)) memberMap.set(key, { name, finished: 0, reading: 0, dnf: 0, choseNotToRead: 0, preRead: 0 });
-    });
-  });
-
-  // Also seed from reviews — catches members who reviewed but never voted
-  const allReviewsForSeed = getReviews();
-  Object.values(allReviewsForSeed).forEach(entries => {
-    (entries || []).forEach(r => {
-      const key = normEmail(r.email) || normId(r.discord);
-      if (!key) return;
-      const name = resolveId(r.discord || '', r.email || '', idMap) || r.discord || key;
-      if (!memberMap.has(key)) memberMap.set(key, { name, finished: 0, reading: 0, dnf: 0, choseNotToRead: 0, preRead: 0 });
-    });
-  });
-
-  // Apply progress data
-  Object.entries(progress).forEach(([memberKey, bookStatuses]) => {
-    // Try to get a display name — fall back to the key itself
-    let name = memberKey;
-    for (const [, e] of idMap) {
-      if ((e.email && normEmail(e.email) === memberKey) || e.normIds.has(memberKey)) {
-        name = e.displayName; break;
-      }
-    }
-    if (!memberMap.has(memberKey)) memberMap.set(memberKey, { name, finished: 0, reading: 0, dnf: 0, choseNotToRead: 0, preRead: 0 });
-    const entry = memberMap.get(memberKey);
-    entry.name = name; // update in case we found a better display name
-
-    allWinnerBooks.forEach(b => {
-      const status = bookStatuses[b.id];
-      if (status === 'finished')           entry.finished++;
-      else if (status === 'reading')        entry.reading++;
-      else if (status === 'dnf')            entry.dnf++;
-      else if (status === 'chose-not-to-read') entry.choseNotToRead++;
-      else if (status === 'pre-read')       entry.preRead++;
-    });
-  });
-
-  // Filter to members who have set at least one status, sort by finished desc then reading
-  const rows = [...memberMap.values()]
-    .filter(m => m.finished + m.reading + m.dnf + m.choseNotToRead + m.preRead > 0)
-    .sort((a, b) => b.finished - a.finished || b.reading - a.reading || a.dnf - b.dnf);
-
-  if (!rows.length) {
-    el.innerHTML = '<div class="empty"><div class="icon">📖</div><p>No progress logged yet — be the first to mark a book!</p></div>';
-    return;
-  }
-
-  const statusPip = (count, label, emoji) => count > 0
-    ? `<span style="display:inline-flex;align-items:center;gap:.25rem;font-size:.75rem;padding:.15rem .5rem;border-radius:12px;background:var(--cream);border:1px solid var(--border);" title="${esc(label)}">${emoji} ${count}</span>`
-    : '';
-
-  el.innerHTML = rows.map((m, i) => {
-    const pct = totalBooks > 0 ? Math.round(m.finished / totalBooks * 100) : 0;
-    const rankTitle = i===0 ? '1st place' : i===1 ? '2nd place' : i===2 ? '3rd place' : `${i+1}th place`;
-    return `<div class="card" style="padding:.85rem 1.25rem;margin-bottom:.5rem;">
-      <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
-        <div style="font-family:'Playfair Display',serif;font-size:1.2rem;color:var(--gold);min-width:2rem;text-align:center;" title="${esc(rankTitle)}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</div>
-        <div style="flex:1;min-width:140px;">
-          <div style="font-weight:500;font-size:.92rem;margin-bottom:.3rem;">${esc(m.name)}</div>
-          <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden;max-width:200px;">
-            <div style="height:100%;width:${pct}%;background:var(--green);border-radius:3px;transition:width .6s;"></div>
-          </div>
-        </div>
-        <div style="display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;">
-          ${statusPip(m.finished,        'Finished',           '✅')}
-          ${statusPip(m.reading,         'Reading',            '👀')}
-          ${statusPip(m.dnf,             'DNF',                '❌')}
-          ${statusPip(m.choseNotToRead,  'Chose Not to Read',  '🚫')}
-          ${statusPip(m.preRead,         'Already Read',       '⏮️')}
-          <span style="font-size:.72rem;color:var(--soft);margin-left:.2rem;">${m.finished}/${totalBooks} finished</span>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-}
 
 // ════════════════════════════════════════════════════════
 // MEMBER ACHIEVEMENTS / BADGES
@@ -8929,8 +9012,34 @@ window.renderNewBadgeAlert = renderNewBadgeAlert;
 // ════════════════════════════════════════════════════════
 // MY PROFILE TAB
 // ════════════════════════════════════════════════════════
+// Four tabs: Overview · My Reading · Badges (with Artifacts inside, only once something's found) · Surveys.
+// Colors come from the --surface/--text/--st-* tokens in the stylesheet (ready for a dark theme).
 
 let _profileIdentity = null; // { email, discord, key }
+let _pfTab = 'overview';
+let _pfBadgeView = 'badges';
+const _pfFold = {};            // section id -> open? (survives live refreshes)
+const _pfOpenSnips = new Set(); // review snippets a member expanded
+let _pfNewCache = {};           // memberKey -> badge ids shown as new this visit (so a live refresh doesn't hide them)
+const PF_HELPER_DISMISSED = 'dbc_profile_helper_dismissed';
+const PF_STATUS_ORDER = ['not-started', 'reading', 'finished', 'dnf', 'chose-not-to-read', 'pre-read'];
+const PF_ICON = {
+  chev:  '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg>',
+  right: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true" style="width:15px;height:15px"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  next:  '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>',
+  x:     '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true" style="width:16px;height:16px"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  help:  '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 4.9.7c0 1.7-2.4 2.3-2.4 3.8M12 17h.01"/></svg>',
+  clip:  '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true" style="width:22px;height:22px"><path d="M9 4h6v3H9z"/><path d="M15 5h2a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h4"/></svg>',
+  cup:   '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true" style="width:22px;height:22px"><path d="M3 8h14v5a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6Z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M7 2v2M11 2v2"/></svg>',
+};
+
+function _pfSyncIdentities() {
+  const id = _profileIdentity;
+  if (!id) return;
+  if (!_pgIdentity) _pgIdentity = id;
+  if (!_bgIdentity) _bgIdentity = { email: id.email, discord: id.discord };
+  if (!_srIdentity) _srIdentity = { email: id.email, discord: id.discord };
+}
 
 async function loadProfile() {
   const email   = document.getElementById('profile-email').value.trim();
@@ -8944,39 +9053,196 @@ async function loadProfile() {
   _bgIdentity = { email, discord };
   _srIdentity = { email, discord };
   saveIdentityCookie(email, discord);
-  document.getElementById('profile-identity-card').style.display = 'none';
-  document.getElementById('profile-subtabs').style.display = '';
   updateBadgeNavDot();
-  updateProfileSubBadgeDot();
-  renderProfileOverview();
-  renderProgressTab();
-  // renderBadgesTab is intentionally deferred — called only when My Badges sub-tab is visited
-  // so that renderNewBadgeAlert doesn't save the badge snapshot prematurely
+  renderProfileTab();
 }
 window.loadProfile = loadProfile;
 
-function goProfileSubTab(id, btn) {
-  ['overview','progress','badges','artifacts','surveys','reviews'].forEach(p => {
-    document.getElementById('profile-sub-' + p).style.display = p === id ? '' : 'none';
+// ── Shared numbers (Profile header + Home stats line use the same ones) ──
+function pfMe() {
+  const id = _profileIdentity;
+  if (!id) return null;
+  const idMap = buildIdentityMap();
+  return {
+    email: id.email || '', discord: id.discord || '', key: id.key,
+    myKey: normEmail(id.email) || normId(id.discord),
+    name: resolveId(id.discord || '', id.email || '', idMap),
+    idMap,
+  };
+}
+function pfDisplayName(me) {
+  const raw = String(me.discord || me.email || '').replace(/#\d+$/, '');
+  return raw ? raw.charAt(0).toUpperCase() + raw.slice(1) : 'Member';
+}
+function pfArchiveYear(a) {
+  const m = String((a && a.label) || '').match(/\b(20\d\d)\b/);
+  if (m) return m[1];
+  return a && a.archivedAt ? String(new Date(a.archivedAt).getFullYear()) : 'Other';
+}
+// Every club book (each archived month's winner or co-winners, bonus books too), with this member's status and review
+function pfBooks(me) {
+  const progress = (getReadingProgress()[me.key]) || {};
+  const reviews = getReviews();
+  const out = [];
+  getArchiveWinners().forEach(({ archive: a, winnerBooks }) => {
+    const isDual = winnerBooks.length > 1;
+    winnerBooks.forEach(b => {
+      const rv = (reviews[a.label] || []).find(r =>
+        resolveId(r.discord || '', r.email || '', me.idMap) === me.name &&
+        (isDual ? String(r.bookId || '') === String(b.id) : (!r.bookId || String(r.bookId) === String(b.id)))
+      ) || null;
+      out.push({ a, b, isDual, year: pfArchiveYear(a), status: progress[b.id] || '', review: rv });
+    });
   });
-  document.querySelectorAll('#profile-subtabs .sub-tab').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-  if (id === 'badges') {
-    renderBadgesTab(); // saves snapshot + clears dots via renderNewBadgeAlert → updateBadgeNavDot
-    const subDot = document.getElementById('profile-badge-sub-dot');
-    if (subDot) subDot.style.display = 'none';
-  }
-  if (id === 'artifacts') {
-    renderMyArtifacts();
-  }
-  if (id === 'surveys') {
-    renderMySurveyResponses();
-  }
-  if (id === 'reviews') {
-    renderMyReviews();
-  }
+  return out;
+}
+function pfMyReviewCount(me) {
+  let n = 0;
+  Object.values(getReviews()).forEach(entries => (entries || []).forEach(r => {
+    if (r.read !== 'No' && resolveId(r.discord || '', r.email || '', me.idMap) === me.name) n++;
+  }));
+  return n;
+}
+function pfMySuggestions(me) {
+  const winnerIds = new Set();
+  getArchiveWinners().forEach(({ winnerBooks }) => winnerBooks.forEach(b => winnerIds.add(String(b.id))));
+  const archives = getArchives();
+  const order = {};
+  archives.forEach((a, i) => { order[a.label] = i; });
+  const list = [];
+  archives.forEach(a => {
+    (a.books || []).map(normBook).forEach(b => {
+      const mine = (b.suggesters || []).some(sg =>
+        (normEmail(sg.email) || normId(sg.discord)) === me.myKey ||
+        resolveId(sg.discord || '', sg.email || '', me.idMap) === me.name);
+      if (mine) list.push({ title: b.title, author: b.author || '', monthLabel: a.label, won: winnerIds.has(String(b.id)) });
+    });
+  });
+  // Books from the hand-entered 2025 list
+  const myNorm = normId(me.discord || me.email || '');
+  (CACHE.pennyHistorical || []).forEach(b => {
+    if (!b.suggestedBy) return;
+    const n = normId(b.suggestedBy);
+    if (n === myNorm || levenshtein(n, myNorm) <= 2) list.push({ title: b.title, author: b.author || '', monthLabel: b.month || '2025', won: false });
+  });
+  list.sort((x, y) => (order[x.monthLabel] ?? -1) - (order[y.monthLabel] ?? -1));
+  return list;
+}
+function pfStats(me) {
+  const year = String(new Date().getFullYear());
+  const books = pfBooks(me);
+  const profile = computeMemberProfile(me.discord, me.email);
+  _maybeClearPennyBadgesFromSnapshot(me.myKey);
+  const earned = getAllBadges().filter(b => hasBadge(b.id, profile, me.myKey));
+  // Same rule as the Badges tab: on the very first visit nothing counts as "new" yet
+  let newBadges = [];
+  try { if (localStorage.getItem(_badgeSeenKey(me.myKey)) !== null) newBadges = getNewBadgesSinceLastVisit(me.myKey, profile); } catch (e) {}
+  return {
+    year, books, profile, earned, newBadges,
+    finishedYear: books.filter(x => x.year === year && x.status === 'finished').length,
+    reviews: pfMyReviewCount(me),
+    suggestions: pfMySuggestions(me),
+  };
+}
+function pfBadgeIcon(b) {
+  return b.iconDataUrl ? `<img src="${esc(b.iconDataUrl)}" alt="">` : esc(b.emoji || '🏅');
+}
+function pfIsOpen(id, def) { return Object.prototype.hasOwnProperty.call(_pfFold, id) ? _pfFold[id] : def; }
+function pfFold(btn) {
+  const id = btn.getAttribute('aria-controls');
+  const body = document.getElementById(id);
+  if (!body) return;
+  const open = body.hidden;
+  body.hidden = !open;
+  _pfFold[id] = open;
+  btn.setAttribute('aria-expanded', String(open));
+  const car = btn.querySelector('.car');
+  if (car) car.textContent = open ? '▾' : '▸';
+  const list = btn.closest('.pf-list');
+  if (list) list.classList.toggle('closed', !open);
+  if (open) pfFitSnips();
+}
+window.pfFold = pfFold;
+
+// ── Rendering ──
+function renderProfileTab() {
+  if (!_profileIdentity) return;
+  _pfSyncIdentities();
+  document.getElementById('profile-identity-card').style.display = 'none';
+  document.getElementById('profile-subtabs').style.display = '';
+  const me = pfMe();
+  const st = pfStats(me);
+  renderProfileHead(me, st);
+  updateProfileSubBadgeDot();
+  pfRenderBadgesInner(me);
+  _pfShowPanel(_pfTab, me, st, true);
+}
+window.renderProfileTab = renderProfileTab;
+
+function renderProfileHead(me, st) {
+  const el = document.getElementById('pf-head');
+  if (!el) return;
+  const name = pfDisplayName(me);
+  let remembered = false;
+  try { const c = loadIdentityCookie(); remembered = !!(c && (c.email || c.discord)); } catch (e) {}
+  const n = st.newBadges.length;
+  const sug = st.suggestions.length;
+  el.innerHTML = `<div class="pf-me">
+    <div class="pf-av" aria-hidden="true">${esc(name.charAt(0).toUpperCase())}</div>
+    <div style="min-width:0;flex:1 1 180px;">
+      <div class="pf-nm">${esc(name)}</div>
+      <div class="pf-who">${remembered ? 'Remembered on this device' : 'Signed in'} · <button type="button" onclick="pfNotYou()">Not you?</button></div>
+    </div>
+    <div class="pf-stats">
+      <button type="button" class="pf-st" onclick="goProfileSubTab('reading')"><b>${st.finishedYear}</b><span>finished in ${esc(st.year)}</span></button>
+      <button type="button" class="pf-st" onclick="goProfileSubTab('badges')"><b>${st.earned.length}${n ? '<span class="pf-ndot" aria-hidden="true"></span>' : ''}</b><span>badge${st.earned.length === 1 ? '' : 's'}${n ? ` · ${n} new` : ''}</span></button>
+      <button type="button" class="pf-st" onclick="goProfileSubTab('reading')"><b>${st.reviews}</b><span>review${st.reviews === 1 ? '' : 's'}</span></button>
+      <button type="button" class="pf-st" onclick="goProfileSubTab('overview')"><b>${sug}</b><span>book${sug === 1 ? '' : 's'} suggested</span></button>
+    </div>
+  </div>`;
+}
+function pfNotYou() {
+  forgetIdentity();
+  _pfTab = 'overview';
+  updateBadgeNavDot();
+  window.scrollTo(0, 0);
+}
+window.pfNotYou = pfNotYou;
+
+function goProfileSubTab(id, btn) {
+  if (id === 'progress' || id === 'reviews') id = 'reading';
+  if (id === 'artifacts') { id = 'badges'; _pfBadgeView = 'artifacts'; }
+  if (!['overview', 'reading', 'badges', 'surveys'].includes(id)) id = 'overview';
+  if (_pfTab === 'badges' && id !== 'badges') { _pfNewCache = {}; _pfBadgeView = 'badges'; }
+  _pfTab = id;
+  if (!_profileIdentity) return;
+  _pfSyncIdentities();
+  const me = pfMe();
+  _pfShowPanel(id, me, null, false);
 }
 window.goProfileSubTab = goProfileSubTab;
+
+function _pfShowPanel(id, me, st, isRefresh) {
+  ['overview', 'reading', 'badges', 'surveys'].forEach(p => {
+    const panel = document.getElementById('profile-sub-' + p);
+    if (panel) panel.style.display = p === id ? '' : 'none';
+    const b = document.getElementById('profile-sub-btn-' + p);
+    if (b) { b.classList.toggle('on', p === id); b.setAttribute('aria-selected', String(p === id)); }
+  });
+  if (id === 'overview') renderProfileOverview(me, st);
+  else if (id === 'reading') renderProgressTab();
+  else if (id === 'badges') {
+    pfRenderBadgesInner(me);
+    if (_pfBadgeView === 'artifacts') renderMyArtifacts();
+    else {
+      renderBadgesTab(); // saves the "seen" snapshot + clears dots via renderNewBadgeAlert → updateBadgeNavDot
+      const subDot = document.getElementById('profile-badge-sub-dot');
+      if (subDot) subDot.style.display = 'none';
+      if (!isRefresh) { const head = document.getElementById('pf-head'); if (head && me) renderProfileHead(me, pfStats(me)); }
+    }
+  }
+  else if (id === 'surveys') renderMySurveyResponses();
+}
 
 function updateProfileSubBadgeDot() {
   const subDot = document.getElementById('profile-badge-sub-dot');
@@ -8985,439 +9251,191 @@ function updateProfileSubBadgeDot() {
   const profile = computeMemberProfile(_bgIdentity.discord, _bgIdentity.email);
   _maybeClearPennyBadgesFromSnapshot(myKey);
   const newBadges = getNewBadgesSinceLastVisit(myKey, profile);
-  subDot.style.display = newBadges.length ? 'inline-block' : 'none';
+  subDot.style.display = newBadges.length && _pfTab !== 'badges' ? 'inline-block' : 'none';
 }
 window.updateProfileSubBadgeDot = updateProfileSubBadgeDot;
 
-function renderMyReviews() {
-  var area = document.getElementById('my-reviews-area');
-  if (!area) return;
-  var identity = _profileIdentity || _bgIdentity;
-  if (!identity) { area.innerHTML = '<div class="empty"><div class="icon">📝</div><p>Sign in to see your reviews.</p></div>'; return; }
-  var idMap = buildIdentityMap();
-  var myKey = resolveId(identity.discord, identity.email, idMap);
-  var allReviews = getReviews(); // { [month]: [entry, ...] }
-  var archives = getArchives();
-
-  // Collect all reviews by this member across all months
-  var myReviews = [];
-  Object.entries(allReviews).forEach(function(pair) {
-    var month = pair[0], entries = pair[1];
-    (entries || []).forEach(function(r) {
-      var rKey = resolveId(r.discord, r.email, idMap);
-      if (rKey === myKey) {
-        myReviews.push(Object.assign({}, r, { month: month }));
-      }
-    });
-  });
-
-  // Sort newest first (by month label — works for YYYY-MM or named months stored chronologically)
-  // Sort by archive order (chronological — Jan first, etc.)
-  var archiveOrder = {};
-  getArchives().forEach(function(a, i) { archiveOrder[a.label] = i; });
-  myReviews.sort(function(a, b) {
-    var ai = archiveOrder[a.month] !== undefined ? archiveOrder[a.month] : 999;
-    var bi = archiveOrder[b.month] !== undefined ? archiveOrder[b.month] : 999;
-    return ai - bi;
-  });
-
-  if (!myReviews.length) {
-    area.innerHTML = '<div class="empty"><div class="icon">📝</div><p>You have not submitted any reviews yet.</p></div>';
-    return;
-  }
-
-  // Helper: look up book title from archive if not stored on review
-  function getBookTitle(r) {
-    // Always prefer the stored bookTitle on the review record
-    if (r.bookTitle) return r.bookTitle;
-    // For dual months with a bookId, look up that specific book in the archive
-    var arc = archives.find(function(a) { return a.label === r.month; });
-    if (!arc) return null;
-    if (r.bookId) {
-      var bk = (arc.books || []).find(function(b) { return String(b.id) === String(r.bookId); });
-      return bk ? normBook(bk).title : null;
-    }
-    // Use getArchiveWinners() — same robust logic the Results page uses
-    var arcWinners = getArchiveWinners();
-    var arcMatch = arcWinners.find(function(w) { return w.archive.label === r.month; });
-    if (!arcMatch || !arcMatch.winnerBooks.length) return null;
-    // For dual months show both titles; single winner show one
-    if (arcMatch.winnerBooks.length > 1) {
-      return arcMatch.winnerBooks.map(function(b) { return normBook(b).title; }).join(' & ');
-    }
-    return normBook(arcMatch.winnerBooks[0]).title;
-  }
-
-  function starHtml(rating) {
-    if (!rating || rating === 'opt-out') return '<span style="color:var(--soft);font-size:.82rem;">No rating</span>';
-    var n = parseInt(rating, 10);
-    return '<span style="font-size:1rem;">' + '⭐'.repeat(n) + '</span> <span style="font-size:.82rem;color:var(--soft);">(' + n + '/5)</span>';
-  }
-
-  var html = '<div class="sec-head" style="margin-bottom:1rem;"><h2>My Reviews</h2><p>All the reviews you have submitted, most recent first.</p></div>';
-
-  // Group by year — collapsible sections, current year expanded by default
-  var extractYear = function(str) { var m = String(str||'').match(/\b(20\d\d)\b/); return m ? m[1] : 'Other'; };
-  var currentYear = String(new Date().getFullYear());
-  var yearGroups = {};
-  myReviews.forEach(function(r) {
-    var y = extractYear(r.month);
-    if (!yearGroups[y]) yearGroups[y] = [];
-    yearGroups[y].push(r);
-  });
-  var years = Object.keys(yearGroups).sort();
-
-  years.forEach(function(yr) {
-    var isOpen = yr === currentYear;
-    var rowsHtml = yearGroups[yr].map(function(r) {
-      var bookTitle = getBookTitle(r);
-      var titleHtml = bookTitle
-        ? '<div style="font-weight:600;font-size:1rem;font-family:Playfair Display,serif;margin-bottom:.2rem;">' + esc(bookTitle) + '</div>'
-        : '';
-      var monthHtml = '<div style="font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:var(--soft);margin-bottom:.5rem;">' + esc(archiveMonthName(r.month) || r.month) + '</div>';
-
-      var details = [];
-      if (r.read === 'yes' && r.finished === 'yes') details.push('Finished ✓');
-      else if (r.read === 'yes' && r.finished === 'no') details.push('Started, did not finish');
-      else if (r.read === 'no') details.push('Did not start');
-
-      var body = '';
-      if (r.why)    body += '<div style="margin-top:.5rem;font-size:.88rem;"><strong>Thoughts:</strong> <em>"' + esc(r.why) + '"</em></div>';
-      if (r.liked && r.liked !== 'opt-out')  body += '<div style="font-size:.88rem;margin-top:.3rem;"><strong>Liked it?</strong> ' + esc(r.liked) + '</div>';
-      if (r.dnfWhy) body += '<div style="font-size:.88rem;margin-top:.3rem;color:var(--soft);"><strong>DNF reason:</strong> ' + esc(r.dnfWhy) + '</div>';
-
-      return '<div class="card" style="margin-bottom:.85rem;">' +
-        monthHtml +
-        titleHtml +
-        '<div style="margin-bottom:.4rem;">' + starHtml(r.rating) + '</div>' +
-        (details.length ? '<div style="font-size:.83rem;color:var(--soft);">' + details.join(' &middot; ') + '</div>' : '') +
-        body +
-      '</div>';
-    }).join('');
-
-    html += '<div style="margin-bottom:.5rem;">' +
-      '<div onclick="toggleMyReviewsYear(\'' + yr + '\')" style="display:flex;align-items:center;gap:.5rem;cursor:pointer;user-select:none;padding:.5rem 0;border-bottom:1px solid var(--border);margin-bottom:.75rem;">' +
-        '<span id="myrev-chevron-' + yr + '" style="font-size:.85rem;color:var(--soft);">' + (isOpen ? '▾' : '▸') + '</span>' +
-        '<span style="font-family:Playfair Display,serif;font-size:1.05rem;font-weight:600;">' + yr + '</span>' +
-        '<span style="font-size:.78rem;color:var(--soft);">(' + yearGroups[yr].length + ' review' + (yearGroups[yr].length !== 1 ? 's' : '') + ')</span>' +
-      '</div>' +
-      '<div id="myrev-body-' + yr + '" style="display:' + (isOpen ? '' : 'none') + ';">' + rowsHtml + '</div>' +
-    '</div>';
-  });
-
-  area.innerHTML = html;
+// ── Tour helper (dark, so it isn't mistaken for Home's) ──
+function pfHelperVisible() {
+  try { return !localStorage.getItem(PF_HELPER_DISMISSED); } catch (e) { return true; }
 }
-window.renderMyReviews = renderMyReviews;
-
-function toggleMyReviewsYear(yr) {
-  var body = document.getElementById('myrev-body-' + yr);
-  var chevron = document.getElementById('myrev-chevron-' + yr);
-  if (!body) return;
-  var isHidden = body.style.display === 'none';
-  body.style.display = isHidden ? '' : 'none';
-  if (chevron) chevron.textContent = isHidden ? '▾' : '▸';
+function dismissProfileHelper() {
+  try { localStorage.setItem(PF_HELPER_DISMISSED, String(Date.now())); } catch (e) {}
+  const el = document.getElementById('pf-helper');
+  if (el) el.remove();
 }
-window.toggleMyReviewsYear = toggleMyReviewsYear;
-
-function renderProfileTab() {
-  if (!_profileIdentity) return;
-  document.getElementById('profile-identity-card').style.display = 'none';
-  document.getElementById('profile-subtabs').style.display = '';
-  updateProfileSubBadgeDot();
-  renderProfileOverview();
-  renderProgressTab();
-  // renderBadgesTab deferred to when My Badges sub-tab is actually visited
+window.dismissProfileHelper = dismissProfileHelper;
+function pfHelperCard() {
+  if (!pfHelperVisible()) return '';
+  return `<div class="pf-helper o-pfhelp" id="pf-helper">
+    <div class="slim"><span>New to your profile?</span> <button type="button" onclick="startProfileTour()">Quick tour</button></div>
+    <h3>${PF_ICON.help}New to your profile?</h3>
+    <p>Your reading, reviews, badges and survey answers all live here. A quick look around takes about a minute.</p>
+    <div class="bts"><button type="button" class="go" onclick="startProfileTour()">Show me around</button></div>
+    <button type="button" class="x" aria-label="Dismiss" onclick="dismissProfileHelper()">${PF_ICON.x}</button>
+  </div>`;
 }
-window.renderProfileTab = renderProfileTab;
+const PROFILE_TOUR_STEPS = [
+  { sel: '#pf-head .pf-me', title: 'Your profile', text: 'Your name and a few numbers at a glance. Tap a number to jump to it. If someone else uses this device, tap “Not you?” to switch.' },
+  { sel: '#profile-sub-btn-overview', title: 'Overview', text: 'Penny\'s list for you, your badges, a quick look at your reading, and the books you\'ve suggested.' },
+  { sel: '#profile-sub-btn-reading', title: 'My Reading', text: 'Every club book in one list. Mark where you\'re at, and write or look back at your reviews.' },
+  { sel: '#profile-sub-btn-badges', title: 'Badges', text: 'Everything you\'ve earned so far, plus the badges still out there to find.' },
+  { sel: '#profile-sub-btn-surveys', title: 'Surveys', text: 'Take any open survey and look back at your answers.' },
+];
+function startProfileTour() { startTour(PROFILE_TOUR_STEPS); }
+window.startProfileTour = startProfileTour;
 
-function renderProfileOverview() {
+// ── Overview ──
+function renderProfileOverview(me, st) {
   const area = document.getElementById('profile-overview-area');
   if (!area || !_profileIdentity) return;
-
-  const { email, discord } = _profileIdentity;
-  const profile = computeMemberProfile(discord, email);
-  const myKey   = normEmail(email) || normId(discord);
-
-  // ── Reading progress breakdown ──
-  const archives = getArchives();
-  const allProgress = getReadingProgress();
-  const myProgressMap = allProgress[myKey] || {};
-  let finished = 0, dnf = 0, cntr = 0, noEntry = 0;
-  archives.forEach(a => {
-    const winnerIds = a.dualWinners && a.dualWinners.length
-      ? a.dualWinners
-      : (() => {
-          const nb = (a.books||[]).length;
-          const scores = {};
-          (a.books||[]).forEach(b => scores[b.id] = 0);
-          Object.values(a.votes||{}).forEach(vd => {
-            (vd.ranking||vd).forEach((id,idx) => { if (scores[id]!==undefined) scores[id]+=(nb-idx); });
-          });
-          const sorted = [...(a.books||[])].sort((x,y)=>scores[y.id]-scores[x.id]);
-          return sorted.length ? [String(sorted[0].id)] : [];
-        })();
-    winnerIds.forEach(wid => {
-      const status = myProgressMap[String(wid)];
-      if (status === 'finished') finished++;
-      else if (status === 'dnf') dnf++;
-      else if (status === 'chose-not-to-read') cntr++;
-      else noEntry++;
-    });
-  });
-
-  // ── Badges teaser ──
-  const visibleBadges = getAllBadges();
-  const earnedBadges = visibleBadges.filter(b => hasBadge(b.id, profile, myKey));
-  const badgeIcons = earnedBadges.slice(0,8).map(b => `<span style="font-size:1.2rem;" title="${esc(b.name)}">${b.emoji||'🏅'}</span>`).join('');
-
-  // ── Reviews submitted (only reviewed, not opted out) ──
-  const allReviews = getReviews();
-  const archiveOrderMap = {};
-  archives.forEach((a, i) => { archiveOrderMap[a.label] = i; });
-  const myReviews = [];
-  Object.entries(allReviews).forEach(([monthLabel, entries]) => {
-    (entries || []).forEach(r => {
-      const rKey = normEmail(r.email) || normId(r.discord);
-      if (rKey === myKey && r.rating && r.rating !== 'opt-out' && r.rating !== '') {
-        myReviews.push({ ...r, monthLabel });
-      }
-    });
-  });
-  myReviews.sort((a, b) => (archiveOrderMap[a.monthLabel] ?? 999) - (archiveOrderMap[b.monthLabel] ?? 999));
-
-  const _extractYear = str => { const m = String(str||'').match(/\b(20\d\d)\b/); return m ? m[1] : '?'; };
-  const _groupByYear = (items, keyFn) => {
-    const groups = {};
-    items.forEach(item => { const y = _extractYear(keyFn(item)); (groups[y] = groups[y]||[]).push(item); });
-    return groups;
-  };
-  const currentYear = String(new Date().getFullYear());
-  const _yearCollapsible = (groups, rowFn, prefix) => {
-    const years = Object.keys(groups).sort();
-    if (!years.length) return '';
-    return years.map(yr => {
-      const rows = groups[yr].map(rowFn).join('');
-      const isOpen = yr === currentYear;
-      const uid = `${prefix}-yr-${yr}`;
-      return `<div style="margin-bottom:.25rem;">
-        <div onclick="(function(el){const b=document.getElementById('${uid}');const open=b.style.display!=='none';b.style.display=open?'none':'';el.querySelector('.yr-chev').textContent=open?'▸':'▾';})(this)" style="display:flex;align-items:center;gap:.4rem;cursor:pointer;padding:.2rem 0;user-select:none;">
-          <span class="yr-chev" style="font-size:.75rem;color:var(--soft);">${isOpen?'▾':'▸'}</span>
-          <span style="font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);">${yr}</span>
-        </div>
-        <div id="${uid}" style="display:${isOpen?'':'none'};">${rows}</div>
-      </div>`;
-    }).join('');
-  };
-
-  // Winner of each single-winner month, for reviews saved without a book title
-  const _profWinnerByLabel = {};
-  getArchiveWinners().forEach(({ archive: a, winnerBooks }) => { if (winnerBooks.length === 1) _profWinnerByLabel[a.label] = winnerBooks[0]; });
-  const reviewsHtml = myReviews.length
-    ? _yearCollapsible(
-        _groupByYear(myReviews, r => r.monthLabel),
-        r => {
-          const rat = Number(r.rating);
-          const stars = (rat >= 1 && rat <= 5)
-            ? `<span style="color:var(--gold);letter-spacing:.05em;">${'★'.repeat(rat)}${'☆'.repeat(5 - rat)}</span>`
-            : '—';
-          // Match the Books Suggested rows: bold title, "by Author", full month name.
-          // Co-winner reviews match on bookId; single months use that month's winner.
-          const archiveEntry = archives.find(a => a.label === r.monthLabel);
-          let bookEntry = null;
-          if (archiveEntry) {
-            const books = archiveEntry.books || [];
-            bookEntry = (r.bookId && books.find(b => String(b.id) === String(r.bookId)))
-              || (r.bookTitle && books.find(b => normTitleKey(b.title) === normTitleKey(r.bookTitle)))
-              || (_profWinnerByLabel[r.monthLabel] || null);
-          }
-          const title  = (bookEntry && bookEntry.title) || r.bookTitle || r.book || r.monthLabel || '';
-          const author = (bookEntry && bookEntry.author) || '';
-          const monthName = archiveMonthName(r.monthLabel) || r.monthLabel || '';
-          return `<div style="display:flex;justify-content:space-between;align-items:baseline;gap:.5rem;padding:.35rem 0;border-bottom:.5px solid var(--border);font-size:.88rem;">
-            <span style="min-width:0;"><strong>${esc(title)}</strong>${author ? ` <span style="color:var(--soft);font-size:.8rem;">by ${esc(author)}</span>` : ''}</span>
-            <span style="display:flex;align-items:baseline;gap:.6rem;white-space:nowrap;flex-shrink:0;">
-              <span style="font-size:.75rem;color:var(--soft);">${esc(monthName)}</span>
-              <span style="font-size:.9rem;">${stars}</span>
-            </span>
-          </div>`;
-        },
-        `prof-rev-${myKey.replace(/[^a-z0-9]/gi,'_')}`
-      )
-    : `<p style="font-size:.85rem;color:var(--soft);margin:0;">No reviews submitted yet.</p>`;
-
-  // ── Books suggested — build winner ID set first for the "won" pill ──
-  const winnerBookIds = new Set();
-  archives.forEach(a => {
-    const dualIds = a.dualWinners || [];
-    if (dualIds.length) {
-      dualIds.forEach(id => winnerBookIds.add(String(id)));
-    } else {
-      const nb = (a.books || []).length;
-      const scores = {};
-      (a.books || []).forEach(b => scores[b.id] = 0);
-      Object.values(a.votes || {}).forEach(vd => {
-        (vd.ranking || vd).forEach((id, idx) => { if (scores[id] !== undefined) scores[id] += (nb - idx); });
-      });
-      const sorted = [...(a.books || [])].sort((x, y) => scores[y.id] - scores[x.id]);
-      if (sorted.length) winnerBookIds.add(String(sorted[0].id));
-    }
-  });
-  const mySuggestions = [];
-  archives.forEach(a => {
-    (a.books || []).map(normBook).forEach(b => {
-      const isMine = b.suggesters.some(s => (normEmail(s.email) || normId(s.discord)) === myKey);
-      if (isMine) mySuggestions.push({ ...b, monthLabel: a.label, won: winnerBookIds.has(String(b.id)) });
-    });
-  });
-  // Add historical pool books matched to this member
-  const myNormName = normId(discord || email || '');
-  (CACHE.pennyHistorical || []).forEach(b => {
-    if (!b.suggestedBy) return;
-    const normSugg = normId(b.suggestedBy);
-    const isMe = normSugg === myNormName || levenshtein(normSugg, myNormName) <= 2;
-    if (isMe) mySuggestions.push({ title: b.title, author: b.author || '', monthLabel: b.month || '2025', won: false, historical: true });
-  });
-  // Sort by archive order (historical books with no archive entry sort to front as they're oldest)
-  mySuggestions.sort((a, b) => (archiveOrderMap[a.monthLabel] ?? -1) - (archiveOrderMap[b.monthLabel] ?? -1));
-  const suggestionsHtml = mySuggestions.length
-    ? _yearCollapsible(
-        _groupByYear(mySuggestions, b => b.monthLabel),
-        b => {
-          const wonPill = b.won ? `<span style="font-size:.7rem;background:#fff8e1;border:1px solid var(--gold);color:#b8860b;padding:.1rem .4rem;border-radius:10px;white-space:nowrap;margin-left:.5rem;">won</span>` : '';
-          return `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:.35rem 0;border-bottom:.5px solid var(--border);font-size:.88rem;">
-            <span><strong>${esc(b.title||'')}</strong>${b.author ? ` <span style="color:var(--soft);font-size:.8rem;">by ${esc(b.author)}</span>` : ''}${wonPill}</span>
-            <span style="font-size:.75rem;color:var(--soft);white-space:nowrap;margin-left:.5rem;">${esc(archiveMonthName(b.monthLabel) || b.monthLabel || '')}</span>
-          </div>`;
-        },
-        `prof-sug-${myKey.replace(/[^a-z0-9]/gi,'_')}`
-      )
-    : `<p style="font-size:.85rem;color:var(--soft);margin:0;">No books suggested yet.</p>`;
-
-  // ── Progress breakdown text ──
-  const parts = [];
-  if (finished) parts.push(`<strong>${finished} finished</strong>`);
-  if (dnf) parts.push(`${dnf} DNF`);
-  if (cntr) parts.push(`${cntr} chose not to read`);
-  if (noEntry) parts.push(`${noEntry} no entry`);
-  const progressText = parts.length ? parts.join(' &nbsp;·&nbsp; ') : 'No entries yet.';
-
-  // ── Initials avatar ──
-  const initials = (discord || email || '?').slice(0,2).toUpperCase();
-
-  area.innerHTML = `
-    <div class="card" style="margin-bottom:1.25rem;">
-      <!-- Header -->
-      <div style="display:flex;align-items:center;gap:.85rem;margin-bottom:1rem;">
-        <div style="width:44px;height:44px;border-radius:50%;background:#2a1f00;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:.95rem;color:var(--gold);flex-shrink:0;">${initials}</div>
-        <div style="flex:1;">
-          <div style="font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:700;color:var(--gold);">${discord || email}</div>
-        </div>
-        ${finished ? `<span style="font-size:.75rem;padding:.2rem .7rem;border-radius:20px;background:rgba(255,255,255,.07);border:.5px solid rgba(255,255,255,.15);color:var(--soft);">${finished} book${finished===1?'':'s'} finished</span>` : ''}
-      </div>
-
-      <hr style="border:none;border-top:.5px solid var(--border);margin:.75rem 0;">
-
-      <!-- Badges teaser -->
-      <div style="margin-bottom:.5rem;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);">Badges</div>
-      <div style="background:rgba(255,255,255,.04);border-radius:8px;padding:.65rem 1rem;display:flex;align-items:center;gap:.85rem;">
-        <div style="text-align:center;flex-shrink:0;">
-          <div style="font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:700;color:var(--gold);">${earnedBadges.length}</div>
-          <div style="font-size:.7rem;color:var(--soft);">earned</div>
-        </div>
-        <div style="display:flex;flex-wrap:wrap;gap:.3rem;flex:1;">${badgeIcons || '<span style="font-size:.8rem;color:var(--soft);">None yet</span>'}</div>
-        <button class="btn" style="font-size:.75rem;padding:.25rem .65rem;white-space:nowrap;" onclick="goProfileSubTab('badges', document.getElementById('profile-sub-btn-badges'))">See all →</button>
-      </div>
-
-      <hr style="border:none;border-top:.5px solid var(--border);margin:.75rem 0;">
-
-      <!-- Penny's corner -->
-      ${(() => {
-        const pr = (CACHE.pennyMembers || {})[myKey] || {};
-        const visits = pr.visitCount || 0;
-        if (!visits) return '';
-        const fmt = ts => ts ? new Date(ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—';
-        const lastVisitStr = fmt(pr.lastVisit);
-        const { card: penCard, history: penHist } = _pennyCardFromRecord(pr);
-        const readReturned = penHist.filter(h => h.reaction && h.reaction !== 'unfinished').length;
-        const _pIdMap = buildIdentityMap();
-        // Look a Penny book back up (archive month first, then any archive, then
-        // her historical pool) for its author, suggesters and their reasons.
-        const lookUp = (title, month) => {
-          const tKey = normTitleKey(title);
-          const archs = getArchives();
-          const inMonth = archs.find(a => a.label === month);
-          let bk = inMonth && (inMonth.books || []).find(b => normTitleKey(b.title) === tKey);
-          if (!bk) archs.some(a => (bk = (a.books || []).find(b => normTitleKey(b.title) === tKey)));
-          if (bk) return { author: bk.author || '', suggesters: normBook(bk).suggesters || [] };
-          const h = (CACHE.pennyHistorical || []).find(x => normTitleKey(x.title) === tKey);
-          return h ? { author: h.author || '', suggesters: h.suggestedBy ? [{ discord: h.suggestedBy, email: '' }] : [] } : { author: '', suggesters: [] };
-        };
-        const nameOf = sg => resolveId(sg.discord || '', sg.email || '', _pIdMap) || sg.discord || '';
-        const cardItems = penCard.map((b, i) => {
-          const info = lookUp(b.title, b.month);
-          const names = [];
-          info.suggesters.forEach(sg => { const n = nameOf(sg); if (n && !names.includes(n)) names.push(n); });
-          const reasons = info.suggesters.filter(sg => sg && sg.reason);
-          return `<li style="font-size:.88rem;line-height:1.35;">
-            <em>"${esc(b.title)}"</em>${info.author ? `<span style="color:var(--soft);"> by ${esc(info.author)}</span>` : ''}${i === 0 ? `<span style="display:inline-block;font-size:.66rem;font-weight:700;letter-spacing:.04em;background:#fde8c8;color:#7a4f00;border-radius:3px;padding:0 .35rem;margin-left:.3rem;vertical-align:1px;">PENNY ASKS NEXT</span>` : ''}
-            <div style="font-size:.75rem;color:var(--soft);margin-top:.1rem;">${b.ts ? `On the list since ${fmt(b.ts)}` : 'On the list'}${names.length ? ` · suggested by ${names.map(n => `<strong style="color:var(--ink);font-weight:500;">${esc(n)}</strong>`).join(', ')}` : ''}</div>
-            ${reasons.length ? `<details style="margin-top:.25rem;font-size:.78rem;">
-              <summary style="cursor:pointer;color:var(--soft);">Why ${reasons.length > 1 ? 'they' : esc(nameOf(reasons[0]) || 'they')} recommended it</summary>
-              ${reasons.map(sg => `<div style="margin:.35rem 0 0 .75rem;font-style:italic;color:var(--ink);">${reasons.length > 1 ? `<span style="font-style:normal;font-weight:500;">${esc(nameOf(sg))}:</span> ` : ''}"${esc(sg.reason)}"</div>`).join('')}
-            </details>` : ''}
-          </li>`;
-        }).join('');
-        return `<div style="border-radius:8px;overflow:hidden;margin-bottom:.1rem;">
-          <div style="background:#1a1208;padding:.55rem 1rem .45rem;display:flex;align-items:center;gap:.6rem;">
-            <span style="font-size:1rem;">🕯️</span>
-            <span style="font-family:'Playfair Display',serif;font-size:.82rem;font-style:italic;color:rgba(240,180,41,.85);letter-spacing:.04em;">Penny's Recommended Reading</span>
-            <span style="margin-left:auto;display:flex;align-items:center;gap:.25rem;">
-              <span style="width:60px;height:1px;background:linear-gradient(90deg,transparent,rgba(240,180,41,.3));display:inline-block;"></span>
-              <span style="font-family:'Playfair Display',serif;font-size:.68rem;font-style:italic;color:rgba(240,180,41,.4);">Est. 2026</span>
-            </span>
-          </div>
-          <div style="background:rgba(26,18,8,.06);border:1px solid rgba(26,18,8,.12);border-top:none;border-radius:0 0 8px 8px;padding:.6rem 1rem;display:flex;gap:1.25rem;flex-wrap:wrap;">
-            <div>
-              <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.15rem;">Visits</div>
-              <div style="font-size:.9rem;font-weight:600;">${visits}</div>
-            </div>
-            <div>
-              <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.15rem;">Last visit</div>
-              <div style="font-size:.9rem;">${lastVisitStr}</div>
-            </div>
-            <div>
-              <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.15rem;">Finished &amp; told Penny</div>
-              <div style="font-size:.9rem;font-weight:600;">${readReturned}</div>
-            </div>
-            ${penCard.length ? `<div style="flex:1 1 100%;">
-              <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:.25rem;">On Penny's clipboard · ${penCard.length} of ${PENNY_CARD_LIMIT}</div>
-              <ol style="margin:0;padding:0;list-style:none;display:grid;gap:.5rem;">${cardItems}</ol>
-            </div>` : ''}
-          </div>
-        </div>`;
-      })()}
-
-      <hr style="border:none;border-top:.5px solid var(--border);margin:.75rem 0;">
-
-      <!-- Reading progress -->
-      <div style="margin-bottom:.5rem;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);">Reading progress</div>
-      <div style="font-size:.9rem;">${progressText}</div>
-
-      <hr style="border:none;border-top:.5px solid var(--border);margin:.75rem 0;">
-
-      <!-- Reviews -->
-      <div style="margin-bottom:.5rem;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);">Reviews submitted</div>
-      ${reviewsHtml}
-
-      <hr style="border:none;border-top:.5px solid var(--border);margin:.75rem 0;">
-
-      <!-- Suggestions -->
-      <div style="margin-bottom:.5rem;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);">Books suggested</div>
-      ${suggestionsHtml}
-    </div>
-  `;
+  me = me || pfMe();
+  st = st || pfStats(me);
+  const left  = pfPennyCard(me) + pfSuggestionsCard(me, st);
+  const right = pfHelperCard() + pfBadgesCard(st) + pfTallyCard(st) + pfSurveysCard(me);
+  area.innerHTML = `<div class="pf-grid"><div class="pf-col">${left}</div><div class="pf-col">${right}</div></div>`;
 }
 window.renderProfileOverview = renderProfileOverview;
+
+function pfPennyCard(me) {
+  const s = getSettings() || {};
+  if (!s.pennyVisible) return '';
+  const pr = (CACHE.pennyMembers || {})[me.myKey] || {};
+  const visits = pr.visitCount || 0;
+  const go = label => `<button type="button" onclick="homeGo('penny')">${label}</button>`;
+  if (!visits) {
+    return `<div class="pf-penny o-pfpenny penny-entry">
+      <div class="pf-penny-top"><span class="pf-penny-ic">${PF_ICON.cup}</span><div><h3>Penny's Office</h3></div></div>
+      <p class="pf-tell">Looking for your next read? Penny's shelves are full of ideas. Or maybe you'd just like to chat? ${go('Stop by Penny\'s Office →')}</p>
+    </div>`;
+  }
+  const fmt = ts => ts ? new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+  const { card } = _pennyCardFromRecord(pr);
+  // Look a Penny book back up (archive month first, then any archive, then her historical pool)
+  const lookUp = (title, month) => {
+    const tKey = normTitleKey(title);
+    const archs = getArchives();
+    const inMonth = archs.find(a => a.label === month);
+    let bk = inMonth && (inMonth.books || []).find(b => normTitleKey(b.title) === tKey);
+    if (!bk) archs.some(a => (bk = (a.books || []).find(b => normTitleKey(b.title) === tKey)));
+    if (bk) return { author: bk.author || '', suggesters: normBook(bk).suggesters || [] };
+    const h = (CACHE.pennyHistorical || []).find(x => normTitleKey(x.title) === tKey);
+    return h ? { author: h.author || '', suggesters: h.suggestedBy ? [{ discord: h.suggestedBy, email: '' }] : [] } : { author: '', suggesters: [] };
+  };
+  const nameOf = sg => resolveId(sg.discord || '', sg.email || '', me.idMap) || sg.discord || '';
+  const items = card.map((b, i) => {
+    const info = lookUp(b.title, b.month);
+    const names = [];
+    info.suggesters.forEach(sg => { const n = nameOf(sg); if (n && !names.includes(n)) names.push(n); });
+    const reasons = info.suggesters.filter(sg => sg && sg.reason);
+    return `<li><span class="n" aria-hidden="true">${i + 1}</span><div style="min-width:0;">
+      <div class="t">${esc(b.title)}${info.author ? ` <em>by ${esc(info.author)}</em>` : ''}${i === 0 ? '<span class="pf-next">Penny asks next</span>' : ''}</div>
+      <div class="d">${b.ts ? `On the list since ${esc(fmt(b.ts))}` : 'On the list'}${names.length ? ` · suggested by ${names.map(n => `<strong>${esc(n)}</strong>`).join(', ')}` : ''}</div>
+      ${reasons.length ? `<details><summary>Why ${reasons.length > 1 ? 'they' : esc(nameOf(reasons[0]) || 'they')} recommended it</summary>${reasons.map(sg => `<div>${reasons.length > 1 ? `<span style="font-style:normal;font-weight:600;">${esc(nameOf(sg))}:</span> ` : ''}“${esc(sg.reason)}”</div>`).join('')}</details>` : ''}
+    </div></li>`;
+  }).join('');
+  const sub = [card.length ? `${card.length} of ${PENNY_CARD_LIMIT} on her clipboard` : '', `${visits} visit${visits === 1 ? '' : 's'}`, pr.lastVisit ? `last stopped by ${fmt(pr.lastVisit)}` : ''].filter(Boolean).join(' · ');
+  return `<div class="pf-penny o-pfpenny penny-entry">
+    <div class="pf-penny-top"><span class="pf-penny-ic">${PF_ICON.clip}</span><div><h3>Penny's list for ${esc(pfDisplayName(me))}</h3><div class="sub">${esc(sub)}</div></div></div>
+    ${card.length
+      ? `<ol class="pf-clip">${items}</ol><p class="pf-tell">Have you finished any of these books? ${go('You should go tell Penny →')}</p>`
+      : `<p class="pf-tell">Nothing on her clipboard right now. Looking for your next read? ${go('Stop by Penny\'s Office →')}</p>`}
+  </div>`;
+}
+
+function pfSuggestionsCard(me, st) {
+  const list = st.suggestions;
+  const won = list.filter(b => b.won).length;
+  const yr = s => { const m = String(s || '').match(/\b(20\d\d)\b/); return m ? m[1] : 'Other'; };
+  let body;
+  if (!list.length) {
+    body = `<p class="pf-soft">No books suggested yet. Suggestions usually open around the 19th each month.</p>`;
+  } else {
+    const groups = {};
+    list.forEach(b => { const y = yr(b.monthLabel); (groups[y] = groups[y] || []).push(b); });
+    const years = Object.keys(groups).sort((a, b) => b.localeCompare(a));
+    body = years.map((y, i) => {
+      const id = 'pf-sug-' + y;
+      const open = pfIsOpen(id, i === 0);
+      const rows = groups[y].slice().reverse().map(b => `<div class="pf-row"><b>${esc(b.title)}</b>${b.author ? `<span class="a">by ${esc(b.author)}</span>` : ''}${b.won ? '<span class="pf-won">Won</span>' : ''}<span class="m">${esc(archiveMonthName(b.monthLabel) || b.monthLabel || '')}</span></div>`).join('');
+      return `<button type="button" class="pf-yr" aria-expanded="${open}" aria-controls="${id}" onclick="pfFold(this)"><span class="car" aria-hidden="true">${open ? '▾' : '▸'}</span> ${esc(y)} <span>· ${groups[y].length} book${groups[y].length === 1 ? '' : 's'}</span></button>
+        <div id="${id}"${open ? '' : ' hidden'}>${rows}</div>`;
+    }).join('');
+  }
+  return `<div class="pf-card o-pfsug"><div class="pf-lbl">Books you suggested${list.length ? `<span class="r">${list.length} book${list.length === 1 ? '' : 's'}${won ? ` · ${won} won` : ''}</span>` : ''}</div>${body}</div>`;
+}
+
+function pfBadgesCard(st) {
+  const newIds = new Set(st.newBadges.map(b => b.id));
+  const ordered = st.newBadges.filter(b => st.earned.some(e => e.id === b.id)).concat(st.earned.filter(b => !newIds.has(b.id)));
+  const shown = ordered.slice(0, 6);
+  const n = st.newBadges.length;
+  const names = st.newBadges.map(b => `<b>${esc(b.name)}</b>`);
+  const newTxt = !n ? '' : n === 1 ? `${names[0]} is new` : n === 2 ? `${names[0]} and ${names[1]} are new` : `${names[0]}, ${names[1]} and ${n - 2} more are new`;
+  const sum = st.earned.length
+    ? [newTxt, `${st.earned.length} earned`].filter(Boolean).join(' · ')
+    : 'No badges yet. They come from voting, reading, reviewing and more.';
+  return `<div class="pf-card o-pfbadges${n ? ' gold' : ''}">
+    <div class="pf-lbl">Your badges${n ? `<span class="r new">${n} new</span>` : ''}</div>
+    ${shown.length ? `<div class="pf-medals">${shown.map(b => `<span class="pf-md${newIds.has(b.id) ? ' n' : ''}" title="${esc(b.name)}">${pfBadgeIcon(b)}</span>`).join('')}</div>` : ''}
+    <div class="pf-bsum">${sum}</div>
+    <button type="button" class="pf-link" onclick="goProfileSubTab('badges')">See all badges ${PF_ICON.right}</button>
+  </div>`;
+}
+
+function pfTallyCard(st) {
+  const books = st.books;
+  if (!books.length) return '';
+  const rows = [
+    ['finished', 'Finished', 'var(--st-finished-fg)'],
+    ['reading', 'Reading', 'var(--st-reading-fg)'],
+    ['pre-read', 'Already read', 'var(--st-preread-fg)'],
+    ['dnf', 'Didn\'t finish', 'var(--st-dnf-fg)'],
+    ['chose-not-to-read', 'Chose not to read', 'var(--st-cntr-fg)'],
+    ['not-started', 'Not started', 'var(--st-notstarted-fg)'],
+    ['', 'Not marked yet', 'var(--st-unset)'],
+  ];
+  const total = books.length;
+  const html = rows.map(([k, label, color]) => {
+    const c = books.filter(x => x.status === k).length;
+    if (!c) return '';
+    return `<div class="pf-tal"><span class="k">${label}</span><span class="bar" aria-hidden="true"><i style="width:${Math.max(4, Math.round(c / total * 100))}%;background:${color};"></i></span><span class="v">${c}</span></div>`;
+  }).join('');
+  return `<div class="pf-card o-pftally"><div class="pf-lbl">Your reading<span class="r">${total} club book${total === 1 ? '' : 's'}</span></div>${html}
+    <button type="button" class="pf-link" onclick="goProfileSubTab('reading')">Open My Reading ${PF_ICON.right}</button></div>`;
+}
+
+// Which surveys this member has answered (email first, then their resolved name)
+function pfSurveyState(email, discord) {
+  const idMap = buildIdentityMap();
+  const myName = resolveId(discord, email, idMap);
+  const myEmail = normEmail(email);
+  const allSurveys = getSurveys();
+  const allResps = getSurveyResponses();
+  const answered = [];
+  allSurveys.forEach(s => {
+    const mine = (allResps[s.id] || []).filter(r => {
+      const rEmail = normEmail(r.email || '');
+      if (myEmail && rEmail && rEmail === myEmail) return true;
+      const rDiscord = r.discord || r.name || '';
+      return !!(rDiscord && myName && resolveId(rDiscord, r.email || '', idMap) === myName);
+    });
+    if (mine.length) answered.push({ survey: s, responses: mine, last: Math.max(...mine.map(r => r.ts || 0)) });
+  });
+  const answeredIds = new Set(answered.map(x => x.survey.id));
+  const open = allSurveys.filter(s => s.active && !answeredIds.has(s.id));
+  return { all: allSurveys, answered, open };
+}
+function pfSurveysCard(me) {
+  const sv = pfSurveyState(me.email, me.discord);
+  if (!sv.all.length) return '';
+  const of = `You've answered ${sv.answered.length} of ${sv.all.length}`;
+  const inner = sv.open.length
+    ? `<div class="pf-sv"><div><div class="t">${sv.open.length === 1 ? '1 survey is open' : `${sv.open.length} surveys are open`}</div><div class="d">${of}</div></div><button type="button" class="pf-act" onclick="homeGo('surveys')">Take it</button></div>`
+    : `<div class="pf-sv"><div><div class="t">You're all caught up</div><div class="d">${of}</div></div></div>
+       ${sv.answered.length ? `<button type="button" class="pf-link" onclick="goProfileSubTab('surveys')">See your answers ${PF_ICON.right}</button>` : ''}`;
+  return `<div class="pf-card o-pfsurv"><div class="pf-lbl">Surveys</div>${inner}</div>`;
+}
 
 // Badge category definitions — order controls display order
 const BADGE_CATEGORIES = [
@@ -9485,126 +9503,123 @@ function sortMbbByMonth(arr) {
   return [...arr].sort((a, b) => mbbMonthIndex(a) - mbbMonthIndex(b));
 }
 
+// One badge as a small card (earned or still to earn)
+function pfBadgeCard(b, isEarned, profile) {
+  const tierLabel = { bronze: 'Bronze', silver: 'Silver', gold: 'Gold' };
+  const desc = String((typeof b.desc === 'function' ? b.desc(isEarned ? profile : null) : b.desc) || '').replace(/\s*\(from Mar \d+, \d{4}\)/g, '');
+  const isMirror = isEarned && b.id === 'mirror-mirror' && profile && (profile.mirrorMatches || []).length > 0;
+  if (isMirror) _mirrorModalMatches = profile.mirrorMatches.slice();
+  const inner = `<span class="pf-md" aria-hidden="true">${pfBadgeIcon(b)}</span>
+    <span style="min-width:0;display:block;">
+      ${b.tier ? `<span class="tr" style="display:block;">${tierLabel[b.tier] || ''}</span>` : ''}
+      <span class="nm" style="display:block;">${esc(b.name)}</span>
+      <span class="ds" style="display:block;">${esc(desc)}</span>
+      ${isMirror ? '<span class="mm" style="display:block;">See all matches ›</span>' : ''}
+    </span>`;
+  return isMirror
+    ? `<button type="button" class="pf-bdg" onclick="openMirrorMatchesModal()" title="See everyone you've matched with">${inner}</button>`
+    : `<div class="pf-bdg${isEarned ? '' : ' locked'}">${inner}</div>`;
+}
+function pfCatOf(b) { return b.category || BADGE_CATEGORY_MAP[b.id] || (b.adminOnly ? 'admin' : b.custom ? 'admin' : 'fun'); }
+function pfCatLabel(cat) { return cat.id === 'penny' ? 'Penny\'s Office' : cat.label.replace(/^\S+\s+/, ''); }
+let _pfLockedOpen = false;
+
 function renderBadgesTab() {
   if (!_bgIdentity) return;
-
+  const area = document.getElementById('badges-area');
+  if (!area) return;
   const profile  = computeMemberProfile(_bgIdentity.discord, _bgIdentity.email);
   const myKey    = normEmail(_bgIdentity.email) || normId(_bgIdentity.discord);
   _maybeClearPennyBadgesFromSnapshot(myKey);
   const visibleBadges = getAllBadges();
+  const earnedIds = new Set(visibleBadges.filter(b => hasBadge(b.id, profile, myKey)).map(b => b.id));
+  const thisYear = String(new Date().getFullYear());
 
-  const tierLabel = { bronze:'🥉 Bronze', silver:'🥈 Silver', gold:'🥇 Gold' };
-  const earnedBadges = visibleBadges.filter(b => hasBadge(b.id, profile, myKey));
-  const totalEarned = earnedBadges.length;
+  const nums = `${profile.voted} month${profile.voted === 1 ? '' : 's'} voted · ${profile.suggestedMonths} month${profile.suggestedMonths === 1 ? '' : 's'} suggested · ${profile.reviewed} review${profile.reviewed === 1 ? '' : 's'} · ${profile.surveysCompleted} survey${profile.surveysCompleted === 1 ? '' : 's'} · ${profile.pickedWinner} winning pick${profile.pickedWinner === 1 ? '' : 's'} · longest vote streak ${profile.longestVoteStreak} · longest read streak ${profile.longestReadStreak}`;
 
-  document.getElementById('badges-summary').innerHTML = `
-    <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
-      <div style="text-align:center;">
-        <div style="font-family:'Playfair Display',serif;font-size:2.5rem;font-weight:700;color:var(--gold);">${totalEarned}</div>
-        <div style="font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);">Badges Earned</div>
-      </div>
-      <div style="flex:1;min-width:180px;">
-        <div style="font-weight:500;margin-bottom:.3rem;">${earnedBadges.map(b=>`<span title="${esc(b.name)}">${b.iconDataUrl?'🖼️':b.emoji}</span>`).join(' ')||'—'}</div>
-        <div style="font-size:.82rem;color:var(--soft);">${profile.voted} months voted · ${profile.suggestedMonths} months suggested · ${profile.reviewed} reviews · ${profile.surveysCompleted} surveys · ${profile.pickedWinner} winning pick${profile.pickedWinner!==1?'s':''}</div>
-        <div style="font-size:.78rem;color:var(--soft);margin-top:.2rem;">Longest vote streak: ${profile.longestVoteStreak} · Longest read streak: ${profile.longestReadStreak}</div>
-      </div>
-    </div>`;
-
-  const badgeCard = (b, isEarned) => {
-    const icon = b.iconDataUrl
-      ? `<div class="badge-icon"><img src="${b.iconDataUrl}" style="width:40px;height:40px;object-fit:contain;border-radius:4px;"></div>`
-      : `<div class="badge-icon">${b.emoji}</div>`;
-    const tierHtml = b.tier ? `<div style="font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);margin-bottom:.2rem;">${tierLabel[b.tier]||''}</div>` : '';
-    const isMirror = isEarned && b.id === 'mirror-mirror' && (profile.mirrorMatches||[]).length > 0;
-    if (isMirror) _mirrorModalMatches = profile.mirrorMatches.slice();
-    const clickAttrs = isMirror ? ` onclick="openMirrorMatchesModal()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openMirrorMatchesModal();}" title="See everyone you've matched with" style="cursor:pointer;"` : '';
-    return `<div class="badge-card ${isEarned?'earned':'locked'}${b.tier&&isEarned?' tier-'+b.tier:''}"${clickAttrs}>
-      ${icon}${tierHtml}
-      <div class="badge-name">${esc(b.name)}</div>
-      <div class="badge-desc">${esc((typeof b.desc === 'function' ? b.desc(isEarned ? profile : null) : b.desc).replace(/\s*\(from Mar \d+, \d{4}\)/g, ''))}</div>
-      ${isMirror?`<div style="font-size:.7rem;color:var(--accent);font-weight:600;margin-top:.35rem;text-decoration:underline;">See all matches ›</div>`:''}
-      ${isEarned?'<div class="badge-earned-label">✓ Earned</div>':''}
-    </div>`;
-  };
-
-  // Group badges by category, earned first then locked within each group
-  // Organic (hidden-until-earned) badges are excluded from the locked grid and total count
-  const html = BADGE_CATEGORIES.map(cat => {
-    const inCat = visibleBadges.filter(b => {
-      const catId = b.category || BADGE_CATEGORY_MAP[b.id] || (b.adminOnly ? 'admin' : b.custom ? 'admin' : 'fun');
-      return catId === cat.id;
-    });
-    if (!inCat.length) return '';
-
-    // ── Monthly Book Badges: group by year, collapse years that aren't the current year ──
-    if (cat.id === 'monthly-book') {
-      const earnedInCat  = inCat.filter(b => hasBadge(b.id, profile, myKey));
-      const lockedInCat  = inCat.filter(b => !hasBadge(b.id, profile, myKey) && !isBadgeOrganic(b.id));
-      if (!earnedInCat.length && !lockedInCat.length) return '';
-      const earnedCount = earnedInCat.length;
-      const totalCount  = earnedInCat.length + lockedInCat.length;
-
-      // Get all distinct years from the full badge set (earned + locked)
-      // Sort numerically-newest-first, but keep non-numeric labels (e.g. "Bonus Books") pinned at the top
-      const allYears = [...new Set(inCat.map(b => b.year || 'Unknown'))].sort((a, b) => {
-        const na = /^\d+$/.test(a), nb = /^\d+$/.test(b);
-        if (na && nb) return b - a;
-        if (na !== nb) return na ? 1 : -1;
-        return String(a).localeCompare(String(b));
-      });
-      const currentYear = String(new Date().getFullYear());
-      // Only show year headings as collapsible if there are multiple distinct years
-      const multiYear = allYears.length > 1;
-
-      const yearBlocks = allYears.map(year => {
-        const earnedY  = sortMbbByMonth(earnedInCat.filter(b => (b.year||'Unknown') === year));
-        const lockedY  = sortMbbByMonth(lockedInCat.filter(b => (b.year||'Unknown') === year));
-        if (!earnedY.length && !lockedY.length) return '';
-        const yId = 'mbb-year-' + year;
-        const isCurrentYear = year === currentYear || year === 'Bonus Books';
-        // For the current year (or when only one year exists), expand by default; older years collapsed
-        const collapsed = multiYear && !isCurrentYear;
-        return `<div style="margin-bottom:.75rem;">
-          ${multiYear ? `<button onclick="(function(el){const g=document.getElementById('${yId}');const open=g.style.display!=='none';g.style.display=open?'none':'block';el.querySelector('.mbb-caret').textContent=open?'▸':'▾';})(this)" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:.4rem;font-size:.78rem;color:var(--soft);text-transform:uppercase;letter-spacing:.08em;padding:.1rem 0;margin-bottom:.35rem;">
-            <span class="mbb-caret">${collapsed ? '▸' : '▾'}</span> ${esc(year)}
-          </button>` : ''}
-          <div id="${yId}" style="display:${collapsed ? 'none' : 'block'};">
-            ${earnedY.length ? `<div class="badge-grid" style="margin-bottom:.5rem;">${earnedY.map(b=>badgeCard(b,true)).join('')}</div>` : ''}
-            ${lockedY.length ? `<div class="badge-grid" style="opacity:.7;">${lockedY.map(b=>badgeCard(b,false)).join('')}</div>` : ''}
-          </div>
-        </div>`;
-      }).join('');
-
-      return `<div style="margin-bottom:2rem;">
-        <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.75rem;padding-bottom:.4rem;border-bottom:2px solid var(--border);">
-          <span style="font-size:1.1rem;">${cat.emoji}</span>
-          <h3 style="font-family:'Playfair Display',serif;font-size:1rem;margin:0;">${cat.label.replace(/^.+ /,'')}</h3>
-          <span style="font-size:.72rem;color:var(--soft);margin-left:auto;">${earnedCount}/${totalCount} earned</span>
-        </div>
-        ${yearBlocks}
-      </div>`;
+  let lockedCount = 0;
+  const earnedHtml = [], lockedHtml = [];
+  BADGE_CATEGORIES.forEach(cat => {
+    const inCat = visibleBadges.filter(b => pfCatOf(b) === cat.id);
+    if (!inCat.length) return;
+    const earned = inCat.filter(b => earnedIds.has(b.id));
+    const locked = inCat.filter(b => !earnedIds.has(b.id) && !isBadgeOrganic(b.id));
+    lockedCount += locked.length;
+    const total = earned.length + locked.length;
+    const head = (count) => `<div class="pf-ch"><h3>${esc(pfCatLabel(cat))}</h3><span class="c">${count}</span></div>`;
+    if (earned.length) {
+      let body;
+      if (cat.id === 'monthly-book') {
+        const years = [...new Set(earned.map(b => b.year || 'Other'))].sort((a, b) => {
+          const na = /^\d+$/.test(a), nb = /^\d+$/.test(b);
+          if (na && nb) return b - a;
+          if (na !== nb) return na ? 1 : -1;
+          return String(a).localeCompare(String(b));
+        });
+        body = years.map((y, i) => {
+          const list = sortMbbByMonth(earned.filter(b => (b.year || 'Other') === y));
+          const id = 'pf-mbb-' + String(y).replace(/[^\w-]/g, '');
+          const open = pfIsOpen(id, years.length === 1 || y === thisYear || y === 'Bonus Books' || i === 0);
+          return `${years.length > 1 ? `<button type="button" class="pf-subyr" aria-expanded="${open}" aria-controls="${id}" onclick="pfFold(this)"><span class="car" aria-hidden="true">${open ? '▾' : '▸'}</span> ${esc(y)} · ${list.length}</button>` : ''}
+            <div id="${id}" class="pf-bg" style="margin-bottom:.6rem;"${open ? '' : ' hidden'}>${list.map(b => pfBadgeCard(b, true, profile)).join('')}</div>`;
+        }).join('');
+      } else {
+        body = `<div class="pf-bg">${earned.map(b => pfBadgeCard(b, true, profile)).join('')}</div>`;
+      }
+      earnedHtml.push(`<div class="pf-cat">${head(locked.length ? `${earned.length} of ${total} earned` : `${earned.length} earned`)}${body}</div>`);
     }
+    if (locked.length) {
+      const list = cat.id === 'monthly-book' ? sortMbbByMonth(locked) : locked;
+      lockedHtml.push(`<div class="pf-cat">${head(`${locked.length} to go`)}<div class="pf-bg">${list.map(b => pfBadgeCard(b, false, profile)).join('')}</div></div>`);
+    }
+  });
 
-    // ── All other categories ──
-    const earnedInCat = inCat.filter(b => hasBadge(b.id, profile, myKey));
-    const lockedInCat = inCat.filter(b => !hasBadge(b.id, profile, myKey) && !isBadgeOrganic(b.id));
-    const earnedCount = earnedInCat.length;
-    const totalCount  = earnedInCat.length + lockedInCat.length;
-    if (!earnedInCat.length && !lockedInCat.length) return '';
-    return `<div style="margin-bottom:2rem;">
-      <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.75rem;padding-bottom:.4rem;border-bottom:2px solid var(--border);">
-        <span style="font-size:1.1rem;">${cat.emoji}</span>
-        <h3 style="font-family:'Playfair Display',serif;font-size:1rem;margin:0;">${cat.label.replace(/^.+ /,'')}</h3>
-        <span style="font-size:.72rem;color:var(--soft);margin-left:auto;">${earnedCount}/${totalCount} earned</span>
-      </div>
-      ${earnedInCat.length ? `<div class="badge-grid" style="margin-bottom:.75rem;">${earnedInCat.map(b=>badgeCard(b,true)).join('')}</div>` : ''}
-      ${lockedInCat.length ? `<div class="badge-grid" style="opacity:.7;">${lockedInCat.map(b=>badgeCard(b,false)).join('')}</div>` : ''}
-    </div>`;
-  }).join('');
-
-  document.getElementById('badges-area').innerHTML = html || '<p style="font-size:.85rem;color:var(--soft);">No badges available yet.</p>';
+  area.innerHTML = `<p class="pf-nums">${esc(nums)}</p>
+    ${earnedHtml.length ? earnedHtml.join('') : '<div class="pf-card pf-empty">No badges yet. Vote, read, review and stop by Penny\'s Office to start earning them.</div>'}
+    ${lockedCount ? `<button type="button" class="pf-locked-btn" aria-expanded="${_pfLockedOpen}" aria-controls="pf-locked" onclick="pfToggleLocked(this)">${PF_ICON.next}Badges still to earn · ${lockedCount} <span>${_pfLockedOpen ? 'Tap to hide' : 'Tap to see what\'s out there'}</span></button>
+      <div id="pf-locked" class="pf-locked"${_pfLockedOpen ? '' : ' hidden'}>${lockedHtml.join('')}</div>` : ''}`;
   renderNewBadgeAlert(myKey, profile);
 }
+function pfToggleLocked(btn) {
+  _pfLockedOpen = !_pfLockedOpen;
+  const el = document.getElementById('pf-locked');
+  if (el) el.hidden = !_pfLockedOpen;
+  btn.setAttribute('aria-expanded', String(_pfLockedOpen));
+  const s = btn.querySelector('span');
+  if (s) s.textContent = _pfLockedOpen ? 'Tap to hide' : 'Tap to see what\'s out there';
+}
+window.pfToggleLocked = pfToggleLocked;
+
+// Badges | Artifacts — the Artifacts tab only appears once a member has found something
+function pfHasArtifacts(key) {
+  if (!key) return false;
+  if (_postcardHas(key)) return true;
+  const rec = _postcardRecFor(key);
+  return Array.isArray(rec.bookmarks) && rec.bookmarks.length > 0;
+}
+function pfRenderBadgesInner(me) {
+  const el = document.getElementById('pf-badges-inner');
+  if (!el) return;
+  const has = !!me && pfHasArtifacts(me.key);
+  if (!has) _pfBadgeView = 'badges';
+  el.innerHTML = has
+    ? `<div class="pf-inner" role="tablist" aria-label="Badges sections">
+        <button type="button" role="tab" class="${_pfBadgeView === 'badges' ? 'on' : ''}" aria-selected="${_pfBadgeView === 'badges'}" onclick="pfBadgeView('badges')">Badges</button>
+        <button type="button" role="tab" class="${_pfBadgeView === 'artifacts' ? 'on' : ''}" aria-selected="${_pfBadgeView === 'artifacts'}" onclick="pfBadgeView('artifacts')">Artifacts</button>
+      </div>`
+    : '';
+  const bp = document.getElementById('pf-badges-pane'), ap = document.getElementById('pf-artifacts-pane');
+  if (bp) bp.style.display = _pfBadgeView === 'badges' ? '' : 'none';
+  if (ap) ap.style.display = _pfBadgeView === 'artifacts' ? '' : 'none';
+}
+function pfBadgeView(v) {
+  _pfBadgeView = v === 'artifacts' ? 'artifacts' : 'badges';
+  if (_pfTab !== 'badges') { goProfileSubTab('badges'); return; }
+  const me = pfMe();
+  pfRenderBadgesInner(me);
+  if (_pfBadgeView === 'artifacts') renderMyArtifacts(); else renderBadgesTab();
+}
+window.pfBadgeView = pfBadgeView;
 
 // ════════════════════════════════════════════════════════
 // ADMIN BADGE MANAGER
@@ -10064,7 +10079,7 @@ function _pennyBadgeResetPlan(memberKey, badgeId) {
     return { patch, also: PENNY_PLANT_NAMES.map(n => 'penny-plant-' + n), note: 'This also removes all seven individual plant badges, since it needs every plant. They come back as Penny tells them about each plant again.' };
   }
   if (badgeId === 'penny-postcard')
-    return { patch: { postcardFound: false, postcardFound_ts: null, postcardLookedUp: false, postcardLookedUp_ts: null, postcardTries: 0 }, note: 'The postcard leaves their My Artifacts and their record-crate tries start over, so it can drop for them again.' };
+    return { patch: { postcardFound: false, postcardFound_ts: null, postcardLookedUp: false, postcardLookedUp_ts: null, postcardTries: 0 }, note: 'The postcard leaves their profile (Badges → Artifacts) and their record-crate tries start over, so it can drop for them again.' };
   const m = badgeId.match(/^penny-plant-(.+)$/);
   if (m) return { patch: { ['plant_' + m[1]]: null, plantsAll: null }, also: ['penny-plant-all'], note: 'They can earn it again next time Penny tells them about this plant. (If they had "Seven Characters in Search of Water", that is removed too.)' };
   return null;
@@ -11466,8 +11481,9 @@ function updateBadgeNavDot() {
   setDot(newBadges.length ? 'inline-block' : 'none');
 }
 
-// Show (or skip) the new-badge celebration alert at the top of the badges tab.
-// Called from renderBadgesTab() after the summary renders.
+// Show (or skip) the "New since your last visit" band at the top of the Badges tab.
+// Called from renderBadgesTab(). Opening the tab saves the "seen" snapshot, so the
+// badges shown here are remembered for this visit (a live refresh won't make them vanish).
 function renderNewBadgeAlert(memberKey, profile) {
   const container = document.getElementById('badge-new-alert');
   if (!container) return;
@@ -11476,37 +11492,35 @@ function renderNewBadgeAlert(memberKey, profile) {
   const earnedIds = new Set(allBadges.filter(b => hasBadge(b.id, profile, memberKey)).map(b => b.id));
 
   // First-ever visit: no stored snapshot yet — silently set baseline, no alert
-  const isFirstVisit = localStorage.getItem(_badgeSeenKey(memberKey)) === null;
+  let isFirstVisit = false;
+  try { isFirstVisit = localStorage.getItem(_badgeSeenKey(memberKey)) === null; } catch (e) {}
 
   // Compute new badges BEFORE saving the updated snapshot
-  const newBadges = isFirstVisit ? [] : getNewBadgesSinceLastVisit(memberKey, profile);
+  let newBadges = isFirstVisit ? [] : getNewBadgesSinceLastVisit(memberKey, profile);
 
   // Now save the current earned set as the new baseline
   _saveSeenBadgeIds(memberKey, earnedIds);
   updateBadgeNavDot();
 
+  if (newBadges.length) _pfNewCache[memberKey] = newBadges.map(b => b.id);
+  else if (_pfNewCache[memberKey]) {
+    const visible = getAllBadges();
+    newBadges = _pfNewCache[memberKey].map(id => visible.find(b => b.id === id)).filter(b => b && earnedIds.has(b.id));
+  }
   if (!newBadges.length) { container.innerHTML = ''; return; }
 
-  const badgeItems = newBadges.map(b => `
-    <div style="display:flex;align-items:center;gap:.6rem;padding:.5rem 0;border-bottom:1px solid rgba(240,180,41,.2);">
-      <span style="font-size:1.4rem;min-width:1.8rem;text-align:center;">${b.iconDataUrl ? `<img src="${b.iconDataUrl}" style="width:28px;height:28px;object-fit:contain;border-radius:3px;">` : b.emoji}</span>
-      <div>
-        <div style="font-weight:600;font-size:.88rem;color:#ffffff;">${esc(b.name)}</div>
-        <div style="font-size:.77rem;color:rgba(255,255,255,.65);">${esc(String((typeof b.desc === 'function' ? b.desc(profile) : b.desc) || '').replace(/\s*\(from Mar \d+, \d{4}\)/g, ''))}</div>
-      </div>
-    </div>`).join('');
-
-  const plural = newBadges.length === 1;
-  container.innerHTML = `
-    <div style="background:linear-gradient(135deg,#2a1f00,#1f1800);border:1.5px solid var(--gold);border-radius:8px;padding:1rem 1.1rem 1rem;margin-bottom:1.5rem;position:relative;">
-      <button onclick="document.getElementById('badge-new-alert').innerHTML=''" aria-label="Dismiss"
-        style="position:absolute;top:.6rem;right:.75rem;background:none;border:none;cursor:pointer;color:rgba(255,255,255,.4);font-size:1rem;line-height:1;padding:.2rem;">✕</button>
-      <div style="font-family:'Playfair Display',serif;font-size:1rem;font-weight:700;color:var(--gold);margin-bottom:.65rem;">
-        🎉 You've earned ${newBadges.length} new badge${plural ? '' : 's'} since your last visit!
-      </div>
-      ${badgeItems}
-    </div>`;
+  container.innerHTML = `<div class="pf-newband" role="status">
+    <h3>New since your last visit</h3>
+    <div class="pf-newrow">${newBadges.map(b => pfBadgeCard(b, true, profile)).join('')}</div>
+    <button type="button" class="x" aria-label="Dismiss" onclick="pfDismissNewBand()">${PF_ICON.x}</button>
+  </div>`;
 }
+function pfDismissNewBand() {
+  _pfNewCache = {};
+  const c = document.getElementById('badge-new-alert');
+  if (c) c.innerHTML = '';
+}
+window.pfDismissNewBand = pfDismissNewBand;
 
 // Two banner styles:
 // 'gate'    — gold box shown on pages that gate content behind identity (Progress, Badges, My Responses)
@@ -12799,7 +12813,7 @@ function _postcardDropScene(stage) {
       <p class="penny-speech">I'm less sure now.</p>
       <span class="penny-action">She props it against the lamp on her desk, photo side out.</span>
       <p class="penny-speech">I'd like to keep this here, if that's alright. It feels like it belongs near the catalog. Thank you for finding it.</p>`)
-      + `<p class="pc-earned">📮 Badge earned: <strong>Every Book Its Reader</strong><br>The postcard is saved to <em>My Artifacts</em> in your profile.</p>`
+      + `<p class="pc-earned">📮 Badge earned: <strong>Every Book Its Reader</strong><br>The postcard is saved in your profile, under <em>Badges</em>.</p>`
       + btn('Back to what we were doing.', 'postcardSceneDone()'));
   }
 }
@@ -13329,7 +13343,7 @@ function _bookmarkScene(area, stage) {
           <p class="penny-speech">So — thank you. I think I've made a friend. I hope that's alright to say.</p>
         </div>
       </div>
-      <p class="pc-earned">🔖 Saved to <em>My Artifacts</em> in your profile.</p>
+      <p class="pc-earned">🔖 Saved in your profile, under <em>Badges</em>.</p>
       ${_bmBtnRow(`<button class="penny-action-btn" onclick="bookmarkSceneDone('${aid}',this)">"Thank you, Penny."</button>`)}`;
     _bookmarkFillImages(area);
   }
@@ -19367,6 +19381,7 @@ function syncNavActive(id) {
   const more = document.getElementById('nav-more-btn');
   if (more) more.classList.toggle('has-active', !!document.querySelector(`#nav-more-menu button[data-tab="${id}"]`));
   document.body.classList.toggle('on-home', id === 'home');
+  document.body.classList.toggle('on-profile', id === 'profile');
   document.querySelectorAll('.mh-penny').forEach(b => b.classList.toggle('is-on', id === 'penny'));
   closeMoreMenu();
   closeNavSheet();
@@ -19441,7 +19456,7 @@ function progressUndoToast(bookId, status, prev) {
   dbcToast(`Marked as ${PROGRESS_LABELS[status] || status}`, async () => {
     await writeProgress(bookId, prev);
     const active = document.querySelector('.section.active');
-    if (active && active.id === 'tab-profile') renderProgressTab();
+    if (active && active.id === 'tab-profile') renderProfileTab();
     if (active && active.id === 'tab-home') renderHome();
   });
 }
@@ -19479,7 +19494,7 @@ function homeDataReady() { return _homeForceReady || HOME_NEEDS.every(k => _home
       _homeSince = prev;
       sessionStorage.setItem(DBC_SINCE, prev ? String(prev) : '');
       // Away 60+ days: bring the helper card back even if it was closed before
-      if (prev && Date.now() - prev > HELPER_RETURN_MS) localStorage.removeItem(DBC_HELPER_DISMISSED);
+      if (prev && Date.now() - prev > HELPER_RETURN_MS) { localStorage.removeItem(DBC_HELPER_DISMISSED); localStorage.removeItem('dbc_profile_helper_dismissed'); }
     }
     localStorage.setItem(DBC_LAST_VISIT, String(Date.now()));
   } catch (e) { /* storage blocked — helper simply shows */ }
@@ -19538,9 +19553,21 @@ function renderHome() {
   if (id) { const idMap = buildIdentityMap(); me = { idMap, key: resolveId(id.discord || '', id.email || '', idMap) }; }
   const left  = homeNowCard(id, me) + homePickCard(id, me, s) + homeReviewsCard();
   const right = homeHelperCard() + (s.pennyVisible ? homePennyCard() : '') + homeLastBookCard() + homeQuarterlyCard(id);
-  el.innerHTML = `<div class="hm-hello"><h2>${greet}${name ? ', ' + esc(name) : ''}</h2><p>Here's what's happening in the club this month.</p></div>
+  el.innerHTML = `<div class="hm-hello"><h2>${greet}${name ? ', ' + esc(name) : ''}</h2><p>Here's what's happening in the club this month.</p>${id ? homeStatsLine() : ''}</div>
     <div class="hm-grid"><div class="hm-col">${left}</div><div class="hm-col">${right}</div></div>`;
   homeFitReviews();
+}
+// Slim stats line under the greeting (same numbers as the My Profile header). Opens My Profile.
+function homeStatsLine() {
+  let st;
+  try { const me = pfMe(); if (!me) return ''; st = pfStats(me); } catch (e) { return ''; }
+  const n = st.newBadges.length;
+  return `<button type="button" class="hm-stats" onclick="homeGo('profile')" aria-label="Open My Profile: ${st.finishedYear} finished in ${st.year}, ${st.earned.length} badges${n ? ', ' + n + ' new' : ''}, ${st.reviews} reviews">
+    <span class="s"><b>${st.finishedYear}</b><span>finished in ${esc(st.year)}</span></span>
+    <span class="s"><b>${st.earned.length}${n ? '<span class="pf-ndot" aria-hidden="true"></span>' : ''}</b><span>badge${st.earned.length === 1 ? '' : 's'}${n ? ` · ${n} new` : ''}</span></span>
+    <span class="s"><b>${st.reviews}</b><span>review${st.reviews === 1 ? '' : 's'}</span></span>
+    <span class="go" aria-hidden="true"><svg class="ic" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
+  </button>`;
 }
 // Remembers which reviews a member expanded, so a live data refresh doesn't collapse them
 const _hmOpenReviews = new Set();
@@ -19602,7 +19629,7 @@ function homeNowCard(id, me) {
         (isOther ? `<option value="${esc(cur)}" selected disabled>${esc(PROGRESS_LABELS[cur] || cur)}</option>` : '') +
         HOME_STATUSES.map(st => `<option value="${st.key}"${cur === st.key ? ' selected' : ''}>${st.label}</option>`).join('')
       }</select></div></div>`;
-      const other = isOther ? `<div class="hm-d" style="margin-top:.4rem;">Marked as ${esc(PROGRESS_LABELS[cur] || cur)} in My Progress.</div>` : '';
+      const other = isOther ? `<div class="hm-d" style="margin-top:.4rem;">Marked as ${esc(PROGRESS_LABELS[cur] || cur)} in My Reading.</div>` : '';
       const reviews = homeReviewsFor(a, b, isDual);
       const mine = me && reviews.find(r => resolveId(r.discord || '', r.email || '', me.idMap) === me.key);
       const others = reviews.length - (mine ? 1 : 0);
@@ -19610,7 +19637,7 @@ function homeNowCard(id, me) {
       const review = mine
         ? `<div class="hm-myrv done"><span class="hm-dot done" aria-hidden="true">✓</span><div><div class="hm-t">You reviewed it</div><div class="hm-d">Thanks for sharing your thoughts${countTxt}</div></div></div>`
         : `<div class="hm-myrv"><span class="hm-dot due" aria-hidden="true"></span><div><div class="hm-t">Your review</div><div class="hm-d">Not written yet · whenever you're ready${countTxt}</div></div><button type="button" class="hm-act" onclick="goToReviewForm('${_jsAttr(a.label)}','${isDual ? _jsAttr(b.id) : ''}')">Write review</button></div>`;
-      body = `${seg}${other}<button type="button" class="hm-prev" onclick="homeGoProgress()">Updating an earlier month's book? Go to My Progress →</button>${review}`;
+      body = `${seg}${other}<button type="button" class="hm-prev" onclick="homeGoProgress()">Updating an earlier month's book? Go to My Reading →</button>${review}`;
     } else {
       body = `<div class="hm-myrv" style="margin-top:.9rem;"><div><div class="hm-t">Track your reading</div><div class="hm-d">Set up your profile once to mark books and see your reviews here.</div></div><button type="button" class="hm-act" onclick="homeGo('profile')">Set up profile</button></div>`;
     }
@@ -19641,8 +19668,7 @@ function homeGoProgress() {
   homeGo('profile');
   if (_profileIdentity) {
     setTimeout(() => {
-      goProfileSubTab('progress', document.getElementById('profile-sub-btn-progress'));
-      renderProgressTab();
+      goProfileSubTab('reading');
     }, 60);
   }
 }
@@ -19848,6 +19874,7 @@ let _tour = null;
 function _tourIsPhone() { return window.matchMedia('(max-width:700px)').matches; }
 function _tourRect(step) {
   const vis = el => el && el.offsetParent !== null && el.getBoundingClientRect().width > 0;
+  if (step.sel) { const el = document.querySelector(step.sel); return vis(el) ? el.getBoundingClientRect() : null; }
   if (step.tab === 'more') {
     const els = _tourIsPhone()
       ? [document.querySelector('.mh-actions')]
@@ -19862,11 +19889,11 @@ function _tourRect(step) {
   return vis(el) ? el.getBoundingClientRect() : null;
 }
 function _tourSteps() { return TOUR_STEPS.filter(st => _tourRect(st)); }
-function startTour() {
+function startTour(list) {
   closeMoreMenu(); closeNavSheet();
   endTour();
   window.scrollTo(0, 0);
-  const steps = _tourSteps();
+  const steps = Array.isArray(list) ? list.filter(st => _tourRect(st)) : _tourSteps();
   if (!steps.length) return;
   const block = document.createElement('div'); block.className = 'tour-block';
   const spot  = document.createElement('div'); spot.className = 'tour-spot';
