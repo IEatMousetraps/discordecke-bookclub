@@ -11043,7 +11043,7 @@ function renderEditArchiveBooks(label) {
           <div style="font-size:.88rem;font-weight:500;">${esc(b.title)}</div>
           <div style="font-size:.75rem;color:var(--soft);">${esc(b.author)} · ${esc(nb.suggesters.map(s=>s.discord).join(', '))} · ${genreTag}</div>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="openEditArchiveBook('${esc(label)}','${b.id}')">Edit</button>
+        <button class="btn btn-secondary btn-sm" onclick="openEditArchiveBook('${esc(label.replace(/\\/g,'\\\\').replace(/'/g,"\\'"))}','${b.id}')">Edit</button>
       </div>
       <div id="eab-form-${b.id}" style="display:none;"></div>`;
     }).join('');
