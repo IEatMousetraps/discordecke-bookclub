@@ -3754,6 +3754,28 @@ window.submitVote = submitVote;
 // ════════════════════════════════════════════════════════
 
 // Shared Borda scoring — returns { sorted, scores, rankCounts, nb, isTied, tiedBooks }
+// Borda sort comparator with the same tiebreaker the Results page uses:
+// more points first, then more 1st-place votes. Without the tiebreaker, books tied on
+// points kept their list order, so "the winner" differed between pages.
+function bordaCmp(votes, scores) {
+  const first = {};
+  Object.values(votes || {}).forEach(vd => {
+    const r = (vd && vd.ranking) || vd;
+    if (Array.isArray(r) && r.length) first[r[0]] = (first[r[0]] || 0) + 1;
+  });
+  return (x, y) => (scores[y.id] - scores[x.id]) || ((first[y.id] || 0) - (first[x.id] || 0));
+}
+
+// Same tiebreak for [id, points] pairs (Object.entries(scores)).
+function bordaEntryCmp(votes) {
+  const first = {};
+  Object.values(votes || {}).forEach(vd => {
+    const r = (vd && vd.ranking) || vd;
+    if (Array.isArray(r) && r.length) first[String(r[0])] = (first[String(r[0])] || 0) + 1;
+  });
+  return (x, y) => (y[1] - x[1]) || ((first[y[0]] || 0) - (first[x[0]] || 0));
+}
+
 function computeBordaScores(books, votes) {
   const nb = books.length;
   const scores = {}, rankCounts = {};
@@ -5151,7 +5173,7 @@ function renderAnalysisPageCount() {
       Object.values(a.votes||{}).forEach(vd => {
         (vd.ranking||[]).forEach((id, idx) => { if (scores[String(id)] !== undefined) scores[String(id)] += (nb - idx); });
       });
-      const sorted = Object.entries(scores).sort((a,b) => b[1]-a[1]);
+      const sorted = Object.entries(scores).sort(bordaEntryCmp(a.votes));
       if (sorted.length) computedWinners = [sorted[0][0]];
     }
     // Compute Borda scores for rank within this month
@@ -5162,7 +5184,7 @@ function renderAnalysisPageCount() {
       (vd.ranking||[]).forEach((id, idx) => { if (monthScores[String(id)] !== undefined) monthScores[String(id)] += (nb2 - idx); });
     });
     // Sort by score to get rank (1 = highest)
-    const rankedIds = Object.entries(monthScores).sort((x,y) => y[1]-x[1]).map(([id]) => id);
+    const rankedIds = Object.entries(monthScores).sort(bordaEntryCmp(a.votes)).map(([id]) => id);
     (a.books||[]).forEach(b => {
       if (!b.pageCount) return;
       const rank = rankedIds.indexOf(String(b.id)) + 1 || null; // 1-based, null if no votes
@@ -5968,7 +5990,7 @@ function showMonthDetail(idx, el) {
   const nb = (a.books||[]).length, scores = {};
   (a.books||[]).forEach(b => scores[b.id] = 0);
   Object.values(a.votes||{}).forEach(vd => { (vd.ranking||vd).forEach((id, idx2) => { if (scores[id] !== undefined) scores[id] += (nb - idx2); }); });
-  const sorted = [...(a.books||[])].sort((x,y) => scores[y.id] - scores[x.id]);
+  const sorted = [...(a.books||[])].sort(bordaCmp(a.votes, scores));
   const maxPts = sorted[0] ? scores[sorted[0].id] : 1;
   const vcount = Object.keys(a.votes||{}).length;
   const dualIds = a.dualWinners || [];
@@ -6356,7 +6378,7 @@ function renderAdminReadingProgress() {
       Object.values(a.votes || {}).forEach(vd => {
         (vd.ranking || vd).forEach((id, idx) => { if (scores[id] !== undefined) scores[id] += (nb - idx); });
       });
-      const sorted = [...(a.books || [])].sort((x, y) => scores[y.id] - scores[x.id]);
+      const sorted = [...(a.books || [])].sort(bordaCmp(a.votes, scores));
       winners = sorted.length ? [sorted[0]] : [];
     }
     winners.forEach(b => winnerBooks.push({ bookId: String(b.id), title: b.title, author: b.author || '', month: a.label }));
@@ -6760,7 +6782,7 @@ function _doRenderMemberDirectory() {
       Object.values(a.votes||{}).forEach(vd => {
         (vd.ranking||[]).forEach((id,idx) => { if (scores[String(id)] !== undefined) scores[String(id)] += (nb-idx); });
       });
-      const top = Object.entries(scores).sort((x,y)=>y[1]-x[1])[0];
+      const top = Object.entries(scores).sort(bordaEntryCmp(a.votes))[0];
       if (top) winnerIds.add(top[0]);
     }
 
@@ -8312,7 +8334,7 @@ function getArchiveWinners(archivesOverride) {
     Object.values(a.votes||{}).forEach(vd => {
       (vd.ranking||vd).forEach((id,idx) => { if (scores[id]!==undefined) scores[id]+=(nb-idx); });
     });
-    const sorted = [...(a.books||[])].sort((x,y)=>scores[y.id]-scores[x.id]);
+    const sorted = [...(a.books||[])].sort(bordaCmp(a.votes, scores));
     const dualIds = a.dualWinners||[];
     const winnerBooks = dualIds.length
       ? (a.books||[]).filter(b=>dualIds.includes(String(b.id)))
@@ -11245,7 +11267,7 @@ function downloadCSV(type) {
     const books = getBooks(), votes = getVotes(), nb = books.length, scores = {};
     books.forEach(b => scores[b.id] = 0);
     Object.values(votes).forEach(vd => { (vd.ranking||vd).forEach((id,idx) => { if (scores[id] !== undefined) scores[id] += (nb-idx); }); });
-    const sorted = [...books].sort((a,b) => scores[b.id]-scores[a.id]);
+    const sorted = [...books].sort(bordaCmp(votes, scores));
     rows = [['Rank','Title','Author','Suggested By','Borda Points']];
     sorted.forEach((b,i) => rows.push([i+1, b.title, b.author, normBook(b).suggesters.map(s=>s.discord).join('; '), scores[b.id]]));
     rows.push([]); rows.push(['Voter','Email','Discord','Ranking (1st to last)']);
@@ -11260,7 +11282,7 @@ function downloadCSV(type) {
       const nb = (a.books||[]).length, scores = {};
       (a.books||[]).forEach(b => scores[b.id] = 0);
       Object.values(a.votes||{}).forEach(vd => { (vd.ranking||vd).forEach((id,idx) => { if (scores[id] !== undefined) scores[id] += (nb-idx); }); });
-      const sorted = [...(a.books||[])].sort((x,y) => scores[y.id]-scores[x.id]);
+      const sorted = [...(a.books||[])].sort(bordaCmp(a.votes, scores));
       const vc = Object.keys(a.votes||{}).length;
       sorted.forEach((b,i) => rows.push([a.label, i+1, b.title, b.author, scores[b.id], vc]));
     });
