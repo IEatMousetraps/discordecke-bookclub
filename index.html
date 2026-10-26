@@ -3863,6 +3863,17 @@ function renderResultsHtml(area, books, votes) {
   const max = scores[sorted[0]?.id] || 1;
   const ordinal = r => r === 1 ? '1st' : r === 2 ? '2nd' : r === 3 ? '3rd' : `${r}th`;
 
+  const _resIdMap = buildIdentityMap();
+  const suggestedByHtml = b => {
+    const names = [];
+    (normBook(b).suggesters || []).forEach(sg => {
+      const n = resolveId(sg.discord || '', sg.email || '', _resIdMap) || sg.discord || '';
+      if (n && !names.includes(n)) names.push(n);
+    });
+    if (!names.length) return '';
+    return `<div style="font-size:.72rem;color:var(--soft);margin-top:.3rem;">📌 Suggested by: <strong style="color:var(--ink);">${names.map(n => esc(n)).join(', ')}</strong></div>`;
+  };
+
   let html = '';
 
   if (isTied) {
@@ -3888,6 +3899,7 @@ function renderResultsHtml(area, books, votes) {
       <div class="book-info" style="flex:1">
         <div class="book-title">${esc(b.title)}</div>
         <div class="book-sub">${esc(b.author)}</div>
+        ${suggestedByHtml(b)}
         ${genrePillsHtml(b.genre)}
         <div class="rank-pills"><span style="font-weight:500;color:var(--ink);">Ballot Breakdown:</span> ${rankPills}</div>
         ${suggesterReasonsHtml(b.suggesters)}
