@@ -1147,6 +1147,12 @@ header .logo-wrap:focus-visible{outline:2px solid var(--gold);outline-offset:4px
 .hm-skel span:nth-child(1){width:35%;} .hm-skel span:nth-child(2){width:75%;height:20px;} .hm-skel span:nth-child(3){width:55%;}
 @keyframes hm-shimmer{0%{background-position:100% 0;}100%{background-position:-100% 0;}}
 @media (prefers-reduced-motion: reduce){.hm-skel span{animation:none;}}
+.hm-next{display:flex;gap:.85rem;align-items:center;flex-wrap:wrap;margin-top:1.1rem;padding:.8rem .9rem;background:var(--tint-gold);border:1px dashed var(--tint-gold-line);border-radius:12px;}
+.hm-next .hm-cover{width:44px;height:66px;padding:0;font-size:0;}
+.hm-next-info{flex:1 1 180px;min-width:0;}
+.hm-next .hm-lbl{color:var(--tint-gold-ink);margin-bottom:.2rem;}
+.hm-next .hm-t,.hm-next .hm-d{color:var(--tint-gold-ink);}
+.hm-next .hm-link{padding:0;}
 .hm-small-book{display:flex;gap:.75rem;align-items:center;}
 .hm-small-book .hm-cover{width:44px;height:64px;padding:0;font-size:0;}
 .hm-mini{display:grid;grid-template-columns:repeat(5,22px);gap:4px;flex:none;}
@@ -1376,6 +1382,15 @@ body.on-profile main{max-width:1060px;}
 .pf-newrow .pf-bdg{border-color:transparent;}
 .pf-nums{font-size:.8rem;color:var(--muted);margin-bottom:1rem;line-height:1.5;}
 .pf-cat{margin-bottom:1.6rem;}
+.pf-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem;margin-bottom:1.1rem;}
+.pf-tile{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:.6rem .5rem;text-align:center;}
+.pf-tile b{display:block;font-size:1.25rem;font-weight:700;color:var(--text);}
+.pf-tile span{font-size:.74rem;color:var(--muted);line-height:1.25;display:block;}
+.pf-cat.closed{margin-bottom:.35rem;}
+.pf-chb{width:100%;background:none;border:none;border-bottom:1px solid var(--line);cursor:pointer;text-align:left;font-family:'DM Sans',sans-serif;padding:.55rem 0 .45rem;margin-bottom:.75rem;}
+.pf-cat.closed .pf-chb{margin-bottom:0;}
+.pf-chb .car{font-size:.75rem;color:var(--muted);min-width:.8rem;}
+.pf-chb:hover h3{color:var(--link);}
 .pf-ch{display:flex;align-items:baseline;gap:.6rem;padding-bottom:.45rem;border-bottom:1px solid var(--line);margin-bottom:.75rem;}
 .pf-ch h3{font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--text);}
 .pf-ch .c{margin-left:auto;font-size:.78rem;color:var(--muted);}
@@ -2896,6 +2911,14 @@ function archiveMonthName(label) {
   const idx = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'].indexOf(m[1].slice(0,3).toLowerCase());
   return idx < 0 ? null : `${_MONTH_FULL[idx]} ${m[2]}`;
 }
+// The month members read an archived book: taken from its label ("November 2026"),
+// falling back to the month after it was archived when the label has no month.
+function badgeReadMonthStart(a) {
+  const n = archiveMonthName(a && a.label);
+  if (n) { const [mo, yr] = n.split(' '); return new Date(+yr, _MONTH_FULL.indexOf(mo), 1); }
+  const d = new Date(a.archivedAt);
+  return new Date(d.getFullYear(), d.getMonth() + 1, 1);
+}
 function getArchiveYear(a) {
   const m = String(a.label||'').match(/\b(20\d{2})\b/);
   if (m) return parseInt(m[1], 10);
@@ -4401,24 +4424,40 @@ function renderReview() {
   const formContent = document.getElementById('review-form-content');
   if (!s.reviewsOpen) { closed.style.display = 'block'; formContent.style.display = 'none'; return; }
   closed.style.display = 'none'; formContent.style.display = 'block';
-  // Populate month dropdown from archives — reading months first (chronological),
-  // standalone Bonus Books pinned to the bottom. Member-pick months (e.g. Aug 2026)
+  // Populate month dropdown from archives — reading months grouped by year (newest first),
+  // standalone Bonus Books in their own group at the bottom. Member-pick months (e.g. Aug 2026)
   // are real club months, so they stay in their chronological place.
   const archives   = getArchives();
   const realMonths = archives.filter(a => !a.bonusBook);
   const bonusMonths = archives.filter(a => a.bonusBook);
-  const orderedArchives = [...realMonths, ...bonusMonths];
-  const currentLabel = realMonths.length ? realMonths[realMonths.length - 1].label : null;
+  // Grouped by year, newest month first, so the list stays short to scan as years pile up
+  const curA = homeCurrentArchive(), upA = homeUpcomingArchive();
+  const currentLabel = curA ? curA.label : null;
+  const upLabel = upA ? upA.label : null;
   const sel = document.getElementById('rv-month');
   const current = sel.value;
   sel.innerHTML = '<option value="">— Select a month —</option>';
-  orderedArchives.forEach(a => {
+  const addOpt = (parent, a) => {
     const opt = document.createElement('option');
     opt.value = a.label;
-    opt.textContent = a.label === currentLabel ? a.label + ' (current)' : a.label;
+    opt.textContent = a.label === currentLabel ? a.label + ' (current)' : a.label === upLabel ? a.label + ' (up next)' : a.label;
     if (a.label === current) opt.selected = true;
-    sel.appendChild(opt);
+    parent.appendChild(opt);
+  };
+  const byYear = {};
+  realMonths.forEach(a => { const y = String(getArchiveYear(a)); (byYear[y] = byYear[y] || []).push(a); });
+  Object.keys(byYear).sort((x, y) => y.localeCompare(x)).forEach(y => {
+    const grp = document.createElement('optgroup');
+    grp.label = y;
+    byYear[y].slice().reverse().forEach(a => addOpt(grp, a));
+    sel.appendChild(grp);
   });
+  if (bonusMonths.length) {
+    const grp = document.createElement('optgroup');
+    grp.label = 'Bonus books';
+    bonusMonths.slice().reverse().forEach(a => addOpt(grp, a));
+    sel.appendChild(grp);
+  }
   if (!archives.length) {
     const opt = document.createElement('option');
     opt.value = '' ; opt.textContent = 'No archived months yet'; opt.disabled = true;
@@ -7956,7 +7995,7 @@ function pfReadingRow(x, cur) {
   const { a, b, isDual, status, review: rv } = x;
   const bonus = !!a.bonusBook;
   const mo = bonus ? 'Bonus book'
-    : [archiveMonthName(a.label) || a.label, a.memberPick ? 'Member pick' : '', cur && a.label === cur.label ? 'Now reading' : ''].filter(Boolean).join(' · ');
+    : [archiveMonthName(a.label) || a.label, a.memberPick ? 'Member pick' : '', cur && a.label === cur.label ? 'Now reading' : '', (homeUpcomingArchive() || {}).label === a.label ? 'Up next' : ''].filter(Boolean).join(' · ');
   const windowClosed = bonus && a.windowEnd && Date.now() > a.windowEnd;
   const caveat = bonus && a.caveat ? `<div class="pf-cav">${windowClosed ? 'The limited-time badge window for this one has closed, but you can still read, track and review it anytime. ' : ''}${esc(a.caveat)}</div>` : '';
   const selId = 'pf-st-' + String(b.id).replace(/[^\w-]/g, '');
@@ -8148,7 +8187,7 @@ const BADGE_DEFS = [
   { id:'rated-all',         name:'Full Score',          emoji:'⭐',  tier:null,     desc:'Leave a star rating on every review you submit',            check:p=>p.reviewed>=1&&p.reviewsWithRating>=p.reviewed },
 
   // ── Speed reading (time-gated) ────────────────────────────────────────────
-  { id:'page-turner-speed', name:'Speed Reader',        emoji:'💨',  tier:null,     desc:'Mark the winner book as finished on My Reading Progress within 10 days of the new month',    check:p=>p.speedFinishCount>=1, cutoffGated:true },
+  { id:'page-turner-speed', name:'Speed Reader',        emoji:'💨',  tier:null,     desc:'Mark the winner book as finished on My Reading by the 10th of its month (starting early counts too)',    check:p=>p.speedFinishCount>=1, cutoffGated:true },
   { id:'just-in-time',      name:'Just In Time',        emoji:'⏰',  tier:null,     desc:'Mark the winner book as finished on My Reading Progress in the final 24hrs of the month',    check:p=>p.lastMinuteCount>=1,  cutoffGated:true },
 
   // ── Fun / personality ─────────────────────────────────────────────────────
@@ -8421,16 +8460,15 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
           if (myProgressMap[b.id + '_ts']) bookFinishTs[String(b.id)] = myProgressMap[b.id + '_ts'];
         }
         if (a.archivedAt) {
-          const archiveDate = new Date(a.archivedAt);
-          const followMonthStart = new Date(archiveDate.getFullYear(), archiveDate.getMonth()+1, 1);
-          const followMonthEnd   = new Date(archiveDate.getFullYear(), archiveDate.getMonth()+2, 1) - 1;
+          const followMonthStart = badgeReadMonthStart(a);
+          const followMonthEnd   = new Date(followMonthStart.getFullYear(), followMonthStart.getMonth()+1, 1) - 1;
           const day10End         = new Date(followMonthStart.getTime() + 10*24*60*60*1000 - 1);
           const last24Start      = followMonthEnd - 24*60*60*1000;
           const status = myProgressMap[b.id];
           const finishTs = myProgressMap[b.id + '_ts'];
           if (status==='finished' && finishTs && finishTs >= BADGE_CUTOFF) {
             const ft = finishTs;
-            if (ft >= followMonthStart.getTime() && ft <= day10End)  speedFinishCount++;
+            if (ft >= a.archivedAt && ft <= day10End)  speedFinishCount++; // early finishes count (members can start before the 1st)
             if (ft >= last24Start                && ft <= followMonthEnd) lastMinuteCount++;
           }
           if (status==='dnf') { dnfCount++; dnfBookIds.add(String(b.id)); }
@@ -8510,9 +8548,8 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
     });
 
     if (a.archivedAt) {
-      const archiveDate = new Date(a.archivedAt);
-      const followMonthStart = new Date(archiveDate.getFullYear(), archiveDate.getMonth()+1, 1);
-      const followMonthEnd   = new Date(archiveDate.getFullYear(), archiveDate.getMonth()+2, 1) - 1; // true end-of-month (ms before next month)
+      const followMonthStart = badgeReadMonthStart(a);
+      const followMonthEnd   = new Date(followMonthStart.getFullYear(), followMonthStart.getMonth()+1, 1) - 1; // true end-of-month (ms before next month)
       const day10End         = new Date(followMonthStart.getTime() + 10*24*60*60*1000 - 1);
       const last24Start      = followMonthEnd - 24*60*60*1000;
 
@@ -8521,7 +8558,7 @@ function computeMemberProfile(discord, email, _prebuilt = {}) {
         const finishTs = myProgressMap[b.id + '_ts'];
         if (status==='finished' && finishTs && finishTs >= BADGE_CUTOFF) {
           const ft = finishTs; // already a number (Date.now())
-          if (ft >= followMonthStart.getTime() && ft <= day10End)  speedFinishCount++;
+          if (ft >= a.archivedAt && ft <= day10End)  speedFinishCount++; // early finishes count (members can start before the 1st)
           if (ft >= last24Start                && ft <= followMonthEnd) lastMinuteCount++;
         }
         // Count DNF from progress tracker; store book IDs to avoid double-counting with reviews
@@ -9057,7 +9094,11 @@ window.renderNewBadgeAlert = renderNewBadgeAlert;
 let _profileIdentity = null; // { email, discord, key }
 let _pfTab = 'overview';
 let _pfBadgeView = 'badges';
-const _pfFold = {};            // section id -> open? (survives live refreshes)
+// section id -> open? Survives live refreshes, and is saved in the browser so each
+// member's folded/unfolded sections stay the way they left them between visits.
+const PF_FOLD_KEY = 'dbcProfileFolds';
+const _pfFold = (() => { try { return JSON.parse(localStorage.getItem(PF_FOLD_KEY) || '{}') || {}; } catch (e) { return {}; } })();
+function _pfSaveFolds() { try { localStorage.setItem(PF_FOLD_KEY, JSON.stringify(_pfFold)); } catch (e) {} }
 const _pfOpenSnips = new Set(); // review snippets a member expanded
 let _pfNewCache = {};           // memberKey -> badge ids shown as new this visit (so a live refresh doesn't hide them)
 const PF_HELPER_DISMISSED = 'dbc_profile_helper_dismissed';
@@ -9194,11 +9235,13 @@ function pfFold(btn) {
   const open = body.hidden;
   body.hidden = !open;
   _pfFold[id] = open;
+  _pfSaveFolds();
   btn.setAttribute('aria-expanded', String(open));
   const car = btn.querySelector('.car');
   if (car) car.textContent = open ? '▾' : '▸';
-  const list = btn.closest('.pf-list');
-  if (list) list.classList.toggle('closed', !open);
+  // Only the section this header belongs to (not an outer one, e.g. a year inside Monthly book)
+  const list = btn.parentElement;
+  if (list && (list.classList.contains('pf-list') || list.classList.contains('pf-cat'))) list.classList.toggle('closed', !open);
   if (open) pfFitSnips();
 }
 window.pfFold = pfFold;
@@ -9574,7 +9617,11 @@ function renderBadgesTab() {
   const earnedIds = new Set(visibleBadges.filter(b => hasBadge(b.id, profile, myKey)).map(b => b.id));
   const thisYear = String(new Date().getFullYear());
 
-  const nums = `${profile.voted} month${profile.voted === 1 ? '' : 's'} voted · ${profile.suggestedMonths} month${profile.suggestedMonths === 1 ? '' : 's'} suggested · ${profile.reviewed} review${profile.reviewed === 1 ? '' : 's'} · ${profile.surveysCompleted} survey${profile.surveysCompleted === 1 ? '' : 's'} · ${profile.pickedWinner} winning pick${profile.pickedWinner === 1 ? '' : 's'} · longest vote streak ${profile.longestVoteStreak} · longest read streak ${profile.longestReadStreak}`;
+  const tiles = [
+    [earnedIds.size, `badge${earnedIds.size === 1 ? '' : 's'} earned`],
+    [profile.longestReadStreak || 0, 'longest read streak'],
+    [profile.longestVoteStreak || 0, 'longest vote streak'],
+  ].map(([n, l]) => `<div class="pf-tile"><b>${esc(String(n))}</b><span>${esc(l)}</span></div>`).join('');
 
   let lockedCount = 0;
   const earnedHtml = [], lockedHtml = [];
@@ -9586,6 +9633,10 @@ function renderBadgesTab() {
     lockedCount += locked.length;
     const total = earned.length + locked.length;
     const head = (count) => `<div class="pf-ch"><h3>${esc(pfCatLabel(cat))}</h3><span class="c">${count}</span></div>`;
+    // Earned sections fold up (closed until the member opens one; their choice is remembered)
+    const catId = 'pf-bcat-' + String(cat.id).replace(/[^\w-]/g, '');
+    const catOpen = pfIsOpen(catId, false);
+    const foldHead = (count) => `<button type="button" class="pf-ch pf-chb" aria-expanded="${catOpen}" aria-controls="${catId}" onclick="pfFold(this)"><span class="car" aria-hidden="true">${catOpen ? '▾' : '▸'}</span><h3>${esc(pfCatLabel(cat))}</h3><span class="c">${count}</span></button>`;
     if (earned.length) {
       let body;
       if (cat.id === 'monthly-book') {
@@ -9605,7 +9656,7 @@ function renderBadgesTab() {
       } else {
         body = `<div class="pf-bg">${earned.map(b => pfBadgeCard(b, true, profile)).join('')}</div>`;
       }
-      earnedHtml.push(`<div class="pf-cat">${head(locked.length ? `${earned.length} of ${total} earned` : `${earned.length} earned`)}${body}</div>`);
+      earnedHtml.push(`<div class="pf-cat${catOpen ? '' : ' closed'}">${foldHead(locked.length ? `${earned.length} of ${total} earned` : `${earned.length} earned`)}<div id="${catId}" class="pf-catb"${catOpen ? '' : ' hidden'}>${body}</div></div>`);
     }
     if (locked.length) {
       const list = cat.id === 'monthly-book' ? sortMbbByMonth(locked) : locked;
@@ -9613,7 +9664,7 @@ function renderBadgesTab() {
     }
   });
 
-  area.innerHTML = `<p class="pf-nums">${esc(nums)}</p>
+  area.innerHTML = `<div class="pf-tiles">${tiles}</div>
     ${earnedHtml.length ? earnedHtml.join('') : '<div class="pf-card pf-empty">No badges yet. Vote, read, review and stop by Penny\'s Office to start earning them.</div>'}
     ${lockedCount ? `<button type="button" class="pf-locked-btn" aria-expanded="${_pfLockedOpen}" aria-controls="pf-locked" onclick="pfToggleLocked(this)">${PF_ICON.next}Badges still to earn · ${lockedCount} <span>${_pfLockedOpen ? 'Tap to hide' : 'Tap to see what\'s out there'}</span></button>
       <div id="pf-locked" class="pf-locked"${_pfLockedOpen ? '' : ' hidden'}>${lockedHtml.join('')}</div>` : ''}`;
@@ -19549,8 +19600,36 @@ function dismissHomeHelper() {
 window.dismissHomeHelper = dismissHomeHelper;
 
 function _jsAttr(s) { return esc(String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'")); }
-function homeCurrentArchive() { const real = getArchives().filter(a => !a.bonusBook); return real.length ? real[real.length - 1] : null; }
-function homePrevArchive()    { const real = getArchives().filter(a => !a.bonusBook); return real.length > 1 ? real[real.length - 2] : null; }
+// "Now reading" follows the calendar: the archive whose month (from its label) is this month or earlier.
+// An archive for a later month (archived early, e.g. on the 25th) is "up next" until its month starts.
+// Labels we can't read a month from are treated as current, which matches the old behavior.
+function homeArchiveYm(a) {
+  const n = a ? archiveMonthName(a.label) : null;
+  if (!n) return null;
+  const [mo, yr] = n.split(' ');
+  return (+yr) * 12 + _MONTH_FULL.indexOf(mo);
+}
+function homeTodayYm() { const d = new Date(); return d.getFullYear() * 12 + d.getMonth(); }
+function homeRealArchives() { return getArchives().filter(a => !a.bonusBook); }
+function homeCurrentIdx(real) {
+  const now = homeTodayYm();
+  for (let i = real.length - 1; i >= 0; i--) {
+    const ym = homeArchiveYm(real[i]);
+    if (ym === null || ym <= now) return i;
+  }
+  return -1;
+}
+function homeCurrentArchive() { const real = homeRealArchives(); const i = homeCurrentIdx(real); return i >= 0 ? real[i] : null; }
+function homePrevArchive()    { const real = homeRealArchives(); const i = homeCurrentIdx(real); return i > 0 ? real[i - 1] : null; }
+function homeUpcomingArchive() {
+  const real = homeRealArchives();
+  const now = homeTodayYm();
+  const up = real.slice(homeCurrentIdx(real) + 1).filter(a => { const ym = homeArchiveYm(a); return ym !== null && ym > now; });
+  return up.length ? up[0] : null;
+}
+// The most recent month that's been picked (up next if there is one, otherwise now reading)
+function homeLatestPicked() { return homeUpcomingArchive() || homeCurrentArchive(); }
+const HOME_DONE_STATUSES = ['finished', 'dnf', 'chose-not-to-read', 'pre-read'];
 function homeWinners(a) { if (!a) return []; const w = getArchiveWinners([a])[0]; return w ? w.winnerBooks : []; }
 function homeMonthOnly(a) { const n = a ? archiveMonthName(a.label) : null; return n ? n.split(' ')[0] : null; }
 function homeNextMonth(a) { const n = homeMonthOnly(a); if (!n) return null; return _MONTH_FULL[(_MONTH_FULL.indexOf(n) + 1) % 12]; }
@@ -19652,7 +19731,9 @@ function homeNowCard(id, me) {
   const books = homeWinners(a);
   if (!a || !books.length) {
     const meet = homeMeetingHtml();
-    return meet ? `<div class="hm-card o-now"><div class="hm-lbl">Next meeting</div>${meet}</div>` : '';
+    const upNext = homeUpNextHtml(a, id);
+    if (!meet && !upNext) return '';
+    return `<div class="hm-card o-now">${meet ? `<div class="hm-lbl">Next meeting</div>${meet}` : ''}${upNext}</div>`;
   }
   const isDual = books.length > 1;
   const progress = id ? (getReadingProgress()[id.key] || {}) : {};
@@ -19687,7 +19768,43 @@ function homeNowCard(id, me) {
     </div>`;
   }).join('');
   const meet = homeMeetingHtml();
-  return `<div class="hm-card o-now">${blocks}${meet ? `<div class="hm-meet-wrap">${meet}</div>` : ''}</div>`;
+  return `<div class="hm-card o-now">${blocks}${homeUpNextHtml(a, id)}${meet ? `<div class="hm-meet-wrap">${meet}</div>` : ''}</div>`;
+}
+
+// Next month's book, once it's archived but before its month starts. Members who are done with
+// the current book (finished, DNF, passed or already read) get the option to start it early.
+function homeUpNextHtml(cur, id) {
+  const up = homeUpcomingArchive();
+  const books = homeWinners(up);
+  if (!up || !books.length) return '';
+  const mo = homeMonthOnly(up);
+  const when = mo ? `${mo.slice(0, 3)} 1` : 'next month';
+  const progress = id ? (getReadingProgress()[id.key] || {}) : {};
+  const curBooks = homeWinners(cur);
+  const curMo = homeMonthOnly(cur);
+  const doneCur = !!id && (!curBooks.length || curBooks.every(b => HOME_DONE_STATUSES.includes(progress[b.id])));
+  return books.map(b => {
+    const st = progress[b.id];
+    let t, d, act = '';
+    if (id && st && st !== 'not-started') {
+      t = esc(b.title);
+      d = `You started early · marked ${esc(PROGRESS_LABELS[st] || st)}`;
+      act = `<button type="button" class="hm-link" onclick="homeGoProgress()">My Reading →</button>`;
+    } else if (doneCur) {
+      t = 'Ready to start early?';
+      d = `You're done with ${curMo ? esc(curMo) : 'this month'}. <i>${esc(b.title)}</i> is ready whenever you are.`;
+      act = `<button type="button" class="hm-act" onclick="homeSetProgress('${_jsAttr(b.id)}','reading')">Start reading</button>`;
+    } else {
+      t = esc(b.title);
+      d = `The winner is in. We start reading it on ${mo ? esc(mo) + ' 1' : 'the 1st'}.`;
+      act = `<button type="button" class="hm-link" onclick="homeGo('results')">See results →</button>`;
+    }
+    return `<div class="hm-next">
+      ${homeCoverHtml(b)}
+      <div class="hm-next-info"><div class="hm-lbl">Up next · ${esc(when)}</div><div class="hm-t">${t}</div><div class="hm-d">${d}</div></div>
+      ${act}
+    </div>`;
+  }).join('');
 }
 
 async function homeSetProgress(bookId, status) {
@@ -19714,7 +19831,7 @@ function homeGoProgress() {
 window.homeGoProgress = homeGoProgress;
 
 function homePickCard(id, me, s) {
-  const a = homeCurrentArchive();
+  const a = homeLatestPicked();
   const next = homeNextMonth(a);
   const bookLbl = next ? `${next}'s book` : "Next month's book";
   const wrap = (lbl, inner) => `<div class="hm-card o-pick"><div class="hm-lbl">${esc(lbl)}</div>${inner}</div>`;
@@ -19754,6 +19871,22 @@ function homePickCard(id, me, s) {
   return wrap(pickLbl, `<div class="hm-soft">Suggestions usually open <b>around the 19th</b>. Check back then!</div>`);
 }
 
+// "just now", "4 hours ago", "yesterday", "3 days ago", then a plain date after a week
+function homeTimeAgo(ts) {
+  const t = +ts;
+  if (!t) return '';
+  const diff = Date.now() - t;
+  const min = Math.floor(diff / 6e4), hr = Math.floor(diff / 36e5);
+  if (diff < 6e4) return 'just now';
+  if (min < 60) return min === 1 ? '1 minute ago' : `${min} minutes ago`;
+  if (hr < 24) return hr === 1 ? '1 hour ago' : `${hr} hours ago`;
+  const day0 = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x.getTime(); };
+  const days = Math.round((day0(Date.now()) - day0(t)) / 864e5);
+  if (days <= 1) return 'yesterday';
+  if (days < 7) return `${days} days ago`;
+  const sameYear = new Date(t).getFullYear() === new Date().getFullYear();
+  return new Date(t).toLocaleDateString(undefined, sameYear ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', year: 'numeric' });
+}
 function homeReviewsCard() {
   const a = homeCurrentArchive();
   const byLabel = {};
@@ -19778,7 +19911,7 @@ function homeReviewsCard() {
     const n = +r.rating;
     const stars = n >= 1 && n <= 5 ? `<span class="hm-stars" aria-label="${n} out of 5 stars">${homeStars(n)}</span>` : '';
     return `<div class="hm-rv"><span class="hm-av" aria-hidden="true">${esc(who.slice(0, 2))}</span><div style="min-width:0;">
-      <div class="hm-t">${esc(who)}${stars}${title ? `<span class="hm-d" style="display:inline;font-weight:500;"> · ${esc(title)}</span>` : ''}</div>
+      <div class="hm-t">${esc(who)}${stars}${title ? `<span class="hm-d" style="display:inline;font-weight:500;"> · ${esc(title)}</span>` : ''}${r.ts ? `<span class="hm-d hm-ago" style="display:inline;"> · <time datetime="${new Date(r.ts).toISOString()}" title="${esc(new Date(r.ts).toLocaleString())}">${esc(homeTimeAgo(r.ts))}</time></span>` : ''}</div>
       <div class="hm-q${_hmOpenReviews.has(rvKey) ? ' open' : ''}" data-rv="${esc(rvKey)}"><div class="hm-q-text">“${esc(txt)}”</div><button type="button" class="hm-more" hidden aria-expanded="${_hmOpenReviews.has(rvKey)}" onclick="homeToggleReview(this)">${_hmOpenReviews.has(rvKey) ? 'Show less' : 'Read more'}</button></div></div></div>`;
   }).join('');
   return `<div class="hm-card o-rv"><div class="hm-lbl">What members are saying</div>${rows}
