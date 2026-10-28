@@ -80,12 +80,21 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 .result-item.winner{border-color:var(--gold);background:linear-gradient(135deg,#fffdf5,#fff8e0);}
 .result-rank{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--border);min-width:2rem;text-align:center;}
 .result-item.winner .result-rank{color:var(--gold);}
-.res-row{align-items:flex-start;}
-.res-row .result-rank{align-self:flex-start;line-height:1;padding-top:.15rem;}
-.res-row .res-pts{align-self:flex-start;padding-top:.3rem;}
-.res-cover.hm-cover{width:64px;height:96px;border-radius:5px;flex:none;}
-div.res-cover.hm-cover{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:5;padding:.45rem;font-size:.62rem;line-height:1.25;overflow-wrap:break-word;hyphens:auto;}
-@media (max-width:520px){.res-row{gap:.7rem;padding:.8rem;}.res-cover.hm-cover{width:48px;height:72px;}div.res-cover.hm-cover{font-size:0;padding:0;}.res-row .result-rank{min-width:1.4rem;font-size:1.15rem;}}
+.rb-row{align-items:flex-start;}
+.rb-row .res-pts{align-self:flex-start;padding-top:.35rem;}
+.rb-main{flex:1;min-width:0;}
+.rs-cover.hm-cover{width:64px;height:96px;border-radius:5px;flex:none;box-shadow:0 2px 8px rgba(0,0,0,.18);}
+.rb-row.winner .rs-cover.hm-cover{width:84px;height:126px;}
+div.rs-cover.hm-cover{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:5;padding:.45rem;font-size:.65rem;line-height:1.25;overflow-wrap:break-word;hyphens:auto;}
+.rs-head{display:flex;gap:.7rem;align-items:flex-start;}
+.rs-num{font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--gold);flex-shrink:0;line-height:1.2;}
+.rs-crown{flex:none;width:52px;height:52px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:1.8rem;box-shadow:0 0 0 4px var(--tint-gold);}
+.rs-win{font-size:.68rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:.45rem;}
+.rs-title{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:600;line-height:1.25;color:var(--ink);}
+.rb-row.winner .rs-title{font-size:1.3rem;font-weight:700;}
+.rs-author{font-size:.82rem;color:var(--soft);margin-top:.1rem;}
+.rb-row.winner .rs-head{align-items:center;}
+@media (max-width:520px){.rb-row{gap:.7rem;padding:.8rem;}.rs-cover.hm-cover{width:48px;height:72px;}.rb-row.winner .rs-cover.hm-cover{width:60px;height:90px;}div.rs-cover.hm-cover{font-size:0;padding:0;}.rs-crown{width:40px;height:40px;font-size:1.35rem;}.rb-row.winner .rs-title{font-size:1.15rem;}}
 .res-bar{height:5px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:4px;}
 .res-fill{height:100%;background:var(--accent);border-radius:3px;transition:width .8s ease;}
 .result-item.winner .res-fill{background:var(--gold);}
@@ -3945,12 +3954,18 @@ function renderResultsHtml(area, books, votes) {
       .map(r => `<span class="rank-pill">${ordinal(r)}: ${counts[r]}</span>`)
       .join(' · ');
     const rankIcon = isTopTied ? '⚖️' : win ? '👑' : i + 1;
-    return `<div class="result-item res-row ${win ? 'winner' : ''}">
-      <div class="result-rank">${rankIcon}</div>
-      ${homeCoverHtml(Object.assign({}, b, { title: String(b.title || '').split(':')[0].trim() }), 'res-cover')}
-      <div class="book-info" style="flex:1;min-width:0;">
-        <div class="book-title">${esc(b.title)}</div>
-        <div class="book-sub">${esc(b.author)}</div>
+    const rankSlot = win
+      ? `<div class="rs-crown" aria-label="${isTopTied ? 'Tied for first' : 'Winner'}">${isTopTied ? '⚖️' : '👑'}</div>`
+      : `<span class="rs-num">${i + 1}.</span>`;
+    const coverBook = Object.assign({}, b, { title: String(b.title || '').split(':')[0].trim() });
+    return `<div class="result-item rb-row ${win ? 'winner' : ''}">
+      ${homeCoverHtml(coverBook, 'rs-cover')}
+      <div class="rb-main">
+        ${win ? `<div class="rs-win">${isTopTied ? 'Tied for first' : 'The club picked'}</div>` : ''}
+        <div class="rs-head">${rankSlot}<div style="min-width:0;">
+          <div class="rs-title">${esc(b.title)}</div>
+          ${b.author ? `<div class="rs-author">by ${esc(b.author)}</div>` : ''}
+        </div></div>
         ${suggestedByHtml(b)}
         ${genrePillsHtml(b.genre)}
         <div class="rank-pills"><span style="font-weight:500;color:var(--ink);">Ballot Breakdown:</span> ${rankPills}</div>
