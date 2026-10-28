@@ -7995,7 +7995,7 @@ function pfReadingRow(x, cur) {
   const { a, b, isDual, status, review: rv } = x;
   const bonus = !!a.bonusBook;
   const mo = bonus ? 'Bonus book'
-    : [archiveMonthName(a.label) || a.label, a.memberPick ? 'Member pick' : '', cur && a.label === cur.label ? 'Now reading' : '', (homeUpcomingArchive() || {}).label === a.label ? 'Up next' : ''].filter(Boolean).join(' · ');
+    : [archiveMonthName(a.label) || a.label, a.memberPick ? 'Member pick' : '', cur && a.label === cur.label ? 'Club read' : '', (homeUpcomingArchive() || {}).label === a.label ? 'Up next' : ''].filter(Boolean).join(' · ');
   const windowClosed = bonus && a.windowEnd && Date.now() > a.windowEnd;
   const caveat = bonus && a.caveat ? `<div class="pf-cav">${windowClosed ? 'The limited-time badge window for this one has closed, but you can still read, track and review it anytime. ' : ''}${esc(a.caveat)}</div>` : '';
   const selId = 'pf-st-' + String(b.id).replace(/[^\w-]/g, '');
@@ -19763,7 +19763,7 @@ function homeNowCard(id, me) {
     }
     return `<div class="hm-book">
       ${homeCoverHtml(b, 'hm-book-cover')}
-      <div class="hm-book-info"><div class="hm-lbl" style="margin-bottom:.35rem;">Now reading</div><div class="hm-title">${esc(b.title)}</div><div class="hm-author">${b.author ? 'by ' + esc(b.author) : ''}</div>${dropdown}</div>
+      <div class="hm-book-info"><div class="hm-lbl" style="margin-bottom:.35rem;">The club is reading</div><div class="hm-title">${esc(b.title)}</div><div class="hm-author">${b.author ? 'by ' + esc(b.author) : ''}</div>${dropdown}</div>
       <div class="hm-book-body">${body}</div>
     </div>`;
   }).join('');
