@@ -19901,8 +19901,8 @@ function homeReviewsCard() {
     });
   });
   if (!list.length) return '';
-  // The book we're reading now comes first, then the newest reviews of anything else
-  list.sort((x, y) => (Number(y.isCur) - Number(x.isCur)) || (y.ts - x.ts));
+  // Newest first, whatever book it's about
+  list.sort((x, y) => y.ts - x.ts);
   const rows = list.slice(0, 3).map(({ r, month, txt }) => {
     const rvKey = `${month}|${r.discord || ''}|${r.ts || ''}`;
     let title = r.bookTitle || '';
