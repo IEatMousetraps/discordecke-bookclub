@@ -80,6 +80,9 @@ label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:upperca
 .result-item.winner{border-color:var(--gold);background:linear-gradient(135deg,#fffdf5,#fff8e0);}
 .result-rank{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--border);min-width:2rem;text-align:center;}
 .result-item.winner .result-rank{color:var(--gold);}
+.res-cover.hm-cover{width:48px;height:72px;padding:.3rem;font-size:.55rem;align-self:flex-start;border-radius:4px;}
+.result-item.winner .res-cover.hm-cover{width:64px;height:96px;font-size:.65rem;padding:.4rem;}
+@media (max-width:520px){.result-item{gap:.7rem;padding:.8rem;}.res-cover.hm-cover{width:40px;height:60px;font-size:0;padding:0;}.result-item.winner .res-cover.hm-cover{width:52px;height:78px;font-size:0;padding:0;}}
 .res-bar{height:5px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:4px;}
 .res-fill{height:100%;background:var(--accent);border-radius:3px;transition:width .8s ease;}
 .result-item.winner .res-fill{background:var(--gold);}
@@ -3941,7 +3944,8 @@ function renderResultsHtml(area, books, votes) {
     const rankIcon = isTopTied ? '⚖️' : win ? '👑' : i + 1;
     return `<div class="result-item ${win ? 'winner' : ''}">
       <div class="result-rank">${rankIcon}</div>
-      <div class="book-info" style="flex:1">
+      ${homeCoverHtml(b, 'res-cover')}
+      <div class="book-info" style="flex:1;min-width:0;">
         <div class="book-title">${esc(b.title)}</div>
         <div class="book-sub">${esc(b.author)}</div>
         ${suggestedByHtml(b)}
