@@ -8023,7 +8023,7 @@ function pfReadingRow(x, cur) {
   const { a, b, isDual, status, review: rv } = x;
   const bonus = !!a.bonusBook;
   const mo = bonus ? 'Bonus book'
-    : [archiveMonthName(a.label) || a.label, a.memberPick ? 'Member pick' : '', cur && a.label === cur.label ? 'Club read' : '', (homeUpcomingArchive() || {}).label === a.label ? 'Up next' : ''].filter(Boolean).join(' · ');
+    : [archiveMonthName(a.label) || a.label, a.memberPick ? 'Member pick' : '', cur && a.label === cur.label ? 'This month\'s book' : '', (homeUpcomingArchive() || {}).label === a.label ? 'Up next' : ''].filter(Boolean).join(' · ');
   const windowClosed = bonus && a.windowEnd && Date.now() > a.windowEnd;
   const caveat = bonus && a.caveat ? `<div class="pf-cav">${windowClosed ? 'The limited-time badge window for this one has closed, but you can still read, track and review it anytime. ' : ''}${esc(a.caveat)}</div>` : '';
   const selId = 'pf-st-' + String(b.id).replace(/[^\w-]/g, '');
@@ -19938,8 +19938,8 @@ function homeReviewsCard() {
     const who = String(r.discord || r.name || 'A member').replace(/#\d+$/, '');
     const n = +r.rating;
     const stars = n >= 1 && n <= 5 ? `<span class="hm-stars" aria-label="${n} out of 5 stars">${homeStars(n)}</span>` : '';
-    return `<div class="hm-rv"><span class="hm-av" aria-hidden="true">${esc(who.slice(0, 2))}</span><div style="min-width:0;">
-      ${title ? `<div class="hm-rv-bk"><span class="hm-rv-on">Review of</span> <span class="hm-rv-title">${esc(title)}</span>${isCur ? '<span class="hm-rv-tag">Club read</span>' : ''}</div>` : ''}
+    return `<div class="hm-rv"><div style="min-width:0;flex:1;">
+      ${title ? `<div class="hm-rv-bk"><span class="hm-rv-on">Review of</span> <span class="hm-rv-title">${esc(title)}</span>${isCur ? '<span class="hm-rv-tag">This month\'s book</span>' : ''}</div>` : ''}
       <div class="hm-t">${esc(who)}${stars}${r.ts ? `<span class="hm-d hm-ago" style="display:inline;"> · <time datetime="${new Date(r.ts).toISOString()}" title="${esc(new Date(r.ts).toLocaleString())}">${esc(homeTimeAgo(r.ts))}</time></span>` : ''}</div>
       <div class="hm-q${_hmOpenReviews.has(rvKey) ? ' open' : ''}" data-rv="${esc(rvKey)}"><div class="hm-q-text">“${esc(txt)}”</div><button type="button" class="hm-more" hidden aria-expanded="${_hmOpenReviews.has(rvKey)}" onclick="homeToggleReview(this)">${_hmOpenReviews.has(rvKey) ? 'Show less' : 'Read more'}</button></div></div></div>`;
   }).join('');
