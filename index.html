@@ -9661,9 +9661,9 @@ function renderBadgesTab() {
     lockedCount += locked.length;
     const total = earned.length + locked.length;
     const head = (count) => `<div class="pf-ch"><h3>${esc(pfCatLabel(cat))}</h3><span class="c">${count}</span></div>`;
-    // Earned sections fold up (closed until the member opens one; their choice is remembered)
+    // Earned sections start open; any a member folds up stay folded (remembered in their browser)
     const catId = 'pf-bcat-' + String(cat.id).replace(/[^\w-]/g, '');
-    const catOpen = pfIsOpen(catId, false);
+    const catOpen = pfIsOpen(catId, true);
     const foldHead = (count) => `<button type="button" class="pf-ch pf-chb" aria-expanded="${catOpen}" aria-controls="${catId}" onclick="pfFold(this)"><span class="car" aria-hidden="true">${catOpen ? '▾' : '▸'}</span><h3>${esc(pfCatLabel(cat))}</h3><span class="c">${count}</span></button>`;
     if (earned.length) {
       let body;
