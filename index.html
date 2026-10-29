@@ -11662,6 +11662,13 @@ function setMetricsView(v) {
 }
 window.setMetricsView = setMetricsView;
 
+// Raw Borda points for a month, exactly as Monthly results shows them
+function computeBordaPts(a) {
+  const nb = (a.books || []).length, pts = {};
+  (a.books || []).forEach(b => { pts[b.id] = 0; });
+  Object.values(a.votes || {}).forEach(vd => (vd.ranking || vd).forEach((id, idx) => { if (pts[id] !== undefined) pts[id] += (nb - idx); }));
+  return pts;
+}
 const _mxSplit = g => (g || '').split('/').map(x => x.trim()).filter(Boolean);
 const _mxAvg = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
 const _mxSpread = arr => { if (arr.length < 2) return 0; const m = _mxAvg(arr); return Math.sqrt(_mxAvg(arr.map(x => (x - m) ** 2))); };
@@ -11738,8 +11745,11 @@ function _mxClub(archives, idMap) {
       const _rs = badgeReadMonthStart(a);
       const stillReading = new Date(_rs.getFullYear(), _rs.getMonth() + 1, 1).getTime() > Date.now();
       const myShare = shares ? shares[b.id] : null;
-      const runner = ranked.find(([id]) => !w.winnerBooks.some(x => String(x.id) === String(id)));
-      const runnerBook = runner ? (a.books || []).find(x => String(x.id) === String(runner[0])) : null;
+      const runnerBook = shares ? (w.sortedBooks || []).find(x => !w.winnerBooks.some(y => String(y.id) === String(x.id))) : null;
+      const runner = runnerBook ? [runnerBook.id, shares[runnerBook.id]] : null;
+      const firstVotes = id => Object.values(a.votes || {}).filter(vd => String(((vd && vd.ranking) || vd || [])[0]) === String(id)).length;
+      const winPts = (w.scores || {})[b.id] || 0, runPts = runnerBook ? ((w.scores || {})[runnerBook.id] || 0) : 0;
+      const tiedWith = runnerBook ? (a.books || []).filter(x => String(x.id) !== String(b.id) && ((w.scores || {})[x.id] || 0) === winPts) : [];
       out.push({
         a, b, label: a.label, memberPick: !!a.memberPick, dual, stillReading,
         voters: Object.keys(a.votes || {}).length,
@@ -11749,6 +11759,7 @@ function _mxClub(archives, idMap) {
         pages: +b.pageCount || 0, genres, wing: genres.length ? place.wing : '',
         share: myShare, runner: runnerBook, runnerShare: runner ? runner[1] : null,
         margin: (myShare != null && runner && !dual) ? myShare - runner[1] : null,
+        winPts, runPts, tiedWith, winFirst: firstVotes(b.id), runFirst: runnerBook ? firstVotes(runnerBook.id) : 0,
         suggesters: normBook(b).suggesters.map(s => resolveId(s.discord, s.email, idMap) || s.discord).filter(Boolean),
       });
     });
@@ -11784,6 +11795,16 @@ function _mxCover(b, w, h) {
     : `<div style="${st}background:var(--cream);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;text-align:center;padding:.3rem;font-family:'Playfair Display',serif;font-size:${Math.max(9, Math.round(w / 8))}px;line-height:1.15;color:var(--soft);overflow:hidden;">${esc(b.title)}</div>`;
 }
 const _mxStars = avg => avg ? `<span style="color:var(--gold);font-weight:600;">★ ${avg.toFixed(1)}</span>` : '<span style="color:var(--soft);">No ratings yet</span>';
+// "Beat X, 60 points to 52" or, for a tie, "tied X at 53 points and won on #1 votes (4 to 3)"
+function _mxVoteLine(c, html) {
+  const T = t => html ? `<strong>${esc(t)}</strong>` : t, E = t => html ? `<em>${esc(t)}</em>` : t;
+  if (!c.runner) return '';
+  if (c.tiedWith.length) {
+    const others = c.tiedWith.length > 1 ? `${E(c.runner.title)} and ${c.tiedWith.length - 1} other book${c.tiedWith.length > 2 ? 's' : ''}` : E(c.runner.title);
+    return `${T(c.b.title)} tied ${others} at ${c.winPts} points and won the tiebreaker with more #1 votes (${c.winFirst} to ${c.runFirst})`;
+  }
+  return `${T(c.b.title)} ${c.margin < 10 ? 'edged out' : 'beat'} ${E(c.runner.title)}, ${c.winPts} points to ${c.runPts}`;
+}
 const _mxCard = (title, sub, body) => `<div class="chart-wrap"><h3>${title}</h3>${sub ? `<p style="font-size:.8rem;color:var(--soft);margin:-.25rem 0 1rem;">${sub}</p>` : ''}${body}</div>`;
 const _mxPill = (g, faded) => { const c = GENRE_PILL_COLORS_MAP[g] || { bg:'#f5f5f5', text:'#616161', border:'#e0e0e0' };
   return `<span style="display:inline-block;font-size:.72rem;padding:.15rem .6rem;border-radius:20px;background:${c.bg};color:${c.text};border:1px solid ${c.border};font-weight:500;${faded ? 'opacity:.45;' : ''}">${esc(g)}</span>`; };
@@ -11912,7 +11933,9 @@ function renderMetricsNew() {
   months.forEach(a => {
     const sh = _mxShares(a); if (!sh) return;
     const winIds = new Set(club.filter(c => c.label === a.label).map(c => String(c.b.id)));
-    (a.books || []).forEach(b => { if (!winIds.has(String(b.id)) && !wonKeys.has(normTitleKey(b.title))) near.push({ b, a, share: sh[b.id] }); });
+    const pts = computeBordaPts(a);
+    const topPts = Math.max(0, ...[...winIds].map(id => pts[id] || 0));
+    (a.books || []).forEach(b => { if (!winIds.has(String(b.id)) && !wonKeys.has(normTitleKey(b.title))) near.push({ b, a, share: sh[b.id], pts: pts[b.id] || 0, max: Object.keys(a.votes || {}).length * (a.books || []).length, tied: (pts[b.id] || 0) === topPts }); });
   });
   // A book on several ballots shows once, at its best score
   const nearSeen = new Set();
@@ -11922,14 +11945,14 @@ function renderMetricsNew() {
   const repeats = Object.values(seen).filter(x => x.months.size >= 2).sort((x, y) => y.months.size - x.months.size).slice(0, 6);
   const story = (label, html) => `<div style="padding:.7rem .85rem;border:1px solid var(--border);border-radius:8px;font-size:.84rem;line-height:1.5;"><div style="font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);margin-bottom:.15rem;">${label}</div>${html}</div>`;
   const suggBy = b => { const n = normBook(b).suggesters.map(s => resolveId(s.discord, s.email, idMap) || s.discord).filter(Boolean); return n.length ? ` <span style="color:var(--soft);font-size:.76rem;">· suggested by ${esc(n.join(', '))}</span>` : ''; };
-  const ballotCard = (voted.length || nearTop.length || repeats.length) ? _mxCard('Ballot stories', 'Scores show how high voters ranked a book: 100 means everyone put it first, 0 means everyone put it last.',
+  const ballotCard = (voted.length || nearTop.length || repeats.length) ? _mxCard('Ballot stories', 'Points are the vote totals from Monthly results. Closest and biggest are judged fairly across months, even when the ballots had different numbers of books or voters.',
     `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.75rem;margin-bottom:${nearTop.length || repeats.length ? '1rem' : '0'};">
-      ${closest ? story('Closest vote', `<strong>${esc(closest.b.title)}</strong> ${closest.margin < 10 ? 'edged out' : 'beat'} <em>${esc(closest.runner.title)}</em>, ${Math.round(closest.share)} to ${Math.round(closest.runnerShare)} (${esc(_mxMonth(closest.label))})`) : ''}
-      ${landslide && landslide !== closest ? story('Biggest landslide', `<strong>${esc(landslide.b.title)}</strong> won ${Math.round(landslide.share)} to ${Math.round(landslide.runnerShare)} over <em>${esc(landslide.runner.title)}</em> (${esc(_mxMonth(landslide.label))})`) : ''}
+      ${closest ? story(closest.tiedWith.length ? 'Closest vote · a tie' : 'Closest vote', `${_mxVoteLine(closest, true)} (${esc(_mxMonth(closest.label))})`) : ''}
+      ${landslide && landslide !== closest ? story('Biggest landslide', `${_mxVoteLine(landslide, true).replace(' beat ', ' won easily over ').replace(' edged out ', ' won over ')} (${esc(_mxMonth(landslide.label))})`) : ''}
     </div>
     ${nearTop.length ? `<div style="font-weight:600;font-size:.85rem;margin-bottom:.4rem;">So close</div>
       <p style="font-size:.78rem;color:var(--soft);margin-bottom:.5rem;">The highest-scoring books that didn't win. You'll find them on Penny's shelves.</p>
-      ${nearTop.map(x => `<div style="font-size:.84rem;padding:.3rem 0;border-bottom:1px solid var(--border);"><strong>${esc(x.b.title)}</strong> <span style="color:var(--soft);font-size:.76rem;">· ${esc(_mxMonth(x.a.label))} · scored ${Math.round(x.share)}</span>${suggBy(x.b)}</div>`).join('')}` : ''}
+      ${nearTop.map(x => `<div style="font-size:.84rem;padding:.3rem 0;border-bottom:1px solid var(--border);"><strong>${esc(x.b.title)}</strong> <span style="color:var(--soft);font-size:.76rem;">· ${esc(_mxMonth(x.a.label))} · ${x.pts} of ${x.max} possible points${x.tied ? ', tied for first' : ''}</span>${suggBy(x.b)}</div>`).join('')}` : ''}
     ${repeats.length ? `<div style="font-weight:600;font-size:.85rem;margin:1rem 0 .4rem;">Books that keep coming back</div>
       ${repeats.map(x => `<div style="font-size:.84rem;padding:.3rem 0;border-bottom:1px solid var(--border);"><strong>${esc(x.b.title)}</strong> <span style="color:var(--soft);font-size:.76rem;">· on ${x.months.size} ballots${wonKeys.has(normTitleKey(x.b.title)) ? ' · finally won 👑' : ''}</span></div>`).join('')}` : ''}`) : '';
 
@@ -12105,13 +12128,13 @@ function renderClubHealth() {
   const group = cs => { const r = cs.flatMap(c => c.ratings); const st = cs.reduce((n, c) => n + c.started.size, 0), fi = cs.reduce((n, c) => n + c.finished.size, 0); return `${cs.length} month${cs.length !== 1 ? 's' : ''} · ${r.length ? _mxAvg(r).toFixed(1) + '★' : 'no ratings'} · ${st ? _mxPct(fi, st) + '% finished' : 'no finish data'}`; };
   const done = voted.filter(c => !c.stillReading);
   const clear = done.filter(c => c.margin >= 10), close = done.filter(c => c.margin < 10);
-  const titlesList = cs => cs.length ? `<details style="margin-top:.35rem;"><summary style="cursor:pointer;font-size:.78rem;color:var(--soft);">See the books</summary>${cs.map(c => `<div style="font-size:.78rem;padding:.2rem 0;border-bottom:1px solid var(--border);">${esc(_mxShortMonth(c.label))} · <em>${esc(c.b.title)}</em> <span style="color:var(--soft);">· won by ${Math.round(c.margin)}</span></div>`).join('')}</details>` : '';
-  const voteQ = voted.length ? _chSection('Did the vote pick well?', 'Margin = winner\'s score minus the runner-up\'s, on the 0–100 ranking score. Clear wins are 10+ points.',
+  const titlesList = cs => cs.length ? `<details style="margin-top:.35rem;"><summary style="cursor:pointer;font-size:.78rem;color:var(--soft);">See the books</summary>${cs.map(c => `<div style="font-size:.78rem;padding:.2rem 0;border-bottom:1px solid var(--border);">${esc(_mxShortMonth(c.label))} · <em>${esc(c.b.title)}</em> <span style="color:var(--soft);">· ${c.winPts}–${c.runPts} points${c.tiedWith.length ? ' (tie)' : ''}</span></div>`).join('')}</details>` : '';
+  const voteQ = voted.length ? _chSection('Did the vote pick well?', 'Points are the real vote totals. Margin turns the gap into a 0–100 scale so months with different ballot sizes compare fairly (100 = everyone ranked it first, 0 = everyone ranked it last). Clear wins have a margin of 10 or more.',
     `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.6rem;margin-bottom:.9rem;">
       <div style="padding:.6rem .75rem;border:1px solid var(--border);border-radius:8px;font-size:.82rem;"><strong>Clear wins</strong><br>${group(clear)}${titlesList(clear)}</div>
       <div style="padding:.6rem .75rem;border:1px solid var(--border);border-radius:8px;font-size:.82rem;"><strong>Close votes</strong><br>${group(close)}${titlesList(close)}</div></div>
     ${voted.length > done.length ? `<p style="font-size:.76rem;color:var(--soft);margin:-.4rem 0 .7rem;">Books still being read are left out of these two boxes until their month ends.</p>` : ''}` +
-    _chTable(['Month · winner', 'Margin', 'Club rating', 'Finished'], voted.map(c => [`${esc(_mxMonth(c.label))} · <em>${esc(c.b.title)}</em>${c.stillReading ? ' <span style="color:var(--soft);">(still being read)</span>' : ''}`, Math.round(c.margin), c.avg ? c.avg.toFixed(1) + '★' : '—', c.stillReading ? '—' : finRate(c)]))) : '';
+    _chTable(['Month · winner', 'Points (vs runner-up)', 'Margin', 'Club rating', 'Finished'], voted.map(c => [`${esc(_mxMonth(c.label))} · <em>${esc(c.b.title)}</em>${c.stillReading ? ' <span style="color:var(--soft);">(still being read)</span>' : ''}`, `${c.winPts}–${c.runPts}${c.tiedWith.length ? ' · tie' : ''}`, Math.round(c.margin), c.avg ? c.avg.toFixed(1) + '★' : '—', c.stillReading ? '—' : finRate(c)]))) : '';
 
   // E — What works
   const statRow = (label, cs) => { const r = cs.flatMap(c => c.ratings); const st = cs.reduce((n, c) => n + c.started.size, 0), fi = cs.reduce((n, c) => n + c.finished.size, 0), dn = cs.reduce((n, c) => n + c.dnf.size, 0); return [label, cs.length, r.length ? _mxAvg(r).toFixed(1) + '★' : '—', st ? _mxPct(fi, st) + '%' : '—', dn]; };
@@ -12274,8 +12297,8 @@ function _yrFacts(archives, club, idMap) {
   if (club.length) facts.push(`The club read ${club.length} book${club.length !== 1 ? 's' : ''}.`);
   if (loved) facts.push(`Best loved: ${loved.b.title} (${loved.avg.toFixed(1)}★ from ${loved.ratings.length} ratings).`);
   if (div && div !== loved) facts.push(`Most divisive: ${div.b.title} (ratings from ${Math.min(...div.ratings)}★ to ${Math.max(...div.ratings)}★).`);
-  if (lands) facts.push(`Biggest landslide: ${lands.b.title} won ${Math.round(lands.share)} to ${Math.round(lands.runnerShare)} in ${_mxMonth(lands.label)}.`);
-  if (close && close !== lands) facts.push(`Closest vote: ${close.b.title} ${close.margin < 10 ? 'edged out' : 'beat'} ${close.runner.title}, ${Math.round(close.share)} to ${Math.round(close.runnerShare)}, in ${_mxMonth(close.label)}.`);
+  if (lands) facts.push(`Biggest landslide: ${_mxVoteLine(lands, false)} in ${_mxMonth(lands.label)}.`);
+  if (close && close !== lands) facts.push(`Closest vote: ${_mxVoteLine(close, false)} in ${_mxMonth(close.label)}.`);
   const tm = {}; archives.forEach(a => (a.books || []).forEach(b => { const k = normTitleKey(b.title); (tm[k] = tm[k] || { t: b.title, n: 0 }).n++; }));
   const rs = Object.values(tm).sort((x, y) => y.n - x.n)[0];
   if (rs && rs.n > 1) facts.push(`Most re-suggested: ${rs.t} (on ${rs.n} ballots).`);
