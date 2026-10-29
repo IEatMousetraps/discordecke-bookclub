@@ -11831,44 +11831,52 @@ function renderMetricsNew() {
 
   // 2 — Participation over time
   const months = archives.filter(a => !a.bonusBook);
+  // Suggested/Voted belong to the month (one ballot). Finished/Reviewed belong to each book,
+  // so a two-book month gets a column per book in those two charts.
   const partRows = months.map(a => {
     const books = club.filter(c => c.label === a.label);
-    const fin = new Set(); books.forEach(c => c.finished.forEach(n => fin.add(n)));
     const sg = new Set(); (a.books || []).map(normBook).forEach(b => b.suggesters.forEach(x => sg.add(resolveId(x.discord, x.email, idMap) || x.discord)));
-    return { a, suggested: a.memberPick ? null : sg.size, voters: a.memberPick ? null : Object.keys(a.votes || {}).length, finished: fin.size, reviews: (reviews[a.label] || []).length };
+    const one = v => [{ t: '', v }];
+    return { a,
+      suggested: one(a.memberPick ? null : sg.size), voters: one(a.memberPick ? null : Object.keys(a.votes || {}).length),
+      finished: books.length ? books.map(c => ({ t: c.b.title, v: c.finished.size })) : one(0),
+      reviews: books.length ? books.map(c => ({ t: c.b.title, v: c.reviewers.size })) : one(0) };
   });
-  const pmax = Math.max(1, ...partRows.map(r => Math.max(r.suggested || 0, r.voters || 0, r.finished, r.reviews)));
+  const pmax = Math.max(1, ...partRows.flatMap(r => ['suggested', 'voters', 'finished', 'reviews'].flatMap(k => r[k].map(x => x.v || 0))));
   const PCOL = { suggested: '#3a87a8', voters: 'var(--gold)', finished: '#2d7a3a', reviews: '#6a1b9a' };
+  const hasTwoBook = partRows.some(r => r.finished.length > 1);
   // Small multiples: one panel per step, each showing every month side by side, all on the
-  // same scale so panels can be compared too. Hover/tap a column for the exact number.
-  const panel = (key, title, col) => {
-    const vals = partRows.map(r => r[key]);
-    const nums = vals.filter(v => v != null);
+  // same scale so panels can be compared too.
+  const panel = (key, title, col, perBook) => {
+    const nums = partRows.flatMap(r => r[key].map(x => x.v)).filter(v => v != null);
     const avg = nums.length ? (nums.reduce((a, b) => a + b, 0) / nums.length) : 0;
     const peak = Math.max(0, ...nums);
+    const avgTxt = `avg ${avg.toFixed(1)} ${perBook && hasTwoBook ? 'per book' : 'a month'}`;
+    const col1 = (x, r, half) => {
+      const v = x.v;
+      const tip = `${_mxMonth(r.a.label)}${x.t && r[key].length > 1 ? ' · ' + x.t : ''}: ${v == null ? 'member pick, no vote round' : v + ' ' + (v === 1 ? 'person' : 'people')}`;
+      return `<div title="${esc(tip)}" data-tip="${esc(tip)}" onclick="mxShowTip(this)" style="flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;cursor:pointer;">
+        ${v == null ? `<div style="font-size:.68rem;color:var(--soft);line-height:1;margin-bottom:2px;">—</div>`
+          : `<div style="font-size:${half ? '.6rem' : '.68rem'};color:var(--ink,inherit);line-height:1;margin-bottom:2px;${v === peak ? 'font-weight:700;' : ''}">${v}</div>
+             <div style="width:100%;max-width:${half ? 13 : 26}px;height:${v ? Math.max(3, v / pmax * 78) : 0}px;background:${col};border-radius:4px 4px 0 0;${half ? 'opacity:' + (x.i ? '.7' : '1') + ';' : ''}"></div>`}
+      </div>`;
+    };
     return `<div style="border:1px solid var(--border);border-radius:8px;padding:.8rem .9rem .6rem;">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:.15rem .5rem;flex-wrap:wrap;margin-bottom:.55rem;">
         <div style="font-weight:600;font-size:.88rem;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${col};margin-right:.4rem;vertical-align:-1px;"></span>${title}</div>
-        <div class="mx-readout" data-default="avg ${avg.toFixed(1)} a month" style="font-size:.74rem;color:var(--soft);white-space:nowrap;">avg ${avg.toFixed(1)} a month</div>
+        <div class="mx-readout" data-default="${avgTxt}" style="font-size:.74rem;color:var(--soft);white-space:nowrap;">${avgTxt}</div>
       </div>
       <div style="display:flex;align-items:flex-end;gap:3px;height:96px;border-bottom:1px solid var(--border);">
-        ${partRows.map((r, i) => {
-          const v = r[key];
-          const tip = `${_mxMonth(r.a.label)}: ${v == null ? 'member pick, no vote round' : v + ' ' + (v === 1 ? 'person' : 'people')}`;
-          const showNum = v != null;
-          return `<div title="${esc(tip)}" data-tip="${esc(tip)}" onclick="mxShowTip(this)" style="flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;cursor:pointer;">
-            ${showNum ? `<div style="font-size:.68rem;color:var(--ink,inherit);line-height:1;margin-bottom:2px;${v === peak ? 'font-weight:700;' : ''}">${v}</div>` : ''}
-            ${v == null ? `<div style="font-size:.68rem;color:var(--soft);line-height:1;margin-bottom:2px;">—</div>`
-              : `<div style="width:100%;max-width:26px;height:${v ? Math.max(3, v / pmax * 78) : 0}px;background:${col};border-radius:4px 4px 0 0;"></div>`}
-          </div>`;
-        }).join('')}
+        ${partRows.map(r => r[key].length > 1
+          ? `<div style="flex:1;min-width:0;height:100%;display:flex;align-items:flex-end;gap:1px;">${r[key].map((x, i) => col1({ ...x, i }, r, true)).join('')}</div>`
+          : col1(r[key][0], r, false)).join('')}
       </div>
-      <div style="display:flex;gap:3px;margin-top:.25rem;">${partRows.map(r => `<div style="flex:1;min-width:0;text-align:center;font-size:.64rem;color:var(--soft);overflow:hidden;">${esc(_mxShortMonth(r.a.label).slice(0, 1))}</div>`).join('')}</div>
+      <div style="display:flex;gap:3px;margin-top:.25rem;">${partRows.map(r => `<div style="flex:1;min-width:0;text-align:center;font-size:.64rem;color:var(--soft);overflow:hidden;">${esc(_mxShortMonth(r.a.label).slice(0, 1))}${perBook && r[key].length > 1 ? '<sup style="font-size:.55rem;">×2</sup>' : ''}</div>`).join('')}</div>
     </div>`;
   };
-  const partCard = _mxCard('Participation over time', 'How many people did each step, month by month. All four use the same scale. Finished counts reviews and My Reading together. The busiest month is in bold. "—" is a member-pick month with no suggestions or vote.',
+  const partCard = _mxCard('Participation over time', 'How many people did each step for each month\'s book. All four use the same scale, and the busiest month is in bold. Finished counts reviews and My Reading together. ×2 marks a two-book month: Finished and Reviewed get a column per book (tap one to see which). “—” is a member-pick month with no suggestions or vote.',
     `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:.75rem;">
-      ${panel('suggested', 'Suggested a book', PCOL.suggested)}${panel('voters', 'Voted', PCOL.voters)}${panel('finished', 'Finished the book', PCOL.finished)}${panel('reviews', 'Reviewed', PCOL.reviews)}
+      ${panel('suggested', 'Suggested a book', PCOL.suggested)}${panel('voters', 'Voted', PCOL.voters)}${panel('finished', 'Finished the book', PCOL.finished, true)}${panel('reviews', 'Reviewed', PCOL.reviews, true)}
     </div>`);
 
   // 3 — Monthly results (same detail view as before)
@@ -12014,15 +12022,24 @@ function renderClubHealth() {
   const inRange = new Set(archives.map(a => a.label));
 
   // A — Funnel
-  const funnelRows = archives.map(a => {
+  const funnelRows = [];
+  archives.forEach(a => {
     const cs = club.filter(c => c.label === a.label);
-    const u = key => { const s = new Set(); cs.forEach(c => c[key].forEach(n => s.add(n))); return s.size; };
     const sugg = new Set(); (a.books || []).map(normBook).forEach(b => b.suggesters.forEach(s => sugg.add(resolveId(s.discord, s.email, idMap) || s.discord)));
-    return [esc(_mxMonth(a.label)) + (a.memberPick ? ' <span style="color:var(--soft);">(pick)</span>' : '') + (cs.some(c => c.stillReading) ? ' <span style="color:var(--soft);">(still being read)</span>' : ''), a.memberPick ? '—' : sugg.size, a.memberPick ? '—' : Object.keys(a.votes || {}).length, u('started'), u('finished'), (reviews[a.label] || []).length];
+    const label = esc(_mxMonth(a.label)) + (a.memberPick ? ' <span style="color:var(--soft);">(pick)</span>' : '') + (cs.some(c => c.stillReading) ? ' <span style="color:var(--soft);">(still being read)</span>' : '');
+    const sv = [a.memberPick ? '—' : sugg.size, a.memberPick ? '—' : Object.keys(a.votes || {}).length];
+    if (cs.length > 1) {
+      // Two-book month: the ballot numbers on the month row, reading numbers on a row per book
+      funnelRows.push([label + ' <span style="color:var(--soft);">· two books</span>', ...sv, '', '', '']);
+      cs.forEach(c => funnelRows.push([`<span style="padding-left:1rem;color:var(--soft);">↳</span> <em>${esc(c.b.title)}</em>`, '', '', c.started.size, c.finished.size, c.reviewers.size]));
+    } else {
+      const c = cs[0];
+      funnelRows.push([label, ...sv, c ? c.started.size : 0, c ? c.finished.size : 0, c ? c.reviewers.size : 0]);
+    }
   });
   const avgCol = i => { const v = funnelRows.map(r => r[i]).filter(x => typeof x === 'number'); return v.length ? (v.reduce((a, b) => a + b, 0) / v.length).toFixed(1) : '—'; };
   funnelRows.push(['<strong>Average</strong>', avgCol(1), avgCol(2), avgCol(3), avgCol(4), avgCol(5)]);
-  const funnel = _chSection('Participation funnel', 'People at each step, month by month. Started and Finished combine reviews and My Reading.',
+  const funnel = _chSection('Participation funnel', 'People at each step, month by month. Started and Finished combine reviews and My Reading. Reviewed = different people who reviewed that book. Two-book months get a row for each book; averages count each book separately.',
     _chTable(['Month', 'Suggested', 'Voted', 'Started', 'Finished', 'Reviewed'], funnelRows));
 
   // B — Membership health
