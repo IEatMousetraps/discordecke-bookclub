@@ -1357,6 +1357,66 @@ body.on-profile main{max-width:1060px;}
 .st-reading{--st-bg:var(--st-reading-bg);--st-fg:var(--st-reading-fg);}
 .st-finished{--st-bg:var(--st-finished-bg);--st-fg:var(--st-finished-fg);}
 .st-dnf{--st-bg:var(--st-dnf-bg);--st-fg:var(--st-dnf-fg);}
+/* ── Book Rankings cards ── */
+.rk-card-row{display:grid;grid-template-columns:80px minmax(0,1fr);column-gap:1.35rem;row-gap:.75rem;align-items:start;}
+.rk-card-row.rk-nocover{grid-template-columns:minmax(0,1fr);}
+.rk-head,.rk-main{grid-column:2;}
+.rk-nocover .rk-head,.rk-nocover .rk-main{grid-column:1;}
+.rk-cover{grid-column:1;grid-row:1 / span 2;width:80px;height:120px;object-fit:cover;border-radius:5px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.18);}
+.rk-main{min-width:0;display:flex;flex-direction:column;gap:.75rem;align-items:flex-start;}
+.rk-head{min-width:0;display:flex;flex-direction:column;gap:.25rem;}
+.rk-title{font-family:'Playfair Display',serif;font-size:1.2rem;font-weight:600;line-height:1.25;}
+.rk-rank{color:var(--gold);font-weight:700;margin-right:.4rem;}
+.rk-author{font-size:.85rem;color:var(--soft);}
+.rk-tags{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem .6rem;}
+.rk-month{font-size:.75rem;color:var(--soft);font-style:italic;}
+.rk-meta{font-size:.75rem;color:var(--soft);line-height:1.45;}
+.rk-meta strong{color:var(--ink);}
+.rk-why-btn{align-self:flex-start;display:inline-flex;align-items:center;gap:.4rem;background:none;border:none;padding:.3rem 0;min-height:32px;font-family:'DM Sans',sans-serif;font-size:.8rem;font-weight:500;color:var(--soft);cursor:pointer;}
+.rk-why-btn:hover{color:var(--ink);}
+.rk-arrow{flex-shrink:0;transition:transform .15s;}
+.rk-why-btn[aria-expanded="true"] .rk-arrow{transform:rotate(90deg);}
+.rk-why{width:100%;margin-top:-.4rem;}
+.rk-statrow{display:flex;align-items:center;gap:1.1rem;width:100%;padding-top:.75rem;border-top:1px solid #ece8de;}
+.rk-badge{flex-shrink:0;min-width:90px;background:#fdf4dc;border:1px solid #f0d58c;border-radius:10px;padding:.5rem .85rem .4rem;display:flex;flex-direction:column;align-items:center;gap:.12rem;font-family:'DM Sans',sans-serif;color:var(--ink);}
+button.rk-badge{cursor:pointer;transition:border-color .15s,box-shadow .15s;}
+button.rk-badge:hover{border-color:var(--gold);box-shadow:0 1px 4px rgba(240,180,41,.3);}
+.rk-badge-num{font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:700;line-height:1;}
+.rk-badge-stars{font-size:.72rem;letter-spacing:.04em;line-height:1;}
+.rk-star{color:var(--gold);}
+.rk-star.off{color:#d6d1c4;}
+.rk-badge-sub{font-size:.68rem;color:#6b5a2c;display:inline-flex;align-items:center;gap:.2rem;}
+.rk-chev{flex-shrink:0;transition:transform .15s;}
+.rk-badge[aria-expanded="true"] .rk-chev{transform:rotate(180deg);}
+.rk-statcol{flex:1;max-width:380px;min-width:0;display:flex;flex-direction:column;gap:.4rem;}
+.rk-liked{font-size:.88rem;display:flex;flex-wrap:wrap;align-items:baseline;gap:.3rem;}
+.rk-heart{color:#b0285b;font-size:.85rem;}
+.rk-soft{color:var(--soft);font-size:.76rem;}
+.rk-readline{font-size:.75rem;color:var(--soft);}
+.rk-readline strong{color:var(--ink);font-weight:600;}
+.rk-read-bar{display:flex;gap:2px;height:6px;border-radius:3px;overflow:hidden;}
+.rk-read-finished{background:var(--green);}
+.rk-read-dnf{background:#e8913a;}
+.rk-read-notstarted{background:#c9c4b8;}
+.rk-spread-panel{width:100%;max-width:490px;box-sizing:border-box;background:#fffaf0;border:1px solid #f0d58c;border-radius:8px;padding:.6rem .9rem;display:flex;flex-direction:column;gap:.25rem;}
+.rk-spread-cap{font-size:.7rem;color:#6b5a2c;margin-bottom:.1rem;}
+.rk-spread-row{display:flex;align-items:center;gap:.4rem;font-size:.7rem;color:#5f5b4f;}
+.rk-spread-row > span:first-child{width:1.2rem;}
+.rk-spread-track{flex:1;height:4px;background:#ece6d6;border-radius:2px;overflow:hidden;}
+.rk-spread-fill{height:100%;background:var(--gold);border-radius:2px;}
+.rk-spread-n{width:1.2rem;text-align:right;}
+.rk-early{display:inline-block;font-size:.72rem;color:#5b6b2f;background:#f1f5e4;border:1px solid #d5e0b5;border-radius:20px;padding:.12rem .6rem;cursor:help;}
+@media (max-width:560px){
+  /* Phones: cover beside the title block, everything else full width below */
+  .rk-card-row{grid-template-columns:60px minmax(0,1fr);column-gap:.9rem;}
+  .rk-cover{grid-row:1;width:60px;height:90px;}
+  .rk-main{grid-column:1 / -1;}
+  .rk-title{font-size:1.1rem;}
+  .rk-badge{min-width:84px;padding:.45rem .7rem .35rem;}
+  .rk-badge-num{font-size:1.45rem;}
+  .rk-statrow{gap:.85rem;}
+  .rk-spread-panel{max-width:none;}
+}
 .st-chosenottoread{--st-bg:var(--st-cntr-bg);--st-fg:var(--st-cntr-fg);}
 .st-preread{--st-bg:var(--st-preread-bg);--st-fg:var(--st-preread-fg);}
 /* My Reading */
@@ -4529,12 +4589,14 @@ function updateReviewForm() {
   }
 
   if (read === 'No') {
-    // Didn't read — skip Q2, show Q3 (why not), skip Q4, show Q5 (thoughts) and Q6 (rating)
+    // Didn't read — skip Q2, show Q3 (why not), skip Q4, show Q5 (thoughts).
+    // No star rating: only members who started the book (finished or DNF) can rate it.
     hide('rv-q2');
     show('rv-q3');
     hide('rv-q4');
     show('rv-q5');
-    show('rv-q6');
+    hide('rv-q6');
+    document.querySelectorAll('input[name="rv-rating"]').forEach(el => { el.checked = false; });
     // Update Q3 label to make sense for non-readers
     const q3label = document.querySelector('#rv-q3 label');
     if (q3label) q3label.textContent = '3. Why did you choose not to start this book?';
@@ -4589,9 +4651,11 @@ async function submitReview() {
   const read    = document.querySelector('input[name="rv-read"]:checked')?.value || '';
   const finished= document.querySelector('input[name="rv-finished"]:checked')?.value || '';
   const dnfWhy  = v('rv-dnf-reason');
-  const liked   = document.querySelector('input[name="rv-liked"]:checked')?.value || '';
+  // Hidden questions can still hold an earlier click if the member changed an answer,
+  // so only keep "liked" from finishers and a star rating from members who started.
+  const liked   = (read === 'Yes' && finished === 'Yes') ? (document.querySelector('input[name="rv-liked"]:checked')?.value || '') : '';
   const why     = v('rv-why');
-  const rating  = document.querySelector('input[name="rv-rating"]:checked')?.value || '';
+  const rating  = read === 'Yes' ? (document.querySelector('input[name="rv-rating"]:checked')?.value || '') : '';
 
   if (!email || !discord) { showMsg('review-msg', 'Please fill in all your details.', 'err'); return; }
   if (!email.includes('@')) { showMsg('review-msg', 'Please enter a valid email.', 'err'); return; }
@@ -5490,7 +5554,7 @@ function renderAnalysisMembers(_idMapM) {
   Object.values(allReviews).forEach(entries => {
     (entries||[]).forEach(r => {
       const k = resolveId(r.discord,r.email,_idMapM)||'Unknown';
-      const rat = +r.rating;
+      const rat = countedRating(r);
       if (rat >= 1 && rat <= 5) {
         if (!ratingData[k]) ratingData[k] = [];
         ratingData[k].push(rat);
@@ -5621,7 +5685,7 @@ function renderAnalysisReviews() {
       : `<span style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:600;">${esc(meta.title||month)}</span>`;
 
     // Summary bar: avg rating + participation counts
-    const ratings   = entries.map(r=>+r.rating).filter(r=>r>=1&&r<=5);
+    const ratings   = entries.map(countedRating).filter(Boolean);
     const avg       = ratings.length ? ratings.reduce((a,b)=>a+b,0)/ratings.length : 0;
     const finished  = entries.filter(r=>r.finished==='Yes').length;
     const liked     = entries.filter(r=>r.liked==='Yes').length;
@@ -5725,6 +5789,27 @@ window.goRankingsYear = goRankingsYear;
 
 let _rankingsPage = 0;
 const RANKINGS_PAGE_SIZE = 20;
+
+// A star rating only counts if the member started the book (finished or DNF).
+// The review form no longer asks non-starters for stars, and older reviews that
+// carry a rating from someone who never started are ignored wherever ratings
+// are averaged. Returns 1–5, or 0 when the rating doesn't count.
+function countedRating(r) {
+  if (!r || r.read === 'No') return 0;
+  const n = +r.rating;
+  return n >= 1 && n <= 5 ? n : 0;
+}
+window.countedRating = countedRating;
+
+// Rankings order: weighted average. Each book is treated as if it had
+// RANK_PRIOR_REVIEWS extra ratings at the club average for the tab being viewed,
+// so a book with one or two ratings can't jump ahead of a well-reviewed book.
+// The card still shows the book's real average.
+const RANK_PRIOR_REVIEWS = 3;
+// Books with fewer counted ratings than this get an "Early results" tag and are
+// listed after the established books (weighting alone still let two 5★ ratings
+// outrank a book with ten ratings at 4.2).
+const RANK_EARLY_MIN = 5;
 
 function rankingsGoPage(page) {
   _rankingsPage = page;
@@ -5832,26 +5917,46 @@ function renderRankings() {
       }
 
       if (!bookData[rankKey]) {
-        bookData[rankKey] = { ratings:[], started:0, finished:0, liked:0, total:0 };
+        bookData[rankKey] = { ratings:[], finished:0, dnf:0, notStarted:0, liked:0, total:0 };
         rankKeyMeta[rankKey] = { month, bookTitle, bookId, genre, isDual };
       }
-      bookData[rankKey].total++;
-      if (r.read === 'Yes') bookData[rankKey].started++;
-      if (r.finished === 'Yes') bookData[rankKey].finished++;
-      if (r.liked === 'Yes') bookData[rankKey].liked++;
-      const rating = +r.rating;
-      if (rating >= 1 && rating <= 5) bookData[rankKey].ratings.push(rating);
+      const d = bookData[rankKey];
+      d.total++;
+      if (r.read === 'Yes') {
+        if (r.finished === 'Yes') {
+          d.finished++;
+          // "Did you like it?" is only asked of members who finished
+          if (r.liked === 'Yes') d.liked++;
+        } else {
+          d.dnf++;
+        }
+      } else if (r.read === 'No') {
+        d.notStarted++;
+      }
+      const rating = countedRating(r);
+      if (rating) d.ratings.push(rating);
     });
   });
 
-  // Sort by average rating desc, then started% as tiebreaker
+  // Club average for the tab being viewed — the anchor for the weighted ranking
+  const _allRatings = Object.values(bookData).flatMap(d => d.ratings);
+  const clubAvg = _allRatings.length ? _allRatings.reduce((a,b)=>a+b,0)/_allRatings.length : 0;
+
+  // Rank by weighted average (books with no ratings sink to the bottom), then by
+  // number of ratings, then by number of reviews.
   const sorted = Object.entries(bookData).map(([rankKey, d]) => {
-    const avgRating   = d.ratings.length ? d.ratings.reduce((a,b)=>a+b,0)/d.ratings.length : 0;
-    const startedPct  = d.total > 0 ? (d.started/d.total*100) : 0;
-    const finishedPct = d.total > 0 ? (d.finished/d.total*100) : 0;
-    const likedPct    = d.started > 0 ? (d.liked/d.started*100) : 0;
-    return [rankKey, { ...d, avgRating, startedPct, finishedPct, likedPct }];
-  }).sort((a,b) => b[1].avgRating - a[1].avgRating || b[1].startedPct - a[1].startedPct);
+    const n         = d.ratings.length;
+    const sum       = d.ratings.reduce((a,b)=>a+b,0);
+    const avgRating = n ? sum/n : 0;
+    const weighted  = n ? (sum + RANK_PRIOR_REVIEWS*clubAvg)/(n + RANK_PRIOR_REVIEWS) : 0;
+    const likedPct  = d.finished > 0 ? (d.liked/d.finished*100) : null;
+    const spread    = [0,0,0,0,0];
+    d.ratings.forEach(x => { spread[x-1]++; });
+    return [rankKey, { ...d, avgRating, weighted, likedPct, spread, early: n < RANK_EARLY_MIN }];
+  }).sort((a,b) => (a[1].early - b[1].early)   // established books first, Early results after
+                || b[1].weighted - a[1].weighted
+                || b[1].ratings.length - a[1].ratings.length
+                || b[1].total - a[1].total);
 
   const starDisplay = avg => {
     if (!avg) return '<span style="color:var(--soft);">No ratings</span>';
@@ -5861,8 +5966,8 @@ function renderRankings() {
     return `<div style="white-space:nowrap;line-height:1.3;">⭐ ${avg.toFixed(1)}<span style="font-size:.72rem;color:var(--soft);">/5</span></div>`;
   };
 
-  const starHtml = val => {
-    const n = +val;
+  const starHtml = (val, r) => {
+    const n = r ? countedRating(r) : +val;
     if (!n || n < 1 || n > 5) return '<span style="color:var(--soft);font-size:.75rem;">No rating</span>';
     return '<span style="font-size:.85rem;">' + '⭐'.repeat(n) + '</span>' +
            `<span style="font-size:.72rem;color:var(--soft);margin-left:.25rem;">${n}/5</span>`;
@@ -5879,7 +5984,7 @@ function renderRankings() {
     const safeId = rankKey.replace(/[^a-z0-9]/gi, '_');
 
     // Members with a real 1-5 star rating first; "No rating" / opted-out reviews sink to the bottom.
-    const hasRating = r => { const n = +r.rating; return n >= 1 && n <= 5; };
+    const hasRating = r => countedRating(r) > 0;
     const sortedEntries = entries.slice().sort((a, b) => (hasRating(b) ? 1 : 0) - (hasRating(a) ? 1 : 0));
 
     return sortedEntries.map((r, ri) => {
@@ -5904,7 +6009,7 @@ function renderRankings() {
       return `<div style="padding:.75rem 0;border-bottom:1px solid var(--border);">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.4rem;margin-bottom:.3rem;">
           <span style="font-weight:500;font-size:.88rem;">${esc(name)}</span>
-          <div>${starHtml(r.rating)}</div>
+          <div>${starHtml(r.rating, r)}</div>
         </div>
         <div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.1rem;">${statusPills}</div>
         ${toggleBtn}${thoughtsBlock}
@@ -5928,7 +6033,7 @@ function renderRankings() {
 
   // Render each book as its own card in strict rating order — no grouping
   area.innerHTML = `
-  <p style="font-size:.82rem;color:var(--ink);background:rgba(240,180,41,.08);border:1px solid rgba(240,180,41,.25);border-radius:6px;padding:.55rem .9rem;margin-bottom:1.5rem;display:inline-block;">💡 Click <strong>Member Reviews</strong> on any book to see individual responses.</p>
+  <p style="font-size:.82rem;color:var(--ink);background:rgba(240,180,41,.08);border:1px solid rgba(240,180,41,.25);border-radius:6px;padding:.55rem .9rem;margin-bottom:1.5rem;display:inline-block;line-height:1.5;">💡 Click <strong>Member Reviews</strong> on any book to see individual responses.<br><span style="color:var(--soft);font-size:.76rem;">Rankings take into account how many members rated each book, so a couple of early ratings can't jump a book ahead of one many members rated. Books with fewer than ${RANK_EARLY_MIN} ratings are marked 🌱 <strong>Early results</strong> and listed after the rest until more reviews come in.</span></p>
   ${paginationHtml}
   ${pageItems.map(([rankKey, d], i) => {
     const rank = pageStart + i + 1;
@@ -5943,57 +6048,57 @@ function renderRankings() {
     const bookAuthor = (_book && _book.author) || '';
     const reviewToggleId = `rkrev_${rankKey.replace(/[^a-z0-9]/gi,'_')}`;
     const recommenders = recommenderMap[rankKey] || [];
-    const recommenderHtml = recommenders.length
-      ? `<div style="font-size:.72rem;color:var(--soft);margin-bottom:.4rem;">📌 Recommended by: <strong style="color:var(--ink);">${recommenders.map(r=>esc(r)).join(', ')}</strong></div>`
-      : '';
     const coverUrl = bookCoverMap[rankKey] || '';
     const pageInfo = bookPageMap[rankKey] || null;
-    const pageCountLine = pageInfo ? `<div style="font-size:.72rem;color:var(--soft);margin-bottom:.4rem;">📄 ${pageInfo.pageCount} pages</div>` : '';
     const reasonsHtml = suggesterReasonsHtml(bookReasonsMap[rankKey], { marginTop: '.4rem' });
-    const subtitle = isDual
-      ? `<div style="font-size:.72rem;color:var(--soft);font-style:italic;margin-bottom:.4rem;">👑 Co-winner · ${esc(cleanMonthLabel)}</div>`
-      : `<div style="font-size:.72rem;color:var(--soft);font-style:italic;margin-bottom:.4rem;">${esc(cleanMonthLabel)}</div>`;
+    const reasonCount = (bookReasonsMap[rankKey] || []).filter(s => s && s.reason).length;
+    const safeKey = rankKey.replace(/[^a-z0-9]/gi,'_');
+    const whyId = `rkwhy_${safeKey}`;
+    const spreadId = `rkspread_${safeKey}`;
+    const nRatings = d.ratings.length;
+    const starRow = (avg) => { const full = Math.round(avg); return [1,2,3,4,5].map(s => `<span class="rk-star${s <= full ? '' : ' off'}">★</span>`).join(''); };
+    const badgeInner = `<span class="rk-badge-num">${nRatings ? d.avgRating.toFixed(1) : '—'}</span>
+              <span class="rk-badge-stars" aria-hidden="true">${starRow(d.avgRating)}</span>
+              <span class="rk-badge-sub">${nRatings ? `${nRatings} rating${nRatings === 1 ? '' : 's'} <svg class="rk-chev" width="8" height="8" viewBox="0 0 10 10" aria-hidden="true"><path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>` : 'No ratings yet'}</span>`;
+    const badgeHtml = nRatings
+      ? `<button type="button" class="rk-badge" aria-expanded="false" aria-controls="${spreadId}" aria-label="Average rating ${d.avgRating.toFixed(1)} out of 5 from ${nRatings} rating${nRatings === 1 ? '' : 's'}. Show rating breakdown" onclick="rkToggle('${spreadId}', this)">${badgeInner}</button>`
+      : `<div class="rk-badge rk-badge-empty">${badgeInner}</div>`;
+    const readParts = [['finished', d.finished, 'finished'], ['dnf', d.dnf, 'DNF'], ['notstarted', d.notStarted, "didn't start"]].filter(p => p[1]);
+    const readBar = readParts.length ? `<div class="rk-read-bar" role="img" aria-label="${readParts.map(p => `${p[1]} ${p[2]}`).join(', ')}">${readParts.map(p => `<div class="rk-read-seg rk-read-${p[0]}" style="flex:${p[1]};"></div>`).join('')}</div>` : '';
+    const readLine = `${readParts.map(p => `<strong>${p[1]}</strong> ${p[2]}`).join(' · ')}${readParts.length ? ' · ' : ''}${d.total} review${d.total === 1 ? '' : 's'}`;
+    const likedLine = d.finished
+      ? `<span class="rk-heart" aria-hidden="true">♥</span><strong>${d.likedPct.toFixed(0)}% liked it</strong><span class="rk-soft"> · ${d.liked} of ${d.finished} who finished</span>`
+      : `<span class="rk-soft">No one has finished it yet</span>`;
+    const spreadPanel = nRatings ? `<div id="${spreadId}" class="rk-spread-panel" style="display:none;">
+            <div class="rk-spread-cap">How the ${nRatings} rating${nRatings === 1 ? '' : 's'} break${nRatings === 1 ? 's' : ''} down</div>
+            ${[5,4,3,2,1].map(s => { const c = d.spread[s-1], mx = Math.max(1, ...d.spread); return `<div class="rk-spread-row"><span>${s}★</span><div class="rk-spread-track"><div class="rk-spread-fill" style="width:${(c/mx*100).toFixed(0)}%;"></div></div><span class="rk-spread-n">${c}</span></div>`; }).join('')}
+          </div>` : '';
     return `
-    <div class="chart-wrap" style="margin-bottom:1rem;">
-      <div style="display:flex;gap:1rem;align-items:flex-start;">
-        ${coverUrl ? `<img src="${esc(coverUrl)}" alt="Cover" style="width:80px;height:120px;object-fit:cover;border-radius:5px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.18);">` : ''}
-        <div style="flex:1;min-width:0;">
-          <div style="display:flex;gap:.75rem;margin-bottom:.75rem;">
-            <span style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--gold);flex-shrink:0;">${rank}.</span>
-            <div style="min-width:0;">
-              <div style="font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:600;margin-bottom:${bookAuthor ? '.05rem' : '.25rem'};">${esc(bookTitle)}</div>
-              ${bookAuthor ? `<div style="font-size:.82rem;color:var(--soft);margin-bottom:.3rem;">by ${esc(bookAuthor)}</div>` : ''}
-              ${meta.genre ? `<div style="margin-bottom:.3rem;">${genrePillsHtml(meta.genre)}</div>` : ''}
-              ${subtitle}
-              ${recommenderHtml}
-              ${pageCountLine}
-              ${reasonsHtml}
+    <div class="chart-wrap rk-card" style="margin-bottom:1rem;">
+      <div class="rk-card-row${coverUrl ? '' : ' rk-nocover'}">
+        ${coverUrl ? `<img class="rk-cover" src="${esc(coverUrl)}" alt="Cover">` : ''}
+          <div class="rk-head">
+            <div class="rk-title"><span class="rk-rank">${rank}.</span>${esc(bookTitle)}</div>
+            ${bookAuthor ? `<div class="rk-author">by ${esc(bookAuthor)}</div>` : ''}
+            <div class="rk-tags">${meta.genre ? genrePillsHtml(meta.genre) : ''}<span class="rk-month">${isDual ? '👑 Co-winner · ' : ''}${esc(cleanMonthLabel)}</span></div>
+            ${recommenders.length || pageInfo ? `<div class="rk-meta">${recommenders.length ? `📌 Recommended by: <strong>${recommenders.map(r=>esc(r)).join(', ')}</strong>` : ''}${recommenders.length && pageInfo ? ' · ' : ''}${pageInfo ? `${pageInfo.pageCount} pages` : ''}</div>` : ''}
+            ${reasonCount ? `<button type="button" class="rk-why-btn" aria-expanded="false" aria-controls="${whyId}" onclick="rkToggle('${whyId}', this)"><svg class="rk-arrow" width="9" height="9" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 1l6 4-6 4z" fill="currentColor"/></svg> Why it was recommended (${reasonCount})</button>
+` : ''}
+          </div>
+        <div class="rk-main">
+          ${reasonCount ? `<div id="${whyId}" class="rk-why" style="display:none;">${reasonsHtml}</div>` : ''}
+          ${d.early ? `<div class="rk-early" title="Fewer than ${RANK_EARLY_MIN} star ratings so far — this book's spot may still move.">🌱 Early results · ${nRatings} rating${nRatings === 1 ? '' : 's'} so far</div>` : ''}
+          <div class="rk-statrow">
+            ${badgeHtml}
+            <div class="rk-statcol">
+              <div class="rk-liked">${likedLine}</div>
+              ${readBar}
+              <div class="rk-readline">${readLine}</div>
             </div>
           </div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(95px,1fr));gap:.5rem;margin-bottom:.65rem;">
-            <div style="background:var(--cream);border-radius:6px;padding:.55rem;text-align:center;">
-              <div style="font-size:.9rem;margin-bottom:.35rem;">${starDisplay(d.avgRating)}</div>
-              <div style="font-size:.65rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Avg Rating</div>
-            </div>
-            <div style="background:var(--cream);border-radius:6px;padding:.55rem;text-align:center;">
-              <div style="font-family:'Playfair Display',serif;font-size:1.25rem;font-weight:700;color:var(--gold);">${d.startedPct.toFixed(0)}%</div>
-              <div style="font-size:.65rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Started</div>
-            </div>
-            <div style="background:var(--cream);border-radius:6px;padding:.55rem;text-align:center;">
-              <div style="font-family:'Playfair Display',serif;font-size:1.25rem;font-weight:700;color:var(--gold);">${d.finishedPct.toFixed(0)}%</div>
-              <div style="font-size:.65rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Finished</div>
-            </div>
-            <div style="background:var(--cream);border-radius:6px;padding:.55rem;text-align:center;">
-              <div style="font-family:'Playfair Display',serif;font-size:1.25rem;font-weight:700;color:var(--gold);">${d.likedPct.toFixed(0)}%</div>
-              <div style="font-size:.65rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Liked It</div>
-            </div>
-            <div style="background:var(--cream);border-radius:6px;padding:.55rem;text-align:center;">
-              <div style="font-family:'Playfair Display',serif;font-size:1.25rem;font-weight:700;color:var(--gold);">${d.total}</div>
-              <div style="font-size:.65rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;">Reviews</div>
-            </div>
-          </div>
+          ${spreadPanel}
           <button onclick="toggleRankingReviews('${reviewToggleId}', this)"
-            style="background:none;border:1px solid var(--border);border-radius:20px;cursor:pointer;font-size:.75rem;color:var(--soft);padding:.3rem .85rem;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:.35rem;transition:all .2s;"
+            style="background:none;border:1px solid var(--border);border-radius:20px;cursor:pointer;font-size:.75rem;color:var(--soft);padding:.3rem .85rem;min-height:36px;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:.35rem;transition:all .2s;"
             onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--ink)';"
             onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--soft)';">
             <span style="font-size:.65rem;">▶</span> Member Reviews (${d.total})
@@ -6022,6 +6127,17 @@ function toggleRankingReviews(id, btn) {
   btn.childNodes[btn.childNodes.length - 1].textContent = isHidden ? ` Hide Reviews (${count})` : ` Member Reviews (${count})`;
 }
 window.toggleRankingReviews = toggleRankingReviews;
+
+// Generic show/hide for the Rankings card's folded sections (recommendation
+// quotes, rating breakdown). Flips aria-expanded so the arrow can rotate.
+function rkToggle(id, btn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const open = el.style.display === 'none';
+  el.style.display = open ? '' : 'none';
+  if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+window.rkToggle = rkToggle;
 
 // The tabs are built from the Metrics list (year filter applied, member-pick and
 // bonus months removed), so look the month up in that same list — not in the full
@@ -8034,7 +8150,7 @@ function pfReadingRow(x, cur) {
   const write = (ghost) => `<button type="button" class="pf-act${ghost ? ' ghost' : ''}" onclick="goToReviewForm('${_jsAttr(a.label)}','${isDual ? _jsAttr(b.id) : ''}')">Write review</button>`;
   let review;
   if (rv) {
-    const n = +rv.rating;
+    const n = countedRating(rv);
     const lead = n >= 1 && n <= 5
       ? `<span class="pf-stars" aria-label="${n} out of 5 stars">${'★'.repeat(n)}<span class="off">${'★'.repeat(5 - n)}</span></span>`
       : `<span class="pf-muted">${rv.read === 'No' ? 'Didn\'t start' : 'No rating'}</span>`;
@@ -11412,7 +11528,7 @@ function downloadCSV(type) {
       const started  = entries.filter(r => r.read === 'Yes').length;
       const finished = entries.filter(r => r.finished === 'Yes').length;
       const liked    = entries.filter(r => r.liked === 'Yes').length;
-      const ratings  = entries.map(r => +r.rating).filter(r => r >= 1 && r <= 5);
+      const ratings  = entries.map(countedRating).filter(Boolean);
       const avgRating = ratings.length ? (ratings.reduce((a,b) => a+b, 0) / ratings.length).toFixed(2) : '';
       rows.push([month, total, started, finished, liked, ratings.length, avgRating, today]);
     });
@@ -15512,7 +15628,7 @@ function _pennyGetMemberContext() {
     (entries || []).forEach(r => {
       const rKey = normEmail(r.email) || normId(r.discord);
       if (rKey !== myKey) return;
-      const rat = Number(r.rating);
+      const rat = countedRating(r);
       if (rat < 1 || rat > 5) return;
       // Find book genre from archive
       const arc = archives.find(a => a.label === monthLabel);
@@ -19665,7 +19781,7 @@ function homeReviewsFor(a, book, isDual) {
   return ((getReviews()[a.label]) || []).filter(r => !isDual || String(r.bookId || '') === String(book.id));
 }
 function homeAvgRating(list) {
-  const nums = list.map(r => +r.rating).filter(n => n >= 1 && n <= 5);
+  const nums = list.map(countedRating).filter(Boolean);
   return nums.length ? nums.reduce((x, y) => x + y, 0) / nums.length : null;
 }
 function homeStars(n) { const r = Math.max(0, Math.min(5, Math.round(n))); return '★'.repeat(r) + `<span class="hm-star-off">${'★'.repeat(5 - r)}</span>`; }
@@ -19936,7 +20052,7 @@ function homeReviewsCard() {
     let title = r.bookTitle || '';
     if (!title && byLabel[month]) { const w = homeWinners(byLabel[month]); title = w[0] ? w[0].title : ''; }
     const who = String(r.discord || r.name || 'A member').replace(/#\d+$/, '');
-    const n = +r.rating;
+    const n = countedRating(r);
     const stars = n >= 1 && n <= 5 ? `<span class="hm-stars" aria-label="${n} out of 5 stars">${homeStars(n)}</span>` : '';
     return `<div class="hm-rv"><div style="min-width:0;flex:1;">
       ${title ? `<div class="hm-rv-bk"><span class="hm-rv-on">Review of</span> <span class="hm-rv-title">${esc(title)}</span>${isCur ? '<span class="hm-rv-tag">This month\'s book</span>' : ''}</div>` : ''}
