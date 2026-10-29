@@ -11846,7 +11846,6 @@ function renderMetricsNew() {
     const nums = vals.filter(v => v != null);
     const avg = nums.length ? (nums.reduce((a, b) => a + b, 0) / nums.length) : 0;
     const peak = Math.max(0, ...nums);
-    const lastIdx = vals.map((v, i) => v != null ? i : -1).filter(i => i >= 0).pop();
     return `<div style="border:1px solid var(--border);border-radius:8px;padding:.8rem .9rem .6rem;">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:.15rem .5rem;flex-wrap:wrap;margin-bottom:.55rem;">
         <div style="font-weight:600;font-size:.88rem;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${col};margin-right:.4rem;vertical-align:-1px;"></span>${title}</div>
@@ -11856,9 +11855,9 @@ function renderMetricsNew() {
         ${partRows.map((r, i) => {
           const v = r[key];
           const tip = `${_mxMonth(r.a.label)}: ${v == null ? 'member pick, no vote round' : v + ' ' + (v === 1 ? 'person' : 'people')}`;
-          const showNum = v != null && (v === peak || i === lastIdx);
+          const showNum = v != null;
           return `<div title="${esc(tip)}" data-tip="${esc(tip)}" onclick="mxShowTip(this)" style="flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;cursor:pointer;">
-            ${showNum ? `<div style="font-size:.68rem;color:var(--ink,inherit);line-height:1;margin-bottom:2px;">${v}</div>` : ''}
+            ${showNum ? `<div style="font-size:.68rem;color:var(--ink,inherit);line-height:1;margin-bottom:2px;${v === peak ? 'font-weight:700;' : ''}">${v}</div>` : ''}
             ${v == null ? `<div style="font-size:.68rem;color:var(--soft);line-height:1;margin-bottom:2px;">—</div>`
               : `<div style="width:100%;max-width:26px;height:${v ? Math.max(3, v / pmax * 78) : 0}px;background:${col};border-radius:4px 4px 0 0;"></div>`}
           </div>`;
@@ -11867,7 +11866,7 @@ function renderMetricsNew() {
       <div style="display:flex;gap:3px;margin-top:.25rem;">${partRows.map(r => `<div style="flex:1;min-width:0;text-align:center;font-size:.64rem;color:var(--soft);overflow:hidden;">${esc(_mxShortMonth(r.a.label).slice(0, 1))}</div>`).join('')}</div>
     </div>`;
   };
-  const partCard = _mxCard('Participation over time', 'How many people did each step, month by month. All four use the same scale. Finished counts reviews and My Reading together. Hover or tap a column for the number; "—" is a member-pick month with no suggestions or vote.',
+  const partCard = _mxCard('Participation over time', 'How many people did each step, month by month. All four use the same scale. Finished counts reviews and My Reading together. The busiest month is in bold. "—" is a member-pick month with no suggestions or vote.',
     `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:.75rem;">
       ${panel('suggested', 'Suggested a book', PCOL.suggested)}${panel('voters', 'Voted', PCOL.voters)}${panel('finished', 'Finished the book', PCOL.finished)}${panel('reviews', 'Reviewed', PCOL.reviews)}
     </div>`);
