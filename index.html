@@ -115,9 +115,25 @@ div.rs-cover.hm-cover{display:-webkit-box;-webkit-box-orient:vertical;-webkit-li
 .bar-track{height:10px;background:var(--border);border-radius:5px;overflow:hidden;}
 .bar-val{height:100%;background:var(--accent);border-radius:5px;transition:width .8s;}
 .bar-lbl{text-align:right;font-size:.78rem;color:var(--soft);white-space:nowrap;}
-/* New Book Club Metrics view: everything a touch larger so it's easier to read */
-#metrics-new{zoom:1.12;}
-@media (max-width:700px){#metrics-new{zoom:1.06;}}
+/* New Book Club Metrics view: larger text. (Text sizes are bumped in renderMetricsNew rather than
+   zooming the page; zoom put thin lines between screen pixels so some looked thicker than others.) */
+#metrics-new .chart-wrap h3{font-size:1.25rem;}
+#metrics-new .month-tab{font-size:.84rem;}
+#metrics-new #month-detail{font-size:1.1em;}
+#metrics-new #month-detail .bar-row > div:first-child, #metrics-new #month-detail .bar-lbl{font-size:.86rem !important;}
+/* Ratings by genre: pill · scale · value on computers; on phones the scale gets its own full-width line */
+.mx-gr-row{display:grid;grid-template-columns:minmax(100px,160px) 1fr 8rem;grid-template-areas:"pill scale val";gap:.2rem .9rem;align-items:center;margin-bottom:.4rem;}
+.mx-gr-pill{grid-area:pill;min-width:0;}
+.mx-gr-scale{grid-area:scale;position:relative;height:20px;margin:0 7px;} /* margin keeps a 5★ dot inside the card */
+.mx-gr-val{grid-area:val;white-space:nowrap;font-size:.9rem;}
+/* A border (not a 2px-tall box) so browsers snap it to whole screen pixels: every line draws the same weight */
+.mx-gr-line{position:absolute;left:0;right:0;top:9px;height:0;border-top:2px solid var(--border);}
+.mx-gr-dot{position:absolute;top:10px;width:14px;height:14px;border-radius:50%;background:var(--gold);transform:translate(-50%,-50%);}
+@media (max-width:600px){
+  .mx-gr-row{grid-template-columns:1fr auto;grid-template-areas:"pill val" "scale scale";margin-bottom:.75rem;}
+  .mx-gr-head{grid-template-areas:"scale scale";margin-bottom:.2rem;}
+  .mx-gr-head .mx-gr-pill,.mx-gr-head .mx-gr-val{display:none;}
+}
 .month-tabs{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.25rem;}
 .month-tab{font-size:.75rem;padding:.3rem .8rem;border-radius:20px;border:1px solid var(--border);background:var(--cream);cursor:pointer;transition:all .2s;}
 .month-tab.active{background:var(--gold);color:var(--black);border-color:var(--gold);font-weight:600;}
@@ -11823,12 +11839,38 @@ function renderMetricsNew() {
   });
   const pmax = Math.max(1, ...partRows.map(r => Math.max(r.suggested || 0, r.voters || 0, r.finished, r.reviews)));
   const PCOL = { suggested: '#3a87a8', voters: 'var(--gold)', finished: '#2d7a3a', reviews: '#6a1b9a' };
-  const pbar = (n, col) => `<div style="display:flex;align-items:center;gap:.4rem;height:9px;margin:.12rem 0;"><div style="flex:1;background:var(--border);border-radius:4px;height:7px;overflow:hidden;opacity:.9;"><div style="width:${n ? Math.max(2, n / pmax * 100) : 0}%;height:100%;background:${col};border-radius:4px;"></div></div><span style="font-size:.7rem;color:var(--soft);width:1.6rem;text-align:right;">${n ?? '—'}</span></div>`;
-  const legend = `<div style="display:flex;gap:1rem;flex-wrap:wrap;font-size:.75rem;color:var(--soft);margin-bottom:.8rem;">${[['suggested','Suggested a book'],['voters','Voted'],['finished','Finished the book'],['reviews','Reviewed']].map(([k, l]) => `<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${PCOL[k]};margin-right:.3rem;vertical-align:-1px;"></span>${l}</span>`).join('')}</div>`;
-  const partCard = _mxCard('Participation over time', 'Number of people at each step. Finished counts reviews and My Reading together. Member-pick months have no suggestions or vote.',
-    legend + partRows.map(r => `<div style="display:grid;grid-template-columns:minmax(80px,130px) 1fr;gap:.75rem;align-items:center;padding:.35rem 0;border-bottom:1px solid var(--border);">
-      <div style="font-size:.8rem;">${esc(_mxMonth(r.a.label))}</div>
-      <div>${pbar(r.suggested, PCOL.suggested)}${pbar(r.voters, PCOL.voters)}${pbar(r.finished, PCOL.finished)}${pbar(r.reviews, PCOL.reviews)}</div></div>`).join(''));
+  // Small multiples: one panel per step, each showing every month side by side, all on the
+  // same scale so panels can be compared too. Hover/tap a column for the exact number.
+  const panel = (key, title, col) => {
+    const vals = partRows.map(r => r[key]);
+    const nums = vals.filter(v => v != null);
+    const avg = nums.length ? (nums.reduce((a, b) => a + b, 0) / nums.length) : 0;
+    const peak = Math.max(0, ...nums);
+    const lastIdx = vals.map((v, i) => v != null ? i : -1).filter(i => i >= 0).pop();
+    return `<div style="border:1px solid var(--border);border-radius:8px;padding:.8rem .9rem .6rem;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:.15rem .5rem;flex-wrap:wrap;margin-bottom:.55rem;">
+        <div style="font-weight:600;font-size:.88rem;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${col};margin-right:.4rem;vertical-align:-1px;"></span>${title}</div>
+        <div class="mx-readout" data-default="avg ${avg.toFixed(1)} a month" style="font-size:.74rem;color:var(--soft);white-space:nowrap;">avg ${avg.toFixed(1)} a month</div>
+      </div>
+      <div style="display:flex;align-items:flex-end;gap:3px;height:96px;border-bottom:1px solid var(--border);">
+        ${partRows.map((r, i) => {
+          const v = r[key];
+          const tip = `${_mxMonth(r.a.label)}: ${v == null ? 'member pick, no vote round' : v + ' ' + (v === 1 ? 'person' : 'people')}`;
+          const showNum = v != null && (v === peak || i === lastIdx);
+          return `<div title="${esc(tip)}" data-tip="${esc(tip)}" onclick="mxShowTip(this)" style="flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;cursor:pointer;">
+            ${showNum ? `<div style="font-size:.68rem;color:var(--ink,inherit);line-height:1;margin-bottom:2px;">${v}</div>` : ''}
+            ${v == null ? `<div style="font-size:.68rem;color:var(--soft);line-height:1;margin-bottom:2px;">—</div>`
+              : `<div style="width:100%;max-width:26px;height:${v ? Math.max(3, v / pmax * 78) : 0}px;background:${col};border-radius:4px 4px 0 0;"></div>`}
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="display:flex;gap:3px;margin-top:.25rem;">${partRows.map(r => `<div style="flex:1;min-width:0;text-align:center;font-size:.64rem;color:var(--soft);overflow:hidden;">${esc(_mxShortMonth(r.a.label).slice(0, 1))}</div>`).join('')}</div>
+    </div>`;
+  };
+  const partCard = _mxCard('Participation over time', 'How many people did each step, month by month. All four use the same scale. Finished counts reviews and My Reading together. Hover or tap a column for the number; "—" is a member-pick month with no suggestions or vote.',
+    `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:.75rem;">
+      ${panel('suggested', 'Suggested a book', PCOL.suggested)}${panel('voters', 'Voted', PCOL.voters)}${panel('finished', 'Finished the book', PCOL.finished)}${panel('reviews', 'Reviewed', PCOL.reviews)}
+    </div>`);
 
   // 3 — Monthly results (same detail view as before)
   _votingTabArchives = months;
@@ -11891,13 +11933,13 @@ function renderMetricsNew() {
     .filter(x => x.rn).sort((x, y) => y.avg - x.avg || y.n - x.n);
   const pos = v => ((Math.min(5, Math.max(1, v)) - 1) / 4 * 100).toFixed(1);
   const genreChart = genreRows.length ? `<div style="font-weight:600;font-size:.85rem;margin-bottom:.5rem;">Ratings by genre</div>
-    <div style="display:grid;grid-template-columns:minmax(90px,150px) 1fr auto;gap:.35rem .8rem;align-items:center;font-size:.8rem;">
-      <div></div><div style="position:relative;height:1rem;font-size:.66rem;color:var(--soft);">${[1,3,5].map(n => `<span style="position:absolute;left:${pos(n)}%;transform:translateX(${n === 1 ? '0' : n === 5 ? '-100%' : '-50%'});">${n}★</span>`).join('')}</div><div></div>
-      ${genreRows.map(x => `<div>${_mxPill(x.g)}</div>
-        <div style="position:relative;height:1.2rem;"><div style="position:absolute;left:0;right:0;top:50%;height:2px;background:var(--border);"></div>
-          <div style="position:absolute;left:${pos(x.avg)}%;top:50%;width:12px;height:12px;border-radius:50%;background:var(--gold);transform:translate(-50%,-50%);"></div></div>
-        <div style="white-space:nowrap;"><strong>${x.avg.toFixed(1)}★</strong> <span style="color:var(--soft);font-size:.74rem;">· ${x.n} book${x.n !== 1 ? 's' : ''}</span></div>`).join('')}
-    </div>` : '';
+    <div class="mx-gr-row mx-gr-head"><div class="mx-gr-pill"></div>
+      <div class="mx-gr-scale" style="height:1rem;font-size:.66rem;color:var(--soft);">${[1,3,5].map(n => `<span style="position:absolute;left:${pos(n)}%;transform:translateX(${n === 1 ? '0' : n === 5 ? '-100%' : '-50%'});">${n}★</span>`).join('')}</div><div class="mx-gr-val"></div></div>
+    ${genreRows.map(x => `<div class="mx-gr-row" title="${esc(x.g)}: ${x.avg.toFixed(1)}★ across ${x.n} book${x.n !== 1 ? 's' : ''}">
+      <div class="mx-gr-pill">${_mxPill(x.g)}</div>
+      <div class="mx-gr-scale"><div class="mx-gr-line"></div><div class="mx-gr-dot" style="left:${pos(x.avg)}%;"></div></div>
+      <div class="mx-gr-val"><strong>${x.avg.toFixed(1)}★</strong> <span style="color:var(--soft);font-size:.8em;">· ${x.n} book${x.n !== 1 ? 's' : ''}</span></div>
+    </div>`).join('')}` : '';
   const buckets = [['Under 300 pages', c => c.pages && c.pages < 300], ['300–400 pages', c => c.pages >= 300 && c.pages <= 400], ['Over 400 pages', c => c.pages > 400]]
     .map(([l, f]) => { const cs = club.filter(f); const st = cs.reduce((n, c) => n + c.started.size, 0), fi = cs.reduce((n, c) => n + c.finished.size, 0); const r = cs.flatMap(c => c.ratings); return { l, n: cs.length, avg: _mxAvg(r), fin: _mxPct(fi, st), st }; })
     .filter(x => x.n);
@@ -11918,10 +11960,20 @@ function renderMetricsNew() {
      <div style="font-weight:600;font-size:.85rem;margin-bottom:.4rem;">The picks</div>
      ${club.map(c => `<div style="font-size:.84rem;padding:.3rem 0;border-bottom:1px solid var(--border);"><span style="color:var(--soft);display:inline-block;min-width:7.5rem;">${esc(_mxMonth(c.label))}</span><strong>${esc(c.b.title)}</strong>${c.suggesters.length ? ` <span style="color:var(--soft);font-size:.78rem;">· ${c.memberPick ? 'picked' : 'suggested'} by ${esc(c.suggesters.join(', '))}</span>` : ''}</div>`).join('')}`);
 
-  area.innerHTML = oldLink + yearCard + partCard + resultsCard + landed + ballotCard + likeCard + creditCard;
+  // Everything on this page reads ~12% larger than the rest of the site
+  area.innerHTML = (oldLink + yearCard + partCard + resultsCard + landed + ballotCard + likeCard + creditCard)
+    .replace(/font-size:\s*([\d.]+)rem/g, (m, n) => `font-size:${(+n * 1.12).toFixed(3)}rem`);
   showMonthDetail(months.length - 1, area.querySelector('.month-tabs .month-tab.active'));
 }
 window.renderMetricsNew = renderMetricsNew;
+// Tap a participation column (phones have no hover): its number replaces the panel's average for a few seconds
+function mxShowTip(el) {
+  const box = el.closest('div[style*="border-radius:8px"]'); const out = box && box.querySelector('.mx-readout');
+  if (!out) return;
+  out.textContent = el.dataset.tip; out.style.color = 'var(--ink, inherit)';
+  clearTimeout(out._t); out._t = setTimeout(() => { out.textContent = out.dataset.default; out.style.color = ''; }, 4000);
+}
+window.mxShowTip = mxShowTip;
 
 // ── Admin → Members: shared year selector for Club Health and Year in Review ──
 let _chYear = null;
