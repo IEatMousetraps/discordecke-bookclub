@@ -2012,6 +2012,7 @@ button.pf-bdg{cursor:pointer;}
       <button class="sub-tab" onclick="goAdminTab('surveys-admin',this)">📋 Surveys</button>
       <button class="sub-tab" onclick="goAdminTab('penny-admin',this)">📚 Penny Preview<span id="pbr-admin-count" class="pbr-count" style="display:none;" title="Books waiting for review"></span></button>
       <button class="sub-tab" onclick="goAdminTab('identities-admin',this)">🔗 Identities</button>
+      <button class="sub-tab" onclick="goAdminTab('genre-tags-admin',this)">🏷️ Genre Tags</button>
     </div>
 
     <div id="admin-sub-manage">
@@ -2656,6 +2657,16 @@ button.pf-bdg{cursor:pointer;}
       </div>
     </div><!-- /admin-sub-identities-admin -->
 
+    <div id="admin-sub-genre-tags-admin" style="display:none;">
+      <div class="card">
+        <h3 style="font-family:'Playfair Display',serif;font-size:1.05rem;margin-bottom:.25rem;">Genre Tags</h3>
+        <p style="font-size:.82rem;color:var(--soft);margin-bottom:1rem;">Every book the club has seen — past ballots, this month's suggestions, and Penny's shelves. Pick a tag to see which books have it, then change genres right here. Saving updates every place the book appears.</p>
+        <input type="text" id="gt-search" placeholder="Search title or author…" oninput="renderGenreTagsAdmin()" style="width:100%;max-width:340px;margin-bottom:.85rem;">
+        <div id="gt-filters" style="display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:1rem;"></div>
+        <div id="gt-list"></div>
+      </div>
+    </div><!-- /admin-sub-genre-tags-admin -->
+
   </div><!-- /admin-panel -->
 </div><!-- /tab-admin -->
 
@@ -2714,34 +2725,48 @@ let CACHE = {
 // all derive from this array automatically.
 const GENRES = [
   { name:'Adventure',          bg:'#fff3e0', text:'#bf360c', border:'#ff8a65' },
+  { name:'Arts & Music',       bg:'#fff0f6', text:'#9c2a5e', border:'#e05596' },
   { name:'Biography',          bg:'#dde8ff', text:'#1a3d8f', border:'#4a72d4' },
+  { name:'Business',           bg:'#eceff1', text:'#263238', border:'#607d8b' },
   { name:'Classic Literature', bg:'#efebe9', text:'#4e342e', border:'#a1887f' },
   { name:'Comedy',             bg:'#fff3b0', text:'#6b4000', border:'#d4a000' },
   { name:'Contemporary Fiction',bg:'#e0f2f1', text:'#00695c', border:'#4db6ac' },
   { name:'Cozy',               bg:'#fce4ec', text:'#880e4f', border:'#f48fb1' },
   { name:'Crime',              bg:'#e8f4f8', text:'#0d3b52', border:'#3a87a8' },
+  { name:'Dystopian',          bg:'#2b2b2b', text:'#c5e1a5', border:'#689f38' },
   { name:'Essays',             bg:'#f5ede0', text:'#6b3a10', border:'#c07830' },
   { name:'Fantasy',            bg:'#ede7f6', text:'#4a148c', border:'#9c27b0' },
+  { name:'Food',               bg:'#fff1e6', text:'#8a3b12', border:'#e07a3a' },
+  { name:'Gothic',             bg:'#efe7f0', text:'#4a2a52', border:'#8e5c99' },
   { name:'Graphic Novel',      bg:'#fff8e1', text:'#e65100', border:'#ffb300' },
   { name:'Historical Fiction', bg:'#fdf0e0', text:'#7b3f00', border:'#c47b30' },
+  { name:'History',            bg:'#f4ecd8', text:'#5d4317', border:'#a6844a' },
   { name:'Horror',             bg:'#1a1a1a', text:'#ef9a9a', border:'#b71c1c' },
-  { name:'Humor',              bg:'#fff3b0', text:'#6b4000', border:'#d4a000' },
+  { name:'Humor',              bg:'#fbf8c8', text:'#5c5200', border:'#a3a300' },
   { name:'Journalism',         bg:'#e6f0fa', text:'#0d2d52', border:'#3a6ab0' },
   { name:'LGBTQ+',             bg:'#fff9c4', text:'#e65100', border:'#ffcc02' },
   { name:'Literary Fiction',   bg:'#f3e5f5', text:'#4a148c', border:'#ba68c8' },
   { name:'Magical Realism',    bg:'#e8f5e9', text:'#1b5e20', border:'#66bb6a' },
-  { name:'Memoir',             bg:'#dde8ff', text:'#1a3d8f', border:'#4a72d4' },
+  { name:'Memoir',             bg:'#ece8ff', text:'#3b2a8f', border:'#7b6fe0' },
   { name:'Mystery',            bg:'#f4e6ff', text:'#5c1a8a', border:'#9b4dca' },
   { name:'Non-Fiction',        bg:'#e3f2fd', text:'#0d47a1', border:'#64b5f6' },
+  { name:'Philosophy',         bg:'#e8eef7', text:'#2c3e66', border:'#7f93b8' },
   { name:'Poetry',             bg:'#fce4ec', text:'#ad1457', border:'#e91e63' },
   { name:'Psychology',         bg:'#e8eaf6', text:'#1a237e', border:'#5c6bc0' },
   { name:'Romance',            bg:'#fce4ec', text:'#c2185b', border:'#f06292' },
+  { name:'Satire',             bg:'#fff7d6', text:'#6b5300', border:'#b89a1e' },
+  { name:'Science & Nature',   bg:'#eef3df', text:'#3d5014', border:'#8aa33a' },
   { name:'Science Fiction',    bg:'#e3f2fd', text:'#0277bd', border:'#29b6f6' },
   { name:'Self-Help',          bg:'#d6f5e3', text:'#0a5c2e', border:'#2e9e5e' },
+  { name:'Short Stories',      bg:'#ffeceb', text:'#a12c1f', border:'#ef7b6c' },
+  { name:'Sports',             bg:'#e0f7fa', text:'#00596b', border:'#00acc1' },
   { name:'Supernatural',       bg:'#1a0033', text:'#e1bee7', border:'#7b1fa2' },
-  { name:'Suspense',           bg:'#fde8e8', text:'#8b1a1a', border:'#c0392b' },
+  { name:'Suspense',           bg:'#f3e5e5', text:'#4a1414', border:'#8e3b3b' },
   { name:'Thriller',           bg:'#fde8e8', text:'#8b1a1a', border:'#c0392b' },
+  { name:'Travel',             bg:'#eaf4ff', text:'#1d4e89', border:'#5b9bd5' },
+  { name:'True Crime',         bg:'#1f1f1f', text:'#f5c6c6', border:'#8b0000' },
   { name:'Western',            bg:'#fdf0dc', text:'#7b4000', border:'#c47a20' },
+  { name:'Young Adult',        bg:'#eafff4', text:'#0f6b47', border:'#34d399' },
   { name:'Other',              bg:'#fef3e2', text:'#7a4f00', border:'#c8860a' },
 ];
 
@@ -5092,22 +5117,24 @@ function renderAnalysisVoting() {
   const allScores = {};
   archives.forEach(a => {
     const nb = (a.books||[]).length, voterCount = Object.keys(a.votes||{}).length;
-    if (!nb || !voterCount) return;
-    const maxPossible = voterCount * nb;
+    // A one-book ballot has nothing to compare, so it's left out.
+    if (nb < 2 || !voterCount) return;
+    // Each ballot gives a book a 0–1 share: ranked #1 = 1, ranked last = 0
+    // (unranked also 0). Averaging those over the month's voters gives a %
+    // that means the same thing on a 4-book ballot as on a 9-book one, which
+    // raw Borda points (always at least 1 point per voter) did not.
     const monthScores = {};
     (a.books||[]).forEach(b => { monthScores[b.id] = 0; });
     Object.values(a.votes||{}).forEach(vd => {
-      (vd.ranking||vd).forEach((id, idx) => { if (monthScores[id] !== undefined) monthScores[id] += (nb - idx); });
+      (vd.ranking||vd).forEach((id, idx) => { if (monthScores[id] !== undefined && idx < nb) monthScores[id] += (nb - 1 - idx) / (nb - 1); });
     });
     (a.books||[]).forEach(b => {
-      const pts = monthScores[b.id] || 0;
-      const pct = maxPossible > 0 ? (pts / maxPossible) * 100 : 0;
+      const pct = (monthScores[b.id] || 0) / voterCount * 100;
       if (!allScores[b.title]) allScores[b.title] = { totalPct:0, appears:0 };
       allScores[b.title].totalPct += pct; allScores[b.title].appears++;
     });
   });
   const topBooks   = Object.entries(allScores).map(([t,d]) => [t,{...d,avgPct:d.totalPct/d.appears}]).sort((a,b)=>b[1].avgPct-a[1].avgPct).slice(0,10);
-  const maxAvgPct  = topBooks[0] ? topBooks[0][1].avgPct : 1;
 
   area.innerHTML = `
   <div class="chart-wrap"><h3>Participation Over Time</h3><div class="bar-chart">
@@ -5120,11 +5147,11 @@ function renderAnalysisVoting() {
 
   <div class="chart-wrap">
     <h3>Top Books (Normalised Score)</h3>
-    <p style="font-size:.78rem;color:var(--soft);margin-bottom:1rem;">Average % of maximum possible Borda points earned per month, so books from months with different voter counts compare fairly.</p>
+    <p style="font-size:.78rem;color:var(--soft);margin-bottom:1rem;">How high voters ranked each book. 100% means every voter put it at #1; 0% means every voter put it last. Months with more or fewer books on the ballot compare fairly.</p>
     ${topBooks.length?`<div class="bar-chart">${topBooks.map(([title,d])=>`<div class="bar-row">
       <div style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(title)}">${esc(title)}</div>
-      <div class="bar-track"><div class="bar-val" style="width:${Math.max(3,d.avgPct/maxAvgPct*100)}%"></div></div>
-      <div class="bar-lbl">${d.avgPct.toFixed(1)}%</div>
+      <div class="bar-track"><div class="bar-val" style="width:${Math.max(3,d.avgPct)}%"></div></div>
+      <div class="bar-lbl">${Math.round(d.avgPct)}%</div>
     </div>`).join('')}</div>`:'<p style="color:var(--soft);font-size:.875rem;">Not enough data yet.</p>'}
   </div>
 
@@ -5487,6 +5514,18 @@ function renderAnalysisMembers(_idMapM) {
   // and Bonus Book months (no vote round) and any month with no ballots at all
   // are left out, so skipping them never counts against anyone.
   const voteMonthCount = archives.filter(a => !a.memberPick && Object.keys(a.votes||{}).length > 0).length || 1;
+  // Fair to newer members: each person is measured only against the vote
+  // months since their first-ever vote (looked up across every archive, not
+  // just the selected year), so joining mid-year never counts against them.
+  const _allArcOrder = {}; getArchives().forEach((a, i) => { _allArcOrder[a.label] = i; });
+  const _firstVoteIdx = {};
+  getArchives().forEach((a, i) => { Object.values(a.votes||{}).forEach(vd => { const k = resolveId(vd.discord,vd.email,_idMapM)||'Unknown'; if (_firstVoteIdx[k] === undefined) _firstVoteIdx[k] = i; }); });
+  const _voteMonthIdx = archives.filter(a => !a.memberPick && Object.keys(a.votes||{}).length > 0).map(a => _allArcOrder[a.label]);
+  const consistentVoters = Object.entries(voterFreq).map(([k, c]) => {
+    const first = _firstVoteIdx[k] ?? 0;
+    const eligible = Math.max(c, _voteMonthIdx.filter(i => i >= first).length, 1);
+    return [k, c, eligible, c / eligible * 100];
+  }).sort((a,b) => b[3]-a[3] || b[1]-a[1] || a[0].localeCompare(b[0]));
 
   // ── Suggestion frequency ──
   const suggesterFreq = {};
@@ -5597,9 +5636,10 @@ function renderAnalysisMembers(_idMapM) {
     </div>`;
 
   // ── Helper to render a bar chart block ──
-  function chartBlock(title, subtitle, rows, labelFn, pctFn, valFn, barColor) {
+  function chartBlock(title, subtitle, rows, labelFn, pctFn, valFn, barColor, absolute) {
     if (!rows.length) return `<div class="chart-wrap"><h3>${title}</h3><p style="color:var(--soft);font-size:.875rem;">Not enough data yet.</p></div>`;
-    const maxPct = Math.max(...rows.map(r=>pctFn(r)), 1);
+    // absolute = values are already true percentages, so bars run on a 0–100 scale
+    const maxPct = absolute ? 100 : Math.max(...rows.map(r=>pctFn(r)), 1);
     return `<div class="chart-wrap">
       <h3>${title}</h3>
       ${subtitle ? `<p style="font-size:.78rem;color:var(--soft);margin-bottom:1rem;">${subtitle}</p>` : ''}
@@ -5612,8 +5652,8 @@ function renderAnalysisMembers(_idMapM) {
   }
 
   area.innerHTML =
-    chartBlock('Most Consistent Voters', `Out of the ${voteMonthCount} month${voteMonthCount!==1?'s':''} that held a vote. Months with no vote round don't count against anyone.`,
-      topVoters, ([k])=>k, ([,c])=>Math.min(100, c/voteMonthCount*100), ([k,c])=>`${c}/${voteMonthCount} · ${Math.round(Math.min(100, c/voteMonthCount*100))}%`, null) +
+    chartBlock('Most Consistent Voters', `Counted from each member's first vote, so newer members aren't behind for months before they joined. Months with no vote round don't count against anyone (${voteMonthCount} month${voteMonthCount!==1?'s':''} held a vote).`,
+      consistentVoters, ([k])=>k, ([,,,pct])=>pct, ([k,c,e,pct])=>`${c}/${e} · ${Math.round(pct)}%`, null, true) +
 
     chartBlock('Top Book Suggesters', null,
       topSuggesters, ([k])=>k, ([,c])=>c/maxSuggestions*100, ([k,c])=>`${c} book${c!==1?'s':''}`, null) +
@@ -6312,7 +6352,7 @@ async function cleanupRetiredBadges() {
 }
 
 function goAdminTab(id, btn) {
-  ['manage','live-results','members-overview','reading-progress-admin','reviews-admin','badges-admin','edit-books','quarterly-admin','surveys-admin','penny-admin','identities-admin'].forEach(s => {
+  ['manage','live-results','members-overview','reading-progress-admin','reviews-admin','badges-admin','edit-books','quarterly-admin','surveys-admin','penny-admin','identities-admin','genre-tags-admin'].forEach(s => {
     document.getElementById('admin-sub-'+s).style.display = s === id ? '' : 'none';
   });
   document.querySelectorAll('#admin-panel .sub-tab').forEach(b => b.classList.remove('active'));
@@ -6326,6 +6366,7 @@ function goAdminTab(id, btn) {
   else if (id === 'quarterly-admin')          renderQuarterlyAdmin();
   else if (id === 'surveys-admin')             renderAdminSurveys();
   else if (id === 'identities-admin')      renderIdentitiesAdmin();
+  else if (id === 'genre-tags-admin')      renderGenreTagsAdmin();
   // penny-admin has no auto-render — content loads on button click
   if (id === 'penny-admin') {
     renderHistoricalBookList();
@@ -11332,10 +11373,170 @@ async function saveArchiveBook(label, bookId, uid) {
 }
 window.saveArchiveBook = saveArchiveBook;
 
+// ══════════════════════════════════════════════════════
+// ADMIN: GENRE TAGS — see books by tag and edit genres in one place.
+// A book is grouped by title across every place it lives (archived ballots,
+// this month's suggestions, Penny's 2025 pool, books brought to Penny), and
+// saving writes the new genre to all of them.
+// ══════════════════════════════════════════════════════
+let _gtFilter = 'all';
+let _gtGroups = [];
+const _gtSplit = g => (g || '').split('/').map(x => x.trim()).filter(Boolean);
+
+function _gtCollect() {
+  const groups = {};
+  const add = (b, where) => {
+    if (!b || !b.title) return;
+    const key = normTitleKey(b.title);
+    if (!key) return;
+    if (!groups[key]) groups[key] = { key, title: b.title, author: b.author || '', places: [], genres: new Set() };
+    const grp = groups[key];
+    if (!grp.author && b.author) grp.author = b.author;
+    grp.places.push(where);
+    grp.genres.add(_gtSplit(b.genre).join(' / '));
+  };
+  getArchives().forEach(a => (a.books || []).forEach(b => add(b, { kind: 'archive', label: a.label, id: b.id })));
+  getBooks().forEach(b => add(b, { kind: 'current', id: b.id }));
+  (CACHE.pennyHistorical || []).forEach((b, i) => add(b, { kind: 'historical', index: i }));
+  (CACHE.pennyBrought || []).forEach(b => add(b, { kind: 'brought', id: b && b.id }));
+  return Object.values(groups).map(g => {
+    const variants = [...g.genres];
+    const tagged = variants.filter(Boolean);
+    // Most specific tagging wins as the starting point; an untagged copy doesn't override a tagged one
+    const current = tagged.sort((a, b) => _gtSplit(b).length - _gtSplit(a).length)[0] || '';
+    return { ...g, variants, current, mixed: new Set(variants).size > 1 };
+  }).sort((a, b) => a.title.localeCompare(b.title));
+}
+
+function _gtPlaceLabel(p) {
+  if (p.kind === 'archive')    return archiveMonthName(p.label) || p.label;
+  if (p.kind === 'current')    return 'This month';
+  if (p.kind === 'historical') return 'Penny · 2025';
+  return 'Penny · brought';
+}
+
+function _gtMatches(g, f) {
+  const gs = _gtSplit(g.current);
+  if (f === 'all') return true;
+  if (f === '__none') return !gs.length;
+  if (f === '__nfonly') return gs.length === 1 && gs[0] === 'Non-Fiction';
+  if (f === '__mixed') return g.mixed;
+  return gs.includes(f);
+}
+
+function renderGenreTagsAdmin() {
+  const listEl = document.getElementById('gt-list');
+  const filtEl = document.getElementById('gt-filters');
+  if (!listEl || !filtEl) return;
+  const all = _gtCollect();
+  const q = (document.getElementById('gt-search')?.value || '').trim().toLowerCase();
+  const counts = {};
+  all.forEach(g => _gtSplit(g.current).forEach(t => { counts[t] = (counts[t] || 0) + 1; }));
+  const special = [
+    ['all', 'All books', all.length],
+    ['__nfonly', 'Only "Non-Fiction"', all.filter(g => _gtMatches(g, '__nfonly')).length],
+    ['__none', 'No genre', all.filter(g => _gtMatches(g, '__none')).length],
+    ['__mixed', 'Tagged differently in places', all.filter(g => g.mixed).length],
+  ];
+  if (_gtFilter !== 'all' && !special.some(x => x[0] === _gtFilter) && !counts[_gtFilter]) _gtFilter = 'all';
+  const btn = (val, label, n, c) => `<button class="month-tab ${_gtFilter === val ? 'active' : ''}" onclick="setGenreTagFilter(${JSON.stringify(val).replace(/"/g, '&quot;')})" style="${c && _gtFilter !== val ? `background:${c.bg};color:${c.text};border-color:${c.border};` : ''}">${esc(label)} <span style="opacity:.7;">${n}</span></button>`;
+  filtEl.innerHTML = special.filter(([v,,n]) => v === 'all' || n > 0).map(([v, l, n]) => btn(v, l, n)).join('') +
+    `<span style="flex-basis:100%;height:0;"></span>` +
+    GENRE_NAMES.filter(g => counts[g]).map(g => btn(g, g, counts[g], GENRE_PILL_COLORS_MAP[g])).join('') +
+    Object.keys(counts).filter(g => !GENRE_NAMES.includes(g)).map(g => btn(g, g + ' (old tag)', counts[g])).join('');
+
+  _gtGroups = all.filter(g => _gtMatches(g, _gtFilter) && (!q || g.title.toLowerCase().includes(q) || g.author.toLowerCase().includes(q)));
+  if (!_gtGroups.length) { listEl.innerHTML = '<p style="font-size:.85rem;color:var(--soft);">No books match.</p>'; return; }
+  listEl.innerHTML = `<p style="font-size:.78rem;color:var(--soft);margin-bottom:.6rem;">${_gtGroups.length} book${_gtGroups.length !== 1 ? 's' : ''}</p>` +
+    _gtGroups.map((g, i) => {
+      const places = g.places.map(_gtPlaceLabel);
+      const placeTxt = places.length > 4 ? places.slice(0, 4).join(', ') + ` +${places.length - 4} more` : places.join(', ');
+      return `<div style="display:flex;align-items:center;gap:.75rem;padding:.65rem .75rem;background:var(--cream);border-radius:6px;margin-bottom:.4rem;flex-wrap:wrap;">
+        <div style="flex:1;min-width:180px;">
+          <div style="font-size:.88rem;font-weight:500;">${esc(g.title)}${g.author ? `<span style="font-weight:400;color:var(--soft);font-size:.8rem;"> by ${esc(g.author)}</span>` : ''}</div>
+          <div style="font-size:.72rem;color:var(--soft);margin-top:.15rem;">${esc(placeTxt)}</div>
+          ${g.current ? genrePillsHtml(g.current) : '<div style="font-size:.72rem;color:var(--soft);margin-top:.3rem;font-style:italic;">No genre yet</div>'}
+          ${g.mixed ? `<div style="font-size:.7rem;color:#b26a00;margin-top:.3rem;">Tagged differently in different places (${g.variants.map(v => v ? esc(v) : 'none').join(' · ')}). Saving makes them all match.</div>` : ''}
+        </div>
+        <div style="display:flex;gap:.35rem;align-items:center;flex-wrap:wrap;">
+          <select id="gt-g1-${i}" style="font-size:.8rem;max-width:160px;">${genreOptionsHtml('— none —')}</select>
+          <select id="gt-g2-${i}" style="font-size:.8rem;max-width:160px;">${genreOptionsHtml('— none —')}</select>
+          <button class="btn btn-primary btn-sm" onclick="saveGenreTags(${i})">Save</button>
+          <span id="gt-msg-${i}" style="font-size:.75rem;color:var(--soft);"></span>
+        </div>
+      </div>`;
+    }).join('');
+  _gtGroups.forEach((g, i) => {
+    const [a, b] = _gtSplit(g.current);
+    const s1 = document.getElementById('gt-g1-' + i), s2 = document.getElementById('gt-g2-' + i);
+    const setVal = (sel, v) => { if (!sel || !v) return; if (![...sel.options].some(o => o.value === v)) { const o = document.createElement('option'); o.value = v; o.textContent = v + ' (old tag)'; sel.appendChild(o); } sel.value = v; };
+    setVal(s1, a); setVal(s2, b);
+  });
+}
+window.renderGenreTagsAdmin = renderGenreTagsAdmin;
+
+function setGenreTagFilter(f) { _gtFilter = f; renderGenreTagsAdmin(); }
+window.setGenreTagFilter = setGenreTagFilter;
+
+async function saveGenreTags(i) {
+  const g = _gtGroups[i];
+  if (!g) return;
+  const g1 = (document.getElementById('gt-g1-' + i)?.value || '').trim();
+  const g2 = (document.getElementById('gt-g2-' + i)?.value || '').trim();
+  const genre = [g1, g2].filter((x, idx, arr) => x && arr.indexOf(x) === idx).join(' / ');
+  const apply = b => { if (genre) b.genre = genre; else delete b.genre; };
+  const kinds = new Set(g.places.map(p => p.kind));
+  showLoading('Saving…');
+  try {
+    if (kinds.has('archive')) {
+      const archives = JSON.parse(JSON.stringify(getArchives()));
+      archives.forEach(a => (a.books || []).forEach(b => { if (normTitleKey(b.title) === g.key) apply(b); }));
+      await fbSet(ARCHIVES_REF, { list: archives });
+      CACHE.archives = archives;
+    }
+    if (kinds.has('current')) {
+      const books = JSON.parse(JSON.stringify(getBooks()));
+      books.forEach(b => { if (normTitleKey(b.title) === g.key) apply(b); });
+      await fbSet(BOOKS_REF, { list: books });
+      CACHE.books = books;
+    }
+    if (kinds.has('historical')) {
+      const pool = JSON.parse(JSON.stringify(CACHE.pennyHistorical || []));
+      // The 2025 pool stores an empty string rather than leaving genre out
+      pool.forEach(b => { if (normTitleKey(b.title) === g.key) b.genre = genre; });
+      await fbSet(PENNY_REF, { historicalPool: pool });
+      CACHE.pennyHistorical = pool;
+    }
+    if (kinds.has('brought')) {
+      let saved = null;
+      await runTransaction(db, async tx => {
+        const snap = await tx.get(PENNY_REF);
+        const data = snap.exists() ? snap.data() : {};
+        const list = (Array.isArray(data.broughtBooks) ? data.broughtBooks : []).map(x => Object.assign({}, x));
+        list.forEach(b => { if (b && normTitleKey(b.title) === g.key) apply(b); });
+        tx.set(PENNY_REF, { broughtBooks: list }, { mergeFields: ['broughtBooks'] });
+        saved = list;
+      });
+      if (saved) CACHE.pennyBrought = saved;
+    }
+    hideLoading();
+    renderGenreTagsAdmin();
+  } catch (e) {
+    hideLoading();
+    const m = document.getElementById('gt-msg-' + i);
+    if (m) { m.textContent = 'Save failed: ' + (e && e.message ? e.message : 'unknown error'); m.style.color = '#c62828'; }
+  }
+}
+window.saveGenreTags = saveGenreTags;
+
+
 
 // ════════════════════════════════════════════════════════
 // GENRE DIVERSITY TRACKER
 // ════════════════════════════════════════════════════════
+let _genreMode = 'suggested';
+function setGenreMode(m) { _genreMode = m; renderGenreDiversity(); }
+window.setGenreMode = setGenreMode;
 function renderGenreDiversity() {
   const area = document.getElementById('analysis-genre-area');
   if (!area) return;
@@ -11346,10 +11547,23 @@ function renderGenreDiversity() {
     return;
   }
 
-  // Collect all books that have genre tags
-  const allBooks = archives.flatMap(a => (a.books||[]).map(b => ({...b, month: a.label})));
+  // Suggested = every book that was on a ballot; Read = only the book(s) the club picked.
+  const mode = _genreMode === 'read' ? 'read' : 'suggested';
+  const allBooks = mode === 'read'
+    ? getArchiveWinners(archives).flatMap(w => (w.winnerBooks||[]).map(b => ({...b, month: w.archive.label})))
+    : archives.flatMap(a => (a.books||[]).map(b => ({...b, month: a.label})));
   const taggedBooks = allBooks.filter(b => b.genre);
+  const modeToggle = `<div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-bottom:1.25rem;">
+    <span style="font-size:.78rem;color:var(--soft);">Show:</span>
+    <button class="month-tab ${mode==='suggested'?'active':''}" onclick="setGenreMode('suggested')">Suggested</button>
+    <button class="month-tab ${mode==='read'?'active':''}" onclick="setGenreMode('read')">Read</button>
+    <span style="font-size:.75rem;color:var(--soft);">${mode==='read' ? 'Only the books the club picked each month.' : 'Every book that was up for a vote.'}</span>
+  </div>`;
 
+  if (!taggedBooks.length && mode === 'read') {
+    area.innerHTML = modeToggle + `<div class="empty"><div class="icon">🎭</div><p>None of the books the club read in ${esc(metricsYearLabel())} have a genre yet.</p></div>`;
+    return;
+  }
   if (!taggedBooks.length) {
     area.innerHTML = `
       <div class="pending-box">
@@ -11392,7 +11606,7 @@ function renderGenreDiversity() {
   });
 
 
-  area.innerHTML = `
+  area.innerHTML = modeToggle + `
     <div class="chart-wrap">
       <h3>Overall Genre Breakdown</h3>
       <div class="bar-chart">
@@ -11410,26 +11624,35 @@ function renderGenreDiversity() {
     </div>
 
     <div class="chart-wrap">
-      <h3>Genre Diversity Score</h3>
-      <p style="font-size:.82rem;color:var(--soft);margin-bottom:1rem;">Measures how evenly spread the club's reading is across genres. A score of 100% means every genre has been read equally — the closer to 100%, the more variety the club has explored. A lower score means a few genres dominate.</p>
+      <h3>Genres Explored</h3>
       ${(() => {
-        const entropy = -sorted.reduce((sum,[,c]) => {
-          const p = c/total; return sum + (p > 0 ? p * Math.log2(p) : 0);
-        }, 0);
-        const maxEntropy = Math.log2(sorted.length);
-        const score = maxEntropy > 0 ? (entropy/maxEntropy*100).toFixed(0) : 0;
+        // Specific genres only: Non-Fiction and Other don't say what kind of book it is.
+        const universe = GENRE_NAMES.filter(g => g !== 'Non-Fiction' && g !== 'Other');
+        const tried = universe.filter(g => genreCounts[g]);
+        const untried = universe.filter(g => !genreCounts[g]);
+        // Newest = the genre whose first appearance came latest in the selected period
+        const firstSeen = {};
+        const order = {}; archives.forEach((a, i) => { order[a.label] = i; });
+        taggedBooks.forEach(b => b.genre.split('/').map(g => g.trim()).filter(g => universe.includes(g)).forEach(g => {
+          const i = order[b.month] ?? 0;
+          if (firstSeen[g] === undefined || i < firstSeen[g].i) firstSeen[g] = { i, month: b.month };
+        }));
+        const latestIdx = Math.max(-1, ...Object.values(firstSeen).map(f => f.i));
+        const newest = latestIdx > 0 ? Object.entries(firstSeen).filter(([,f]) => f.i === latestIdx).map(([g]) => g) : [];
+        const pill = (g, faded) => { const c = GENRE_PILL_COLORS_MAP[g] || { bg:'#f5f5f5', text:'#616161', border:'#e0e0e0' };
+          return `<span style="display:inline-block;font-size:.72rem;padding:.15rem .6rem;border-radius:20px;background:${c.bg};color:${c.text};border:1px solid ${c.border};font-weight:500;${faded?'opacity:.45;':''}">${esc(g)}</span>`; };
         return `<div style="display:flex;align-items:center;gap:1.25rem;flex-wrap:wrap;">
           <div style="text-align:center;background:var(--cream);border-radius:8px;padding:1rem 1.5rem;">
-            <div style="font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;color:var(--gold);">${score}%</div>
-            <div style="font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);">Diversity</div>
+            <div style="font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;color:var(--gold);line-height:1.1;">${tried.length}</div>
+            <div style="font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);">of ${universe.length} genres</div>
           </div>
-          <div style="flex:1;min-width:150px;">
-            <div style="height:12px;background:var(--border);border-radius:6px;overflow:hidden;margin-bottom:.5rem;">
-              <div style="height:100%;width:${score}%;background:var(--gold);border-radius:6px;transition:width .8s;"></div>
-            </div>
-            <p style="font-size:.78rem;color:var(--soft);">${score >= 80 ? '🌈 Excellent variety!' : score >= 55 ? '📖 Good mix of genres.' : '🔁 Consider branching out to new genres.'}</p>
+          <div style="flex:1;min-width:180px;font-size:.82rem;color:var(--soft);line-height:1.5;">
+            ${mode==='read' ? 'Genres the club has read' : 'Genres that have been up for a vote'} ${metricsYearLabel()==='All-Time' ? 'so far' : 'in ' + esc(metricsYearLabel())}.
+            ${newest.length ? `<div style="margin-top:.4rem;">Newest: ${newest.map(g => pill(g)).join(' ')} <span style="font-size:.75rem;">first seen ${esc(archiveMonthName(firstSeen[newest[0]].month) || firstSeen[newest[0]].month)}</span></div>` : ''}
           </div>
-        </div>`;
+        </div>
+        ${untried.length ? `<details style="margin-top:1rem;"><summary style="cursor:pointer;font-size:.8rem;color:var(--soft);">Not tried yet (${untried.length})</summary>
+          <div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.6rem;">${untried.map(g => pill(g, true)).join('')}</div></details>` : ''}`;
       })()}
     </div>
 
@@ -15278,8 +15501,8 @@ window.pbrClearInterest = async function(key) {
 // Every book in her catalog, shelved like a library: Fiction / Nonfiction,
 // then a shelf per genre, then by author's last name.
 // ══════════════════════════════════════════════════════
-const _PSHELF_FICTION = new Set(['Classic Literature','Contemporary Fiction','Cozy','Crime','Fantasy','Historical Fiction','Horror','Literary Fiction','Magical Realism','Mystery','Romance','Science Fiction','Supernatural','Suspense','Thriller','Western']);
-const _PSHELF_NONFICTION = new Set(['Biography','Essays','Journalism','Memoir','Non-Fiction','Psychology','Self-Help']);
+const _PSHELF_FICTION = new Set(['Classic Literature','Contemporary Fiction','Cozy','Crime','Fantasy','Historical Fiction','Horror','Literary Fiction','Magical Realism','Mystery','Romance','Science Fiction','Supernatural','Suspense','Thriller','Western','Dystopian','Gothic','Satire','Short Stories','Young Adult']);
+const _PSHELF_NONFICTION = new Set(['Arts & Music','Biography','Business','Essays','Food','History','Journalism','Memoir','Non-Fiction','Philosophy','Psychology','Science & Nature','Self-Help','Sports','Travel','True Crime']);
 const _PSHELF_SUFFIX = /\b(ph\.?d\.?|jr\.?|sr\.?|md|iii|ii)(?=\s|$)\.?/gi;
 
 // Section + shelf for a book. The first genre that clearly says fiction or nonfiction
